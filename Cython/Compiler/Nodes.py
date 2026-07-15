@@ -10,6 +10,7 @@ cython.declare(os=object, copy=object, chain=object, reduce=object,
                py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object,
                StructOrUnionScope=object, PyClassScope=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
+               RuntimeInPlaceOperation=object, RuntimeMethodSignature=object,
                error_type=object)
 
 from contextlib import contextmanager
@@ -33,6 +34,11 @@ from . import Future
 from . import Options
 from . import DebugFlags
 from .Pythran import has_np_pythran, pythran_type, is_pythran_buffer
+from .RuntimeAPI import (
+    RuntimeInPlaceOperation, RuntimeMethodSignature,
+    RuntimeNameLookup, RuntimeNameLookupKind,
+    RuntimeSequenceKind,
+)
 from ..Utils import add_metaclass, str_to_number
 
 
@@ -463,6 +469,12 @@ class StatNode(Node):
     def generate_function_definitions(self, env, code):
         pass
 
+    def generate_hpy_bootstrap_execution_code(self, code):
+        code.unsupported(
+            self,
+            "statement %s is not implemented" % self.__class__.__name__,
+        )
+
     def generate_execution_code(self, code):
         raise InternalError("generate_execution_code not implemented for %s" %
             self.__class__.__name__)
@@ -480,6 +492,11 @@ class CDefExternNode(StatNode):
         env.in_cinclude = 1
         self.body.analyse_declarations(env)
         env.in_cinclude = old_cinclude_flag
+
+        # Function declarations are removed from the executable statement
+        # list by later transforms.  The strict Universal HPy backend still
+        # needs their analysed entries to validate the external ABI boundary.
+        self.hpy_external_declarations = tuple(self.body.stats)
 
         if self.include_file or self.verbatim_include:
             # Determine whether include should be late
@@ -1865,11 +1882,12 @@ class CEnumDefNode(StatNode):
                 item.cname,
                 code.error_goto_if_null(temp, item.pos)))
             code.put_gotref(temp, PyrexTypes.py_object_type)
-            code.putln('if (PyDict_SetItemString(%s, %s, %s) < 0) %s' % (
+            set_item_code = code.globalstate.runtime_api.dict_set_item_string(
                 code.name_in_module_state(Naming.moddict_cname),
                 item.name.as_c_string_literal(),
-                temp,
-                code.error_goto(item.pos)))
+                temp)
+            code.putln('if (%s < 0) %s' % (
+                set_item_code, code.error_goto(item.pos)))
             code.put_decref_clear(temp, PyrexTypes.py_object_type)
         code.funcstate.release_temp(temp)
 
@@ -2474,13 +2492,15 @@ class FuncDefNode(StatNode, BlockNode):
                 # See if our return value is uninitialized on non-error return
                 # from . import MemoryView
                 # MemoryView.err_if_nogil_initialized_check(self.pos, env)
-                cond = code.unlikely(return_type.error_condition(Naming.retval_cname))
+                cond = code.unlikely(return_type.error_condition(
+                    Naming.retval_cname, code.globalstate.runtime_api))
                 code.putln(
                     'if (%s) {' % cond)
                 if not gil_owned['success']:
                     code.put_ensure_gil()
-                code.putln(
-                    'PyErr_SetString(PyExc_TypeError, "Memoryview return value is not initialized");')
+                code.putln(code.globalstate.runtime_api.error_set_string(
+                    'PyExc_TypeError',
+                    '"Memoryview return value is not initialized"') + ';')
                 if not gil_owned['success']:
                     code.put_release_ensured_gil()
                 code.putln(
@@ -2539,8 +2559,10 @@ class FuncDefNode(StatNode, BlockNode):
             # Returning -1 for __hash__ is supposed to signal an error
             # We do as Python instances and coerce -1 into -2.
             assure_gil('success')  # in special methods, the GIL is owned anyway
-            code.putln("if (unlikely(%s == -1) && !PyErr_Occurred()) %s = -2;" % (
-                Naming.retval_cname, Naming.retval_cname))
+            code.putln("if (unlikely(%s == -1) && !%s) %s = -2;" % (
+                Naming.retval_cname,
+                code.globalstate.runtime_api.error_occurred(),
+                Naming.retval_cname))
 
         if tracing:
             code.funcstate.can_trace = False
@@ -2614,8 +2636,11 @@ class FuncDefNode(StatNode, BlockNode):
             cname = arg.entry.cname
 
         code.putln('if (unlikely(((PyObject *)%s) == Py_None)) {' % cname)
-        code.putln('''PyErr_Format(PyExc_TypeError, "Argument '%%.%ds' must not be None", %s); %s''' % (
-            max(200, len(arg.name_cstring)), arg.name_cstring,
+        code.putln('%s; %s' % (
+            code.globalstate.runtime_api.error_format(
+                'PyExc_TypeError',
+                '"Argument \'%%.%ds\' must not be None"' % max(200, len(arg.name_cstring)),
+                [arg.name_cstring]),
             code.error_goto(arg.pos)))
         code.putln('}')
 
@@ -2654,8 +2679,9 @@ class FuncDefNode(StatNode, BlockNode):
         py_buffer, _ = self._get_py_buffer_info()
         view = py_buffer.cname
         code.putln("if (unlikely(%s == NULL)) {" % view)
-        code.putln("PyErr_SetString(PyExc_BufferError, "
-                   "\"PyObject_GetBuffer: view==NULL argument is obsolete\");")
+        code.putln(code.globalstate.runtime_api.error_set_string(
+            'PyExc_BufferError',
+            '"PyObject_GetBuffer: view==NULL argument is obsolete"') + ';')
         code.putln("return -1;")
         code.putln("}")
 
@@ -2677,7 +2703,7 @@ class FuncDefNode(StatNode, BlockNode):
             code.put_decref_clear("%s->obj" % view, obj_type)
             code.putln("}")
         else:
-            code.putln("Py_CLEAR(%s->obj);" % view)
+            code.put_runtime_ref_clear("%s->obj" % view)
 
     def getbuffer_normal_cleanup(self, code):
         py_buffer, obj_type = self._get_py_buffer_info()
@@ -3243,6 +3269,107 @@ class DefNode(FuncDefNode):
         self.num_kwonly_args = k
         self.num_required_kw_args = rk
         self.num_required_args = r
+
+    def generate_hpy_bootstrap_definition(
+            self, definition, code, receiver_argument=None,
+            emit_declaration=True):
+        signature = self.hpy_bootstrap_signature(
+            code, receiver_argument=receiver_argument)
+        if signature is not definition.signature:
+            raise AssertionError("bootstrap method signature changed during emission")
+        if self.decorators:
+            code.unsupported(self, "decorated def functions are not implemented")
+        if self.return_type_annotation is not None:
+            code.unsupported(self, "return annotations are not implemented")
+        if not code.is_c_identifier(self.name):
+            code.unsupported(self, "function name is not a C identifier")
+
+        body = code.stats(self.body)
+        if not body or not self._hpy_bootstrap_statement_terminates(body[-1]):
+            code.unsupported(
+                self.body,
+                "function body must end with a return statement",
+            )
+        for statement in body[:-1]:
+            if type(statement) is ReturnStatNode:
+                code.unsupported(
+                    statement, "early return statements are not implemented")
+
+        if emit_declaration:
+            code.putln(code.runtime_api.method_definition_declaration(definition))
+        code.putln(code.runtime_api.method_implementation_declaration(
+            definition,
+            context_cname=code.context_cname,
+            receiver_cname="self",
+            argument_cname="arg",
+        ))
+        code.putln("{")
+        code.indent()
+        arguments = self.args
+        if receiver_argument is None:
+            code.putln("(void)self;")
+        else:
+            code.bind_borrowed_argument(receiver_argument.entry.name, "self")
+            arguments = self.args[1:]
+            code.bind_extension_runtime_owners("self")
+        if signature is RuntimeMethodSignature.ONEARG:
+            code.bind_borrowed_argument(arguments[0].entry.name, "arg")
+        elif signature is RuntimeMethodSignature.VARARGS_KEYWORDS:
+            code.parse_keyword_arguments(self.name, arguments)
+        for statement in body:
+            statement.generate_hpy_bootstrap_execution_code(code)
+        code.assert_function_exit()
+        code.dedent()
+        code.putln("}")
+        code.putln("")
+
+    @staticmethod
+    def _hpy_bootstrap_statement_terminates(statement):
+        if type(statement) in (
+            ReturnStatNode, RaiseStatNode, TryExceptStatNode,
+        ):
+            return True
+        return (
+            type(statement) is IfStatNode
+            and statement.hpy_bootstrap_all_paths_return()
+        )
+
+    def hpy_bootstrap_signature(self, diagnostics, receiver_argument=None):
+        if self.star_arg is not None or self.starstar_arg is not None:
+            diagnostics.unsupported(
+                self, "star arguments are not implemented")
+        arguments = self.args
+        if receiver_argument is not None:
+            if (
+                not self.args
+                or self.args[0] is not receiver_argument
+                or receiver_argument.default is not None
+                or receiver_argument.annotation is not None
+                or not receiver_argument.type.is_pyobject
+            ):
+                diagnostics.unsupported(
+                    self,
+                    "pure HPy instance methods require one untyped, "
+                    "non-default receiver as their first argument",
+                )
+            arguments = self.args[1:]
+        if not arguments:
+            return RuntimeMethodSignature.NOARGS
+        for argument in arguments:
+            if argument.annotation is not None:
+                diagnostics.unsupported(
+                    argument, "argument annotations are not implemented")
+            if not argument.type.is_pyobject:
+                diagnostics.unsupported(
+                    argument, "typed C arguments are not implemented")
+
+        if (
+            len(arguments) == 1
+            and arguments[0].pos_only
+            and arguments[0].default is None
+        ):
+            return RuntimeMethodSignature.ONEARG
+        return RuntimeMethodSignature.VARARGS_KEYWORDS
 
     def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, except_val=None, has_explicit_exc_clause=False,
                      modifiers=None, nogil=False, with_gil=False):
@@ -4039,8 +4166,8 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln('#endif')
 
         if with_pymethdef or self.target.fused_py_func:
-            code.put(
-                "static PyMethodDef %s = " % entry.pymethdef_cname)
+            code.put(code.globalstate.runtime_api.method_definition_prefix(
+                entry.pymethdef_cname))
             code.put_pymethoddef(self.target.entry, ";", allow_skip=False)
         code.putln("%s {" % header)
 
@@ -4201,7 +4328,9 @@ class DefNodeWrapper(FuncDefNode):
                 code.put_var_gotref(self.starstar_arg.entry)
 
                 code.putln("} else {")
-                code.putln(f"{starstar_arg_cname} = PyDict_New();")
+                code.putln(
+                    f"{starstar_arg_cname} = "
+                    f"{code.globalstate.runtime_api.dict_new()};")
                 code.putln(f"if (unlikely(!{starstar_arg_cname})) {goto_error}")
                 code.put_var_gotref(self.starstar_arg.entry)
 
@@ -4225,15 +4354,21 @@ class DefNodeWrapper(FuncDefNode):
             assert not self.signature.use_fastcall
             star_arg_cname = self.star_arg.entry.cname
             # need to create a new tuple with 'self' inserted as first item
+            runtime_api = code.globalstate.runtime_api
+            builder = runtime_api.sequence_builder(RuntimeSequenceKind.TUPLE)
             code.putln(
-                f"{star_arg_cname} = PyTuple_New({Naming.nargs_cname} + 1); "
+                f"{star_arg_cname} = "
+                f"{runtime_api.sequence_builder_new(builder, Naming.nargs_cname + ' + 1')}; "
                 f"{code.error_goto_if_null(star_arg_cname, self.pos)}"
             )
             code.put_var_gotref(self.star_arg.entry)
             code.put_incref(Naming.self_cname, py_object_type)
             code.put_giveref(Naming.self_cname, py_object_type)
             code.putln(
-                code.error_goto_if_neg(f"__Pyx_PyTuple_SET_ITEM({star_arg_cname}, 0, {Naming.self_cname})", self.pos))
+                code.error_goto_if_neg(
+                    runtime_api.sequence_builder_set(
+                        builder, star_arg_cname, "0", Naming.self_cname),
+                    self.pos))
             temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
             code.putln(
                 f"for ({temp}=0; {temp} < {Naming.nargs_cname}; {temp}++) {{")
@@ -4245,7 +4380,10 @@ class DefNodeWrapper(FuncDefNode):
             code.put_incref("item", py_object_type)
             code.put_giveref("item", py_object_type)
             code.putln(
-                code.error_goto_if_neg(f"__Pyx_PyTuple_SET_ITEM({star_arg_cname}, {temp}+1, item)", self.pos))
+                code.error_goto_if_neg(
+                    runtime_api.sequence_builder_set(
+                        builder, star_arg_cname, f"{temp}+1", "item"),
+                    self.pos))
             code.putln("}")
             code.funcstate.release_temp(temp)
             self.star_arg.entry.xdecref_cleanup = 0
@@ -4522,8 +4660,9 @@ class DefNodeWrapper(FuncDefNode):
         # If the "**kwargs" parameter is unused, we keep it as NULL to avoid useless overhead.
         if self.starstar_arg and self.starstar_arg.entry.cf_used:
             self.starstar_arg.entry.xdecref_cleanup = 0
-            code.putln('%s = PyDict_New(); if (unlikely(!%s)) return %s;' % (
+            code.putln('%s = %s; if (unlikely(!%s)) return %s;' % (
                 self.starstar_arg.entry.cname,
+                code.globalstate.runtime_api.dict_new(),
                 self.starstar_arg.entry.cname,
                 self.error_value()))
             code.put_var_gotref(self.starstar_arg.entry)
@@ -4579,7 +4718,7 @@ class DefNodeWrapper(FuncDefNode):
 
         loop_var = Naming.quick_temp_cname
         code.putln(f"for (Py_ssize_t {loop_var}=0; {loop_var} < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++{loop_var}) {{")
-        code.putln(f"Py_XDECREF(values[{loop_var}]);")
+        code.put_runtime_ref_close(f"values[{loop_var}]", null_safe=True)
         code.putln("}")
 
     def generate_posargs_unpacking_code(self, min_positional_args, max_positional_args,
@@ -4755,11 +4894,13 @@ class DefNodeWrapper(FuncDefNode):
                 # compilers sets. This is probably not more than one argument.
                 code.putln(f"if (unlikely(unused_arg_{n:d} != Py_None)) {{")
                 code.putln(
-                    'PyErr_Format(PyExc_TypeError, "%.200s() takes %zd arguments but %zd were given",'
-                    f' (const char*) {self.target.entry.qualified_name.as_c_string_literal()},'
-                    f' (Py_ssize_t) {self.signature.max_num_fixed_args()},'
-                    f' (Py_ssize_t) {n:d}'
-                    f'); {code.error_goto(self.pos)}'
+                    code.globalstate.runtime_api.error_format(
+                        'PyExc_TypeError',
+                        '"%.200s() takes %zd arguments but %zd were given"',
+                        [f'(const char*) {self.target.entry.qualified_name.as_c_string_literal()}',
+                         f'(Py_ssize_t) {self.signature.max_num_fixed_args()}',
+                         f'(Py_ssize_t) {n:d}'])
+                    + f'; {code.error_goto(self.pos)}'
                 )
                 code.putln("}")
 
@@ -4940,7 +5081,10 @@ class GeneratorBodyDefNode(DefNode):
                 coro_type = "generator"
             code.putln(
                 f"if (unlikely({Naming.sent_value_cname})) "
-                f'''PyErr_SetString(PyExc_TypeError, "can't send non-None value to a just-started {coro_type}");'''
+                + code.globalstate.runtime_api.error_set_string(
+                    'PyExc_TypeError',
+                    f'"can\'t send non-None value to a just-started {coro_type}"')
+                + ';'
             )
             code.putln(code.error_goto(self.pos))
             code.putln("}")
@@ -4949,11 +5093,13 @@ class GeneratorBodyDefNode(DefNode):
         if self.is_inlined and self.inlined_comprehension_type is not None:
             target_type = self.inlined_comprehension_type
             if target_type.is_pylist_type:
-                comp_init = 'PyList_New(0)'
+                runtime_api = code.globalstate.runtime_api
+                builder = runtime_api.sequence_builder(RuntimeSequenceKind.LIST)
+                comp_init = runtime_api.sequence_builder_new(builder, "0")
             elif target_type.is_pyset_type:
                 comp_init = 'PySet_New(NULL)'
             elif target_type.is_pydict_type:
-                comp_init = 'PyDict_New()'
+                comp_init = code.globalstate.runtime_api.dict_new()
             else:
                 raise InternalError(
                     "invalid type of inlined comprehension: %s" % target_type)
@@ -4999,7 +5145,8 @@ class GeneratorBodyDefNode(DefNode):
 
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type)
-            code.putln("if (__Pyx_PyErr_Occurred()) {")  # we allow exit without GeneratorExit / StopIteration
+            error_occurred = code.globalstate.runtime_api.error_occurred(use_utility_code=True)
+            code.putln(f"if ({error_occurred}) {{")  # we allow exit without GeneratorExit / StopIteration
             if tracing:
                 code.put_trace_exception_propagating()
             if Future.generator_stop in env.context.future_directives:
@@ -5384,8 +5531,9 @@ class PyClassDefNode(ClassDefNode):
             # update __orig_bases__ if needed
             code.putln("if (%s != %s) {" % (self.bases.result(), self.orig_bases.result()))
             code.putln(
-                code.error_goto_if_neg('PyDict_SetItemString(%s, "__orig_bases__", %s)' % (
-                    self.dict.result(), self.orig_bases.result()),
+                code.error_goto_if_neg(
+                    code.globalstate.runtime_api.dict_set_item_string(
+                        self.dict.result(), '"__orig_bases__"', self.orig_bases.result()),
                     self.pos
             ))
             code.putln("}")
@@ -5743,14 +5891,18 @@ class CClassDefNode(ClassDefNode):
                 code.putln(code.error_goto_if_null(type_new, self.pos))
                 code.put_gotref(type_new, py_object_type)
                 type_tuple = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
-                code.putln(f"{type_tuple} = PyTuple_Pack(1, (PyObject*)&PyType_Type);")
+                code.putln(
+                    f"{type_tuple} = "
+                    f"{code.globalstate.runtime_api.sequence_pack(RuntimeSequenceKind.TUPLE, ['(PyObject*)&PyType_Type'])};")
                 code.putln(code.error_goto_if_null(type_tuple, self.pos))
                 code.put_gotref(type_tuple, py_object_type)
                 args_tuple = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
                 code.putln(f"{args_tuple} = PyNumber_Add({type_tuple}, {self.type_init_args.result()});")
                 code.putln(code.error_goto_if_null(args_tuple, self.pos))
                 code.put_gotref(args_tuple, py_object_type)
-                code.putln(f'{trial_type} = PyObject_Call({type_new}, {args_tuple}, NULL);')
+                trial_call = code.globalstate.runtime_api.call_tuple_dict(
+                    type_new, args_tuple, use_utility_code=False)
+                code.putln(f'{trial_type} = {trial_call};')
                 for temp in [type_new, type_tuple, args_tuple]:
                     code.put_decref_clear(temp, PyrexTypes.py_object_type)
                     code.funcstate.release_temp(temp)
@@ -5821,9 +5973,13 @@ class CClassDefNode(ClassDefNode):
             tuple_temp = None
             if not bases_tuple_cname and scope.parent_type.base_type:
                 tuple_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-                code.putln("%s = PyTuple_Pack(1, (PyObject *)%s); %s" % (
+                base_type_cname = code.typeptr_cname_in_module_state(
+                    scope.parent_type.base_type)
+                code.putln("%s = %s; %s" % (
                     tuple_temp,
-                    code.typeptr_cname_in_module_state(scope.parent_type.base_type),
+                    code.globalstate.runtime_api.sequence_pack(
+                        RuntimeSequenceKind.TUPLE,
+                        ["(PyObject *)%s" % base_type_cname]),
                     code.error_goto_if_null(tuple_temp, entry.pos),
                 ))
                 code.put_gotref(tuple_temp, py_object_type)
@@ -6000,11 +6156,14 @@ class CClassDefNode(ClassDefNode):
                 # scope.is_internal is set for types defined by
                 # Cython (such as closures), the 'internal'
                 # directive is set by users
-                code.put_error_if_neg(entry.pos, "PyObject_SetAttr(%s, %s, (PyObject *) %s)" % (
-                    Naming.module_cname,
-                    code.intern_identifier(scope.class_name),
-                    typeptr_cname,
-                ))
+                code.put_error_if_neg(
+                    entry.pos,
+                    code.globalstate.runtime_api.module_set_attr(
+                        Naming.module_cname,
+                        code.intern_identifier(scope.class_name),
+                        "(PyObject *) %s" % typeptr_cname,
+                    ),
+                )
 
             weakref_entry = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
             if weakref_entry:
@@ -6142,6 +6301,11 @@ class GlobalNode(StatNode):
     def generate_execution_code(self, code):
         pass
 
+    def generate_hpy_bootstrap_execution_code(self, code):
+        # Declaration analysis has already attached module-scope entries to
+        # every affected NameNode; no runtime operation is required.
+        pass
+
 
 class NonlocalNode(StatNode):
     # Nonlocal variable declaration via the 'nonlocal' keyword.
@@ -6205,6 +6369,9 @@ class ExprStatNode(StatNode):
             self.gil_error()
 
     gil_message = "Discarding owned Python object"
+
+    def generate_hpy_bootstrap_execution_code(self, code):
+        code.discard_owned_result(self.expr)
 
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
@@ -6282,6 +6449,50 @@ class SingleAssignmentNode(AssignmentNode):
     is_assignment_expression = False
     declaration_only = False
     from_pxd_cvardef = False
+
+    def generate_hpy_bootstrap_execution_code(self, code):
+        from . import ExprNodes
+        if self.declaration_only:
+            code.unsupported(
+                self, "declaration-only assignment is not implemented")
+        if self.is_assignment_expression:
+            # Walrus expressions are emitted through AssignmentExpressionNode.
+            code.unsupported(
+                self, "assignment expressions require expression evaluation")
+        is_extension_field = (
+            isinstance(self.lhs, ExprNodes.AttributeNode)
+            and code.is_extension_field(self.lhs)
+        )
+        if not self.lhs.type.is_pyobject and not is_extension_field:
+            code.unsupported(
+                self.lhs, "typed C local assignment is not implemented")
+        if isinstance(self.lhs, ExprNodes.NameNode):
+            if self.lhs.entry is not None and self.lhs.entry.is_pyglobal:
+                code.assign_function_global(self, self.lhs.name, self.rhs)
+            else:
+                code.assign_local(self, self.lhs.name, self.rhs)
+        elif isinstance(self.lhs, (ExprNodes.TupleNode, ExprNodes.ListNode)):
+            code.assign_unpacked_sequence(self.lhs, self.rhs)
+        elif isinstance(self.lhs, ExprNodes.AttributeNode):
+            if code.is_extension_field(self.lhs):
+                code.assign_extension_field(self.lhs, self.rhs)
+            else:
+                code.assign_attribute(
+                    self.lhs.obj,
+                    EncodedString(self.lhs.attribute).as_c_string_literal(),
+                    self.rhs,
+                )
+        elif isinstance(self.lhs, (ExprNodes.IndexNode, ExprNodes.SliceIndexNode)):
+            index = (
+                self.lhs.index
+                if isinstance(self.lhs, ExprNodes.IndexNode)
+                else self.lhs.hpy_bootstrap_slice_node()
+            )
+            code.assign_item(self.lhs.base, index, self.rhs)
+        else:
+            code.unsupported(
+                self.lhs, "assignment target %s is not implemented" %
+                self.lhs.__class__.__name__)
 
     def analyse_declarations(self, env):
         from . import ExprNodes
@@ -6622,6 +6833,20 @@ class CascadedAssignmentNode(AssignmentNode):
     coerced_values = None
     assignment_overloads = None
 
+    def generate_hpy_bootstrap_execution_code(self, code):
+        value_cname = code.materialize_owned_handle(
+            self.rhs.generate_hpy_bootstrap_owned_result(code))
+        code.put_error_return_if_null(value_cname)
+        for index, lhs in enumerate(self.lhs_list):
+            if index + 1 == len(self.lhs_list):
+                code.assign_target_from_owned_cname(lhs, value_cname)
+                return
+            duplicate_cname = code.allocate_owned_handle(
+                code.runtime_api.duplicate_reference(
+                    value_cname, context_cname=code.context_cname))
+            code.put_error_return_if_null(duplicate_cname)
+            code.assign_target_from_owned_cname(lhs, duplicate_cname)
+
     def _check_const_assignment(self, node):
         if isinstance(node, CascadedAssignmentNode):
             for lhs in node.lhs_list:
@@ -6726,6 +6951,22 @@ class ParallelAssignmentNode(AssignmentNode):
 
     child_attrs = ["stats"]
 
+    def generate_hpy_bootstrap_execution_code(self, code):
+        rhs_cnames = []
+        for stat in self.stats:
+            if type(stat) is not SingleAssignmentNode:
+                code.unsupported(
+                    stat,
+                    "parallel assignment element %s is not implemented" %
+                    stat.__class__.__name__,
+                )
+            value_cname = code.materialize_owned_handle(
+                stat.rhs.generate_hpy_bootstrap_owned_result(code))
+            code.put_error_return_if_null(value_cname)
+            rhs_cnames.append(value_cname)
+        for stat, value_cname in zip(self.stats, rhs_cnames):
+            code.assign_target_from_owned_cname(stat.lhs, value_cname)
+
     def analyse_declarations(self, env):
         for stat in self.stats:
             stat.analyse_declarations(env)
@@ -6779,6 +7020,64 @@ class InPlaceAssignmentNode(AssignmentNode):
     #  (it must be a NameNode, AttributeNode, or IndexNode).
 
     child_attrs = ["lhs", "rhs"]
+
+    def generate_hpy_bootstrap_execution_code(self, code):
+        from . import ExprNodes
+        is_extension_field = (
+            isinstance(self.lhs, ExprNodes.AttributeNode)
+            and code.is_extension_field(self.lhs)
+        )
+        if not self.lhs.type.is_pyobject and not is_extension_field:
+            code.unsupported(self.lhs, "typed C in-place assignment is not implemented")
+        operations = {
+            "+": RuntimeInPlaceOperation.ADD,
+            "-": RuntimeInPlaceOperation.SUBTRACT,
+            "*": RuntimeInPlaceOperation.MULTIPLY,
+            "@": RuntimeInPlaceOperation.MATRIX_MULTIPLY,
+            "/": RuntimeInPlaceOperation.TRUE_DIVIDE,
+            "//": RuntimeInPlaceOperation.FLOOR_DIVIDE,
+            "%": RuntimeInPlaceOperation.REMAINDER,
+            "**": RuntimeInPlaceOperation.POWER,
+            "<<": RuntimeInPlaceOperation.LEFT_SHIFT,
+            ">>": RuntimeInPlaceOperation.RIGHT_SHIFT,
+            "&": RuntimeInPlaceOperation.BITWISE_AND,
+            "^": RuntimeInPlaceOperation.BITWISE_XOR,
+            "|": RuntimeInPlaceOperation.BITWISE_OR,
+        }
+        try:
+            operation = operations[self.operator]
+        except KeyError:
+            code.unsupported(
+                self, "in-place operator %s is not implemented" % self.operator)
+        if isinstance(self.lhs, ExprNodes.NameNode):
+            if self.lhs.entry is not None and self.lhs.entry.is_pyglobal:
+                code.inplace_function_global(
+                    self, self.lhs.name, operation, self.rhs)
+            else:
+                code.inplace_local(self, self.lhs.name, operation, self.rhs)
+        elif isinstance(self.lhs, ExprNodes.AttributeNode):
+            if code.is_extension_field(self.lhs):
+                code.inplace_extension_field(
+                    self.lhs, operation, self.rhs)
+            else:
+                code.inplace_attribute(
+                    self.lhs.obj,
+                    EncodedString(self.lhs.attribute).as_c_string_literal(),
+                    operation,
+                    self.rhs,
+                )
+        elif isinstance(self.lhs, (ExprNodes.IndexNode, ExprNodes.SliceIndexNode)):
+            index = (
+                self.lhs.index
+                if isinstance(self.lhs, ExprNodes.IndexNode)
+                else self.lhs.hpy_bootstrap_slice_node()
+            )
+            code.inplace_item(
+                self.lhs.base, index, operation, self.rhs)
+        else:
+            code.unsupported(
+                self.lhs, "in-place target %s is not implemented" %
+                self.lhs.__class__.__name__)
 
     def analyse_declarations(self, env):
         self.lhs.analyse_target_declaration(env)
@@ -6964,6 +7263,31 @@ class DelStatNode(StatNode):
 
     gil_message = "Deleting Python object"
 
+    def generate_hpy_bootstrap_execution_code(self, code):
+        from . import ExprNodes
+        for arg in self.args:
+            if isinstance(arg, ExprNodes.NameNode):
+                if arg.entry is not None and arg.entry.is_pyglobal:
+                    code.delete_function_global(arg, arg.name)
+                else:
+                    code.delete_local(arg, arg.name)
+            elif isinstance(arg, ExprNodes.AttributeNode):
+                code.delete_attribute(
+                    arg.obj,
+                    EncodedString(arg.attribute).as_c_string_literal(),
+                )
+            elif isinstance(arg, (ExprNodes.IndexNode, ExprNodes.SliceIndexNode)):
+                index = (
+                    arg.index
+                    if isinstance(arg, ExprNodes.IndexNode)
+                    else arg.hpy_bootstrap_slice_node()
+                )
+                code.delete_item(arg.base, index)
+            else:
+                code.unsupported(
+                    arg, "deletion target %s is not implemented" %
+                    arg.__class__.__name__)
+
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
         for arg in self.args:
@@ -6991,6 +7315,9 @@ class PassStatNode(StatNode):
 
     def analyse_expressions(self, env):
         return self
+
+    def generate_hpy_bootstrap_execution_code(self, code):
+        pass
 
     def generate_execution_code(self, code):
         if code.globalstate.directives['linetrace']:
@@ -7022,6 +7349,9 @@ class BreakStatNode(StatNode):
         else:
             code.put_goto(code.break_label)
 
+    def generate_hpy_bootstrap_execution_code(self, code):
+        code.generate_loop_break(self)
+
 
 class ContinueStatNode(StatNode):
 
@@ -7037,6 +7367,9 @@ class ContinueStatNode(StatNode):
             return
         code.mark_pos(self.pos)
         code.put_goto(code.continue_label)
+
+    def generate_hpy_bootstrap_execution_code(self, code):
+        code.generate_loop_continue(self)
 
 
 class ReturnStatNode(StatNode):
@@ -7084,6 +7417,25 @@ class ReturnStatNode(StatNode):
             self.gil_error()
 
     gil_message = "Returning Python object"
+
+    def generate_hpy_bootstrap_execution_code(self, code):
+        if self.value is None:
+            from . import ExprNodes
+            value = ExprNodes.NoneNode(self.pos)
+        else:
+            from . import ExprNodes
+            value = self.value
+            # Native slots (__len__/__bool__/__hash__/__contains__) inject
+            # CoerceFromPyTypeNode; HPy keeps the owned Python object and
+            # converts in return_owned_result. Do not unwrap CoerceToPyTypeNode
+            # (external C scalars and other To-Py wrappers must emit themselves).
+            while isinstance(
+                value,
+                (ExprNodes.CoerceFromPyTypeNode, ExprNodes.CoerceToTempNode),
+            ):
+                value = value.arg
+        result = value.generate_hpy_bootstrap_owned_result(code)
+        code.return_owned_result(result)
 
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
@@ -7240,10 +7592,62 @@ class RaiseStatNode(StatNode):
     nogil_check = Node.gil_error
     gil_message = "Raising exception"
 
+    def generate_hpy_bootstrap_execution_code(self, code):
+        from . import ExprNodes
+        if self.exc_type is None and self.builtin_exc_name == "MemoryError":
+            code.raise_no_memory()
+            return
+        if self.exc_value is not None or self.exc_tb is not None or self.cause is not None:
+            code.unsupported(
+                self, "raise values, tracebacks, and causes are not implemented")
+        exc = self.exc_type
+        if isinstance(exc, ExprNodes.NameNode):
+            function = exc
+            arguments = []
+        elif isinstance(
+            exc, (ExprNodes.SimpleCallNode, ExprNodes.PyMethodCallNode),
+        ):
+            arguments = getattr(exc, "args", None)
+            if arguments is None:
+                arguments = (
+                    exc.arg_tuple.args if exc.arg_tuple is not None else [])
+            function = exc.function
+        else:
+            code.raise_dynamic_exception(exc)
+            return
+        if not (
+            isinstance(function, ExprNodes.NameNode)
+            and function.entry is not None
+            and function.entry.is_builtin
+        ):
+            code.raise_dynamic_exception(exc)
+            return
+        try:
+            if len(arguments) == 1 and isinstance(
+                arguments[0], ExprNodes.UnicodeNode,
+            ):
+                message = arguments[0]
+                from . import StringEncoding
+                if (
+                    "\0" not in message.value
+                    and not StringEncoding.string_contains_lone_surrogates(
+                        message.value)
+                ):
+                    code.raise_builtin_string(
+                        function.name, message.value.as_c_string_literal())
+                    return
+            code.raise_builtin_arguments(function.name, arguments)
+        except ValueError:
+            code.unsupported(
+                function, "builtin exception %s is unavailable in HPy 0.9" %
+                function.name)
+
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
         if self.builtin_exc_name == 'MemoryError':
-            code.putln('PyErr_NoMemory(); %s' % code.error_goto(self.pos))
+            code.putln('%s; %s' % (
+                code.globalstate.runtime_api.error_no_memory(),
+                code.error_goto(self.pos)))
             return
         elif self.builtin_exc_name == 'StopIteration' and not self.exc_type:
             code.putln('%s = 1;' % Naming.error_without_exception_cname)
@@ -7274,12 +7678,8 @@ class RaiseStatNode(StatNode):
         else:
             cause_code = "0"
         code.globalstate.use_utility_code(raise_utility_code)
-        code.putln(
-            "__Pyx_Raise(%s, %s, %s, %s);" % (
-                type_code,
-                value_code,
-                tb_code,
-                cause_code))
+        code.putln(code.globalstate.runtime_api.raise_exception(
+            type_code, value_code, tb_code, cause_code) + ";")
 
         for obj in (self.exc_type, self.exc_value, self.exc_tb, self.cause):
             if obj:
@@ -7334,7 +7734,7 @@ class ReraiseStatNode(StatNode):
         else:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("ReRaiseException", "Exceptions.c"))
-            code.putln("__Pyx_ReraiseException();")
+            code.putln(code.globalstate.runtime_api.reraise_exception() + ";")
         if code.is_tracing():
             code.put_trace_exception(self.pos, reraise=True)
         code.putln(code.error_goto(self.pos))
@@ -7359,6 +7759,9 @@ class AssertStatNode(StatNode):
         self.condition = self.condition.analyse_temp_boolean_expression(env)
         self.exception = self.exception.analyse_expressions(env)
         return self
+
+    def generate_hpy_bootstrap_execution_code(self, code):
+        code.generate_assert_statement(self.condition, self.exception)
 
     def generate_execution_code(self, code):
         code.globalstate.use_utility_code(
@@ -7403,6 +7806,204 @@ class IfStatNode(StatNode):
     #  else_clause  StatNode or None
 
     child_attrs = ["if_clauses", "else_clause"]
+
+    @staticmethod
+    def _hpy_returning_body(code, body):
+        statements = code.stats(body)
+        if not statements or type(statements[-1]) is not ReturnStatNode:
+            code.unsupported(
+                body, "conditional branch must end with a return statement")
+        for statement in statements[:-1]:
+            if type(statement) is ReturnStatNode:
+                code.unsupported(
+                    statement, "nested early return statements are not implemented")
+        return statements
+
+    def hpy_bootstrap_all_paths_return(self):
+        if self.else_clause is None:
+            return False
+        branches = [clause.body for clause in self.if_clauses]
+        branches.append(self.else_clause)
+        for branch in branches:
+            statements = (
+                branch.stats if type(branch) is StatListNode else [branch])
+            if not statements or type(statements[-1]) is not ReturnStatNode:
+                return False
+        return True
+
+    @staticmethod
+    def _hpy_body_statements(code, body):
+        return code.stats(body)
+
+    @classmethod
+    def _hpy_walrus_local_names(cls, node):
+        """Collect simple NameNode targets of nested assignment expressions."""
+        from . import ExprNodes
+        names = set()
+        if node is None:
+            return names
+        if isinstance(node, ExprNodes.AssignmentExpressionNode):
+            lhs = node.assignment.lhs
+            if isinstance(lhs, ExprNodes.NameNode):
+                names.add(lhs.name)
+        for attr in getattr(node, "child_attrs", None) or ():
+            child = getattr(node, attr, None)
+            if child is None:
+                continue
+            if isinstance(child, (list, tuple)):
+                for item in child:
+                    names.update(cls._hpy_walrus_local_names(item))
+            else:
+                names.update(cls._hpy_walrus_local_names(child))
+        return names
+
+    @classmethod
+    def _hpy_unpack_target_names(cls, target):
+        """Collect simple NameNode targets from unpacking assignment shapes."""
+        from . import ExprNodes
+        names = set()
+        if target is None:
+            return names
+        if isinstance(target, ExprNodes.StarredUnpackingNode):
+            return cls._hpy_unpack_target_names(target.target)
+        if isinstance(target, ExprNodes.NameNode):
+            names.add(target.name)
+            return names
+        if isinstance(target, (ExprNodes.TupleNode, ExprNodes.ListNode)):
+            for arg in target.args:
+                names.update(cls._hpy_unpack_target_names(arg))
+        return names
+
+    @classmethod
+    def _hpy_assigned_local_names(cls, code, body):
+        from . import ExprNodes
+        names = set()
+        for statement in cls._hpy_body_statements(code, body):
+            if type(statement) is SingleAssignmentNode:
+                names.update(cls._hpy_unpack_target_names(statement.lhs))
+                names.update(cls._hpy_walrus_local_names(statement.rhs))
+            elif type(statement) is CascadedAssignmentNode:
+                for lhs in statement.lhs_list:
+                    names.update(cls._hpy_unpack_target_names(lhs))
+                names.update(cls._hpy_walrus_local_names(statement.rhs))
+            elif type(statement) is ParallelAssignmentNode:
+                for stat in statement.stats:
+                    if type(stat) is SingleAssignmentNode:
+                        names.update(cls._hpy_unpack_target_names(stat.lhs))
+                        names.update(cls._hpy_walrus_local_names(stat.rhs))
+            elif type(statement) is IfStatNode:
+                for clause in statement.if_clauses:
+                    names.update(cls._hpy_walrus_local_names(clause.condition))
+                    names.update(cls._hpy_assigned_local_names(
+                        code, clause.body))
+                if statement.else_clause is not None:
+                    names.update(cls._hpy_assigned_local_names(
+                        code, statement.else_clause))
+            else:
+                names.update(cls._hpy_walrus_local_names(statement))
+        return names
+
+    @classmethod
+    def _hpy_deleted_local_names(cls, code, body):
+        """Local/argument names unbound by ``del`` in a statement body.
+
+        Conditional and loop lifetime merges restore pre-branch bookkeeping, so
+        deleted names must be promoted to stable slots before the construct —
+        the same rule as reassignment of live locals.
+        """
+        from . import ExprNodes
+        names = set()
+        for statement in cls._hpy_body_statements(code, body):
+            if type(statement) is DelStatNode:
+                for arg in statement.args:
+                    if not isinstance(arg, ExprNodes.NameNode):
+                        continue
+                    entry = arg.entry
+                    if entry is not None and entry.is_pyglobal:
+                        continue
+                    names.add(arg.name)
+            elif type(statement) is IfStatNode:
+                for clause in statement.if_clauses:
+                    names.update(cls._hpy_deleted_local_names(
+                        code, clause.body))
+                if statement.else_clause is not None:
+                    names.update(cls._hpy_deleted_local_names(
+                        code, statement.else_clause))
+            elif type(statement) is WhileStatNode:
+                names.update(cls._hpy_deleted_local_names(
+                    code, statement.body))
+                if statement.else_clause is not None:
+                    names.update(cls._hpy_deleted_local_names(
+                        code, statement.else_clause))
+            elif isinstance(statement, (_ForInStatNode, ForFromStatNode)):
+                names.update(cls._hpy_deleted_local_names(
+                    code, statement.body))
+                if statement.else_clause is not None:
+                    names.update(cls._hpy_deleted_local_names(
+                        code, statement.else_clause))
+        return names
+
+    @classmethod
+    def _hpy_promoted_local_names(cls, code, body):
+        return (
+            cls._hpy_assigned_local_names(code, body)
+            | cls._hpy_deleted_local_names(code, body)
+        )
+
+    @classmethod
+    def _hpy_general_body(cls, code, body):
+        # Mixed terminating/continuing branches are allowed. Returning and
+        # raising paths close every live owned handle before function exit;
+        # continuing arms keep promoted stable locals and merge via the
+        # conditional lifetime snapshot.
+        return cls._hpy_body_statements(code, body)
+
+    def generate_hpy_bootstrap_execution_code(self, code):
+        returning_clauses = all(
+            self._hpy_body_statements(code, clause.body)
+            and type(self._hpy_body_statements(code, clause.body)[-1])
+            is ReturnStatNode
+            for clause in self.if_clauses
+        )
+        if returning_clauses:
+            clauses = [
+                (clause.condition, self._hpy_returning_body(code, clause.body))
+                for clause in self.if_clauses
+            ]
+            else_body = (
+                self._hpy_returning_body(code, self.else_clause)
+                if self.else_clause is not None else None
+            )
+            code.generate_returning_if(clauses, else_body)
+            return
+        clauses = [
+            (clause.condition, self._hpy_general_body(code, clause.body))
+            for clause in self.if_clauses
+        ]
+        else_body = (
+            self._hpy_general_body(code, self.else_clause)
+            if self.else_clause is not None else None
+        )
+        branch_assignments = [
+            self._hpy_promoted_local_names(code, clause.body)
+            for clause in self.if_clauses
+        ]
+        if self.else_clause is not None:
+            branch_assignments.append(
+                self._hpy_promoted_local_names(code, self.else_clause))
+        else:
+            branch_assignments.append(set())
+        # Walrus in a clause condition runs for that clause and every later
+        # clause/else (previous conditions were false).
+        for index, clause in enumerate(self.if_clauses):
+            condition_names = self._hpy_walrus_local_names(clause.condition)
+            if not condition_names:
+                continue
+            for later in range(index, len(branch_assignments)):
+                branch_assignments[later].update(condition_names)
+        code.prepare_conditional_locals(
+            self, branch_assignments, self.else_clause is not None)
+        code.generate_conditional(clauses, else_body)
 
     def analyse_declarations(self, env):
         for if_clause in self.if_clauses:
@@ -7580,6 +8181,34 @@ class WhileStatNode(LoopNode, StatNode):
     #  else_clause  StatNode
 
     child_attrs = ["condition", "body", "else_clause"]
+
+    @staticmethod
+    def _hpy_loop_body(code, body):
+        # Return/raise terminate the function with full owned-handle cleanup.
+        # Break/continue close only body-iteration temps against the loop entry
+        # lifetime snapshot before transferring control.
+        return code.stats(body)
+
+    def generate_hpy_bootstrap_execution_code(self, code):
+        body = self._hpy_loop_body(code, self.body)
+        else_body = (
+            self._hpy_loop_body(code, self.else_clause)
+            if self.else_clause is not None else None
+        )
+        assigned = IfStatNode._hpy_promoted_local_names(code, self.body)
+        if self.else_clause is not None:
+            assigned.update(IfStatNode._hpy_promoted_local_names(
+                code, self.else_clause))
+        for source_name in sorted(assigned):
+            if not code.has_initialized_named_value(source_name):
+                code.unsupported(
+                    self,
+                    "loop local %s must be initialized before the loop" %
+                    source_name,
+                )
+            code.promote_local_slot(self, source_name)
+        code.generate_while_loop(
+            self.condition, body, else_body)
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
@@ -7898,6 +8527,62 @@ class ForInStatNode(_ForInStatNode):
 
     is_async = False
 
+    def generate_hpy_bootstrap_execution_code(self, code):
+        from . import ExprNodes
+        sequence = self.iterator.sequence
+        # Index-protocol loops (HPy_Length + HPy_GetItem_i) — not GetIter.
+        # Generators and pure iterators remain rejected when their ExprNodes
+        # lack an owned bootstrap result; sequence-like objects work for any
+        # expression whose value supports length/item indexing at runtime.
+        if isinstance(sequence, ExprNodes.GeneratorExpressionNode):
+            code.unsupported(
+                sequence,
+                "HPy 0.9 lacks a public generic iterator API; generator "
+                "expressions cannot drive for-loops",
+            )
+        unpack_target = None
+        target_names = set()
+        if isinstance(self.target, ExprNodes.NameNode):
+            target_names.add(self.target.name)
+        elif isinstance(self.target, (ExprNodes.TupleNode, ExprNodes.ListNode)):
+            unpack_target = self.target
+            target_names = IfStatNode._hpy_unpack_target_names(self.target)
+            if not target_names:
+                code.unsupported(
+                    self.target,
+                    "for-loop unpacking targets require at least one name",
+                )
+        else:
+            code.unsupported(
+                self.target, "for-loop unpacking targets are not implemented")
+        body = WhileStatNode._hpy_loop_body(code, self.body)
+        else_body = (
+            WhileStatNode._hpy_loop_body(code, self.else_clause)
+            if self.else_clause is not None else None
+        )
+        assigned = IfStatNode._hpy_promoted_local_names(code, self.body)
+        if self.else_clause is not None:
+            assigned.update(IfStatNode._hpy_promoted_local_names(
+                code, self.else_clause))
+        assigned.difference_update(target_names)
+        for source_name in sorted(assigned):
+            if not code.has_initialized_named_value(source_name):
+                code.unsupported(
+                    self,
+                    "loop local %s must be initialized before the loop" %
+                    source_name,
+                )
+            code.promote_local_slot(self, source_name)
+        for source_name in sorted(target_names):
+            code.promote_local_slot(self, source_name)
+        code.generate_sequence_for_loop(
+            sequence,
+            self.target.name if unpack_target is None else None,
+            body,
+            else_body,
+            unpack_target=unpack_target,
+        )
+
     def _create_item_node(self):
         from .ExprNodes import NextNode
         self.item = NextNode(self.iterator)
@@ -8084,15 +8769,16 @@ class ForFromStatNode(LoopNode, StatNode):
                 if self.target.entry.scope.is_module_scope:
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
-                    lookup_func = '__Pyx_GetModuleGlobalName(%s, %s); %s'
+                    lookup = RuntimeNameLookup(RuntimeNameLookupKind.MODULE_GLOBAL)
+                    namespace_cname = ""
                 else:
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("GetNameInClass", "ObjectHandling.c"))
-                    lookup_func = '__Pyx_GetNameInClass(%s, {}, %s); %s'.format(
-                        self.target.entry.scope.namespace_cname)
-                code.putln(lookup_func % (
-                    target_node.result(),
-                    interned_cname,
+                    lookup = RuntimeNameLookup(RuntimeNameLookupKind.CLASS_NAMESPACE)
+                    namespace_cname = self.target.entry.scope.namespace_cname
+                code.putln('%s; %s' % (
+                    code.globalstate.runtime_api.name_lookup(
+                        lookup, target_node.result(), interned_cname, namespace_cname),
                     code.error_goto_if_null(target_node.result(), self.target.pos)))
                 target_node.generate_gotref(code)
             else:
@@ -8161,6 +8847,48 @@ class ForFromStatNode(LoopNode, StatNode):
         self.body.annotate(code)
         if self.else_clause:
             self.else_clause.annotate(code)
+
+    def generate_hpy_bootstrap_execution_code(self, code):
+        from . import ExprNodes
+        if not self.is_py_target:
+            code.unsupported(
+                self.target,
+                "typed C for-from / range targets are not implemented; "
+                "use an untyped Python local loop variable",
+            )
+        if not isinstance(self.target, ExprNodes.NameNode):
+            code.unsupported(
+                self.target,
+                "for-from / range unpacking targets are not implemented",
+            )
+        if self.relation1 not in self.relation_table:
+            code.unsupported(
+                self,
+                "for-from relation %r is not implemented" % self.relation1,
+            )
+        body = WhileStatNode._hpy_loop_body(code, self.body)
+        else_body = (
+            WhileStatNode._hpy_loop_body(code, self.else_clause)
+            if self.else_clause is not None else None
+        )
+        assigned = IfStatNode._hpy_promoted_local_names(code, self.body)
+        if self.else_clause is not None:
+            assigned.update(IfStatNode._hpy_promoted_local_names(
+                code, self.else_clause))
+        assigned.discard(self.target.name)
+        for source_name in sorted(assigned):
+            if not code.has_initialized_named_value(source_name):
+                code.unsupported(
+                    self,
+                    "loop local %s must be initialized before the loop" %
+                    source_name,
+                )
+            code.promote_local_slot(self, source_name)
+        code.promote_local_slot(self, self.target.name)
+        code.generate_for_from_loop(
+            self.bound1, self.relation1, self.relation2, self.bound2,
+            self.step, self.target.name, body, else_body,
+        )
 
 
 class WithStatNode(StatNode):
@@ -8335,6 +9063,9 @@ class TryExceptStatNode(StatNode):
     nogil_check = Node.gil_error
     gil_message = "Try-except statement"
 
+    def generate_hpy_bootstrap_execution_code(self, code):
+        code.generate_terminal_try_except(self)
+
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)  # before changing the error label, in case of tracing errors
         code.putln("{")
@@ -8373,16 +9104,16 @@ class TryExceptStatNode(StatNode):
             if not self.in_generator:
                 save_exc.putln("__Pyx_PyThreadState_declare")
                 save_exc.putln("__Pyx_PyThreadState_assign")
-            save_exc.putln("__Pyx_ExceptionSave(%s);" % (
-                ', '.join(['&%s' % var for var in exc_save_vars])))
+            save_exc.putln(code.globalstate.runtime_api.save_exception(
+                ['&%s' % var for var in exc_save_vars]) + ";")
             for var in exc_save_vars:
                 save_exc.put_xgotref(var, py_object_type)
 
             def restore_saved_exception():
                 for name in exc_save_vars:
                     code.put_xgiveref(name, py_object_type)
-                code.putln("__Pyx_ExceptionReset(%s);" %
-                           ', '.join(exc_save_vars))
+                code.putln(code.globalstate.runtime_api.reset_exception(
+                    exc_save_vars) + ";")
         else:
             # try block cannot raise exceptions, but we had to allocate the temps above,
             # so just keep the C compiler from complaining about them being unused
@@ -8564,25 +9295,26 @@ class ExceptClauseNode(Node):
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
                 if len(patterns) == 2:
-                    exc_tests.append("__Pyx_PyErr_GivenExceptionMatches2(%s, %s, %s)" % (
-                        exc_type, patterns[0], patterns[1],
-                    ))
+                    exc_tests.append(code.globalstate.runtime_api.exception_matches(
+                        patterns[0], exc_type, patterns[1], use_utility_code=True))
                 else:
                     exc_tests.extend(
-                        "__Pyx_PyErr_GivenExceptionMatches(%s, %s)" % (exc_type, pattern)
+                        code.globalstate.runtime_api.exception_matches(
+                            pattern, exc_type, use_utility_code=True)
                         for pattern in patterns
                     )
             elif len(patterns) == 2:
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
-                exc_tests.append("__Pyx_PyErr_ExceptionMatches2(%s, %s)" % (
-                    patterns[0], patterns[1],
-                ))
+                exc_tests.append(code.globalstate.runtime_api.exception_matches(
+                    patterns[0], second_pattern_cname=patterns[1],
+                    use_utility_code=True))
             else:
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("PyErrExceptionMatches", "Exceptions.c"))
                 exc_tests.extend(
-                    "__Pyx_PyErr_ExceptionMatches(%s)" % pattern
+                    code.globalstate.runtime_api.exception_matches(
+                        pattern, use_utility_code=True)
                     for pattern in patterns
                 )
 
@@ -8625,9 +9357,10 @@ class ExceptClauseNode(Node):
             code.globalstate.use_utility_code(get_exception_utility_code)
             exc_vars = [code.funcstate.allocate_temp(py_object_type, manage_ref=True)
                         for _ in range(3)]
-            exc_args = "&%s, &%s, &%s" % tuple(exc_vars)
-            code.putln("if (__Pyx_GetException(%s) < 0) %s" % (
-                exc_args, code.error_goto(self.pos)))
+            exc_args = ["&%s" % name for name in exc_vars]
+            code.putln("if (%s < 0) %s" % (
+                code.globalstate.runtime_api.get_exception(exc_args),
+                code.error_goto(self.pos)))
             for var in exc_vars:
                 code.put_xgotref(var, py_object_type)
         else:
@@ -8901,12 +9634,16 @@ class TryFinallyStatNode(StatNode):
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
-        code.putln(" __Pyx_ExceptionSwap(&%s, &%s, &%s);" % exc_vars[3:])
+        code.putln(" %s;" % code.globalstate.runtime_api.swap_exception(
+            ["&%s" % name for name in exc_vars[3:]]))
+        get_exception_code = code.globalstate.runtime_api.get_exception(
+            ["&%s" % name for name in exc_vars[:3]])
         code.putln("if ("
                    # if __Pyx_GetException() fails,
                    # store the newly raised exception instead
-                   " unlikely(__Pyx_GetException(&%s, &%s, &%s) < 0)) "
-                   "__Pyx_ErrFetch(&%s, &%s, &%s);" % (exc_vars[:3] * 2))
+                   " unlikely(%s < 0)) "
+                   "__Pyx_ErrFetch(&%s, &%s, &%s);" % (
+                       get_exception_code, *exc_vars[:3]))
         for var in exc_vars:
             code.put_xgotref(var, py_object_type)
         if exc_lineno_cnames:
@@ -8931,7 +9668,8 @@ class TryFinallyStatNode(StatNode):
         # unused utility functions and/or temps
         for var in exc_vars[3:]:
             code.put_xgiveref(var, py_object_type)
-        code.putln("__Pyx_ExceptionReset(%s, %s, %s);" % exc_vars[3:])
+        code.putln(code.globalstate.runtime_api.reset_exception(
+            exc_vars[3:]) + ";")
         for var in exc_vars[:3]:
             code.put_xgiveref(var, py_object_type)
         code.putln("__Pyx_ErrRestore(%s, %s, %s);" % exc_vars[:3])
@@ -8957,7 +9695,8 @@ class TryFinallyStatNode(StatNode):
         # unused utility functions and/or temps
         for var in exc_vars[3:]:
             code.put_xgiveref(var, py_object_type)
-        code.putln("__Pyx_ExceptionReset(%s, %s, %s);" % exc_vars[3:])
+        code.putln(code.globalstate.runtime_api.reset_exception(
+            exc_vars[3:]) + ";")
         for var in exc_vars[:3]:
             code.put_xdecref_clear(var, py_object_type)
         if self.is_try_finally_in_nogil:
@@ -9634,7 +10373,10 @@ class FromImportStatNode(StatNode):
                 module_dict = code.name_in_module_state(Naming.moddict_cname)
                 code.put_error_if_neg(
                     self.pos,
-                    f"PyDict_SetItem({module_dict}, __pyx_imported_names[{counter_var}], {item_temp})")
+                    code.globalstate.runtime_api.dict_set_item(
+                        module_dict,
+                        f"__pyx_imported_names[{counter_var}]",
+                        item_temp))
 
             if needs_specific_assignments:
                 code.putln("}")  # switch

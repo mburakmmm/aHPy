@@ -258,6 +258,16 @@ class CmdLineParserTest(TimedTest):
         self.check_default_global_options()
         self.check_default_options(options, ['capi_reexport_cincludes'])
 
+    def test_runtime_backend(self):
+        options, sources = parse_command_line([
+            '--runtime-backend=hpy-universal',
+            'source.pyx',
+        ])
+        self.assertEqual(sources, ['source.pyx'])
+        self.assertEqual(options.runtime_backend, 'hpy-universal')
+        self.check_default_global_options()
+        self.check_default_options(options, ['runtime_backend'])
+
     def test_fast_fail(self):
         options, sources = parse_command_line([
             '--fast-fail',
@@ -571,6 +581,10 @@ class CmdLineParserTest(TimedTest):
               "argument -v/--verbose: ignored explicit argument '1'")
         error(['--cleanup'],
               "argument --cleanup: expected one argument")
+        error(['--runtime-backend=unknown', 'source.pyx'],
+              "invalid choice: 'unknown'")
+        error(['--runtime-backend=hpy-hybrid', 'source.pyx'],
+              "invalid choice: 'hpy-hybrid'")
         error(['--debug-disposal-code-wrong-name', 'file3.pyx'],
               "unknown option --debug-disposal-code-wrong-name")
         error(['--module-name', 'foo.pyx'],

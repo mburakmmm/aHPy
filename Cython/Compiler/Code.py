@@ -35,6 +35,18 @@ from .. import Utils
 from .Scanning import SourceDescriptor
 from ..StringIOTree import StringIOTree
 from ..LZSS import lzss_compress
+from .RuntimeAPI import (
+    RuntimeGlobalLoadResult,
+    RuntimeMethodDefinition,
+    RuntimeNameLookup,
+    RuntimeNameLookupKind,
+)
+from .HandleModel import (
+    HandleBuilderManager,
+    HandleOwnership,
+    HandleTemporaryManager,
+    InvalidHandleTransitionError,
+)
 
 # Set up available compression algorithms for maximum compression.
 from zlib import compress as zlib_compress
@@ -994,6 +1006,9 @@ class FunctionState:
         self.zombie_temps = set()  # temps that must not be reused after release
         self.temp_counter = 0
         self.closure_temps = None
+        self.handle_temps = HandleTemporaryManager()
+        self.handle_builders = HandleBuilderManager()
+        self.runtime_context_cname = ""
 
         # This is used to collect temporaries, useful to find out which temps
         # need to be privatized in parallel sections
@@ -1013,6 +1028,8 @@ class FunctionState:
     # safety checks
 
     def validate_exit(self):
+        self.handle_builders.assert_no_live_builders()
+        self.handle_temps.assert_no_live_owned_handles()
         # validate that all allocated temps have been freed
         if self.temps_allocated:
             leftovers = self.temps_in_use()
@@ -1023,6 +1040,16 @@ class FunctionState:
                 )
                 #print(msg)
                 raise RuntimeError(msg)
+
+    def bind_runtime_context(self, runtime_api, context_cname=""):
+        contract = runtime_api.context_contract()
+        if contract.required_for_python_operations:
+            context_cname = context_cname or contract.default_parameter_cname
+            contract.require_cname(context_cname)
+        elif context_cname:
+            raise ValueError("a context cname was supplied to a context-free runtime")
+        self.runtime_context_cname = context_cname
+        return context_cname
 
     # labels
 
@@ -1169,6 +1196,49 @@ class FunctionState:
         if DebugFlags.debug_temp_code_comments:
             self.owner.putln("/* %s released %s*/" % (
                 name, " - zombie" if name in self.zombie_temps else ""))
+
+    def allocate_handle_temp(
+        self, type, ownership, static=False, reusable=True,
+    ):
+        """Allocate a C slot and begin one independently tracked HPy lifetime."""
+        name = self.allocate_temp(
+            type, manage_ref=False, static=static, reusable=reusable)
+        self.handle_temps.allocate(name, ownership)
+        return name
+
+    def use_handle_temp(self, name):
+        return self.handle_temps.use(name)
+
+    def close_handle_temp(self, name):
+        return self.handle_temps.close(name)
+
+    def move_handle_temp(self, name):
+        return self.handle_temps.move(name)
+
+    def release_handle_temp(self, name):
+        self.handle_temps.release(name)
+        self.release_temp(name)
+
+    def allocate_handle_builder_temp(
+        self, type, static=False, reusable=True,
+    ):
+        name = self.allocate_temp(
+            type, manage_ref=False, static=static, reusable=reusable)
+        self.handle_builders.allocate(name)
+        return name
+
+    def use_handle_builder_temp(self, name):
+        return self.handle_builders.use(name)
+
+    def build_handle_builder_temp(self, name):
+        return self.handle_builders.build(name)
+
+    def cancel_handle_builder_temp(self, name):
+        return self.handle_builders.cancel(name)
+
+    def release_handle_builder_temp(self, name):
+        self.handle_builders.release(name)
+        self.release_temp(name)
 
     def temps_in_use(self):
         """Return a list of (cname,type,manage_ref) tuples of temp names and their type
@@ -1437,6 +1507,7 @@ class GlobalState:
         self.parts = {}
         self.module_node = module_node  # because some utility code generation needs it
                                         # (generating backwards-compatible Get/ReleaseBuffer
+        self.runtime_api = module_node.scope.context.runtime_api
 
         self.const_cnames_used = {}
         self.string_const_index = {}
@@ -1766,9 +1837,10 @@ class GlobalState:
             self.get_interned_identifier(name).cname)
         self.use_utility_code(
             UtilityCode.load_cached("GetBuiltinName", "ObjectHandling.c"))
-        w.putln('%s = __Pyx_GetBuiltinName(%s); if (!%s) %s' % (
-            cname,
-            cname_in_modulestate,
+        w.putln('%s; if (!%s) %s' % (
+            self.runtime_api.name_lookup(
+                RuntimeNameLookup(RuntimeNameLookupKind.BUILTIN),
+                cname, cname_in_modulestate),
             cname,
             w.error_goto(pos)))
 
@@ -1790,7 +1862,9 @@ class GlobalState:
         writer.putln(f"for ({counter_type} i=0; i<{count}; ++i) {{ {visit_call}(traverse_module_state->{struct_attr_cname}[i]); }}")
 
         writer = self.parts['module_state_clear']
-        writer.putln(f"for ({counter_type} i=0; i<{count}; ++i) {{ Py_CLEAR(clear_module_state->{struct_attr_cname}[i]); }}")
+        clear_code = self.runtime_api.clear_reference(
+            f"clear_module_state->{struct_attr_cname}[i]")
+        writer.putln(f"for ({counter_type} i=0; i<{count}; ++i) {{ {clear_code} }}")
 
     def generate_object_constant_decls(self):
         consts = [(len(c.cname), c.cname, c)
@@ -1829,10 +1903,9 @@ class GlobalState:
             if cleanup_level is not None and cleanup_level <= Options.generate_cleanup_code:
                 part_writer = self.parts['cleanup_globals']
                 part_writer.put(f"for (size_t i=0; i<{count}; ++i) ")
-                part_writer.putln(
-                    "{ Py_CLEAR(%s); }" %
-                        part_writer.name_in_main_c_code_module_state(f"{struct_attr_cname}[i]")
-                )
+                clear_cname = part_writer.name_in_main_c_code_module_state(
+                    f"{struct_attr_cname}[i]")
+                part_writer.putln("{ %s }" % self.runtime_api.clear_reference(clear_cname))
 
     def generate_cached_methods_decls(self):
         if not self.cached_cmethods:
@@ -1860,13 +1933,14 @@ class GlobalState:
                 f'{init.name_in_main_c_code_module_state(cname)}.method_name = '
                 f'&{init.name_in_main_c_code_module_state(method_name_cname)};')
             # method is owned - Other PyObjects in __Pyx_CachedCFunction are borrowed.
-            clear.putln(f'Py_CLEAR(clear_module_state->{cname}.method);')
+            clear.put_runtime_ref_clear(f'clear_module_state->{cname}.method')
             traverse.putln(f'Py_VISIT(traverse_module_state->{cname}.method);')
 
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
             for cname in cnames:
-                cleanup.putln(f"Py_CLEAR({init.name_in_main_c_code_module_state(cname)}.method);")
+                cleanup.put_runtime_ref_clear(
+                    f"{init.name_in_main_c_code_module_state(cname)}.method")
 
     def generate_string_constants(self):
         c_consts: list[tuple] = []
@@ -2034,7 +2108,8 @@ class GlobalState:
 
             w.putln('const char* const bytes = __Pyx_PyBytes_AsString(data);')
             w.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
-            w.putln(f'if (likely(bytes)); else {{ Py_DECREF(data); {w.error_goto(self.module_pos)} }}')
+            close_data = self.runtime_api.close_reference('data')
+            w.putln(f'if (likely(bytes)); else {{ {close_data} {w.error_goto(self.module_pos)} }}')
             w.putln('#endif')
 
         w.putln(f"{'#else ' if has_if else ''}/* compression: none ({len(concat_bytes)} bytes) */")
@@ -2069,7 +2144,7 @@ class GlobalState:
             if first_interned >= 0:
                 w.putln(f"if (likely(string) && i >= {first_interned}) PyUnicode_InternInPlace(&string);")
             w.putln("if (unlikely(!string)) {")
-            w.putln("Py_XDECREF(data);")
+            w.put_runtime_ref_close("data", null_safe=True)
             w.putln(w.error_goto(self.module_pos))
             w.putln('}')
 
@@ -2087,13 +2162,13 @@ class GlobalState:
             w.putln("pos += bytes_length;")
 
             w.putln("if (unlikely(!string)) {")
-            w.putln("Py_XDECREF(data);")
+            w.put_runtime_ref_close("data", null_safe=True)
             w.putln(w.error_goto(self.module_pos))
             w.putln('}')
 
             w.putln("}")  # for()
 
-        w.putln("Py_XDECREF(data);")
+        w.put_runtime_ref_close("data", null_safe=True)
 
         # Set up hash values.
         w.putln(f"for (Py_ssize_t i = 0; i < {len(bytes_values)}; i++) {{")
@@ -2161,17 +2236,17 @@ class GlobalState:
 
         w.start_initcfunc(init_function)
 
-        w.putln("PyObject* tuple_dedup_map = PyDict_New();")
+        w.putln("PyObject* tuple_dedup_map = %s;" % self.runtime_api.dict_new())
         w.putln("if (unlikely(!tuple_dedup_map)) return -1;")
 
         for node in self.codeobject_constants:
             node.generate_codeobj(w, "bad")
 
-        w.putln("Py_DECREF(tuple_dedup_map);")
+        w.put_runtime_ref_close("tuple_dedup_map")
         w.putln("return 0;")
 
         w.putln("bad:")
-        w.putln("Py_DECREF(tuple_dedup_map);")
+        w.put_runtime_ref_close("tuple_dedup_map")
         w.putln("return -1;")
         w.exit_cfunc_scope()
         w.putln("}")
@@ -2527,6 +2602,11 @@ class CCodeWriter:
         assert self.globalstate is None  # prevent overwriting once it's set
         self.globalstate = global_state
         self.code_config = global_state.code_config
+
+    def runtime_context(self):
+        context_cname = self.funcstate.runtime_context_cname
+        return self.globalstate.runtime_api.context_contract().require_cname(
+            context_cname)
 
     def copyto(self, f):
         self.buffer.copyto(f)
@@ -2942,7 +3022,8 @@ class CCodeWriter:
             else:
                 decl = type.declaration_code(name)
             if type.is_pyobject:
-                self.putln("%s = NULL;" % decl)
+                self.putln("%s = %s;" % (
+                    decl, self.globalstate.runtime_api.null_reference_value()))
             elif type.is_memoryviewslice:
                 self.putln("%s = %s;" % (decl, type.literal_code(type.default_value)))
             else:
@@ -3017,42 +3098,92 @@ class CCodeWriter:
         # and so has been removed. However, it's potentially a feature that might be useful here
         if nanny:
             self.handle_refnanny(type)
-        self.putln(type.get_incref_code(cname, nanny=nanny))
+        self.putln(self.globalstate.runtime_api.incref_code(type, cname, nanny=nanny))
 
     def put_xincref(self, cname, type, nanny=True):
         if nanny:
             self.handle_refnanny(type)
-        self.putln(type.get_xincref_code(cname, nanny=nanny))
+        self.putln(self.globalstate.runtime_api.xincref_code(type, cname, nanny=nanny))
 
     def put_decref(self, cname, type, nanny=True, have_gil=True):
         if nanny:
             self.handle_refnanny(type)
-        self.putln(type.get_decref_code(cname, nanny=nanny, have_gil=have_gil))
+        self.putln(self.globalstate.runtime_api.decref_code(
+            type, cname, nanny=nanny, have_gil=have_gil))
 
     def put_xdecref(self, cname, type, nanny=True, have_gil=True):
         if nanny:
             self.handle_refnanny(type)
-        self.putln(type.get_xdecref_code(cname, nanny=nanny, have_gil=have_gil))
+        self.putln(self.globalstate.runtime_api.xdecref_code(
+            type, cname, nanny=nanny, have_gil=have_gil))
 
     def put_decref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
         if nanny:
             self.handle_refnanny(type)
-        self.putln(type.get_decref_clear_code(
-            cname, clear_before_decref=clear_before_decref, nanny=nanny, have_gil=have_gil))
+        self.putln(self.globalstate.runtime_api.decref_clear_code(
+            type, cname, clear_before_decref=clear_before_decref,
+            nanny=nanny, have_gil=have_gil))
 
     def put_xdecref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
         if nanny:
             self.handle_refnanny(type)
-        self.putln(type.get_xdecref_clear_code(
-            cname, clear_before_decref=clear_before_decref, nanny=nanny, have_gil=have_gil))
+        self.putln(self.globalstate.runtime_api.xdecref_clear_code(
+            type, cname, clear_before_decref=clear_before_decref,
+            nanny=nanny, have_gil=have_gil))
 
     def put_decref_set(self, cname, type, rhs_cname):
         self.handle_refnanny(type)
-        self.putln(type.get_decref_set_code(cname, rhs_cname))
+        self.putln(self.globalstate.runtime_api.decref_set_code(type, cname, rhs_cname))
 
     def put_xdecref_set(self, cname, type, rhs_cname):
         self.handle_refnanny(type)
-        self.putln(type.get_xdecref_set_code(cname, rhs_cname))
+        self.putln(self.globalstate.runtime_api.xdecref_set_code(type, cname, rhs_cname))
+
+    def put_runtime_ref_dup(self, cname, null_safe=False):
+        self.putln(self.globalstate.runtime_api.duplicate_reference(cname, null_safe))
+
+    def put_runtime_ref_close(self, cname, null_safe=False):
+        self.putln(self.globalstate.runtime_api.close_reference(cname, null_safe))
+
+    def put_runtime_ref_clear(self, cname):
+        self.putln(self.globalstate.runtime_api.clear_reference(cname))
+
+    def load_runtime_global(self, type, storage_cname, context_cname="", pos=None):
+        """Load runtime global storage with explicit local ownership."""
+        runtime_api = self.globalstate.runtime_api
+        storage = runtime_api.global_storage()
+        load_code = runtime_api.global_load(storage_cname, context_cname)
+        if not storage.load_returns_owned_reference:
+            return RuntimeGlobalLoadResult(load_code, False, context_cname)
+
+        if not runtime_api.uses_handle_ownership():
+            raise RuntimeError(
+                "owned runtime-global loads require handle ownership tracking")
+        result_cname = self.funcstate.allocate_handle_temp(
+            type, HandleOwnership.OWNED)
+        self.putln("%s = %s; %s" % (
+            result_cname,
+            load_code,
+            self.error_goto_if_null(result_cname, pos),
+        ))
+        return RuntimeGlobalLoadResult(result_cname, True, context_cname)
+
+    def dispose_runtime_global_load(self, loaded):
+        if not isinstance(loaded, RuntimeGlobalLoadResult):
+            raise TypeError(
+                "expected RuntimeGlobalLoadResult, got %r" % (loaded,))
+        if not loaded.owns_local_reference:
+            return
+        if not self.funcstate.handle_temps.is_active(loaded.cname):
+            raise InvalidHandleTransitionError(
+                "runtime-global load %r was already disposed" % loaded.cname)
+        self.funcstate.close_handle_temp(loaded.cname)
+        self.putln(self.globalstate.runtime_api.close_reference(
+            loaded.cname,
+            null_safe=True,
+            context_cname=loaded.context_cname,
+        ))
+        self.funcstate.release_handle_temp(loaded.cname)
 
     def put_incref_memoryviewslice(self, slice_cname, type, have_gil):
         # TODO ideally this would just be merged into "put_incref"
@@ -3130,7 +3261,8 @@ class CCodeWriter:
         if nanny:
             self.putln("%s = %s; __Pyx_INCREF(Py_None);" % (cname, py_none))
         else:
-            self.putln("%s = %s; Py_INCREF(Py_None);" % (cname, py_none))
+            self.putln("%s = %s; %s" % (
+                cname, py_none, self.globalstate.runtime_api.duplicate_reference("Py_None")))
 
     def put_init_var_to_py_none(self, entry, template = "%s", nanny=True):
         code = template % entry.cname
@@ -3163,13 +3295,9 @@ class CCodeWriter:
         method_flags = entry.signature.method_flags()
         if not method_flags:
             return
-        if entry.is_special:
-            method_flags += [TypeSlots.method_coexist]
+        runtime_api = self.globalstate.runtime_api
+        signature = runtime_api.select_method_signature(method_flags)
         func_ptr = wrapper_code_writer.put_pymethoddef_wrapper(entry) if wrapper_code_writer else entry.func_cname
-        # Add required casts, but try not to shadow real warnings.
-        cast = entry.signature.method_function_type()
-        if cast != 'PyCFunction':
-            func_ptr = '(void(*)(void))(%s)%s' % (cast, func_ptr)
         entry_name = entry.name.as_c_string_literal()
         if is_number_slot:
             # Unlike most special functions, binop numeric operator slots are actually generated here
@@ -3179,13 +3307,15 @@ class CCodeWriter:
             preproc_guard = slot.preprocessor_guard_code()
             if preproc_guard:
                 self.putln(preproc_guard)
-        self.putln(
-            '{%s, (PyCFunction)%s, %s, %s}%s' % (
-                entry_name,
-                func_ptr,
-                "|".join(method_flags),
-                entry.doc_cname if entry.doc else '0',
-                term))
+        definition = RuntimeMethodDefinition(
+            signature=signature,
+            definition_cname=entry.pymethdef_cname,
+            python_name_cname=entry_name,
+            implementation_cname=func_ptr,
+            doc_cname=entry.doc_cname if entry.doc else '0',
+            coexists_with_slot=entry.is_special,
+        )
+        self.putln(runtime_api.method_table_entry(definition, term))
         if is_number_slot and preproc_guard:
             self.putln("#endif")
 
@@ -3202,7 +3332,9 @@ class CCodeWriter:
                 if entry.name == "__next__":
                     self.putln("PyObject *res = %s;" % func_call)
                     # tp_iternext can return NULL without an exception
-                    self.putln("if (!res && !PyErr_Occurred()) { PyErr_SetNone(PyExc_StopIteration); }")
+                    error_occurred = self.globalstate.runtime_api.error_occurred()
+                    error_set_none = self.globalstate.runtime_api.error_set_none('PyExc_StopIteration')
+                    self.putln(f"if (!res && !{error_occurred}) {{ {error_set_none}; }}")
                     self.putln("return res;")
                 else:
                     self.putln("return %s;" % func_call)
@@ -3320,7 +3452,8 @@ class CCodeWriter:
                 UtilityCode.load_cached(f"{func}{nogil_tag}", "ObjectHandling.c"))
 
         if not unbound_check_code:
-            unbound_check_code = entry.type.check_for_null_code(entry.cname)
+            unbound_check_code = self.globalstate.runtime_api.check_for_null_code(
+                entry.type, entry.cname)
         self.putln('if (unlikely(!%s)) { %s(%s); %s }' % (
                                 unbound_check_code,
                                 f"__Pyx_{func}{nogil_tag}",
@@ -3352,14 +3485,14 @@ class CCodeWriter:
         return "if (%s) %s" % (self.unlikely(cond), self.error_goto(pos))
 
     def error_goto_if_null(self, cname, pos):
-        return self.error_goto_if("!%s" % cname, pos)
+        return self.error_goto_if(self.globalstate.runtime_api.null_check(cname), pos)
 
     def error_goto_if_neg(self, cname, pos):
         # Add extra parentheses to silence clang warnings about constant conditions.
         return self.error_goto_if("(%s < 0)" % cname, pos)
 
     def error_goto_if_PyErr(self, pos):
-        return self.error_goto_if("PyErr_Occurred()", pos)
+        return self.error_goto_if(self.globalstate.runtime_api.error_occurred(), pos)
 
     def lookup_filename(self, filename):
         return self.globalstate.lookup_filename(filename)

@@ -1811,6 +1811,25 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return node
         return self._dispatch_to_handler(node, function, node.args)
 
+
+class HPyEarlyReplaceSequenceBuiltins(EarlyReplaceBuiltinCalls):
+    """Universal HPy: only list/any/all/dict genexp → inlined sequence forms."""
+
+    _hpy_safe_builtins = frozenset(('list', 'any', 'all', 'dict'))
+
+    def visit_SimpleCallNode(self, node):
+        self.visitchildren(node)
+        function = node.function
+        if not self._function_is_builtin_name(function):
+            return node
+        if function.name not in self._hpy_safe_builtins:
+            return node
+        return self._dispatch_to_handler(node, function, node.args)
+
+    def visit_GeneralCallNode(self, node):
+        self.visitchildren(node)
+        return node
+
     def visit_GeneralCallNode(self, node):
         self.visitchildren(node)
         function = node.function
@@ -4932,7 +4951,12 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
         if len(args) == 1:
             arg = args[0]
-            if arg.is_dict_literal or isinstance(arg, ExprNodes.MergedDictNode):
+            if arg.is_dict_literal:
+                # Preserve call-site ** merge semantics (TypeError on duplicate keys).
+                if node.reject_duplicates and not arg.reject_duplicates:
+                    arg.reject_duplicates = True
+                return arg
+            if isinstance(arg, ExprNodes.MergedDictNode):
                 return arg
         node.keyword_args[:] = args
         self._calculate_const(node)

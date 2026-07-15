@@ -1,0 +1,18 @@
+import unittest
+
+from setuptools_integration import EXTERNAL_HEADER, EXTERNAL_SOURCE, SETUP, SOURCE
+
+
+class SetuptoolsIntegrationDefinitionTest(unittest.TestCase):
+    def test_example_selects_backend_and_hpy_extension_lane(self):
+        self.assertIn('runtime_backend="hpy-universal"', SETUP)
+        self.assertIn("hpy_ext_modules=extensions", SETUP)
+        self.assertIn("cdef class Box", SOURCE)
+        self.assertIn('cdef extern from "ahpy_external.h"', SOURCE)
+        self.assertIn("ahpy_external.c", SETUP)
+        self.assertNotIn("Python.h", EXTERNAL_HEADER + EXTERNAL_SOURCE)
+        compile(SETUP, "<ahpy-setuptools-setup>", "exec")
+
+
+if __name__ == "__main__":
+    unittest.main()

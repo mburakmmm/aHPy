@@ -4320,11 +4320,27 @@ class TransformBuiltinMethods(EnvTransform):
             func_name = node.function.name
             if func_name in ('dir', 'locals', 'vars'):
                 return self._inject_locals(node, func_name)
+            if func_name == 'globals':
+                return self._inject_globals(node)
             if func_name == 'eval':
                 return self._inject_eval(node, func_name)
             if func_name == 'super':
                 return self._inject_super(node, func_name)
         return node
+
+    def _inject_globals(self, node):
+        lenv = self.current_env()
+        entry = lenv.lookup_here('globals')
+        if entry:
+            return node
+        if len(node.args) > 0:
+            error(
+                node.pos,
+                "Builtin 'globals()' called with wrong number of args, "
+                "expected 0, got %d" % len(node.args),
+            )
+            return node
+        return ExprNodes.GlobalsExprNode(node.pos)
 
     def visit_GeneralCallNode(self, node):
         function = node.function.as_cython_attribute()

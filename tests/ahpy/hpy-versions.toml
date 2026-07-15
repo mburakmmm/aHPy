@@ -1,0 +1,35 @@
+schema_version = 1
+validated_on = "2026-07-15"
+
+[stable]
+version = "0.9.0"
+python = ["3.11"]
+requirements = "tests/ahpy/requirements-hpy09.txt"
+status = "required"
+
+[development]
+repository = "https://github.com/hpyproject/hpy.git"
+branch_observed = "master"
+commit = "b57a33c1cec766a1cc3e89f6fd1e2eff73ba9381"
+version_observed = "0.9.1.dev100+gb57a33c1c"
+python_validated = ["3.11"]
+requirements = "tests/ahpy/requirements-hpy-dev.txt"
+status = "early-warning"
+
+[[development.known_failures]]
+python = "3.14.6"
+platform = "macOS 26 arm64"
+failure = "SIGSEGV while executing the generated semantic corpus"
+policy = "experimental CI only; does not alter the Python 3.11 validated lane"
+
+[nightly.interpreter]
+setup_python = "3.15-dev"
+hpy_requirements = "tests/ahpy/requirements-hpy09.txt"
+status = "allowed-failure-early-warning"
+
+[nightly.hpy]
+python = "3.11"
+repository = "https://github.com/hpyproject/hpy.git"
+ref = "master"
+requirements = "tests/ahpy/requirements-hpy-nightly.txt"
+status = "allowed-failure-early-warning"

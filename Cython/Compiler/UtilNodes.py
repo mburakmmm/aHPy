@@ -193,6 +193,9 @@ class ResultRefNode(AtomicExprNode):
     def generate_evaluation_code(self, code):
         pass
 
+    def generate_hpy_bootstrap_owned_result(self, code):
+        return code.duplicate_temporary_value(self)
+
     def generate_result_code(self, code):
         pass
 
@@ -330,6 +333,29 @@ class LetNode(Nodes.StatNode, LetNodeMixin):
         self.setup_temp_expr(code)
         self.body.generate_execution_code(code)
         self.teardown_temp_expr(code)
+
+    def generate_hpy_bootstrap_execution_code(self, code):
+        if self.temp_expression.type.is_pyobject:
+            cname = code.materialize_owned_handle(
+                self.temp_expression.generate_hpy_bootstrap_owned_result(code))
+            code.put_error_return_if_null(cname)
+            code.bind_temporary_value(self.lazy_temp, cname)
+            self.body.generate_hpy_bootstrap_execution_code(code)
+            bound_cname = code.unbind_temporary_value(self.lazy_temp)
+            if bound_cname != cname:
+                raise AssertionError("bootstrap temporary binding changed")
+            code.close_owned_handle(cname)
+            return
+        if self.temp_expression.type.is_int:
+            # Integer LetRef temps host immutable for-from / range stop bounds.
+            code.bind_integer_temporary(self.lazy_temp, self.temp_expression)
+            self.body.generate_hpy_bootstrap_execution_code(code)
+            code.unbind_integer_temporary(self.lazy_temp)
+            return
+        code.unsupported(
+            self.temp_expression,
+            "non-Python LetNode temporary is not implemented",
+        )
 
     def generate_function_definitions(self, env, code):
         self.temp_expression.generate_function_definitions(env, code)

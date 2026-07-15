@@ -1,0 +1,189 @@
+from __future__ import annotations
+
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import tomllib
+import unittest
+from unittest import mock
+
+import build_portability_artifact
+import run_sanitized_hpy
+import test_generated_hpy
+
+
+ROOT = Path(__file__).resolve().parents[2]
+SOURCE = ROOT / "tests" / "ahpy" / "bootstrap_answer.pyx"
+VERSION_MANIFEST = ROOT / "tests" / "ahpy" / "hpy-versions.toml"
+
+
+class QualityGateTest(unittest.TestCase):
+    def test_binary_import_parser_rejects_cpython_symbols_and_dll(self):
+        output = (
+            "                 U _PyLong_FromLong\n"
+            "PyExc_TypeError\n"
+            "    python314.dll\n"
+            "                 U HPyLong_FromLong\n"
+        )
+        self.assertEqual(
+            test_generated_hpy._forbidden_binary_imports(output),
+            ["PyExc_TypeError", "_PyLong_FromLong", "python314.dll"],
+        )
+
+    @mock.patch.object(run_sanitized_hpy.sys, "platform", "linux")
+    @mock.patch.object(run_sanitized_hpy.subprocess, "run")
+    def test_sanitizer_environment_preloads_reported_runtime(self, run):
+        run.return_value.stdout = "/usr/lib/libasan.so\n"
+        with mock.patch.object(Path, "is_file", return_value=True):
+            environment = run_sanitized_hpy.sanitizer_environment(
+                "gcc", "address,undefined")
+        self.assertEqual(environment["LD_PRELOAD"].split(":")[0],
+                         "/usr/lib/libasan.so")
+        self.assertIn("-fsanitize=address,undefined", environment["CFLAGS"])
+        self.assertIn("halt_on_error=1", environment["UBSAN_OPTIONS"])
+
+    @mock.patch.object(run_sanitized_hpy.sys, "platform", "darwin")
+    @mock.patch.object(run_sanitized_hpy.subprocess, "run")
+    def test_sanitizer_environment_preloads_apple_runtime(self, run):
+        run.return_value.stdout = "/toolchain/libclang_rt.asan_osx_dynamic.dylib\n"
+        with mock.patch.object(Path, "is_file", return_value=True):
+            environment = run_sanitized_hpy.sanitizer_environment(
+                "clang", "address,undefined")
+        self.assertEqual(
+            environment["DYLD_INSERT_LIBRARIES"].split(":")[0],
+            "/toolchain/libclang_rt.asan_osx_dynamic.dylib",
+        )
+        self.assertEqual(
+            environment["AHPY_DYLD_INSERT_LIBRARIES"],
+            environment["DYLD_INSERT_LIBRARIES"],
+        )
+
+    def test_hpy_revisions_are_exactly_pinned(self):
+        manifest = tomllib.loads(VERSION_MANIFEST.read_text(encoding="utf8"))
+        stable_requirements = ROOT / manifest["stable"]["requirements"]
+        dev_requirements = ROOT / manifest["development"]["requirements"]
+        stable_text = stable_requirements.read_text(encoding="utf8")
+        dev_text = dev_requirements.read_text(encoding="utf8")
+        self.assertIn("hpy==%s" % manifest["stable"]["version"], stable_text)
+        commit = manifest["development"]["commit"]
+        self.assertRegex(commit, r"^[0-9a-f]{40}$")
+        self.assertIn("@" + commit, dev_text)
+        self.assertNotIn("@master", dev_text)
+
+    def test_generated_source_is_deterministic(self):
+        environment = os.environ.copy()
+        environment["PYTHONPATH"] = str(ROOT)
+        with tempfile.TemporaryDirectory(prefix="ahpy-determinism-") as temp:
+            outputs = [Path(temp) / name / "bootstrap_answer.c"
+                       for name in ("first", "second")]
+            for output in outputs:
+                output.parent.mkdir()
+                subprocess.run(
+                    [
+                        sys.executable, "-m", "cython",
+                        "--runtime-backend=hpy-universal", "-3",
+                        "-o", str(output), str(SOURCE),
+                    ],
+                    cwd=ROOT,
+                    env=environment,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            self.assertEqual(outputs[0].read_bytes(), outputs[1].read_bytes())
+
+    def test_workflow_declares_all_initial_platform_compiler_lanes(self):
+        workflow = (ROOT / ".github" / "workflows" /
+                    "ahpy-universal.yml").read_text(encoding="utf8")
+        for required in (
+            "ubuntu-24.04",
+            "ubuntu-24.04-arm",
+            "macos-15-intel",
+            "macos-15",
+            "windows-2025",
+            "cc: gcc",
+            "cc: clang",
+            "cc: cl",
+            "run_sanitized_hpy.py",
+            "requirements-hpy-dev.txt",
+            "pypy3.11-v7.3.23",
+            "graalpy-25.1.3",
+            "build_portability_artifact.py",
+            "verify_reproducible_artifact.py",
+            "benchmark_hpy.py",
+            "ahpy-performance-${{ github.run_id }}-${{ github.run_attempt }}",
+            "stress_parallel_hpy.py",
+            "ahpy-parallel-stress-${{ github.run_id }}-${{ github.run_attempt }}",
+            "nightly-interpreter:",
+            "nightly-hpy:",
+            "report_nightly_environment.py",
+            "requirements-hpy-nightly.txt",
+            "3.15-dev",
+            "--require-hpy-vcs",
+        ):
+            self.assertIn(required, workflow)
+
+    def test_nightlies_are_isolated_allowed_failure_early_warnings(self):
+        manifest = tomllib.loads(VERSION_MANIFEST.read_text(encoding="utf8"))
+        nightly = manifest["nightly"]
+        self.assertEqual(nightly["interpreter"]["setup_python"], "3.15-dev")
+        self.assertEqual(nightly["hpy"]["ref"], "master")
+        self.assertEqual(
+            {nightly[name]["status"] for name in ("interpreter", "hpy")},
+            {"allowed-failure-early-warning"},
+        )
+        nightly_requirements = ROOT / nightly["hpy"]["requirements"]
+        requirements = nightly_requirements.read_text(encoding="utf8")
+        self.assertIn(
+            "hpy @ git+https://github.com/hpyproject/hpy.git@master",
+            requirements,
+        )
+        self.assertNotRegex(requirements, r"@[0-9a-f]{40}\b")
+
+        workflow = (ROOT / ".github" / "workflows" /
+                    "ahpy-universal.yml").read_text(encoding="utf8")
+        interpreter_job, rest = workflow.split("  nightly-interpreter:\n", 1)[1].split(
+            "  nightly-hpy:\n", 1)
+        hpy_job = rest
+        schedule_guard = (
+            "github.event_name == 'schedule' || "
+            "github.event_name == 'workflow_dispatch'")
+        for job in (interpreter_job, hpy_job):
+            self.assertIn(schedule_guard, job)
+            self.assertIn("continue-on-error: true", job)
+            self.assertIn("if: always()", job)
+            self.assertIn("nightly-evidence", job)
+        self.assertIn("requirements-hpy09.txt", interpreter_job)
+        self.assertNotIn("requirements-hpy-nightly.txt", interpreter_job)
+        self.assertIn("requirements-hpy-nightly.txt", hpy_job)
+        self.assertIn("--require-hpy-vcs", hpy_job)
+        self.assertIn("--expected-hpy-ref master", hpy_job)
+
+    def test_cross_interpreter_targets_are_machine_readable_and_pinned(self):
+        manifest = tomllib.loads((
+            ROOT / "tests" / "ahpy" / "interpreters.toml"
+        ).read_text(encoding="utf8"))
+        targets = {target["name"]: target for target in manifest["targets"]}
+        self.assertEqual(
+            targets["PyPy"]["setup_python"], "pypy3.11-v7.3.23")
+        self.assertEqual(
+            targets["GraalPy"]["setup_python"], "graalpy-25.1.3")
+        self.assertEqual(
+            {target["status"] for target in targets.values()},
+            {"hosted-run-pending"},
+        )
+
+    def test_reproducible_flag_append_preserves_existing_flags(self):
+        environment = {"CFLAGS": "-O2"}
+        build_portability_artifact._append_flag(
+            environment, "CFLAGS", "-ffile-prefix-map=/tmp=/build")
+        self.assertEqual(
+            environment["CFLAGS"],
+            "-O2 -ffile-prefix-map=/tmp=/build",
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

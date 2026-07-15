@@ -34,6 +34,7 @@ from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_ve
 from .Code import UtilityCode, IncludeCode, TempitaUtilityCode
 from .StringEncoding import EncodedString, bytes_literal, encoded_string_or_bytes_literal
 from .Pythran import has_np_pythran
+from .RuntimeAPI import RuntimeCodeGenerationKind, RuntimeSequenceKind
 
 
 def replace_suffix_encoded(path, newsuf):
@@ -311,9 +312,625 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.referenced_modules = []
         self.find_referenced_modules(env, self.referenced_modules, {})
         self.sort_cdef_classes(env)
+        if (
+            self.scope.context.runtime_api.code_generation_kind()
+            is RuntimeCodeGenerationKind.HPY_UNIVERSAL_BOOTSTRAP
+        ):
+            self.generate_hpy_universal_code(options, result)
+            return
         self.generate_c_code(env, options, result)
         self.generate_h_code(env, options, result)
         self.generate_api_code(env, options, result)
+
+    def hpy_bootstrap_contents(self, diagnostics):
+        """Return supported functions, module statements, and pure HPy types."""
+        from . import ExprNodes
+        from .HPyModuleWriter import (
+            _external_c_scalar_kind,
+            _resolve_extension_field_storage_type,
+            _supports_extension_field_storage,
+        )
+
+        top_level_stats = (
+            list(self.body.stats)
+            if type(self.body) is Nodes.StatListNode else [self.body]
+        )
+        stats = []
+        pending = list(reversed(top_level_stats))
+        while pending:
+            stat = pending.pop()
+            if type(stat) is Nodes.StatListNode:
+                pending.extend(reversed(stat.stats))
+            else:
+                stats.append(stat)
+        methods = []
+        extension_types = []
+        module_stats = []
+        external_c_blocks = []
+        method_names = set()
+        for stat in stats:
+            if stat.pos[0].__class__.__name__ == "StringSourceDescriptor":
+                # Auto-pickling helpers synthesized for cdef classes belong to
+                # the still-disabled M6 introspection/pickling surface.  The
+                # initial pure-HPy type slice deliberately emits none of them.
+                continue
+            if type(stat) in (Nodes.CImportStatNode, Nodes.FromCImportStatNode):
+                module_name = str(stat.module_name)
+                if module_name == "cpython" or module_name.startswith("cpython."):
+                    diagnostics.unsupported(
+                        stat,
+                        "cpython.* cimports expose the CPython C API and are "
+                        "not available in Universal HPy mode; port the "
+                        "dependency to public HPy APIs",
+                    )
+            if type(stat) is Nodes.CDefExternNode:
+                include_file = (
+                    str(stat.include_file) if stat.include_file is not None
+                    else ""
+                )
+                unwrapped_include = include_file[1:-1] if (
+                    include_file.startswith("<")
+                    and include_file.endswith(">")
+                ) else include_file
+                if not include_file:
+                    diagnostics.unsupported(
+                        stat,
+                        "external C declarations require a concrete header "
+                        "in Universal HPy mode; inline/from-* declarations "
+                        "cannot establish an independently audited ABI",
+                    )
+                    continue
+                if (
+                    stat.verbatim_include
+                    or not re.match(
+                        r"^[A-Za-z0-9_./+\-]+$", unwrapped_include)
+                    or (include_file.startswith("<") != include_file.endswith(">"))
+                ):
+                    diagnostics.unsupported(
+                        stat,
+                        "external C headers must use a literal safe path and "
+                        "must not inject verbatim C code in Universal HPy mode",
+                    )
+                    continue
+                if os.path.basename(unwrapped_include).lower() == "python.h":
+                    diagnostics.unsupported(
+                        stat,
+                        "Python.h is the CPython C API and cannot cross the "
+                        "Universal HPy external-C boundary",
+                    )
+                    continue
+                declarations = (
+                    list(getattr(stat, "hpy_external_declarations", ()))
+                    or (
+                        list(stat.body.stats)
+                        if type(stat.body) is Nodes.StatListNode else [stat.body]
+                    )
+                )
+                if not declarations:
+                    diagnostics.unsupported(
+                        stat,
+                        "empty external C declaration blocks are not useful "
+                        "in the initial Universal HPy external-C lane",
+                    )
+                    continue
+                block_is_supported = True
+                validated_entries = []
+                for declaration in declarations:
+                    if (
+                        type(declaration) is not Nodes.CVarDefNode
+                        or len(declaration.declarators) != 1
+                        or type(declaration.declarators[0])
+                            is not Nodes.CFuncDeclaratorNode
+                    ):
+                        diagnostics.unsupported(
+                            declaration,
+                            "external C blocks currently permit only direct "
+                            "function declarations; typedefs, variables, "
+                            "structs, unions, and enums remain ABI-owned and "
+                            "unsupported",
+                        )
+                        block_is_supported = False
+                        continue
+                    entry = declaration.entry
+                    function_type = entry.type if entry is not None else None
+                    if (
+                        function_type is None
+                        or not function_type.is_cfunction
+                        or function_type.has_varargs
+                        or function_type.optional_arg_count
+                    ):
+                        diagnostics.unsupported(
+                            declaration,
+                            "the initial external C lane does not support "
+                            "variadic or optional C function parameters",
+                        )
+                        block_is_supported = False
+                        continue
+                    argument_kinds = tuple(
+                        _external_c_scalar_kind(argument.type)
+                        for argument in function_type.args
+                    )
+                    if any(kind is None for kind in argument_kinds):
+                        diagnostics.unsupported(
+                            declaration,
+                            "external C parameters must be direct supported "
+                            "C integer, boolean, or floating scalars; pointers, "
+                            "Python objects, aggregates, and external typedefs "
+                            "are not portable in this lane",
+                        )
+                        block_is_supported = False
+                        continue
+                    storage_kind = _external_c_scalar_kind(
+                        function_type.return_type)
+                    if storage_kind is None:
+                        diagnostics.unsupported(
+                            declaration,
+                            "external C functions must return a direct "
+                            "supported C integer, boolean, or floating scalar; "
+                            "void, pointers, Python objects, aggregates, and "
+                            "external typedefs are not portable in this lane",
+                        )
+                        block_is_supported = False
+                        continue
+                    if (
+                        function_type.exception_value is not None
+                        or function_type.exception_check
+                    ):
+                        diagnostics.unsupported(
+                            declaration,
+                            "external C functions with Cython/Python exception "
+                            "contracts are not available in Universal HPy mode",
+                        )
+                        block_is_supported = False
+                        continue
+                    if not re.match(
+                        r"^[A-Za-z_][A-Za-z0-9_]*$", str(entry.cname)
+                    ):
+                        diagnostics.unsupported(
+                            declaration,
+                            "external C function names must be plain C "
+                            "identifiers in the initial Universal HPy lane",
+                        )
+                        block_is_supported = False
+                        continue
+                    validated_entries.append(
+                        (entry, storage_kind, argument_kinds))
+                if block_is_supported:
+                    for entry, storage_kind, argument_kinds in validated_entries:
+                        entry.ahpy_universal_external_c_scalar_kind = storage_kind
+                        entry.ahpy_universal_external_c_argument_kinds = (
+                            argument_kinds)
+                    external_c_blocks.append(stat)
+                continue
+            if type(stat) is Nodes.CEnumDefNode:
+                diagnostics.unsupported(
+                    stat,
+                    "C enum declarations are not implemented in Universal "
+                    "HPy mode: enum size, signedness, and compiler ABI must "
+                    "be validated independently before selecting native "
+                    "storage or an HPy member descriptor",
+                )
+                continue
+            if type(stat) is Nodes.DefNode:
+                if stat.name in method_names:
+                    diagnostics.unsupported(
+                        stat,
+                        "duplicate function names are not implemented by the "
+                        "bootstrap Universal HPy emitter",
+                    )
+                method_names.add(stat.name)
+                methods.append(stat)
+                continue
+            if type(stat) is Nodes.CTypeDefNode:
+                typedef_entry = self.scope.lookup_here(stat.declarator.name)
+                if (
+                    typedef_entry is None
+                    or not _supports_extension_field_storage(typedef_entry.type)
+                ):
+                    diagnostics.unsupported(
+                        stat,
+                        "Universal HPy mode supports only non-external local "
+                        "typedefs that resolve to an enabled scalar field type",
+                    )
+                continue
+            if type(stat) is Nodes.CClassDefNode:
+                extension_type = stat.entry.type
+                fields = [
+                    field for field in extension_type.scope.var_entries
+                    if not getattr(field, "is_inherited", False)
+                ]
+                class_stats = (
+                    list(stat.body.stats)
+                    if type(stat.body) is Nodes.StatListNode else [stat.body]
+                )
+                user_methods = [
+                    class_stat for class_stat in class_stats
+                    if type(class_stat) is Nodes.DefNode
+                    and class_stat.pos[0].__class__.__name__ !=
+                        "StringSourceDescriptor"
+                ]
+                property_nodes = [
+                    class_stat for class_stat in class_stats
+                    if type(class_stat) is Nodes.PropertyNode
+                    and class_stat.name not in {
+                        field.name for field in fields
+                    }
+                ]
+                property_accessors = [
+                    accessor
+                    for property_node in property_nodes
+                    for accessor in (
+                        list(property_node.body.stats)
+                        if type(property_node.body) is Nodes.StatListNode
+                        else [property_node.body]
+                    )
+                    if type(accessor) is Nodes.DefNode
+                ]
+                supported_fields = [
+                    field for field in fields
+                    if _supports_extension_field_storage(field.type)
+                    and field.visibility in ("private", "public", "readonly")
+                    and field.name != "__weakref__"
+                ]
+                external_typedef_fields = [
+                    field for field in fields
+                    if _resolve_extension_field_storage_type(field.type) is None
+                ]
+                enum_fields = [
+                    field for field in fields
+                    if (
+                        (resolved_type :=
+                         _resolve_extension_field_storage_type(field.type))
+                        is not None
+                        and resolved_type.is_enum
+                    )
+                ]
+                allowed_entries = {
+                    "__module__", "__qualname__",
+                    "__reduce_cython__", "__setstate_cython__",
+                }
+                allowed_entries.update(field.name for field in supported_fields)
+                allowed_entries.update(method.name for method in user_methods)
+                allowed_entries.update(
+                    property_node.name for property_node in property_nodes)
+                unsupported_entries = sorted(
+                    name for name, entry in extension_type.scope.entries.items()
+                    if name not in allowed_entries
+                    and not getattr(entry, "is_inherited", False))
+                weakref_fields = [
+                    field for field in fields if field.name == "__weakref__"
+                ]
+                instance_dict_fields = [
+                    field for field in fields if field.name == "__dict__"
+                ]
+                deallocator_methods = [
+                    method for method in user_methods
+                    if method.name == "__dealloc__"
+                ]
+                iterator_methods = [
+                    method for method in user_methods
+                    if method.name in ("__iter__", "__next__")
+                ]
+                attribute_hook_methods = [
+                    method for method in user_methods
+                    if method.name in (
+                        "__getattribute__", "__getattr__",
+                        "__setattr__", "__delattr__")
+                ]
+                descriptor_methods = [
+                    method for method in user_methods
+                    if method.name in ("__get__", "__set__", "__delete__")
+                ]
+                async_protocol_methods = [
+                    method for method in user_methods
+                    if method.name in ("__await__", "__aiter__", "__anext__")
+                ]
+                custom_new_methods = [
+                    method for method in user_methods
+                    if method.name == "__new__"
+                ]
+                initial_numeric_method_names = (
+                    "__add__", "__radd__", "__iadd__",
+                    "__sub__", "__rsub__", "__isub__",
+                    "__mul__", "__rmul__", "__imul__",
+                    "__mod__", "__rmod__", "__imod__",
+                    "__divmod__", "__rdivmod__",
+                    "__floordiv__", "__rfloordiv__", "__ifloordiv__",
+                    "__truediv__", "__rtruediv__", "__itruediv__",
+                    "__lshift__", "__rlshift__", "__ilshift__",
+                    "__rshift__", "__rrshift__", "__irshift__",
+                    "__and__", "__rand__", "__iand__",
+                    "__xor__", "__rxor__", "__ixor__",
+                    "__or__", "__ror__", "__ior__",
+                    "__matmul__", "__rmatmul__", "__imatmul__",
+                )
+                initial_numeric_methods = [
+                    method for method in user_methods
+                    if method.name in initial_numeric_method_names
+                ]
+                reserved_runtime_entries = sorted(
+                    name for name, entry in extension_type.scope.entries.items()
+                    if (
+                        name == "__pyx_hpy_module"
+                        or name.startswith((
+                            "__pyx_hpy_const_", "__pyx_hpy_default_",
+                            "__pyx_hpy_slot_owner_"))
+                    )
+                    and not getattr(entry, "is_inherited", False)
+                )
+                if reserved_runtime_entries:
+                    diagnostics.unsupported(
+                        stat,
+                        "pure HPy type members use reserved runtime cache "
+                        "names: %s" % ", ".join(reserved_runtime_entries),
+                    )
+                elif external_typedef_fields:
+                    diagnostics.unsupported(
+                        external_typedef_fields[0],
+                        "external typedef extension fields are not "
+                        "implemented in Universal HPy mode: their width, "
+                        "signedness, alignment, and matching HPy member kind "
+                        "cannot be inferred portably",
+                    )
+                elif enum_fields:
+                    diagnostics.unsupported(
+                        enum_fields[0],
+                        "C enum extension fields are not implemented in "
+                        "Universal HPy mode: compiler-selected enum layout "
+                        "must not be treated as a guessed C int/HPyMember_INT",
+                    )
+                elif instance_dict_fields:
+                    diagnostics.unsupported(
+                        stat,
+                        "pure Universal HPy types cannot declare __dict__: "
+                        "HPy 0.9 provides no public portable instance-dict "
+                        "layout, offset, or type-spec API; a CPython "
+                        "tp_dictoffset would violate the Universal ABI",
+                    )
+                elif weakref_fields:
+                    diagnostics.unsupported(
+                        stat,
+                        "pure Universal HPy types cannot declare __weakref__: "
+                        "HPy 0.9 provides no public weak-reference layout, "
+                        "offset, or type-spec API; a CPython tp_weaklist "
+                        "offset would violate the Universal ABI",
+                    )
+                elif deallocator_methods:
+                    diagnostics.unsupported(
+                        deallocator_methods[0],
+                        "pure Universal HPy __dealloc__ is not implemented: "
+                        "HPy_tp_destroy receives only the raw instance "
+                        "storage pointer, without HPyContext or an HPy self "
+                        "handle; enable this only with a separately validated "
+                        "native-resource-only body (use __del__ for supported "
+                        "Python-level finalization)",
+                    )
+                elif iterator_methods:
+                    diagnostics.unsupported(
+                        iterator_methods[0],
+                        "pure Universal HPy iterator special methods are "
+                        "blocked by HPy 0.9: its public HPySlot_Slot enum "
+                        "exposes neither HPy_tp_iter nor HPy_tp_iternext; "
+                        "using CPython Py_tp_iter/Py_tp_iternext would violate "
+                        "the Universal ABI",
+                    )
+                elif attribute_hook_methods:
+                    diagnostics.unsupported(
+                        attribute_hook_methods[0],
+                        "pure Universal HPy attribute-hook special methods "
+                        "are blocked by HPy 0.9: its public HPySlot_Slot "
+                        "enum exposes neither HPy_tp_getattro nor "
+                        "HPy_tp_setattro; CPython Py_tp_getattro/"
+                        "Py_tp_setattro substitution would violate the "
+                        "Universal ABI",
+                    )
+                elif descriptor_methods:
+                    diagnostics.unsupported(
+                        descriptor_methods[0],
+                        "pure Universal HPy descriptor special methods are "
+                        "blocked by HPy 0.9: its public HPySlot_Slot enum "
+                        "exposes neither HPy_tp_descr_get nor "
+                        "HPy_tp_descr_set (extension-type property blocks "
+                        "remain supported through HPyDef_GET/SET/GETSET); "
+                        "CPython Py_tp_descr_* substitution would violate "
+                        "the Universal ABI",
+                    )
+                elif async_protocol_methods:
+                    diagnostics.unsupported(
+                        async_protocol_methods[0],
+                        "pure Universal HPy async protocol special methods "
+                        "are blocked by HPy 0.9: its public slot enum exposes "
+                        "no await/aiter/anext type slots; CPython Py_am_* "
+                        "substitution would violate the Universal ABI",
+                    )
+                elif custom_new_methods:
+                    diagnostics.unsupported(
+                        custom_new_methods[0],
+                        "pure Universal HPy custom __new__ is not implemented: "
+                        "the backend-owned HPy_tp_new currently guarantees "
+                        "HPy_New allocation, base-to-derived __cinit__, and "
+                        "partial-object cleanup; custom allocation requires "
+                        "its own constructor and layout validator",
+                    )
+                elif (
+                    stat.visibility != "private"
+                    or len(supported_fields) != len(fields)
+                    or any(
+                        not method.args
+                        or (method.name.startswith("__")
+                            and method.name not in (
+                                "__init__", "__repr__", "__str__",
+                                "__len__", "__getitem__", "__setitem__",
+                                "__delitem__", "__hash__", "__bool__",
+                                "__neg__", "__pos__", "__abs__",
+                                "__invert__", "__int__", "__float__",
+                                "__index__", "__contains__", "__call__",
+                                "__format__",
+                                "__cinit__",
+                                *initial_numeric_method_names,
+                                "__pow__", "__rpow__", "__ipow__",
+                                "__lt__", "__le__", "__eq__", "__ne__",
+                                "__gt__", "__ge__", "__del__"))
+                        or (method.name in (
+                                "__repr__", "__str__", "__len__", "__hash__",
+                                "__bool__", "__neg__", "__pos__", "__abs__",
+                                "__invert__", "__int__", "__float__",
+                                "__index__")
+                            and len(method.args) != 1)
+                        or (method.name == "__getitem__"
+                            and len(method.args) != 2)
+                        or (method.name == "__setitem__"
+                            and len(method.args) != 3)
+                        or (method.name == "__delitem__"
+                            and len(method.args) != 2)
+                        or (method.name == "__contains__"
+                            and len(method.args) != 2)
+                        or (method.name == "__format__"
+                            and len(method.args) != 2)
+                        or (method.name in initial_numeric_method_names
+                            and len(method.args) != 2)
+                        or (method.name in (
+                                "__pow__", "__rpow__", "__ipow__")
+                            and len(method.args) not in (2, 3))
+                        or (method.name in (
+                                "__lt__", "__le__", "__eq__", "__ne__",
+                                "__gt__", "__ge__")
+                            and len(method.args) != 2)
+                        or (method.name == "__del__"
+                            and len(method.args) != 1)
+                        or method.decorators
+                        or (
+                            method.name.startswith("__")
+                            and method.name not in (
+                                "__cinit__", "__init__", "__call__",
+                                "__pow__", "__rpow__", "__ipow__")
+                            and any(argument.default is not None
+                                    for argument in method.args)
+                        )
+                        for method in user_methods
+                    )
+                    or any(
+                        accessor.name not in ("__get__", "__set__", "__del__")
+                        or not accessor.args
+                        or (
+                            accessor.name in ("__get__", "__del__")
+                            and len(accessor.args) != 1
+                        )
+                        or (
+                            accessor.name == "__set__"
+                            and len(accessor.args) != 2
+                        )
+                        or accessor.decorators
+                        or accessor.return_type_annotation is not None
+                        or any(argument.default is not None
+                               for argument in accessor.args)
+                        for accessor in property_accessors
+                    )
+                    or any(
+                        not any(
+                            accessor.name in ("__get__", "__set__", "__del__")
+                            for accessor in (
+                                list(property_node.body.stats)
+                                if type(property_node.body) is Nodes.StatListNode
+                                else [property_node.body]
+                            )
+                            if type(accessor) is Nodes.DefNode
+                        )
+                        for property_node in property_nodes
+                    )
+                    or unsupported_entries
+                ):
+                    diagnostics.unsupported(
+                        stat,
+                        "initial pure HPy cdef class support requires a "
+                        "private class with at most one earlier generated base, "
+                        "only generic object or supported fixed C numeric fields, "
+                        "and undecorated instance methods in the enabled "
+                        "ordinary, property, __cinit__/__init__/__call__, "
+                        "value, length, mapping, hash, bool, unary/conversion, "
+                        "contains, format, "
+                        "rich-comparison, or __del__ families "
+                        "(unsupported "
+                        "entries: %s)" %
+                        (", ".join(unsupported_entries) or "none"),
+                    )
+                extension_types.append(stat)
+                continue
+            if (
+                type(stat) is Nodes.SingleAssignmentNode
+                and type(stat.rhs) is ExprNodes.PyCFunctionNode
+            ):
+                continue
+            if (
+                type(stat) is Nodes.SingleAssignmentNode
+                and type(stat.lhs) is ExprNodes.NameNode
+                and stat.lhs.name == "__test__"
+                and type(stat.rhs) is ExprNodes.DictNode
+                and not stat.rhs.key_value_pairs
+            ):
+                continue
+            if (
+                type(stat) is Nodes.SingleAssignmentNode
+                and type(stat.lhs) is ExprNodes.NameNode
+                and stat.lhs.type.is_pyobject
+            ):
+                module_stats.append(stat)
+                continue
+            if type(stat) is Nodes.FromImportStatNode:
+                module_stats.append(stat)
+                continue
+            diagnostics.unsupported(
+                stat,
+                "module-level %s is not implemented by the bootstrap "
+                "Universal HPy emitter" % stat.__class__.__name__,
+            )
+        extension_type_nodes = {
+            id(extension_type.entry.type): extension_type
+            for extension_type in extension_types
+        }
+        extension_type_order = {
+            id(extension_type.entry.type): index
+            for index, extension_type in enumerate(extension_types)
+        }
+        for index, extension_type in enumerate(extension_types):
+            base_type = extension_type.base_type
+            if base_type is None:
+                continue
+            base_node = extension_type_nodes.get(id(base_type))
+            if (
+                base_node is None
+                or extension_type_order[id(base_type)] >= index
+            ):
+                diagnostics.unsupported(
+                    extension_type,
+                    "pure HPy inheritance currently requires one generated "
+                    "pure HPy base declared earlier in the same module",
+                )
+        return methods, module_stats, extension_types, external_c_blocks
+
+    def hpy_bootstrap_methods(self, diagnostics):
+        """Compatibility helper returning only strict bootstrap functions."""
+        methods, _, _, _ = self.hpy_bootstrap_contents(diagnostics)
+        return methods
+
+    def generate_hpy_universal_code(self, options, result):
+        if options.cplus:
+            raise CompileError(
+                self.pos,
+                "aHPy bootstrap backend: C++ output is not implemented yet",
+            )
+        if Options.annotate or options.annotate:
+            raise CompileError(
+                self.pos,
+                "aHPy bootstrap backend: annotated output is not implemented yet",
+            )
+        from .HPyModuleWriter import UniversalHPyModuleWriter
+        self.assure_safe_target(result.c_file, allow_failed=True)
+        output = UniversalHPyModuleWriter(
+            self, self.scope.context.runtime_api).render()
+        with open_new_file(result.c_file) as output_file:
+            output_file.write(output)
+        result.c_file_generated = 1
 
     def has_imported_c_functions(self):
         for module in self.referenced_modules:
@@ -511,7 +1128,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         h_code.putln("")
         h_code.putln("static int %s(void) {" % self.api_name("import", env))
         h_code.putln("PyObject *module = 0;")
-        h_code.putln('module = PyImport_ImportModule(%s);' % env.qualified_name.as_c_string_literal())
+        h_code.putln('module = %s;' % h_code.globalstate.runtime_api.import_module(
+            env.qualified_name.as_c_string_literal()))
         h_code.putln("if (!module) goto bad;")
         for entry in api_funcs:
             cname = env.mangle(Naming.func_prefix_api, entry.name)
@@ -528,10 +1146,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         with ModuleImportGenerator(h_code, imported_modules={env.qualified_name: 'module'}) as import_generator:
             for entry in api_extension_types:
                 self.generate_type_import_call(entry.type, h_code, import_generator, error_code="goto bad;", is_api=True)
-        h_code.putln("Py_DECREF(module); module = 0;")
+        h_code.putln("%s module = 0;" %
+                     h_code.globalstate.runtime_api.close_reference("module"))
         h_code.putln("return 0;")
         h_code.putln("bad:")
-        h_code.putln("Py_XDECREF(module);")
+        h_code.put_runtime_ref_close("module", null_safe=True)
         h_code.putln("return -1;")
         h_code.putln("}")
         h_code.putln("")
@@ -1481,17 +2100,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in env.c_class_entries:
             if definition or entry.defined_in_pxd:
                 module_state.putln("PyTypeObject *%s;" % entry.type.typeptr_cname)
-                module_state_clear.putln(
-                    "Py_CLEAR(clear_module_state->%s);" %
-                    entry.type.typeptr_cname)
+                module_state_clear.put_runtime_ref_clear(
+                    "clear_module_state->%s" % entry.type.typeptr_cname)
                 module_state_traverse.putln(
                     "Py_VISIT(traverse_module_state->%s);" %
                     entry.type.typeptr_cname)
                 if entry.type.typeobj_cname is not None:
                     module_state_typeobj.putln("PyObject *%s;" % entry.type.typeobj_cname)
-                    module_state_clear.putln(
-                        "Py_CLEAR(clear_module_state->%s);" % (
-                        entry.type.typeobj_cname))
+                    module_state_clear.put_runtime_ref_clear(
+                        "clear_module_state->%s" % entry.type.typeobj_cname)
                     module_state_traverse.putln(
                         "Py_VISIT(traverse_module_state->%s);" % (
                         entry.type.typeobj_cname))
@@ -1791,7 +2408,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if CYTHON_USE_TYPE_SPECS")
         # We still hold a reference to the type object held by the previous
         # user of the freelist object - release it.
-        code.putln("Py_DECREF(Py_TYPE(o));")
+        code.put_runtime_ref_close("Py_TYPE(o)")
         code.putln("#endif")
 
         obj_struct = type.declaration_code("", deref=True)
@@ -1869,8 +2486,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in py_attrs:
             if entry.name == "__dict__":
                 needs_error_cleanup = True
-                code.put("p->%s = PyDict_New(); if (unlikely(!p->%s)) goto bad;" % (
-                    entry.cname, entry.cname))
+                code.put("p->%s = %s; if (unlikely(!p->%s)) goto bad;" % (
+                    entry.cname,
+                    code.globalstate.runtime_api.dict_new(),
+                    entry.cname))
             else:
                 code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
 
@@ -1950,7 +2569,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("if (likely(o)) {")
             code.putln("assert(Py_TYPE(o) == (PyTypeObject*)t);")
             code.putln(f"if (unlikely({tp_init.func_cname}(o, args, nargs, kwnames) < 0)) {{")
-            code.putln("Py_CLEAR(o);")
+            code.put_runtime_ref_clear("o")
             code.putln("}")
             code.putln("}")
 
@@ -2002,9 +2621,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.start_slotfunc(scope, PyrexTypes.c_void_type, "tp_finalize", "PyObject *o", needs_funcstate=False)
         code.putln("PyObject *etype, *eval, *etb;")
-        code.putln("__Pyx_PyErr_FetchException(&etype, &eval, &etb);")
+        code.putln(code.globalstate.runtime_api.fetch_exception(
+            "&etype", "&eval", "&etb") + ";")
         code.putln("%s(o);" % entry.func_cname)
-        code.putln("__Pyx_PyErr_RestoreException(etype, eval, etb);")
+        code.putln(code.globalstate.runtime_api.restore_exception(
+            "etype", "eval", "etb") + ";")
         code.putln("}")
         code.exit_cfunc_scope()
 
@@ -2141,7 +2762,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # other well-behaved types do).
                 code.putln("#if CYTHON_USE_TYPE_SPECS")
                 code.putln(f"if (!__Pyx_PyType_HasFeature({base_cname}, Py_TPFLAGS_HEAPTYPE)) {{")
-                code.putln("Py_DECREF(tp);")
+                code.put_runtime_ref_close("tp")
                 code.putln("}")
                 code.putln("#endif")
         else:
@@ -2179,7 +2800,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#endif")
             code.putln("#if CYTHON_USE_TYPE_SPECS")
             # Undo the INCREF of the type object in tp_new
-            code.putln("Py_DECREF(tp);")
+            code.put_runtime_ref_close("tp")
             code.putln("#endif")
             if freelist_size:
                 code.putln("}")
@@ -2200,14 +2821,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             UtilityCode.load_cached("DeallocKeepAlive", "ExtensionTypes.c"))
         code.putln("{")
         code.putln("PyObject *etype, *eval, *etb;")
-        code.putln("__Pyx_PyErr_FetchException(&etype, &eval, &etb);")
+        code.putln(code.globalstate.runtime_api.fetch_exception(
+            "&etype", "&eval", "&etb") + ";")
         # Keep the object alive while we are calling into user code, to prevent
         # the user code from triggering recursive deallocation.  On free-threading
         # this must not use Py_SET_REFCNT() (see DeallocKeepAlive in ExtensionTypes.c).
         code.putln("__Pyx_DeallocKeepAliveBegin(o);")
         code.putln("%s(o);" % entry.func_cname)
         code.putln("__Pyx_DeallocKeepAliveEnd(o);")
-        code.putln("__Pyx_PyErr_RestoreException(etype, eval, etb);")
+        code.putln(code.globalstate.runtime_api.restore_exception(
+            "etype", "eval", "etb") + ";")
         code.putln("}")
 
     def generate_traverse_function(self, scope, code, cclass_entry):
@@ -2359,14 +2982,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.put_init_to_py_none(name, py_object_type, nanny=False)
                 else:
                     code.put_init_to_py_none(name, entry.type, nanny=False)
-                code.putln("Py_XDECREF(tmp);")
+                code.put_runtime_ref_close("tmp", null_safe=True)
         else:
             for entry in py_attrs:
-                code.putln("Py_CLEAR(p->%s);" % entry.cname)
+                code.put_runtime_ref_clear("p->%s" % entry.cname)
 
         for entry in py_buffers:
             # Note: shouldn't this call PyBuffer_Release ??
-            code.putln("Py_CLEAR(p->%s.obj);" % entry.cname)
+            code.put_runtime_ref_clear("p->%s.obj" % entry.cname)
 
         if cclass_entry.cname == '__pyx_memoryviewslice':
             code.putln("__PYX_XCLEAR_MEMVIEW(&p->from_slice, 1);")
@@ -2403,7 +3026,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if not implements_mapping_get:
                     code.putln(f"if (unlikely(!f)) f = (binaryfunc) {get_entry.func_cname};")
                 code.putln("r = f(o, x);")
-                code.putln("Py_DECREF(x);")
+                code.put_runtime_ref_close("x")
                 code.putln("return r;")
 
             code.putln("}")
@@ -2413,7 +3036,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if implements_mapping_get:
             code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "mp_subscript", "PyObject *o, PyObject *i", needs_funcstate=False)
             if is_sequence_get:
-                code.putln("Py_ssize_t x = __Pyx_PyIndex_AsSsize_t(i); if (unlikely(x == -1 && PyErr_Occurred())) return NULL;")
+                code.putln(
+                    "Py_ssize_t x = __Pyx_PyIndex_AsSsize_t(i); "
+                    "if (unlikely(x == -1 && %s)) return NULL;" %
+                    code.globalstate.runtime_api.error_occurred())
                 code.putln(f"return {get_entry.func_cname}(o, x);")
             else:
                 code.putln(f"return {get_entry.func_cname}(o, i);")
@@ -2452,7 +3078,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             elif set_entry:
                 code.putln("PyObject *x = PyLong_FromSsize_t(i); if (unlikely(!x)) return -1;")
                 code.putln(f"int r = {set_entry.func_cname}(o, x, v);")
-                code.putln("Py_DECREF(x);")
+                code.put_runtime_ref_close("x")
                 code.putln("return r;")
             else:
                 self.generate_guarded_basetype_call(
@@ -2465,7 +3091,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             elif del_entry:
                 code.putln("PyObject *x = PyLong_FromSsize_t(i); if (unlikely(!x)) return -1;")
                 code.putln(f"int r = {del_entry.func_cname}(o, x);")
-                code.putln("Py_DECREF(x);")
+                code.put_runtime_ref_close("x")
                 code.putln("return r;")
             else:
                 self.generate_guarded_basetype_call(
@@ -2482,7 +3108,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("if (%s) {" % set_or_del)
 
             if is_sequence_set:
-                code.putln("Py_ssize_t x = __Pyx_PyIndex_AsSsize_t(i); if (unlikely(x == -1 && PyErr_Occurred())) return -1;")
+                code.putln(
+                    "Py_ssize_t x = __Pyx_PyIndex_AsSsize_t(i); "
+                    "if (unlikely(x == -1 && %s)) return -1;" %
+                    code.globalstate.runtime_api.error_occurred())
                 code.putln(f"return {set_entry.func_cname}(o, x, v);")
             elif set_entry:
                 code.putln(f"return {set_entry.func_cname}(o, i, v);")
@@ -2493,7 +3122,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
             code.putln("} else {")
             if is_sequence_del:
-                code.putln("Py_ssize_t x = __Pyx_PyIndex_AsSsize_t(i); if (unlikely(x == -1 && PyErr_Occurred())) return -1;")
+                code.putln(
+                    "Py_ssize_t x = __Pyx_PyIndex_AsSsize_t(i); "
+                    "if (unlikely(x == -1 && %s)) return -1;" %
+                    code.globalstate.runtime_api.error_occurred())
                 code.putln(f"return {del_entry.func_cname}(o, x);")
             elif del_entry:
                 code.putln(f"return {del_entry.func_cname}(o, i);")
@@ -2591,7 +3223,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("ret = %s(o1, o2);" % comp_entry[ordering_source].func_cname)
                 code.putln("if (likely(ret && ret != Py_NotImplemented)) {")
                 code.putln("int order_res = __Pyx_PyObject_IsTrue(ret);")
-                code.putln("Py_DECREF(ret);")
+                code.put_runtime_ref_close("ret")
                 code.putln("if (unlikely(order_res < 0)) return NULL;")
                 # We may need to check equality too. For some combos it's never required.
                 if invert_equals is not None:
@@ -2616,13 +3248,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.putln("ret = %s(o1, o2);" % comp_entry[eq_func].func_cname)
                     code.putln("if (likely(ret && ret != Py_NotImplemented)) {")
                     code.putln("int eq_res = __Pyx_PyObject_IsTrue(ret);")
-                    code.putln("Py_DECREF(ret);")
+                    code.put_runtime_ref_close("ret")
                     code.putln("if (unlikely(eq_res < 0)) return NULL;")
                     if invert_equals:
                         code.putln("ret = eq_res ? Py_False : Py_True;")
                     else:
                         code.putln("ret = eq_res ? Py_True : Py_False;")
-                    code.putln("Py_INCREF(ret);")
+                    code.put_runtime_ref_dup("ret")
                     code.putln("}")  # equals success
                     code.putln("}")  # Needs to try equals
                 else:
@@ -2631,7 +3263,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         code.putln("ret = order_res ? Py_False : Py_True;")
                     else:
                         code.putln("ret = order_res ? Py_True : Py_False;")
-                    code.putln("Py_INCREF(ret);")
+                    code.put_runtime_ref_dup("ret")
                 code.putln("}")  # comp_op
                 code.putln("return ret;")
             else:
@@ -2646,10 +3278,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("ret = %s(o1, o2);" % comp_entry['__eq__'].func_cname)
             code.putln("if (likely(ret && ret != Py_NotImplemented)) {")
             code.putln("int b = __Pyx_PyObject_IsTrue(ret);")
-            code.putln("Py_DECREF(ret);")
+            code.put_runtime_ref_close("ret")
             code.putln("if (unlikely(b < 0)) return NULL;")
             code.putln("ret = (b) ? Py_False : Py_True;")
-            code.putln("Py_INCREF(ret);")
+            code.put_runtime_ref_dup("ret")
             code.putln("}")
             code.putln("return ret;")
             code.putln("}")
@@ -2770,9 +3402,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "PyObject *v = PyObject_GenericGetAttr(o, n);")
         if getattr_entry is not None:
             code.putln(
-                "if (!v && PyErr_ExceptionMatches(PyExc_AttributeError)) {")
+                "if (!v && %s) {" %
+                code.globalstate.runtime_api.exception_matches('PyExc_AttributeError'))
             code.putln(
-                "PyErr_Clear();")
+                code.globalstate.runtime_api.error_clear() + ";")
             code.putln(
                 "v = %s(o, n);" % (
                     getattr_entry.func_cname))
@@ -2869,7 +3502,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_guarded_basetype_call(
                 base_type, None, "tp_descr_set", "descrsetfunc", "o, i, v", code)
             code.putln(
-                'PyErr_SetString(PyExc_NotImplementedError, "__set__");')
+                code.globalstate.runtime_api.error_set_string(
+                    'PyExc_NotImplementedError', '"__set__"') + ';')
             code.putln(
                 "return -1;")
         code.putln(
@@ -2884,7 +3518,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_guarded_basetype_call(
                 base_type, None, "tp_descr_set", "descrsetfunc", "o, i, v", code)
             code.putln(
-                'PyErr_SetString(PyExc_NotImplementedError, "__delete__");')
+                code.globalstate.runtime_api.error_set_string(
+                    'PyExc_NotImplementedError', '"__delete__"') + ';')
             code.putln(
                 "return -1;")
         code.putln(
@@ -2936,7 +3571,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     set_entry.func_cname))
         else:
             code.putln(
-                'PyErr_SetString(PyExc_NotImplementedError, "__set__");')
+                code.globalstate.runtime_api.error_set_string(
+                    'PyExc_NotImplementedError', '"__set__"') + ';')
             code.putln(
                 "return -1;")
         code.putln(
@@ -2949,7 +3585,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     del_entry.func_cname))
         else:
             code.putln(
-                'PyErr_SetString(PyExc_NotImplementedError, "__del__");')
+                code.globalstate.runtime_api.error_set_string(
+                    'PyExc_NotImplementedError', '"__del__"') + ';')
             code.putln(
                 "return -1;")
         code.putln(
@@ -2995,16 +3632,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("{0, 0, 0, 0, 0}")
             code.putln("};")
 
-        code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
+        code.putln(code.globalstate.runtime_api.type_definition_array_declaration(
+            ext_type.typeobj_cname))
         for slot in TypeSlots.get_slot_table(code.globalstate.directives):
             slot.generate_spec(scope, code)
         if generate_members:
-            code.putln("{Py_tp_members, (void*)%s_members}," % ext_type.typeobj_cname)
-        code.putln("{0, 0},")
+            members_cname = "%s_members" % ext_type.typeobj_cname
+            code.putln(code.globalstate.runtime_api.type_slot_table_entry(
+                "tp_members", members_cname, members_cname,
+                pointer_cast="(void*)"))
+        code.putln(code.globalstate.runtime_api.type_definition_array_terminator())
         code.putln("};")
 
         classname = scope.class_name.as_c_string_literal()
-        code.putln("static PyType_Spec %s_spec = {" % ext_type.typeobj_cname)
+        code.putln(code.globalstate.runtime_api.type_specification_declaration(
+            ext_type.typeobj_cname))
         code.putln('"%s.%s",' % (self.full_module_name, classname.replace('"', '')))
         code.putln("sizeof(%s)," % objstruct)
         code.putln("0,")
@@ -3052,16 +3694,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         wrapper_code_writer = code.insertion_point()
 
-        code.putln(
-            "static PyMethodDef %s[] = {" % (
-                env.method_table_cname))
+        code.putln(code.globalstate.runtime_api.method_table_declaration(
+            env.method_table_cname))
         for entry in env.pyfunc_entries:
             if not entry.fused_cfunction and not (binding and entry.is_overridable):
                 code.put_pymethoddef(entry, ",", wrapper_code_writer=wrapper_code_writer)
-        code.putln(
-            "{0, 0, 0, 0}")
-        code.putln(
-            "};")
+        code.putln(code.globalstate.runtime_api.method_table_terminator())
+        code.putln(code.globalstate.runtime_api.method_table_end())
 
         if wrapper_code_writer.getvalue():
             wrapper_code_writer.putln("")
@@ -3078,9 +3717,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % func_name)
         self.generate_self_cast(scope, code)
         code.putln("if (unlikely(!p->%s)){" % dict_name)
-        code.putln("p->%s = PyDict_New();" % dict_name)
+        code.putln("p->%s = %s;" % (
+            dict_name, code.globalstate.runtime_api.dict_new()))
         code.putln("}")
-        code.putln("Py_XINCREF(p->%s);" % dict_name)
+        code.put_runtime_ref_dup("p->%s" % dict_name, null_safe=True)
         code.putln("return p->%s;" % dict_name)
         code.putln("}")
         code.putln("#else")
@@ -3175,7 +3815,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.putln("if (!(%s)) %s;" % (
                         type_test,
                         code.error_goto(entry.pos)))
-                code.putln("Py_INCREF(o);")
+                code.put_runtime_ref_dup("o")
                 code.putln(f"{entry.type.declaration_code(Naming.quick_temp_cname)} = {entry.cname};")
                 code.putln("%s = %s;" % (
                     entry.cname,
@@ -3222,13 +3862,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
             if code.label_used(cannot_convert):
                 code.put_label(cannot_convert)
-                code.putln(
-                    f'PyErr_Format(PyExc_TypeError, "Cannot convert Python object %.200U to %.200s", py_name, failed_type);')
+                code.putln(code.globalstate.runtime_api.error_format(
+                    'PyExc_TypeError',
+                    '"Cannot convert Python object %.200U to %.200s"',
+                    ['py_name', 'failed_type']) + ';')
                 code.putln("goto bad;")
 
             if code.label_used(cannot_overwrite):
                 code.put_label(cannot_overwrite)
-                code.putln('PyErr_Format(PyExc_TypeError, "Cannot overwrite C type %.200U", py_name);')
+                code.putln(code.globalstate.runtime_api.error_format(
+                    'PyExc_TypeError', '"Cannot overwrite C type %.200U"',
+                    ['py_name']) + ';')
                 code.putln("goto bad;")
 
             code.put_label(pysetattr)
@@ -3236,7 +3880,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         # Generic module dict assignment.
 
-        code.putln(f"if (PyObject_SetAttr({Naming.module_cname}, py_name, o) < 0) goto bad;")
+        code.putln("if (%s < 0) goto bad;" % code.globalstate.runtime_api.module_set_attr(
+            Naming.module_cname, "py_name", "o"))
 
         # Error handling and function exit.
 
@@ -3249,7 +3894,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_add_traceback(EncodedString(self.full_module_name))
         code.error_label = old_error_label
         code.putln("bad:")
-        code.putln("Py_DECREF(__pyx_interned_name);")
+        code.put_runtime_ref_close("__pyx_interned_name")
         code.putln("return -1;")
         code.putln("}")
         code.putln("")
@@ -3286,10 +3931,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln("#if CYTHON_USE_MODULE_STATE")
         module_state.putln('#ifdef __cplusplus')
         module_state.putln('namespace {')
-        module_state.putln('extern struct PyModuleDef %s;' % Naming.pymoduledef_cname)
+        module_state.putln(module_state.globalstate.runtime_api.module_definition_forward_declaration(
+            Naming.pymoduledef_cname, "extern"))
         module_state.putln('} /* anonymous namespace */')
         module_state.putln('#else')
-        module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
+        module_state.putln(module_state.globalstate.runtime_api.module_definition_forward_declaration(
+            Naming.pymoduledef_cname, "static"))
         module_state.putln('#endif')
         module_state.putln('')
         module_state.putln('#define %s (__Pyx_PyModule_GetState(__Pyx_State_FindModule(&%s)))' % (
@@ -3330,18 +3977,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("static CYTHON_SMALL_CODE int %s_clear(PyObject *m) {" % Naming.module_cname)
         code.putln(f"{Naming.modulestatetype_cname} *clear_module_state = __Pyx_PyModule_GetState(m);")
         code.putln("if (!clear_module_state) return 0;")
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            env.module_dict_cname)
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.builtins_cname)
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.cython_runtime_cname)
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.empty_tuple)
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.empty_bytes)
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.empty_unicode)
+        for cname in (
+            env.module_dict_cname,
+            Naming.builtins_cname,
+            Naming.cython_runtime_cname,
+            Naming.empty_tuple,
+            Naming.empty_bytes,
+            Naming.empty_unicode,
+        ):
+            code.put_runtime_ref_clear('clear_module_state->%s' % cname)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         # In this case we have to remove the module from our lookup table ourself
         # because Python isn't going to do it.
@@ -3391,7 +4035,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # CPython 3.5+ supports multi-phase module initialisation (gives access to __spec__, __file__, etc.)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("{")
-        code.putln("return PyModuleDef_Init(&%s);" % Naming.pymoduledef_cname)
+        code.putln("return %s;" % code.globalstate.runtime_api.module_init_definition_result(
+            Naming.pymoduledef_cname))
         code.putln("}")
 
         mod_create_func = UtilityCode.load("ModuleCreationPEP489", "ModuleSetupCode.c")
@@ -3431,9 +4076,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.module_cname,
             Naming.pymodinit_module_arg,
         ))
-        code.putln('PyErr_SetString(PyExc_RuntimeError,'
-                   ' "Module \'%s\' has already been imported. Re-initialisation is not supported.");' %
-                   env.module_name.as_c_string_literal()[1:-1])
+        code.putln(code.globalstate.runtime_api.error_set_string(
+            'PyExc_RuntimeError',
+            '"Module \'%s\' has already been imported. Re-initialisation is not supported."' %
+            env.module_name.as_c_string_literal()[1:-1]) + ';')
         code.putln("return -1;")
         code.putln("}")
         code.putln("#else")
@@ -3464,8 +4110,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         )
 
         empty_tuple = code.name_in_main_c_code_module_state(Naming.empty_tuple)
-        code.putln("%s = PyTuple_New(0); %s" % (
-            empty_tuple, code.error_goto_if_null(empty_tuple, self.pos)))
+        runtime_api = code.globalstate.runtime_api
+        empty_tuple_builder = runtime_api.sequence_builder(RuntimeSequenceKind.TUPLE)
+        code.putln("%s = %s; %s" % (
+            empty_tuple,
+            runtime_api.sequence_builder_new(empty_tuple_builder, "0"),
+            code.error_goto_if_null(empty_tuple, self.pos)))
         empty_bytes = code.name_in_main_c_code_module_state(Naming.empty_bytes)
         code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (
             empty_bytes, code.error_goto_if_null(empty_bytes, self.pos)))
@@ -3484,7 +4134,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_error_if_neg(self.pos, "__Pyx_InitGlobals()")  # calls any utility code
 
         code.putln("if (%s) {" % self.is_main_module_flag_cname())
-        code.put_error_if_neg(self.pos, 'PyObject_SetAttr(%s, %s, %s)' % (
+        code.put_error_if_neg(self.pos, code.globalstate.runtime_api.module_set_attr(
             env.module_cname,
             code.intern_identifier(EncodedString("__name__")),
             code.intern_identifier(EncodedString("__main__"))))
@@ -3601,14 +4251,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # fetch/restore the error indicator because PyState_RemoveModule might fail itself
         code.putln("if (pystate_addmodule_run) {")
         code.putln("PyObject *tp, *value, *tb;")
-        code.putln("__Pyx_PyErr_FetchException(&tp, &value, &tb);")
+        code.putln(code.globalstate.runtime_api.fetch_exception(
+            "&tp", "&value", "&tb") + ";")
         code.putln("PyState_RemoveModule(&%s);" % Naming.pymoduledef_cname)
-        code.putln("__Pyx_PyErr_RestoreException(tp, value, tb);")
+        code.putln(code.globalstate.runtime_api.restore_exception(
+            "tp", "value", "tb") + ";")
         code.putln("}")
         code.putln("#endif")
-        code.putln('} else if (!PyErr_Occurred()) {')
-        code.putln('PyErr_SetString(PyExc_ImportError, "init %s");' %
-                   env.qualified_name.as_c_string_literal()[1:-1])
+        code.putln('} else if (!%s) {' % code.globalstate.runtime_api.error_occurred())
+        code.putln(code.globalstate.runtime_api.error_set_string(
+            'PyExc_ImportError',
+            '"init %s"' % env.qualified_name.as_c_string_literal()[1:-1]) + ';')
         code.putln('}')
         code.put_label(code.return_label)
 
@@ -3703,10 +4356,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if module_path:
             code.putln('if (!CYTHON_PEP489_MULTI_PHASE_INIT) {')
-            code.putln('if (PyObject_SetAttrString(%s, "__file__", %s) < 0) %s;' % (
-                env.module_cname,
-                code.get_py_string_const(
-                    EncodedString(decode_filename(module_path))),
+            code.putln('if (%s < 0) %s;' % (
+                code.globalstate.runtime_api.module_set_attr_string(
+                    env.module_cname,
+                    '"__file__"',
+                    code.get_py_string_const(
+                        EncodedString(decode_filename(module_path)))),
                 code.error_goto(self.pos)))
             code.putln("}")
 
@@ -3721,9 +4376,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             os.path.dirname(module_path)))),
                     code.error_goto_if_null(temp, self.pos)))
                 code.put_gotref(temp, py_object_type)
-                code.putln(
-                    'if (PyObject_SetAttrString(%s, "__path__", %s) < 0) %s;' % (
-                        env.module_cname, temp, code.error_goto(self.pos)))
+                code.putln('if (%s < 0) %s;' % (
+                    code.globalstate.runtime_api.module_set_attr_string(
+                        env.module_cname, '"__path__"', temp),
+                    code.error_goto(self.pos)))
                 code.put_decref_clear(temp, py_object_type)
                 code.funcstate.release_temp(temp)
                 code.putln("}")
@@ -3747,11 +4403,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             fq_module_name = EncodedString(fq_module_name[:-len('.__init__')])
         fq_module_name_cstring = fq_module_name.as_c_string_literal()
         code.putln("{")
-        code.putln("PyObject *modules = PyImport_GetModuleDict(); %s" %
-                   code.error_goto_if_null("modules", self.pos))
+        code.putln("PyObject *modules = %s; %s" % (
+            code.globalstate.runtime_api.import_get_module_dict(),
+            code.error_goto_if_null("modules", self.pos)))
         code.putln('if (!PyDict_GetItemString(modules, %s)) {' % fq_module_name_cstring)
-        code.putln(code.error_goto_if_neg('PyDict_SetItemString(modules, %s, %s)' % (
-            fq_module_name_cstring, env.module_cname), self.pos))
+        code.putln(code.error_goto_if_neg(
+            code.globalstate.runtime_api.dict_set_item_string(
+                "modules", fq_module_name_cstring, env.module_cname),
+            self.pos))
         code.putln("}")
         code.putln("}")
 
@@ -3911,11 +4570,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                    Naming.pymodule_create_func_cname)
         code.putln("static int %s(PyObject* module); /*proto*/" % exec_func_cname)
 
-        code.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
-        code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
-        code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
+        code.putln(code.globalstate.runtime_api.module_slot_array_declaration(
+            Naming.pymoduledef_slots_cname))
+        code.putln(code.globalstate.runtime_api.module_slot_definition(
+            "mod_create", Naming.pymodule_create_func_cname,
+            pointer_cast="(void*)"))
+        code.putln(code.globalstate.runtime_api.module_slot_definition(
+            "mod_exec", exec_func_cname, pointer_cast="(void*)"))
         code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
-        code.putln("{Py_mod_gil, __Pyx_FREETHREADING_COMPATIBLE},")
+        code.putln(code.globalstate.runtime_api.module_slot_definition(
+            "mod_gil", "__Pyx_FREETHREADING_COMPATIBLE"))
         code.putln("#endif")
         code.putln("#if PY_VERSION_HEX >= 0x030C0000 && CYTHON_USE_MODULE_STATE")
         subinterp_option = {
@@ -3923,9 +4587,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             'shared_gil': 'Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED',
             'own_gil': 'Py_MOD_PER_INTERPRETER_GIL_SUPPORTED'
         }.get(env.directives["subinterpreters_compatible"])
-        code.putln("{Py_mod_multiple_interpreters, %s}," % subinterp_option)
+        code.putln(code.globalstate.runtime_api.module_slot_definition(
+            "mod_multiple_interpreters", subinterp_option))
         code.putln("#endif")
-        code.putln("{0, NULL}")
+        code.putln(code.globalstate.runtime_api.module_slot_terminator())
         code.putln("};")
         if not env.module_name.isascii():
             code.putln("#else /* CYTHON_PEP489_MULTI_PHASE_INIT */")
@@ -3936,9 +4601,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln('#ifdef __cplusplus')
         code.putln('namespace {')
-        code.putln("struct PyModuleDef %s =" % Naming.pymoduledef_cname)
+        code.putln(code.globalstate.runtime_api.module_definition_declaration(
+            Naming.pymoduledef_cname, ""))
         code.putln('#else')
-        code.putln("static struct PyModuleDef %s =" % Naming.pymoduledef_cname)
+        code.putln(code.globalstate.runtime_api.module_definition_declaration(
+            Naming.pymoduledef_cname, "static"))
         code.putln('#endif')
         code.putln('{')
         code.putln("  PyModuleDef_HEAD_INIT,")
@@ -3985,11 +4652,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.pymodinit_module_arg))
         code.put_incref(module_temp, py_object_type, nanny=False)
         code.putln("#else")
-        code.putln(
-            "%s = PyModule_Create(&%s); %s" % (
-                module_temp,
-                Naming.pymoduledef_cname,
-                code.error_goto_if_null(module_temp, self.pos)))
+        code.putln("%s = %s; %s" % (
+            module_temp,
+            code.globalstate.runtime_api.module_create(Naming.pymoduledef_cname),
+            code.error_goto_if_null(module_temp, self.pos)))
         code.putln("#endif")
 
         code.putln("#if CYTHON_USE_MODULE_STATE")
@@ -4022,33 +4688,33 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("CYTHON_UNUSED_VAR(%s);" % module_temp)  # only used in limited API
 
         dict_cname = code.name_in_main_c_code_module_state(env.module_dict_cname)
-        code.putln(
-            "%s = PyModule_GetDict(%s); %s" % (
-                dict_cname, env.module_cname,
-                code.error_goto_if_null(dict_cname, self.pos)))
+        code.putln("%s = %s; %s" % (
+            dict_cname,
+            code.globalstate.runtime_api.module_get_dict(env.module_cname),
+            code.error_goto_if_null(dict_cname, self.pos)))
         code.put_incref(dict_cname, py_object_type, nanny=False)
 
         builtins_cname = code.name_in_main_c_code_module_state(Naming.builtins_cname)
-        code.putln(
-            '%s = __Pyx_PyImport_AddModuleRef(__Pyx_BUILTIN_MODULE_NAME); %s' % (
-                builtins_cname,
-                code.error_goto_if_null(builtins_cname, self.pos)))
+        code.putln('%s = %s; %s' % (
+            builtins_cname,
+            code.globalstate.runtime_api.import_add_module_ref(
+                "__Pyx_BUILTIN_MODULE_NAME"),
+            code.error_goto_if_null(builtins_cname, self.pos)))
         runtime_cname = code.name_in_main_c_code_module_state(Naming.cython_runtime_cname)
-        code.putln(
-            '%s = __Pyx_PyImport_AddModuleRef("cython_runtime"); %s' % (
-                runtime_cname,
-                code.error_goto_if_null(runtime_cname, self.pos)))
-        code.putln(
-            'if (PyObject_SetAttrString(%s, "__builtins__", %s) < 0) %s' % (
-                env.module_cname,
-                builtins_cname,
-                code.error_goto(self.pos)))
+        code.putln('%s = %s; %s' % (
+            runtime_cname,
+            code.globalstate.runtime_api.import_add_module_ref('"cython_runtime"'),
+            code.error_goto_if_null(runtime_cname, self.pos)))
+        code.putln('if (%s < 0) %s' % (
+            code.globalstate.runtime_api.module_set_attr_string(
+                env.module_cname, '"__builtins__"', builtins_cname),
+            code.error_goto(self.pos)))
         if Options.pre_import is not None:
-            code.putln(
-                '%s = __Pyx_PyImport_AddModuleRef("%s"); %s' % (
-                    Naming.preimport_cname,
-                    Options.pre_import,
-                    code.error_goto_if_null(Naming.preimport_cname, self.pos)))
+            code.putln('%s = %s; %s' % (
+                Naming.preimport_cname,
+                code.globalstate.runtime_api.import_add_module_ref(
+                    '"%s"' % Options.pre_import),
+                code.error_goto_if_null(Naming.preimport_cname, self.pos)))
 
     def generate_global_init_code(self, env, code):
         # Generate code to initialise global PyObject *
@@ -4073,11 +4739,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     entry.type.to_py_function,
                     entry.cname))
                 code.putln(code.error_goto_if_null("wrapped", entry.pos))
-                code.putln(
-                    'if (PyObject_SetAttrString(%s, "%s", wrapped) < 0) %s;' % (
-                        env.module_cname,
-                        name,
-                        code.error_goto(entry.pos)))
+                code.putln('if (%s < 0) %s;' % (
+                    code.globalstate.runtime_api.module_set_attr_string(
+                        env.module_cname, '"%s"' % name, "wrapped"),
+                    code.error_goto(entry.pos)))
                 code.putln("}")
 
     def _select_exported_entries(self, all_entries):
@@ -4442,7 +5107,7 @@ def _generate_import_code(code, pos, imports, qualified_module_name, import_func
 
     module_ref = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
     code.putln(
-        f'{module_ref} = PyImport_ImportModule({qualified_module_name.as_c_string_literal()}); '
+        f'{module_ref} = {code.globalstate.runtime_api.import_module(qualified_module_name.as_c_string_literal())}; '
         f'{code.error_goto_if_null(module_ref, pos)}'
     )
     code.put_gotref(module_ref, py_object_type)
@@ -4477,8 +5142,11 @@ class ModuleImportGenerator:
         code = self.code
         temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         self.temps.append(temp)
-        code.putln('%s = PyImport_ImportModule(%s); if (unlikely(!%s)) %s' % (
-            temp, module_name_string, temp, error_code))
+        code.putln('%s = %s; if (unlikely(!%s)) %s' % (
+            temp,
+            code.globalstate.runtime_api.import_module(module_name_string),
+            temp,
+            error_code))
         code.put_gotref(temp, py_object_type)
         self.imported[module_name_string] = temp
         return temp

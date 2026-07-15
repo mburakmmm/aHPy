@@ -374,6 +374,18 @@ class SimpleAssignmentTypeInferer:
         enabled = scope.directives['infer_types']
         verbose = scope.directives['infer_types.verbose']
 
+        # Universal HPy emits owned handles for Python locals and has no
+        # typed-C local path for inferred names. Keep unspecified entries as
+        # Python objects so assignments like ``x = len(y)`` and walrus of
+        # ``len`` stay on the supported Universal surface.
+        context = getattr(scope.global_scope(), "context", None)
+        runtime_api = getattr(context, "runtime_api", None)
+        if runtime_api is not None and runtime_api.uses_handle_ownership():
+            for entry in scope.entries.values():
+                if entry.type is unspecified_type:
+                    self.set_entry_type(entry, py_object_type, scope)
+            return
+
         if enabled == True:
             spanning_type = aggressive_spanning_type
         elif enabled is None:  # safe mode

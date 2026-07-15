@@ -286,7 +286,8 @@ class SlotDescriptor:
             # different from preprocessor guard - this defines if we *want* to define it,
             # rather than if the slot exists
             code.putln(f"#if {self.used_ifdef}")
-        code.putln("{Py_%s, (void *)%s}," % (self.slot_name, value))
+        code.putln(code.globalstate.runtime_api.type_slot_table_entry(
+            self.slot_name, value, value))
         if self.used_ifdef:
             code.putln("#endif")
         if preprocessor_guard:

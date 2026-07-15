@@ -6,6 +6,7 @@
 import os
 from argparse import ArgumentParser, Action, SUPPRESS, RawDescriptionHelpFormatter
 from . import Options
+from .RuntimeAPI import ACCEPTED_RUNTIME_BACKENDS
 
 
 class ParseDirectivesAction(Action):
@@ -154,6 +155,9 @@ def create_cython_argparser():
                       help='Produce #line directives pointing to the .pyx source')
     parser.add_argument("-+", "--cplus", dest='cplus', action='store_const', const=1,
                       help='Output a C++ rather than C file.')
+    parser.add_argument("--runtime-backend", dest='runtime_backend',
+                      choices=ACCEPTED_RUNTIME_BACKENDS,
+                      help='Select the Python runtime API backend (default: cpython).')
     parser.add_argument('--embed', action='store_const', const='main',
                       help='Generate a main() function that embeds the Python interpreter. '
                            'Pass --embed=<method_name> for a name other than main().')

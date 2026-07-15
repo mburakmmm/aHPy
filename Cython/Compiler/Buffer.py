@@ -386,13 +386,17 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
         # can consider working around this later.
         exc_temps = tuple(code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=False)
                           for _ in range(3))
-        code.putln('__Pyx_PyErr_FetchException(&%s, &%s, &%s);' % exc_temps)
+        code.putln(code.globalstate.runtime_api.fetch_exception(
+            *("&%s" % name for name in exc_temps)) + ';')
         code.putln('if (%s) {' % code.unlikely("%s == -1" % (getbuffer % lhs_cname)))
-        code.putln('Py_XDECREF(%s); Py_XDECREF(%s); Py_XDECREF(%s);' % exc_temps)  # Do not refnanny these!
+        close_exception_temps = ' '.join(
+            code.globalstate.runtime_api.close_reference(temp, null_safe=True)
+            for temp in exc_temps)
+        code.putln(close_exception_temps)  # Do not refnanny these!
         code.globalstate.use_utility_code(raise_buffer_fallback_code)
         code.putln('__Pyx_RaiseBufferFallbackError();')
         code.putln('} else {')
-        code.putln('__Pyx_PyErr_RestoreException(%s, %s, %s);' % exc_temps)
+        code.putln(code.globalstate.runtime_api.restore_exception(*exc_temps) + ';')
         code.putln('}')
         code.putln('%s = %s = %s = 0;' % exc_temps)
         for t in exc_temps:

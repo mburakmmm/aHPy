@@ -16,6 +16,11 @@ from . import StringEncoding
 from . import Naming
 
 from .Errors import error, warning, performance_hint, CannotSpecialize
+from .RuntimeAPI import (
+    RuntimeConversionDirection,
+    RuntimeConversionKind,
+    RuntimePrimitiveConversion,
+)
 
 
 class BaseType:
@@ -441,7 +446,10 @@ class PyrexType(BaseType):
         return '%s = %s; %s' % (
             result_code,
             convert_call,
-            code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
+            code.error_goto_if(
+                error_condition or self.error_condition(result_code, code.globalstate.runtime_api),
+                error_pos,
+            ))
 
     def _get_dummy_refcounting_code(self, *ignored_args, **ignored_kwds):
         if self.needs_refcounting:
@@ -652,11 +660,13 @@ class CTypedefType(BaseType):
         # delegation
         return self.typedef_base_type.create_from_py_utility_code(env)
 
-    def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
+    def to_py_call_code(
+            self, source_code, result_code, result_type, runtime_api,
+            to_py_function=None):
         if to_py_function is None:
             to_py_function = self.to_py_function
         return self.typedef_base_type.to_py_call_code(
-            source_code, result_code, result_type, to_py_function)
+            source_code, result_code, result_type, runtime_api, to_py_function)
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
                           from_py_function=None, error_condition=None,
@@ -664,7 +674,7 @@ class CTypedefType(BaseType):
         return self.typedef_base_type.from_py_call_code(
             source_code, result_code, error_pos, code,
             from_py_function or self.from_py_function,
-            error_condition or self.error_condition(result_code),
+            error_condition or self.error_condition(result_code, code.globalstate.runtime_api),
             special_none_cvalue=special_none_cvalue,
         )
 
@@ -688,16 +698,16 @@ class CTypedefType(BaseType):
                 context={'TYPE': type, 'NAME': name, 'BINOP': binop}))
         return "__Pyx_%s_%s_checking_overflow" % (binop, name)
 
-    def error_condition(self, result_code):
+    def error_condition(self, result_code, runtime_api):
         if self.typedef_is_external:
             if self.exception_value is not None:
                 condition = "(%s == %s)" % (
                     result_code, self.cast_code(self.exception_value))
                 if self.exception_check:
-                    condition += " && PyErr_Occurred()"
+                    condition += " && %s" % runtime_api.error_occurred()
                 return condition
         # delegation
-        return self.typedef_base_type.error_condition(result_code)
+        return self.typedef_base_type.error_condition(result_code, runtime_api)
 
     def __getattr__(self, name):
         return getattr(self.typedef_base_type, name)
@@ -1114,7 +1124,9 @@ class MemoryViewSliceType(PyrexType):
         self._dtype_to_py_func, self._dtype_from_py_func = self.dtype_object_conversion_funcs(env)
         return True
 
-    def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
+    def to_py_call_code(
+            self, source_code, result_code, result_type, runtime_api,
+            to_py_function=None):
         assert self._dtype_to_py_func
         assert self._dtype_from_py_func
 
@@ -1152,8 +1164,11 @@ class MemoryViewSliceType(PyrexType):
                 set_function = "NULL"
 
             utility_name = "MemviewDtypeToObject"
-            error_condition = (self.dtype.error_condition('value') or
-                               'PyErr_Occurred()')
+            runtime_api = env.context.runtime_api
+            error_condition = (
+                self.dtype.error_condition('value', runtime_api) or
+                runtime_api.error_occurred()
+            )
             context.update(
                 to_py_function=to_py_function,
                 from_py_function=from_py_function,
@@ -1179,7 +1194,7 @@ class MemoryViewSliceType(PyrexType):
         d = MemoryView._spec_to_abbrev
         return "".join(["%s%s" % (d[a], d[p]) for a, p in self.axes])
 
-    def error_condition(self, result_code):
+    def error_condition(self, result_code, runtime_api):
         return "!%s.memview" % result_code
 
     def __str__(self):
@@ -1479,6 +1494,29 @@ class PyObjectType(PyrexType):
 
     def nullcheck_string(self, cname):
         return cname
+
+
+class HPyHandleType(PyObjectType):
+    """C storage representation for a call-scoped Universal HPy handle."""
+
+    name = "HPy"
+    default_value = "HPy_NULL"
+    declaration_value = "HPy_NULL"
+    supports_refnanny = False
+
+    def __str__(self):
+        return "HPy object handle"
+
+    def __repr__(self):
+        return "<HPyHandleType>"
+
+    def declaration_code(self, entity_code,
+            for_display=0, dll_linkage=None, pyrex=0):
+        base_code = "object" if pyrex or for_display else "HPy"
+        return self.base_declaration_code(base_code, entity_code)
+
+    def as_pyobject(self, cname):
+        raise TypeError("an HPy handle cannot be cast to PyObject * in Universal mode")
 
 
 builtin_types_that_cannot_create_refcycles = frozenset({
@@ -2196,18 +2234,54 @@ class CType(PyrexType):
     def can_coerce_from_pyobject(self, env):
         return self.create_from_py_utility_code(env)
 
-    def error_condition(self, result_code):
+    def error_condition(self, result_code, runtime_api):
         conds = []
         if self.is_string or self.is_pyunicode_ptr:
             conds.append("(!%s)" % result_code)
         elif self.exception_value is not None:
             conds.append("(%s == (%s)%s)" % (result_code, self.sign_and_name(), self.exception_value))
         if self.exception_check:
-            conds.append("PyErr_Occurred()")
+            conds.append(runtime_api.error_occurred())
         if len(conds) > 0:
             return " && ".join(conds)
         else:
             return 0
+
+    def runtime_conversion(self, direction, function_cname=None):
+        if not isinstance(direction, RuntimeConversionDirection):
+            raise TypeError("expected RuntimeConversionDirection, got %r" % (direction,))
+        if function_cname is None:
+            function_cname = (
+                self.to_py_function
+                if direction is RuntimeConversionDirection.TO_PYTHON
+                else self.from_py_function)
+        assert function_cname
+
+        if isinstance(self, CBIntType):
+            kind = RuntimeConversionKind.BOOLEAN
+        elif self.is_unicode_char:
+            kind = RuntimeConversionKind.UNICODE_CODEPOINT
+        elif self.is_int:
+            kind = (
+                RuntimeConversionKind.SIGNED_INTEGER
+                if self.signed
+                else RuntimeConversionKind.UNSIGNED_INTEGER)
+        elif self.is_float:
+            kind = RuntimeConversionKind.FLOAT
+        elif self.is_complex:
+            kind = RuntimeConversionKind.COMPLEX
+        elif self.is_string or self.is_pyunicode_ptr:
+            kind = RuntimeConversionKind.C_STRING
+        else:
+            kind = RuntimeConversionKind.CUSTOM
+
+        return RuntimePrimitiveConversion(
+            direction=direction,
+            kind=kind,
+            c_type_cname=self.empty_declaration_code(),
+            function_cname=function_cname,
+            type_=self,
+        )
 
     _builtin_type_name_map = {
         'bytearray': 'ByteArray',
@@ -2216,7 +2290,17 @@ class CType(PyrexType):
         'unicode': 'Unicode',
     }
 
-    def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
+    def to_py_call_code(
+            self, source_code, result_code, result_type, runtime_api,
+            to_py_function=None):
+        conversion = self.runtime_conversion(
+            RuntimeConversionDirection.TO_PYTHON,
+            to_py_function or self.to_py_function)
+        return runtime_api.to_python_conversion(
+            conversion, source_code, result_code, result_type, to_py_function)
+
+    def _cpython_to_py_call_code(
+            self, source_code, result_code, result_type, to_py_function=None):
         func = self.to_py_function if to_py_function is None else to_py_function
         assert func
         if self.is_string or self.is_cpp_string:
@@ -2232,6 +2316,24 @@ class CType(PyrexType):
     def from_py_call_code(self, source_code, result_code, error_pos, code,
                           from_py_function=None, error_condition=None,
                           special_none_cvalue=None):
+        conversion = self.runtime_conversion(
+            RuntimeConversionDirection.FROM_PYTHON,
+            from_py_function or self.from_py_function)
+        return code.globalstate.runtime_api.from_python_conversion(
+            conversion,
+            source_code,
+            result_code,
+            error_pos,
+            code,
+            from_py_function,
+            error_condition,
+            special_none_cvalue,
+        )
+
+    def _cpython_from_py_call_code(
+            self, source_code, result_code, error_pos, code,
+            from_py_function=None, error_condition=None,
+            special_none_cvalue=None):
         return self._assign_from_py_code(
             source_code, result_code, error_pos, code, from_py_function, error_condition,
             special_none_cvalue=special_none_cvalue)
@@ -2443,6 +2545,36 @@ class FusedType(CType):
         if self not in seen:
             result.append(self)
             seen.add(self)
+
+
+class RuntimeOpaqueCType(CType):
+    """Named runtime-owned C value with no source-language operations."""
+
+    def __init__(self, cname):
+        self.cname = cname
+        self.name = cname
+
+    def __str__(self):
+        return self.cname
+
+    def __repr__(self):
+        return "<RuntimeOpaqueCType %s>" % self.cname
+
+    def declaration_code(self, entity_code,
+            for_display=0, dll_linkage=None, pyrex=0):
+        base_code = self.cname
+        return self.base_declaration_code(base_code, entity_code)
+
+
+_runtime_opaque_types = {}
+
+
+def runtime_opaque_type(cname):
+    try:
+        return _runtime_opaque_types[cname]
+    except KeyError:
+        type_ = _runtime_opaque_types[cname] = RuntimeOpaqueCType(cname)
+        return type_
 
 
 class CVoidType(CType):
@@ -3312,9 +3444,12 @@ class CArrayType(CPointerBaseType):
         self.to_py_function = to_py_function
         return True
 
-    def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
+    def to_py_call_code(
+            self, source_code, result_code, result_type, runtime_api,
+            to_py_function=None):
         if self.is_string or self.is_pyunicode_ptr:
-            return super().to_py_call_code(source_code, result_code, result_type, to_py_function)
+            return super().to_py_call_code(
+                source_code, result_code, result_type, runtime_api, to_py_function)
 
         func = self.to_py_function if to_py_function is None else to_py_function
         return '%s = %s(%s, %s)' % (
@@ -3353,7 +3488,7 @@ class CArrayType(CPointerBaseType):
             source_code, result_code, self.size)
         return code.error_goto_if_neg(call_code, error_pos)
 
-    def error_condition(self, result_code):
+    def error_condition(self, result_code, runtime_api):
         # It isn't possible to use CArrays as return type so the error_condition
         # is irrelevant. Returning a falsy value does avoid an error when getting
         # from_py_call_code from a typedef.
@@ -4311,18 +4446,25 @@ class ToPyStructUtilityCode(AbstractUtilityCode):
         code.putln("%s {" % self.header)
         code.putln("PyObject* res;")
         code.putln("PyObject* member;")
-        code.putln("res = __Pyx_PyDict_NewPresized(%d); if (unlikely(!res)) return NULL;" %
-                   len(self.type.scope.var_entries))
+        code.putln("res = %s; if (unlikely(!res)) return NULL;" %
+                   globalstate.runtime_api.dict_new(
+                       str(len(self.type.scope.var_entries))))
         for member in self.type.scope.var_entries:
             nameconst_cname = code.get_py_string_const(member.name, identifier=True)
             code.putln("%s; if (unlikely(!member)) goto bad;" % (
-                member.type.to_py_call_code('s.%s' % member.cname, 'member', member.type)))
-            code.putln("if (unlikely(PyDict_SetItem(res, %s, member) < 0)) goto bad;" % nameconst_cname)
-            code.putln("Py_DECREF(member);")
+                member.type.to_py_call_code(
+                    's.%s' % member.cname,
+                    'member',
+                    member.type,
+                    globalstate.runtime_api)))
+            code.putln("if (unlikely(%s < 0)) goto bad;" %
+                       globalstate.runtime_api.dict_set_item(
+                           "res", nameconst_cname, "member"))
+            code.put_runtime_ref_close("member")
         code.putln("return res;")
         code.putln("bad:")
-        code.putln("Py_XDECREF(member);")
-        code.putln("Py_DECREF(res);")
+        code.put_runtime_ref_close("member", null_safe=True)
+        code.put_runtime_ref_close("res")
         code.putln("return NULL;")
         code.putln("}")
         code.exit_cfunc_scope()
@@ -5222,6 +5364,7 @@ class CTupleType(CType):
                 struct_type_decl=self.empty_declaration_code(),
                 components=self.components,
                 funcname=self.to_py_function,
+                runtime_api=env.context.runtime_api,
                 size=self.size,
             )
             self._convert_to_py_code = TempitaUtilityCode.load(
@@ -5246,6 +5389,7 @@ class CTupleType(CType):
                 struct_type_decl=self.empty_declaration_code(),
                 components=self.components,
                 funcname=self.from_py_function,
+                runtime_api=env.context.runtime_api,
                 size=self.size,
             )
             self._convert_from_py_code = TempitaUtilityCode.load(
@@ -5310,7 +5454,7 @@ class ErrorType(PyrexType):
     def same_as_resolved_type(self, other_type):
         return 1
 
-    def error_condition(self, result_code):
+    def error_condition(self, result_code, runtime_api):
         return "dummy"
 
 
@@ -5637,6 +5781,7 @@ error_type =    ErrorType()
 unspecified_type = UnspecifiedType()
 
 py_object_type = PyObjectType()
+hpy_handle_type = HPyHandleType()
 
 c_void_type =        CVoidType()
 

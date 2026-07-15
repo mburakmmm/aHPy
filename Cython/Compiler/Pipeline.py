@@ -167,13 +167,18 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .AnalysedTreeTransforms import AutoTestDictTransform
     from .AutoDocTransforms import EmbedSignature
     from .Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
-    from .Optimize import EarlyReplaceBuiltinCalls, OptimizeBuiltinCalls
+    from .Optimize import (
+        EarlyReplaceBuiltinCalls,
+        HPyEarlyReplaceSequenceBuiltins,
+        OptimizeBuiltinCalls,
+    )
     from .Optimize import InlineDefNodeCalls
     from .Optimize import ConstantFolding, FinalOptimizePhase
     from .Optimize import DropRefcountingTransform
     from .Optimize import ConsolidateOverflowCheck
     from .Buffer import IntroduceBufferAuxiliaryVars
     from .ModuleNode import check_c_declarations, check_c_declarations_pxd
+    from .RuntimeAPI import RuntimeCodeGenerationKind
 
 
     if mode == 'pxd':
@@ -187,6 +192,11 @@ def create_pipeline(context, mode, exclude_classes=()):
         _align_function_definitions = AlignFunctionDefinitions(context)
     else:
         _align_function_definitions = None
+
+    is_hpy_universal_bootstrap = (
+        context.runtime_api.code_generation_kind()
+        is RuntimeCodeGenerationKind.HPY_UNIVERSAL_BOOTSTRAP
+    )
 
     # NOTE: This is the "common" parts of the pipeline, which is also
     # code in pxd files. So it will be run multiple times in a
@@ -212,7 +222,13 @@ def create_pipeline(context, mode, exclude_classes=()):
         AnalyseDeclarationsTransform(context),
         AutoTestDictTransform(context),
         EmbedSignature(context),
-        EarlyReplaceBuiltinCalls(context),  ## Necessary?
+        (
+            HPyEarlyReplaceSequenceBuiltins(context)
+            if is_hpy_universal_bootstrap
+            else EarlyReplaceBuiltinCalls(context)
+        ),
+        # Needed for locals()/vars()/dir()/globals() introspection nodes;
+        # keep the CPython-oriented OptimizeBuiltinCalls transform off.
         TransformBuiltinMethods(context),
         MarkParallelAssignments(context),
         ControlFlowAnalysis(context),
@@ -227,7 +243,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         ExpandInplaceOperators(context),
         IterationTransform(context),
         SwitchTransform(context),
-        OptimizeBuiltinCalls(context),  ## Necessary?
+        None if is_hpy_universal_bootstrap else OptimizeBuiltinCalls(context),
         CreateClosureClasses(context),  ## After all lookups and type inference
         CalculateQualifiedNamesTransform(context),
         ConsolidateOverflowCheck(context),

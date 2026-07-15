@@ -681,7 +681,7 @@ static void __Pyx_tuple_{{funcname}}(PyObject * o, {{struct_type_decl}} *result)
     {{for ix, component in enumerate(components):}}
         {{py:attr = "result->f%s" % ix}}
         {{attr}} = {{component.from_py_function}}(PyTuple_GET_ITEM(o, {{ix}}));
-        if ({{component.error_condition(attr)}}) goto bad;
+        if ({{component.error_condition(attr, runtime_api)}}) goto bad;
     {{endfor}}
     return;
 bad:
@@ -692,7 +692,7 @@ static void __Pyx_list_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) 
     {{for ix, component in enumerate(components):}}
         {{py:attr = "result->f%s" % ix}}
         {{attr}} = {{component.from_py_function}}(PyList_GET_ITEM(o, {{ix}}));
-        if ({{component.error_condition(attr)}}) goto bad;
+        if ({{component.error_condition(attr, runtime_api)}}) goto bad;
     {{endfor}}
     return;
 bad:
@@ -723,7 +723,7 @@ static void __Pyx_seq_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) {
         item = __Pyx_PySequence_ITEM(o, {{ix}});  if (unlikely(!item)) goto bad;
         {{attr}} = {{component.from_py_function}}(item);
         Py_DECREF(item);
-        if ({{component.error_condition(attr)}}) goto bad;
+        if ({{component.error_condition(attr, runtime_api)}}) goto bad;
     {{endfor}}
     }
     return;

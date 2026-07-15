@@ -1,0 +1,27 @@
+schema_version = 1
+
+[environment]
+abi = "universal"
+hpy = "0.9.0"
+python_implementation = "CPython"
+
+[measurement]
+iterations = 100000
+warmups = 2
+repeats = 7
+
+[runtime_ratio]
+# aHPy median / equivalent handwritten Universal HPy median. These initial
+# budgets detect large regressions without pretending that shared CI runners
+# provide release-grade absolute timings.
+identity = 6.50
+arithmetic = 5.50
+container = 5.25
+attribute = 3.50
+call = 2.50
+exception = 1.50
+
+[footprint]
+generated_c_bytes = 750000
+generated_binary_bytes = 2000000
+binary_to_reference_ratio = 20.0

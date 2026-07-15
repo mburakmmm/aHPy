@@ -25,6 +25,7 @@ from .. import Utils
 from . import Options
 from .Options import CompilationOptions, default_options
 from .CmdLine import parse_command_line
+from .RuntimeAPI import CPYTHON_BACKEND, create_runtime_api
 from .Lexicon import (unicode_start_ch_any, unicode_continuation_ch_any,
                       unicode_start_ch_range, unicode_continuation_ch_range)
 
@@ -77,6 +78,9 @@ class Context:
         self.compiler_directives = compiler_directives
         self.cpp = cpp
         self.options = options
+        runtime_backend = options.runtime_backend if options is not None else CPYTHON_BACKEND
+        self.runtime_api = create_runtime_api(runtime_backend)
+        self.runtime_api.ensure_compilation_ready()
 
         self.pxds = {}  # full name -> node tree
         self.utility_pxds = {}  # pxd name -> node tree

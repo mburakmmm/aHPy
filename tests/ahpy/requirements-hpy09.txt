@@ -1,0 +1,3 @@
+# Stable Universal ABI validation lane.
+setuptools==80.9.0
+hpy==0.9.0

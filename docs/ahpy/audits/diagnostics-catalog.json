@@ -1,0 +1,1653 @@
+{
+  "backend_prefix": "aHPy bootstrap backend:",
+  "diagnostic_count": 164,
+  "diagnostics": [
+    {
+      "id": "Cython/Compiler/ExprNodes.py:530",
+      "line": 530,
+      "message_template": "return value %s is not implemented by the bootstrap Universal HPy emitter",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/ExprNodes.py"
+    },
+    {
+      "id": "Cython/Compiler/ExprNodes.py:1644",
+      "line": 1644,
+      "message_template": "integer literal could not be normalized",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ExprNodes.py"
+    },
+    {
+      "id": "Cython/Compiler/ExprNodes.py:6627",
+      "line": 6627,
+      "message_template": "C-method self injection is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/ExprNodes.py"
+    },
+    {
+      "id": "Cython/Compiler/ExprNodes.py:6631",
+      "line": 6631,
+      "message_template": "expanded call arguments are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ExprNodes.py"
+    },
+    {
+      "id": "Cython/Compiler/ExprNodes.py:7190",
+      "line": 7190,
+      "message_template": "dynamic keyword dictionaries are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ExprNodes.py"
+    },
+    {
+      "id": "Cython/Compiler/ExprNodes.py:7192",
+      "line": 7192,
+      "message_template": "expanded call arguments are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ExprNodes.py"
+    },
+    {
+      "id": "Cython/Compiler/ExprNodes.py:8870",
+      "line": 8870,
+      "message_template": "sequence assignment unpacking is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/ExprNodes.py"
+    },
+    {
+      "id": "Cython/Compiler/ExprNodes.py:10012",
+      "line": 10012,
+      "message_template": "comprehension append for type %s is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/ExprNodes.py"
+    },
+    {
+      "id": "Cython/Compiler/ExprNodes.py:10236",
+      "line": 10236,
+      "message_template": "HPy 0.9 exposes no public set-update construction path",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ExprNodes.py"
+    },
+    {
+      "id": "Cython/Compiler/ExprNodes.py:10346",
+      "line": 10346,
+      "message_template": "HPy 0.9 exposes neither public set construction/add operations nor a SetType context constant",
+      "migration_action": {
+        "id": "set-construction",
+        "text": "Use a supported list/tuple/dict representation for now, or wait for a selected HPy API with public set construction and insertion."
+      },
+      "source": "Cython/Compiler/ExprNodes.py"
+    },
+    {
+      "id": "Cython/Compiler/ExprNodes.py:13271",
+      "line": 13271,
+      "message_template": "in-place operator %s is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/ExprNodes.py"
+    },
+    {
+      "id": "Cython/Compiler/ExprNodes.py:13293",
+      "line": 13293,
+      "message_template": "binary operator %s is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/ExprNodes.py"
+    },
+    {
+      "id": "Cython/Compiler/ExprNodes.py:14956",
+      "line": 14956,
+      "message_template": "comparison operator %s is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/ExprNodes.py"
+    },
+    {
+      "id": "Cython/Compiler/ExprNodes.py:15721",
+      "line": 15721,
+      "message_template": "conversion of %s to a Python object is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/ExprNodes.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:369",
+      "line": 369,
+      "message_template": "external C method receiver injection is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:374",
+      "line": 374,
+      "message_template": "expanded external C call arguments are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:382",
+      "line": 382,
+      "message_template": "only external C functions validated by a concrete, Python-independent header may be called",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:389",
+      "line": 389,
+      "message_template": "external C function names must be plain C identifiers",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:503",
+      "line": 503,
+      "message_template": "bint extension-field in-place operators require a separate canonicalization gate",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:515",
+      "line": 515,
+      "message_template": "native C extension fields currently support only +=, -=, *=, &=, |=, ^=, <<=, and >>= in-place operations",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:705",
+      "line": 705,
+      "message_template": "bint extension-field in-place operators require a separate canonicalization gate",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:740",
+      "line": 740,
+      "message_template": "native C extension fields currently support only +=, -=, *=, &=, |=, ^=, <<=, and >>= in-place operations",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:779",
+      "line": 779,
+      "message_template": "name %s has no initialized local HPy value",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:784",
+      "line": 784,
+      "message_template": "builtin lookup requires the current module handle",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:806",
+      "line": 806,
+      "message_template": "extension-type lookup requires the current module handle",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:819",
+      "line": 819,
+      "message_template": "module-global lookup requires the current module handle",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:823",
+      "line": 823,
+      "message_template": "name %s has no initialized local HPy value",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:858",
+      "line": 858,
+      "message_template": "constant cache lookup requires a module handle",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:876",
+      "line": 876,
+      "message_template": "constant cache lookup requires a module handle",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:951",
+      "line": 951,
+      "message_template": "temporary HPy value is not bound",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:995",
+      "line": 995,
+      "message_template": "global assignment requires the module receiver",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:1017",
+      "line": 1017,
+      "message_template": "global unpack assignment requires the module receiver",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:1030",
+      "line": 1030,
+      "message_template": "extension-field unpack targets are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:1070",
+      "line": 1070,
+      "message_template": "assignment target %s is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:1079",
+      "line": 1079,
+      "message_template": "sequence unpacking requires a list or tuple target",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:1082",
+      "line": 1082,
+      "message_template": "multiplied sequence unpacking targets are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:1090",
+      "line": 1090,
+      "message_template": "multiple starred unpack targets are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:1267",
+      "line": 1267,
+      "message_template": "local %s is not initialized on every conditional path",
+      "migration_action": {
+        "id": "control-flow-lifetime",
+        "text": "Restructure the branch/loop so every continuing path has the same initialized locals and move termination to a supported outer boundary."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:1332",
+      "line": 1332,
+      "message_template": "name %s has no initialized local HPy value",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:1410",
+      "line": 1410,
+      "message_template": "global deletion requires the module receiver",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:1847",
+      "line": 1847,
+      "message_template": "formatted None-check diagnostics are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2287",
+      "line": 2287,
+      "message_template": "comparison operator %s is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2485",
+      "line": 2485,
+      "message_template": "nested try/except statements are not implemented",
+      "migration_action": {
+        "id": "exception-handlers",
+        "text": "Refactor the handler boundary outside the compiled subset for now; public HPy 0.9 exception-state support is not yet sufficient here."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2488",
+      "line": 2488,
+      "message_template": "try/except else clauses require general handler-state control flow and are not implemented",
+      "migration_action": {
+        "id": "exception-handlers",
+        "text": "Refactor the handler boundary outside the compiled subset for now; public HPy 0.9 exception-state support is not yet sufficient here."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2496",
+      "line": 2496,
+      "message_template": "nested try/except statements are not implemented",
+      "migration_action": {
+        "id": "exception-handlers",
+        "text": "Refactor the handler boundary outside the compiled subset for now; public HPy 0.9 exception-state support is not yet sufficient here."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2504",
+      "line": 2504,
+      "message_template": "the HPy try/except lane requires a terminating return or raise statement at the end of the try body",
+      "migration_action": {
+        "id": "exception-handlers",
+        "text": "Refactor the handler boundary outside the compiled subset for now; public HPy 0.9 exception-state support is not yet sufficient here."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2523",
+      "line": 2523,
+      "message_template": "try-body statements before the terminal return or raise must currently be linear assignments, expressions, deletions, pass, or supported if/while/for control",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2534",
+      "line": 2534,
+      "message_template": "except targets require a public exception-state API; HPy 0.9 exposes only the current error",
+      "migration_action": {
+        "id": "exception-handlers",
+        "text": "Refactor the handler boundary outside the compiled subset for now; public HPy 0.9 exception-state support is not yet sufficient here."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2544",
+      "line": 2544,
+      "message_template": "the initial HPy exception handler must contain exactly one return statement",
+      "migration_action": {
+        "id": "exception-handlers",
+        "text": "Refactor the handler boundary outside the compiled subset for now; public HPy 0.9 exception-state support is not yet sufficient here."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2553",
+      "line": 2553,
+      "message_template": "HPy 0.9 cannot preserve observable active-handler state; handler returns must currently be side-effect-free literals",
+      "migration_action": {
+        "id": "exception-handlers",
+        "text": "Refactor the handler boundary outside the compiled subset for now; public HPy 0.9 exception-state support is not yet sufficient here."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2570",
+      "line": 2570,
+      "message_template": "exception matching currently requires direct builtin exception names",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2579",
+      "line": 2579,
+      "message_template": "builtin exception %s is unavailable in HPy 0.9",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2691",
+      "line": 2691,
+      "message_template": "async comprehensions are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2696",
+      "line": 2696,
+      "message_template": "only for-in/for-from list/dict comprehensions over sequence-index or C-integer range iterables are implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2702",
+      "line": 2702,
+      "message_template": "HPy 0.9 exposes neither public set construction/add operations nor a SetType context handle; set comprehensions remain blocked",
+      "migration_action": {
+        "id": "set-construction",
+        "text": "Use a supported list/tuple/dict representation for now, or wait for a selected HPy API with public set construction and insertion."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2719",
+      "line": 2719,
+      "message_template": "comprehension type %s is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2738",
+      "line": 2738,
+      "message_template": "comprehension target container is not bound",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2767",
+      "line": 2767,
+      "message_template": "globals()/module-scope locals() requires the current module handle",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2825",
+      "line": 2825,
+      "message_template": "HPy 0.9 exposes neither public set construction/add operations nor a SetType context handle; set inlined generators remain blocked",
+      "migration_action": {
+        "id": "set-construction",
+        "text": "Use a supported list/tuple/dict representation for now, or wait for a selected HPy API with public set construction and insertion."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2834",
+      "line": 2834,
+      "message_template": "inlined generator expression has no loop body",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2839",
+      "line": 2839,
+      "message_template": "only sequence-index/range inlined generator expressions are implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2853",
+      "line": 2853,
+      "message_template": "inlined generator expression parameter arity mismatch",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:2892",
+      "line": 2892,
+      "message_template": "inlined generator expression %r is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:3076",
+      "line": 3076,
+      "message_template": "C loop bound temporary is not bound",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:3200",
+      "line": 3200,
+      "message_template": "break statement is not inside a supported loop",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:3209",
+      "line": 3209,
+      "message_template": "continue statement is not inside a supported loop",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:3405",
+      "line": 3405,
+      "message_template": "f-string conversion !%s is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:3460",
+      "line": 3460,
+      "message_template": "expanded keyword names are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:3511",
+      "line": 3511,
+      "message_template": "walrus targets must be simple names",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:3534",
+      "line": 3534,
+      "message_template": "global walrus assignment requires the module receiver",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:3653",
+      "line": 3653,
+      "message_template": "expanded keyword names are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:4449",
+      "line": 4449,
+      "message_template": "bootstrap Universal HPy modules currently require a simple C identifier as their module name",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:4458",
+      "line": 4458,
+      "message_template": "bootstrap Universal HPy modules require at least one supported def or cdef class",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:4492",
+      "line": 4492,
+      "message_template": "function/type names collide: %s",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:4499",
+      "line": 4499,
+      "message_template": "pure HPy cdef class names must be C identifiers",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:4527",
+      "line": 4527,
+      "message_template": "pure HPy type members use reserved runtime cache names: %s",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:4538",
+      "line": 4538,
+      "message_template": "function name uses a reserved aHPy cache prefix",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:4550",
+      "line": 4550,
+      "message_template": "module name uses a reserved aHPy cache prefix",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:4558",
+      "line": 4558,
+      "message_template": "star imports are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:4565",
+      "line": 4565,
+      "message_template": "import target uses a reserved aHPy cache prefix",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:5660",
+      "line": 5660,
+      "message_template": "return annotations are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:5663",
+      "line": 5663,
+      "message_template": "__call__ body must end with a return statement",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:5771",
+      "line": 5771,
+      "message_template": "property getter body must end with a return statement",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:5857",
+      "line": 5857,
+      "message_template": "return annotations are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:5861",
+      "line": 5861,
+      "message_template": "%s body must end with a return statement",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:5892",
+      "line": 5892,
+      "message_template": "return annotations are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:5896",
+      "line": 5896,
+      "message_template": "__len__ body must end with a value-returning statement",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:5926",
+      "line": 5926,
+      "message_template": "return annotations are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:5930",
+      "line": 5930,
+      "message_template": "%s body must end with a return statement",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:5997",
+      "line": 5997,
+      "message_template": "return annotations are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:6001",
+      "line": 6001,
+      "message_template": "%s body must end with a return statement",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:6216",
+      "line": 6216,
+      "message_template": "return annotations are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:6220",
+      "line": 6220,
+      "message_template": "__hash__ body must end with a value-returning statement",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:6252",
+      "line": 6252,
+      "message_template": "return annotations are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:6256",
+      "line": 6256,
+      "message_template": "__bool__ body must end with a value-returning statement",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:6288",
+      "line": 6288,
+      "message_template": "return annotations are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:6292",
+      "line": 6292,
+      "message_template": "__contains__ body must end with a value-returning statement",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:6372",
+      "line": 6372,
+      "message_template": "return annotations are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:6381",
+      "line": 6381,
+      "message_template": "pure HPy __del__ may only return None",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:6413",
+      "line": 6413,
+      "message_template": "return annotations are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:6423",
+      "line": 6423,
+      "message_template": "%s may only return None",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:6464",
+      "line": 6464,
+      "message_template": "pure HPy %s may only return None",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:6716",
+      "line": 6716,
+      "message_template": "relative imports are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:6741",
+      "line": 6741,
+      "message_template": "relative imports are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:360",
+      "line": 360,
+      "message_template": "cpython.* cimports expose the CPython C API and are not available in Universal HPy mode; port the dependency to public HPy APIs",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:376",
+      "line": 376,
+      "message_template": "external C declarations require a concrete header in Universal HPy mode; inline/from-* declarations cannot establish an independently audited ABI",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:389",
+      "line": 389,
+      "message_template": "external C headers must use a literal safe path and must not inject verbatim C code in Universal HPy mode",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:396",
+      "line": 396,
+      "message_template": "Python.h is the CPython C API and cannot cross the Universal HPy external-C boundary",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:410",
+      "line": 410,
+      "message_template": "empty external C declaration blocks are not useful in the initial Universal HPy external-C lane",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:425",
+      "line": 425,
+      "message_template": "external C blocks currently permit only direct function declarations; typedefs, variables, structs, unions, and enums remain ABI-owned and unsupported",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:442",
+      "line": 442,
+      "message_template": "the initial external C lane does not support variadic or optional C function parameters",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:454",
+      "line": 454,
+      "message_template": "external C parameters must be direct supported C integer, boolean, or floating scalars; pointers, Python objects, aggregates, and external typedefs are not portable in this lane",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:466",
+      "line": 466,
+      "message_template": "external C functions must return a direct supported C integer, boolean, or floating scalar; void, pointers, Python objects, aggregates, and external typedefs are not portable in this lane",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:479",
+      "line": 479,
+      "message_template": "external C functions with Cython/Python exception contracts are not available in Universal HPy mode",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:489",
+      "line": 489,
+      "message_template": "external C function names must be plain C identifiers in the initial Universal HPy lane",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:506",
+      "line": 506,
+      "message_template": "C enum declarations are not implemented in Universal HPy mode: enum size, signedness, and compiler ABI must be validated independently before selecting native storage or an HPy member descriptor",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:516",
+      "line": 516,
+      "message_template": "duplicate function names are not implemented by the bootstrap Universal HPy emitter",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:530",
+      "line": 530,
+      "message_template": "Universal HPy mode supports only non-external local typedefs that resolve to an enabled scalar field type",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:662",
+      "line": 662,
+      "message_template": "pure HPy type members use reserved runtime cache names: %s",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:668",
+      "line": 668,
+      "message_template": "external typedef extension fields are not implemented in Universal HPy mode: their width, signedness, alignment, and matching HPy member kind cannot be inferred portably",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:676",
+      "line": 676,
+      "message_template": "C enum extension fields are not implemented in Universal HPy mode: compiler-selected enum layout must not be treated as a guessed C int/HPyMember_INT",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:683",
+      "line": 683,
+      "message_template": "pure Universal HPy types cannot declare __dict__: HPy 0.9 provides no public portable instance-dict layout, offset, or type-spec API; a CPython tp_dictoffset would violate the Universal ABI",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:691",
+      "line": 691,
+      "message_template": "pure Universal HPy types cannot declare __weakref__: HPy 0.9 provides no public weak-reference layout, offset, or type-spec API; a CPython tp_weaklist offset would violate the Universal ABI",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:699",
+      "line": 699,
+      "message_template": "pure Universal HPy __dealloc__ is not implemented: HPy_tp_destroy receives only the raw instance storage pointer, without HPyContext or an HPy self handle; enable this only with a separately validated native-resource-only body (use __del__ for supported Python-level finalization)",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:709",
+      "line": 709,
+      "message_template": "pure Universal HPy iterator special methods are blocked by HPy 0.9: its public HPySlot_Slot enum exposes neither HPy_tp_iter nor HPy_tp_iternext; using CPython Py_tp_iter/Py_tp_iternext would violate the Universal ABI",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:718",
+      "line": 718,
+      "message_template": "pure Universal HPy attribute-hook special methods are blocked by HPy 0.9: its public HPySlot_Slot enum exposes neither HPy_tp_getattro nor HPy_tp_setattro; CPython Py_tp_getattro/Py_tp_setattro substitution would violate the Universal ABI",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:728",
+      "line": 728,
+      "message_template": "pure Universal HPy descriptor special methods are blocked by HPy 0.9: its public HPySlot_Slot enum exposes neither HPy_tp_descr_get nor HPy_tp_descr_set (extension-type property blocks remain supported through HPyDef_GET/SET/GETSET); CPython Py_tp_descr_* substitution would violate the Universal ABI",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:739",
+      "line": 739,
+      "message_template": "pure Universal HPy async protocol special methods are blocked by HPy 0.9: its public slot enum exposes no await/aiter/anext type slots; CPython Py_am_* substitution would violate the Universal ABI",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:747",
+      "line": 747,
+      "message_template": "pure Universal HPy custom __new__ is not implemented: the backend-owned HPy_tp_new currently guarantees HPy_New allocation, base-to-derived __cinit__, and partial-object cleanup; custom allocation requires its own constructor and layout validator",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:843",
+      "line": 843,
+      "message_template": "initial pure HPy cdef class support requires a private class with at most one earlier generated base, only generic object or supported fixed C numeric fields, and undecorated instance methods in the enabled ordinary, property, __cinit__/__init__/__call__, value, length, mapping, hash, bool, unary/conversion, contains, format, rich-comparison, or __del__ families (unsupported entries: %s)",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:882",
+      "line": 882,
+      "message_template": "module-level %s is not implemented by the bootstrap Universal HPy emitter",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/ModuleNode.py:904",
+      "line": 904,
+      "message_template": "pure HPy inheritance currently requires one generated pure HPy base declared earlier in the same module",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/ModuleNode.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:473",
+      "line": 473,
+      "message_template": "statement %s is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:3281",
+      "line": 3281,
+      "message_template": "decorated def functions are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:3283",
+      "line": 3283,
+      "message_template": "return annotations are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:3285",
+      "line": 3285,
+      "message_template": "function name is not a C identifier",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:3289",
+      "line": 3289,
+      "message_template": "function body must end with a return statement",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:3295",
+      "line": 3295,
+      "message_template": "early return statements are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:3339",
+      "line": 3339,
+      "message_template": "star arguments are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:3350",
+      "line": 3350,
+      "message_template": "pure HPy instance methods require one untyped, non-default receiver as their first argument",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:3360",
+      "line": 3360,
+      "message_template": "argument annotations are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:3363",
+      "line": 3363,
+      "message_template": "typed C arguments are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:6456",
+      "line": 6456,
+      "message_template": "declaration-only assignment is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:6460",
+      "line": 6460,
+      "message_template": "assignment expressions require expression evaluation",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:6467",
+      "line": 6467,
+      "message_template": "typed C local assignment is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:6493",
+      "line": 6493,
+      "message_template": "assignment target %s is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:6958",
+      "line": 6958,
+      "message_template": "parallel assignment element %s is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:7031",
+      "line": 7031,
+      "message_template": "typed C in-place assignment is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:7050",
+      "line": 7050,
+      "message_template": "in-place operator %s is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:7078",
+      "line": 7078,
+      "message_template": "in-place target %s is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:7287",
+      "line": 7287,
+      "message_template": "deletion target %s is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:7601",
+      "line": 7601,
+      "message_template": "raise values, tracebacks, and causes are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:7641",
+      "line": 7641,
+      "message_template": "builtin exception %s is unavailable in HPy 0.9",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:7814",
+      "line": 7814,
+      "message_template": "conditional branch must end with a return statement",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:7818",
+      "line": 7818,
+      "message_template": "nested early return statements are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:8204",
+      "line": 8204,
+      "message_template": "loop local %s must be initialized before the loop",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:8538",
+      "line": 8538,
+      "message_template": "HPy 0.9 lacks a public generic iterator API; generator expressions cannot drive for-loops",
+      "migration_action": {
+        "id": "generic-iteration",
+        "text": "Use a sequence-index iterable (list/tuple/str or any object that supports HPy_Length/HPy_GetItem_i), or defer generator/iterator-protocol loops until the selected HPy version exposes GetIter/IterNext."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:8551",
+      "line": 8551,
+      "message_template": "for-loop unpacking targets require at least one name",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:8556",
+      "line": 8556,
+      "message_template": "for-loop unpacking targets are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:8570",
+      "line": 8570,
+      "message_template": "loop local %s must be initialized before the loop",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:8854",
+      "line": 8854,
+      "message_template": "typed C for-from / range targets are not implemented; use an untyped Python local loop variable",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:8860",
+      "line": 8860,
+      "message_template": "for-from / range unpacking targets are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:8865",
+      "line": 8865,
+      "message_template": "for-from relation %r is not implemented",
+      "migration_action": {
+        "id": "unsupported-source-node",
+        "text": "Consult docs/ahpy/support-matrix.md and isolate this construct behind a supported Python or HPy boundary until its feature gate is complete."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    },
+    {
+      "id": "Cython/Compiler/Nodes.py:8881",
+      "line": 8881,
+      "message_template": "loop local %s must be initialized before the loop",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/Nodes.py"
+    }
+  ],
+  "schema_version": 1,
+  "source_files": [
+    "Cython/Compiler/ModuleNode.py",
+    "Cython/Compiler/Nodes.py",
+    "Cython/Compiler/ExprNodes.py",
+    "Cython/Compiler/HPyModuleWriter.py"
+  ]
+}

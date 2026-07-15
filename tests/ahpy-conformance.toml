@@ -1,0 +1,34 @@
+schema_version = 1
+
+[[case]]
+order = 1
+path = "tests/run/ahpy_module_functions.pyx"
+features = ["module-function", "typed-argument", "return", "defaults", "keywords"]
+
+[[case]]
+order = 2
+path = "tests/run/ahpy_containers.pyx"
+features = ["list-builder", "tuple-builder", "dict", "set", "mutation"]
+
+[[case]]
+order = 3
+path = "tests/run/ahpy_exceptions.pyx"
+features = ["raise", "match", "propagate", "chain", "exception-cleanup"]
+
+[[case]]
+order = 4
+path = "tests/run/ahpy_imports_globals.pyx"
+features = ["import", "global", "builtin-cache", "attribute", "call"]
+
+[[case]]
+order = 5
+path = "tests/run/ahpy_cleanup_paths.pyx"
+features = ["owned-temporary", "early-return", "loop-return", "failure-cleanup"]
+
+[required_gates]
+cpython_baseline = true
+hpy_debug = true
+forbidden_legacy_source = true
+forbidden_legacy_symbols = true
+same_binary_cross_interpreter = true
+fault_injection = true

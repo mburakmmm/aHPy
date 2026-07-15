@@ -707,6 +707,9 @@ class CompilationOptions:
         if 'formal_grammar' in directives and 'formal_grammar' not in kw:
             options['formal_grammar'] = directives['formal_grammar']
 
+        from .RuntimeAPI import validate_runtime_backend_name
+        options['runtime_backend'] = validate_runtime_backend_name(options['runtime_backend'])
+
         self.__dict__.update(options)
 
     def configure_language_defaults(self, source_extension):
@@ -805,6 +808,7 @@ default_options = dict(
     use_listing_file=0,
     errors_to_stderr=1,
     cplus=0,
+    runtime_backend="cpython",
     output_file=None,
     depfile=None,
     annotate=None,

@@ -1,0 +1,19 @@
+schema_version = 1
+validated_on = "2026-07-15"
+
+[builder]
+implementation = "CPython"
+version = "3.11"
+hpy = "0.9.0"
+
+[[targets]]
+name = "PyPy"
+setup_python = "pypy3.11-v7.3.23"
+python_compatibility = "3.11.15"
+status = "hosted-run-pending"
+
+[[targets]]
+name = "GraalPy"
+setup_python = "graalpy-25.1.3"
+python_compatibility = "3.12"
+status = "hosted-run-pending"
