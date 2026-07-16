@@ -22,7 +22,7 @@ is_cpython = platform.python_implementation() == 'CPython'
 # versions of packages which are not compatible with the running python
 PYTHON_REQUIRES = '>=3.9'
 
-TRACKER_URL = "https://github.com/cython/cython/issues/"
+TRACKER_URL = "https://github.com/mburakmmm/aHPy/issues/"
 
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
@@ -430,39 +430,30 @@ def run_build():
     setup(
         name=AHPY_DISTRIBUTION,
         version=version,
-        url='https://hpyproject.org/',
-        author='Robert Bradshaw, Stefan Behnel, David Woods, Greg Ewing, et al.',
-        author_email='cython-devel@python.org',
+        url='https://github.com/mburakmmm/aHPy',
+        author='Melih Burak Memis and Cython contributors',
         description="A Cython backend for generating Universal HPy extensions.",
         long_description_content_type="text/x-rst",
         long_description=textwrap.dedent("""\
-        The Cython language makes writing C extensions for the Python language as
-        easy as Python itself.  Cython is a source code translator based on Pyrex_,
-        but supports more cutting edge functionality and optimizations.
+        aHPy is a downstream Cython compiler project that adds an explicitly
+        selected ``hpy-universal`` backend.  Supported Python and Cython source is
+        translated to C using HPy's public Universal ABI without including
+        ``Python.h`` or silently falling back to CPython/Hybrid code generation.
 
-        The Cython language is a superset of the Python language (almost all Python
-        code is also valid Cython code), but Cython additionally supports optional
-        static typing to natively call C functions, operate with C++ classes and
-        declare fast C types on variables and class attributes.  This allows the
-        compiler to generate very efficient C code from Cython code.
+        The project retains Cython's parser, semantic analysis, type system, and
+        optimisation pipeline while adding explicit handle ownership, interpreter-
+        owned state, strict diagnostics, build-system integrations, and normal,
+        Trace, Debug, fault-injection, fuzz, ABI, and performance validation.
 
-        This makes Cython the ideal language for writing glue code for external
-        C/C++ libraries, and for fast C modules that speed up the execution of
-        Python code.
-
-        The newest Cython release can always be downloaded from https://cython.org/.
-        Unpack the tarball or zip file, enter the directory, and then run::
+        aHPy is pre-release and is not yet published on PyPI.  Install a verified
+        source checkout with::
 
             pip install .
 
-        Note that for one-time builds, e.g. for CI/testing, on platforms that are not
-        covered by one of the wheel packages provided on PyPI *and* the pure Python wheel
-        that we provide is not used, it is substantially faster than a full source build
-        to install an uncompiled (slower) version of Cython with::
+        For a pure-Python development frontend without compiling Cython's optional
+        accelerators, use::
 
             NO_CYTHON_COMPILE=true pip install .
-
-        .. _Pyrex: https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
 
         """) + collect_changelog(cython_version),
         license='Apache-2.0',
@@ -489,6 +480,9 @@ def run_build():
             "Typing :: Typed"
         ],
         project_urls={
+            "Source": "https://github.com/mburakmmm/aHPy",
+            "Issues": "https://github.com/mburakmmm/aHPy/issues",
+            "aHPy documentation": "https://github.com/mburakmmm/aHPy/tree/main/docs/ahpy",
             "Upstream Cython": "https://github.com/cython/cython",
             "HPy": "https://hpyproject.org/",
         },

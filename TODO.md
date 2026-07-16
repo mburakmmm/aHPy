@@ -37,7 +37,9 @@ earlier phase's exit gate.
 - [x] Add the complete dependency-ordered implementation checklist.
 - [x] Add the initial scope, architecture, version-policy, and support-matrix
       documents.
-- [ ] Add an `origin` remote once the aHPy hosting repository exists.
+- [x] Add `https://github.com/mburakmmm/aHPy.git` as `origin`, publish the
+      upstream Cython baseline as `main`, and push the
+      `codex/ahpy-bootstrap` development branch through an authorized account.
 - [x] Decide and document the release branch and backport policy.
 - [x] Decide and document the aHPy version format relative to Cython versions.
 - [x] Add a project changelog and release-note fragment policy.
@@ -1404,7 +1406,9 @@ emulated.
 ### U2 - M8 evidence without false claims
 
 - [ ] Record first green hosted runs for every declared Linux/macOS/Windows
-      compiler job (requires authorized `origin`).
+      compiler job. The authorized origin/push prerequisite is complete;
+      workflow run `29490045367` is the first hosted aHPy execution and remains
+      evidence-pending until every required job finishes and is reviewed.
 - [ ] Record same-binary PyPy and GraalPy hosted executions and remove
       `continue-on-error` only after green evidence.
 - [x] Finish local nightly contract tests and support-claim wording guards:

@@ -29,6 +29,9 @@ Valgrind availability skip), and the workflow YAML parses successfully.
 
 ## Open evidence
 
-No `origin` remote or authorized hosted run is available. Both nightlies remain
-allowed-failure and their first hosted results, runner identities, resolved
-versions, commits, and logs must be recorded before any hosted-green claim.
+The authorized repository and push now exist at
+`https://github.com/mburakmmm/aHPy`; the first push-triggered aHPy workflow is
+run `29490045367`. The two schedule/manual-only nightlies have not yet produced
+reviewed hosted evidence. They remain allowed-failure, and their first results,
+runner identities, resolved versions, commits, and logs must be recorded before
+any hosted-green claim.

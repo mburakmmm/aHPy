@@ -12,12 +12,16 @@ checklist. An agent must update both files when implementation status changes.
 - Cython base/HEAD: `b99cb0e3b5425e11414cadd24168a6cc850e8000`.
 - Stable local environment: `.venv-hpy09`, CPython 3.11.15, HPy 0.9.0.
 - Additional local coverage interpreter: `python3`, CPython 3.14.6.
-- The worktree intentionally contains the complete uncommitted aHPy
-  implementation. Do not reset, clean, overwrite, or discard unrelated files.
+- The verified aHPy implementation is committed through `39c7c6830`; preserve
+  later user/agent work and do not reset, clean, overwrite, or discard it.
 - `.DS_Store` and
   `docs/examples/userguide/wrapping_CPlusPlus/rect_with_attributes.cpp` are
   user-owned/unrelated. Leave them untouched.
-- No `origin` remote exists yet. Do not invent hosting or claim hosted CI runs.
+- `origin` is `https://github.com/mburakmmm/aHPy.git`; upstream Cython baseline
+  `b99cb0e3b` is published as `main`, and `codex/ahpy-bootstrap` is pushed.
+  The first hosted aHPy workflow is run `29490045367`; it is still in progress,
+  so do not claim a hosted green before every required job and artifact is
+  reviewed.
 - User mandate (2026-07-15): complete **HPy 0.9 max Universal coverage** and the
   **full M2–M11 roadmap** (options 1+3). Work the ordered queues below; never
   mark a HPy-0.9 API gap as supported; never claim hosted lanes without green
@@ -183,7 +187,8 @@ audit/changelog fragments in the same change.
 
 A1 is done. Proceed when unblocked:
 
-- A2 hosted platform/compiler matrix — blocked until `origin` + authorized push.
+- A2 hosted platform/compiler matrix — origin/push prerequisite complete;
+  inspect and repair the first hosted run before promoting any support claim.
 - A3 same-binary PyPy/GraalPy hosted hashes — blocked until hosted jobs.
 - A4 nightly contract tests / wording guards (local remaining pieces).
   **(manifest status-set guards, stable-vs-nightly separation, hosted-pending
@@ -284,11 +289,12 @@ stress profile. A post-stress ordinary O3 retry remained inside Apple Clang's
 ### A2. Hosted platform/compiler matrix
 
 The workflow already declares Linux x64 GCC/Clang, Linux ARM64 GCC, macOS
-Intel/ARM64 Clang, and Windows x64 MSVC. This task requires an actual hosted
-repository and is externally blocked until the user supplies/authorizes it.
+Intel/ARM64 Clang, and Windows x64 MSVC. The repository and authorized push now
+exist; first hosted aHPy run `29490045367` started from commit `39c7c6830`.
 
-- Add `origin` only after the real hosting URL exists.
-- Push through an authorized workflow; never infer permission.
+- Preserve `origin` as `https://github.com/mburakmmm/aHPy.git` and keep
+  `upstream` pointed at official Cython.
+- Treat the first run as pending evidence until every required job completes.
 - Record run URLs, exact runner images, compiler versions, and artifact hashes.
 - Fix failures with focused regressions.
 - Promote a platform/compiler only after its required job is green from a clean

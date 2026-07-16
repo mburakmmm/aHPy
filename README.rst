@@ -1,56 +1,156 @@
-Welcome to Cython!
-==================
+aHPy: a Universal HPy backend for Cython
+========================================
 
-Cython is an optimising Python compiler that makes writing C extensions for
-Python as easy as Python itself.
+**aHPy** is a downstream Cython compiler project that adds an explicitly
+selected ``hpy-universal`` code-generation backend.  Its goal is to help
+extension authors move Cython modules away from the CPython C API and produce
+portable C that uses HPy's public Universal ABI.
 
-Cython translates Python code to C/C++ code, but additionally supports calling
-C functions and declaring C types on variables and class attributes.
-This allows broad to fine-grained manual tuning that lets the compiler
-generate very efficient C code from Cython code.
+The backend reuses Cython's parser, semantic analysis, type system, and
+optimisation pipeline.  Supported source is emitted through ``hpy.h`` without
+including ``Python.h``; unsupported or ABI-dependent constructs fail at their
+source location instead of silently falling back to CPython or HPy Hybrid mode.
 
-This makes Cython the ideal language for wrapping external C libraries, and
-for fast C modules that speed up the execution of Python code.
+Project status
+--------------
 
-* Official website: https://cython.org/
-* Documentation: https://docs.cython.org/
-* Github repository: https://github.com/cython/cython
-* Wiki: https://github.com/cython/cython/wiki
+aHPy is active, pre-release compiler work.  It already has an executable
+Universal subset, pure-HPy extension types, Python-independent external-C
+integration, multiple build-system examples, and normal/Trace/Debug,
+fault-injection, fuzz, coverage, ABI, footprint, and reproducibility gates.
+It is **not yet a claim that arbitrary Cython or NumPy C-API code can compile
+unchanged**, and the frontend has not been published to PyPI.
 
-Cython has `more than 70 million downloads <https://pypistats.org/packages/cython>`_
-per month on PyPI.  You can **support the Cython project** via
-`Github Sponsors <https://github.com/users/scoder/sponsorship>`_ or
-`Tidelift <https://tidelift.com/subscription/pkg/pypi-cython>`_.
+The exact implemented, partial, blocked, and rejected surfaces are maintained
+in `the support matrix <docs/ahpy/support-matrix.md>`_.  The authoritative work
+queue and agent hand-off are `TODO.md <TODO.md>`_ and
+`AGENTTODO.md <AGENTTODO.md>`_.
 
+Core guarantees
+---------------
 
-Installation:
--------------
+* ``hpy-universal`` is an explicit module/build choice.
+* Universal mode never silently switches to a legacy CPython or Hybrid ABI.
+* Generated Universal translation units are audited against ``Python.h`` and
+  forbidden CPython symbols.
+* HPy handles have explicit borrowed/owned lifetime and failure-path cleanup.
+* Mutable module/type state is interpreter-owned rather than process-global.
+* A supported feature needs semantic, HPy Debug, failure-path, and ABI evidence.
+* Existing Cython C/C++ generation retains a separate regression oracle.
 
-If you already have a C compiler, just run following command::
+Quick start for contributors
+----------------------------
 
-   pip install Cython
+The current validated local lane uses CPython 3.11, HPy 0.9.0, and a working C
+compiler.  From a clean checkout::
 
-otherwise, see `the installation page <https://docs.cython.org/en/latest/src/quickstart/install.html>`_.
+   python3.11 -m venv .venv-hpy09
+   .venv-hpy09/bin/python -m pip install \
+       -r tests/ahpy/requirements-hpy09.txt \
+       -r tests/ahpy/requirements-build-systems.txt
+   .venv-hpy09/bin/python Tools/ahpy/doctor.py \
+       --python .venv-hpy09/bin/python
+   CFLAGS='-O0 -g0' .venv-hpy09/bin/python \
+       Tools/ahpy/test_generated_hpy.py \
+       --python .venv-hpy09/bin/python
 
+On Windows, use ``.venv-hpy09\Scripts\python.exe`` and omit the POSIX
+``CFLAGS`` assignment.  The maintained clean-artifact onboarding flow is
+documented in `docs/ahpy/onboarding.md <docs/ahpy/onboarding.md>`_.
 
-License:
---------
+Using the backend
+-----------------
 
-The original Pyrex program, which Cython is based on, was licensed "free of restrictions" (see below).
-Cython itself is licensed under the permissive **Apache License**.
+Generate Universal HPy C directly::
 
-See `LICENSE.txt <https://github.com/cython/cython/blob/master/LICENSE.txt>`_.
+   .venv-hpy09/bin/python -m cython \
+       --runtime-backend=hpy-universal -3 module.pyx
 
+Or select it through ``cythonize()``::
 
-Contributing:
--------------
+   from Cython.Build import cythonize
 
-Want to contribute to the Cython project?
-Here is some `help to get you started <https://github.com/cython/cython/blob/master/docs/CONTRIBUTING.rst>`_.
+   extensions = cythonize(
+       ["module.pyx"],
+       language_level=3,
+       runtime_backend="hpy-universal",
+   )
 
+The extension must then be built with HPy's Universal ABI tooling.  Maintained
+working examples are provided for
+`setuptools <examples/ahpy_setuptools/README.md>`_,
+`isolated PEP 517 <examples/ahpy_pep517/README.md>`_,
+`CMake <examples/ahpy_cmake/README.md>`_,
+`Meson <examples/ahpy_meson/README.md>`_, and
+`scikit-build-core <examples/ahpy_scikit_build/README.md>`_.
+
+Validation snapshot
+-------------------
+
+The current local M9 snapshot records:
+
+* 354 focused compiler tests and 110 quality-tool tests;
+* 464 focused coverage tests on CPython 3.11 and 3.14;
+* normal, HPy Trace, and HPy Debug execution;
+* 128 isolated allocation/API fault selectors;
+* nine generated-versus-handwritten Universal HPy performance budgets;
+* reproducible frontend wheel/sdist and portability artifacts.
+
+Hosted Linux/macOS/Windows, PyPy, and GraalPy evidence remains open and is not
+presented as completed support.  See
+`the validation matrix <docs/ahpy/validation-matrix.md>`_ and
+`M9 performance audits <docs/ahpy/audits/m9-abi-performance-baseline.md>`_.
+
+Documentation map
+-----------------
+
+* `Project contract and architecture <docs/ahpy/README.md>`_
+* `Support matrix <docs/ahpy/support-matrix.md>`_
+* `Validation and release gates <docs/ahpy/validation-matrix.md>`_
+* `Handle ownership model <docs/ahpy/handle-model.md>`_
+* `Runtime API seam <docs/ahpy/runtime-api.md>`_
+* `External-C contract <docs/ahpy/external-c.md>`_
+* `Direct build contract <docs/ahpy/direct-build.md>`_
+* `PEP 517 frontend <docs/ahpy/pep517.md>`_
+* `Build-system integrations <docs/ahpy/build-systems.md>`_
+* `Architecture decisions <docs/ahpy/adr/>`_
+
+Relationship to Cython and HPy
+------------------------------
+
+This repository is based on upstream `Cython <https://github.com/cython/cython>`_
+and preserves its copyright and Apache-2.0 licensing.  aHPy is an independent
+downstream effort; it is not an official Cython or HPy release.  HPy itself is
+developed at `hpyproject.org <https://hpyproject.org/>`_.  Neutral compiler
+seams should remain suitable for focused upstream contributions.
+
+License
+-------
+
+The original Pyrex program, which Cython is based on, was licensed "free of
+restrictions".  Cython and this downstream work use the permissive Apache
+License.  See `LICENSE.txt <LICENSE.txt>`_.
+
+Contributing
+------------
+
+Start with `AGENTTODO.md <AGENTTODO.md>`_ for the verified snapshot and exact
+validation commands, then use `TODO.md <TODO.md>`_ for normative milestone and
+release criteria.  Keep unsupported Universal features fail-closed and include
+ownership, failure-path, CPython-regression, documentation, and audit evidence
+with each change.  Upstream Cython contribution guidance remains available in
+`docs/CONTRIBUTING.rst <docs/CONTRIBUTING.rst>`_.
+
+Upstream Cython background
+--------------------------
+
+Cython is an optimising Python compiler that translates Python/Cython source
+to C or C++ and supports direct native types and external-library calls.  The
+following upstream comparison is retained because aHPy builds on that compiler
+rather than replacing its frontend.
 
 Differences to other Python compilers
--------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Started as a project in the early 2000s, Cython has outlived
 `most other attempts <https://wiki.python.org/moin/PythonImplementations#Compilers>`_
