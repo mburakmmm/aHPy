@@ -35,3 +35,11 @@ run `29490045367`. The two schedule/manual-only nightlies have not yet produced
 reviewed hosted evidence. They remain allowed-failure, and their first results,
 runner identities, resolved versions, commits, and logs must be recorded before
 any hosted-green claim.
+
+The first ordinary push run (`29490348041`) failed during action preparation,
+before checkout or project code executed: seven `actions/upload-artifact`
+references were one hexadecimal character short. They now use the full
+40-character upstream commit, and the quality suite parses every external
+`uses:` entry so shortened hashes cannot recur. This is workflow bootstrapping
+evidence, not a hosted platform green; the replacement run still requires
+review.

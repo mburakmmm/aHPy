@@ -83,9 +83,9 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 110 tests pass (one expected Valgrind availability skip
+- Quality-tool suite: 111 tests pass (one expected Valgrind availability skip
   on macOS).
-- Focused coverage (post–M9 external-literal gate, Python 3.11): 464 tests
+- Focused coverage (post–hosted-action-pin regression, Python 3.11): 465 tests
   traced.
   - backend 74.02%, frontend_seam 28.78%, quality_tools 35.49%.
   - CI floors remain 71%, 25%, and 35%; do not lower them to hide new code.
@@ -189,6 +189,10 @@ A1 is done. Proceed when unblocked:
 
 - A2 hosted platform/compiler matrix — origin/push prerequisite complete;
   inspect and repair the first hosted run before promoting any support claim.
+  **(first push run `29490348041` failed before checkout because seven
+  `actions/upload-artifact` references used a 39-character SHA; all occurrences
+  now use the full upstream 40-character commit and a workflow-wide regression
+  test rejects shortened external action pins; hosted rerun evidence pending)**
 - A3 same-binary PyPy/GraalPy hosted hashes — blocked until hosted jobs.
 - A4 nightly contract tests / wording guards (local remaining pieces).
   **(manifest status-set guards, stable-vs-nightly separation, hosted-pending

@@ -23,7 +23,7 @@ dependencies. With `PIP_NO_INDEX=1`, a real isolated build produced
 one audited `.hpy0` and public-loader stub. Pip installation and ordinary
 module import pass in normal and Debug modes.
 
-The complete quality-tool suite passes 110 tests with one expected macOS
+The complete quality-tool suite passes 111 tests with one expected macOS
 Valgrind availability skip. The 455-test focused trace reports 73.69% backend,
 28.75% frontend seam, and 35.49% quality tools, above the unchanged
 71%/25%/35% floors. Packaging modules are included in the quality-tools

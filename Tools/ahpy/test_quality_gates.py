@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -127,6 +128,21 @@ class QualityGateTest(unittest.TestCase):
             "--require-hpy-vcs",
         ):
             self.assertIn(required, workflow)
+
+    def test_workflow_external_actions_use_full_commit_shas(self):
+        workflow = (ROOT / ".github" / "workflows" /
+                    "ahpy-universal.yml").read_text(encoding="utf8")
+        actions = re.findall(r"^\s*uses:\s+([^\s#]+)", workflow, re.MULTILINE)
+        self.assertTrue(actions)
+        for action in actions:
+            if action.startswith("./"):
+                continue
+            self.assertRegex(
+                action,
+                r"^[^@]+@[0-9a-f]{40}$",
+                "external workflow action must use a full commit SHA: %s" %
+                action,
+            )
 
     def test_nightlies_are_isolated_allowed_failure_early_warnings(self):
         manifest = tomllib.loads(VERSION_MANIFEST.read_text(encoding="utf8"))
