@@ -940,6 +940,65 @@ cdef class InheritanceDerived(InheritanceBase):
         return [self.base_value, self.derived_value]
 
 
+cdef class GcCycleNode:
+    cdef object peer
+    cdef public object label
+
+    def __init__(self, label):
+        self.label = label
+        self.peer = None
+
+    def link(self, other):
+        self.peer = other
+        return self
+
+
+cdef class GcFieldClearBox:
+    cdef public object left
+    cdef public object right
+
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+    def clear_fields(self):
+        self.left = None
+        self.right = None
+        return ["cleared"]
+
+
+cdef class ResurrectDel:
+    cdef public object registry
+
+    def __init__(self, registry):
+        self.registry = registry
+
+    def __del__(self):
+        if self.registry is not None:
+            self.registry.append(self)
+
+
+cdef class NestedFinalizeSink:
+    cdef public object events
+
+    def __init__(self, events):
+        self.events = events
+
+    def __del__(self):
+        self.events.append("nested")
+
+
+cdef class NestedFinalizeBox:
+    cdef public object sink
+
+    def __init__(self, sink):
+        self.sink = sink
+
+    def __del__(self):
+        if self.sink is not None:
+            self.sink.events.append("outer")
+
+
 def make_early_return_slots(flag, /):
     return EarlyReturnSlots(flag)
 

@@ -17,6 +17,7 @@ from test_generated_hpy import run, verify_binary_boundary, verify_source_bounda
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "tests" / "ahpy" / "fault_injection.pyx"
+HELPER_HEADER = ROOT / "tests" / "ahpy" / "fault_injection_helpers.h"
 MODULE_NAME = "fault_injection"
 
 RUNTIME_CASES = (
@@ -26,6 +27,7 @@ RUNTIME_CASES = (
     ("dict-set-item", 3),
     ("call", 4),
     ("call-tuple-dict", 1),
+    ("call-method", 1),
     ("get-attribute", 3),
     ("get-item", 3),
     ("set-attribute", 1),
@@ -141,6 +143,21 @@ static HPy __pyx_hpy_fault_call_tuple_dict(
     return __pyx_hpy_real_call_tuple_dict(ctx, callable, args, kw);
 }
 
+static HPy __pyx_hpy_real_call_method(
+        HPyContext *ctx, HPy name, const HPy *args,
+        size_t nargs, HPy kwnames) {
+    return HPy_CallMethod(ctx, name, args, nargs, kwnames);
+}
+
+static HPy __pyx_hpy_fault_call_method(
+        HPyContext *ctx, HPy name, const HPy *args,
+        size_t nargs, HPy kwnames) {
+    static long call_index = 0;
+    if (__pyx_hpy_fault_selected("call-method", &call_index))
+        return HPyErr_NoMemory(ctx);
+    return __pyx_hpy_real_call_method(ctx, name, args, nargs, kwnames);
+}
+
 static HPy __pyx_hpy_real_get_attr_s(
         HPyContext *ctx, HPy obj, const char *name) {
     return HPy_GetAttr_s(ctx, obj, name);
@@ -241,6 +258,8 @@ static int __pyx_hpy_fault_del_item(
     __pyx_hpy_fault_call((ctx), (callable), (args), (nargs), (kwnames))
 #define HPy_CallTupleDict(ctx, callable, args, kw) \
     __pyx_hpy_fault_call_tuple_dict((ctx), (callable), (args), (kw))
+#define HPy_CallMethod(ctx, name, args, nargs, kwnames) \
+    __pyx_hpy_fault_call_method((ctx), (name), (args), (nargs), (kwnames))
 #define HPy_GetAttr_s(ctx, obj, name) \
     __pyx_hpy_fault_get_attr_s((ctx), (obj), (name))
 #define HPy_GetItem(ctx, obj, key) \
@@ -312,6 +331,7 @@ def _runtime_program(debug, operation, target, should_fail):
         "    'dict-set-item': lambda: fault_injection.build_dictionary(marker),\n"
         "    'call': lambda: fault_injection.call_variants(accept, marker),\n"
         "    'call-tuple-dict': lambda: fault_injection.call_expanded(accept, (marker,), {'named': marker}),\n"
+        "    'call-method': lambda: fault_injection.call_method_variants('hpy'),\n"
         "    'get-attribute': lambda: fault_injection.read_attributes(SimpleNamespace(first=marker, second=marker, third=marker)),\n"
         "    'get-item': lambda: fault_injection.read_items({'first': marker, 'second': marker, 'third': marker}),\n"
         "    'set-attribute': lambda: fault_injection.write_attribute(SimpleNamespace(), marker),\n"
@@ -340,7 +360,9 @@ def _runtime_program(debug, operation, target, should_fail):
         "    elif operation in ('call', 'get-attribute', 'get-item'):\n"
         "        assert result == [marker] * (4 if operation == 'call' else 3)\n"
         "    elif operation in ('call-tuple-dict', 'set-attribute', 'set-item'):\n"
-        "        assert result is marker\n" +
+        "        assert result is marker\n"
+        "    elif operation == 'call-method':\n"
+        "        assert result == 'HPY'\n"
         "    else:\n"
         "        assert result is None\n" +
         suffix
@@ -419,6 +441,7 @@ def build_and_run(python):
                 "HPy_DelItem",
                 "HPy_Call",
                 "HPy_CallTupleDict",
+                "HPy_CallMethod",
                 "HPy_GetAttr_s",
                 "HPy_DelAttr_s",
                 "HPy_GetItem",
@@ -428,6 +451,7 @@ def build_and_run(python):
             ),
         )
         inject_failure_wrapper(generated)
+        shutil.copy2(HELPER_HEADER, temp / HELPER_HEADER.name)
 
         setup = temp / "setup.py"
         setup.write_text(
@@ -435,7 +459,8 @@ def build_and_run(python):
             "setup(name='ahpy-fault-injection', version='0.0.0', "
             "packages=[], py_modules=[], "
             "hpy_ext_modules=[Extension('fault_injection', "
-            "['fault_injection.c'])])\n",
+            "['fault_injection.c'], "
+            "include_dirs=[%r])])\n" % str(temp),
             encoding="utf8",
         )
         build_root = temp / "build"
@@ -508,10 +533,10 @@ class FaultInjectionToolTest(unittest.TestCase):
             module_exec_call_count(source, "HPy_SetAttr_s(ctx,"), 2)
 
     def test_runtime_case_counts_cover_every_boundary(self):
-        self.assertEqual(len({name for name, _ in RUNTIME_CASES}), 12)
+        self.assertEqual(len({name for name, _ in RUNTIME_CASES}), 13)
         self.assertTrue(all(call_count > 0 for _, call_count in RUNTIME_CASES))
         self.assertEqual(
-            sum(call_count + 1 for _, call_count in RUNTIME_CASES), 39)
+            sum(call_count + 1 for _, call_count in RUNTIME_CASES), 41)
 
 
 def main():

@@ -401,6 +401,10 @@ class CompilerDirectivesNode(CompilerDirectivesMixin, Node):
         with self.apply_directives(code.globalstate):
             self.body.annotate(code)
 
+    def generate_hpy_bootstrap_execution_code(self, code):
+        for statement in code.stats(self.body):
+            statement.generate_hpy_bootstrap_execution_code(code)
+
 
 class BlockNode:
     #  Mixin class for nodes representing a declaration block.
@@ -3314,8 +3318,12 @@ class DefNode(FuncDefNode):
             code.bind_extension_runtime_owners("self")
         if signature is RuntimeMethodSignature.ONEARG:
             code.bind_borrowed_argument(arguments[0].entry.name, "arg")
+        elif signature is RuntimeMethodSignature.POSITIONAL_VARARGS:
+            code.bind_required_positional_arguments(self.name, arguments)
         elif signature is RuntimeMethodSignature.VARARGS_KEYWORDS:
             code.parse_keyword_arguments(self.name, arguments)
+        if hasattr(code, "allocate_closure_env_and_store_captures"):
+            code.allocate_closure_env_and_store_captures(self)
         for statement in body:
             statement.generate_hpy_bootstrap_execution_code(code)
         code.assert_function_exit()
@@ -3332,6 +3340,14 @@ class DefNode(FuncDefNode):
         return (
             type(statement) is IfStatNode
             and statement.hpy_bootstrap_all_paths_return()
+        )
+
+    def generate_hpy_bootstrap_execution_code(self, code):
+        if self.py_cfunc_node is not None:
+            return
+        code.unsupported(
+            self,
+            "nested def statement emission requires InnerFunction synthesis",
         )
 
     def hpy_bootstrap_signature(self, diagnostics, receiver_argument=None):
@@ -3359,7 +3375,15 @@ class DefNode(FuncDefNode):
             if argument.annotation is not None:
                 diagnostics.unsupported(
                     argument, "argument annotations are not implemented")
-            if not argument.type.is_pyobject:
+            if argument.type.is_buffer or argument.type.is_memoryviewslice:
+                diagnostics.unsupported(
+                    argument,
+                    "HPy 0.9 exposes HPy_buffer producer slots but no public "
+                    "buffer acquire/release consumer API; typed buffer and "
+                    "memoryview arguments cannot use CPython Py_buffer "
+                    "utilities in Universal mode",
+                )
+            elif not argument.type.is_pyobject:
                 diagnostics.unsupported(
                     argument, "typed C arguments are not implemented")
 
@@ -3369,6 +3393,14 @@ class DefNode(FuncDefNode):
             and arguments[0].default is None
         ):
             return RuntimeMethodSignature.ONEARG
+        if (
+            len(arguments) > 1
+            and all(
+                argument.pos_only and argument.default is None
+                for argument in arguments
+            )
+        ):
+            return RuntimeMethodSignature.POSITIONAL_VARARGS
         return RuntimeMethodSignature.VARARGS_KEYWORDS
 
     def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, except_val=None, has_explicit_exc_clause=False,
@@ -3480,6 +3512,21 @@ class DefNode(FuncDefNode):
                     self.pos, decorator=NameNode(self.pos, name=EncodedString('classmethod'))))
 
         self.analyse_argument_types(env)
+        from .RuntimeAPI import RuntimeCodeGenerationKind
+        if (
+            env.context.runtime_api.code_generation_kind()
+            is RuntimeCodeGenerationKind.HPY_UNIVERSAL_BOOTSTRAP
+        ):
+            for arg in self.args:
+                if arg.type.is_buffer or arg.type.is_memoryviewslice:
+                    error(
+                        arg.pos,
+                        "aHPy bootstrap backend: HPy 0.9 exposes HPy_buffer "
+                        "producer slots but no public buffer acquire/release "
+                        "consumer API; typed buffer and memoryview arguments "
+                        "cannot use CPython Py_buffer utilities in Universal "
+                        "mode",
+                    )
         if self.name == '<lambda>':
             self.declare_lambda_function(env)
         else:
@@ -9807,6 +9854,9 @@ class GILStatNode(NogilTryFinallyStatNode):
         code.funcstate.gil_owned = old_gil_config
         code.end_block()
 
+    def generate_hpy_bootstrap_execution_code(self, code):
+        code.generate_nogil_external_c_block(self)
+
 
 class GILExitNode(StatNode):
     """
@@ -10482,6 +10532,9 @@ class ParallelStatNode(StatNode, ParallelNode):
 
         # [NameNode]
         self.assigned_nodes = []
+
+    def generate_hpy_bootstrap_execution_code(self, code):
+        code.reject_parallel_construct(self)
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)

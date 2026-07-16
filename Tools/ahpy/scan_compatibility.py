@@ -59,6 +59,33 @@ STATIC_RULES = (
 
 ACTION_RULES = (
     (
+        "parallel-worker-contract",
+        (
+            "public HPy worker-thread attach", "prange/parallel requires",
+            "CPython PyThreadState/exception triples",
+        ),
+        "Keep parallel work outside the Universal subset for now, or isolate "
+        "a native-only loop according to ADR 0011 until the neutral parallel "
+        "plan and selected HPy worker contract are implemented.",
+    ),
+    (
+        "nogil-transition",
+        (
+            "inside with nogil", "with nogil blocks",
+            "with nogil may call", "HPy execution-state transition",
+        ),
+        "Keep the native interval argumentless, noexcept, and independent of "
+        "Python/HPy state as documented by ADR 0010, or move the operation "
+        "outside with nogil until its transition subgate is implemented.",
+    ),
+    (
+        "buffer-consumer-api",
+        ("buffer acquire/release consumer API", "CPython Py_buffer utilities"),
+        "Keep the boundary as an ordinary Python object or a Python-independent "
+        "C pointer/length API until the selected HPy version exposes public "
+        "buffer acquisition and release operations.",
+    ),
+    (
         "set-construction",
         ("set construction", "SetType context constant"),
         "Use a supported list/tuple/dict representation for now, or wait for a "

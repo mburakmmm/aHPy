@@ -14,6 +14,8 @@ from collections import defaultdict
 from functools import partial
 
 import platform
+from ahpy_version import AHPY_DISTRIBUTION, AHPY_VERSION
+
 is_cpython = platform.python_implementation() == 'CPython'
 
 # this specifies which versions of python we support, pip >= 9 knows to skip
@@ -388,7 +390,9 @@ setup_args.update(setuptools_extra_args)
 
 
 def dev_status(version: str):
-    if 'b' in version or 'c' in version:
+    if '.dev' in version:
+        return 'Development Status :: 3 - Alpha'
+    elif 'b' in version or 'c' in version:
         # 1b1, 1beta1, 2rc1, ...
         return 'Development Status :: 4 - Beta'
     elif 'a' in version:
@@ -421,14 +425,15 @@ def run_build():
         compile_cython_modules(cython_profile, cython_coverage, cython_compile_minimal, cython_compile_more, cython_with_refnanny,
                                cython_limited_api)
 
-    from Cython import __version__ as version
+    from Cython import __version__ as cython_version
+    version = AHPY_VERSION
     setup(
-        name='Cython',
+        name=AHPY_DISTRIBUTION,
         version=version,
-        url='https://cython.org/',
+        url='https://hpyproject.org/',
         author='Robert Bradshaw, Stefan Behnel, David Woods, Greg Ewing, et al.',
         author_email='cython-devel@python.org',
-        description="The Cython compiler for writing C extensions in the Python language.",
+        description="A Cython backend for generating Universal HPy extensions.",
         long_description_content_type="text/x-rst",
         long_description=textwrap.dedent("""\
         The Cython language makes writing C extensions for the Python language as
@@ -459,7 +464,7 @@ def run_build():
 
         .. _Pyrex: https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
 
-        """) + collect_changelog(version),
+        """) + collect_changelog(cython_version),
         license='Apache-2.0',
         classifiers=[
             dev_status(version),
@@ -484,16 +489,16 @@ def run_build():
             "Typing :: Typed"
         ],
         project_urls={
-            "Documentation": "https://cython.readthedocs.io/",
-            "Donate": "https://cython.readthedocs.io/en/latest/src/donating.html",
-            "Source Code": "https://github.com/cython/cython",
-            "Bug Tracker": TRACKER_URL,
-            "User Group": "https://groups.google.com/g/cython-users",
+            "Upstream Cython": "https://github.com/cython/cython",
+            "HPy": "https://hpyproject.org/",
         },
 
         scripts=scripts,
         packages=packages,
-        py_modules=["cython"],
+        py_modules=[
+            "cython", "ahpy_version", "ahpy_build_backend",
+            "ahpy_build_config",
+        ],
         **setup_args
     )
 

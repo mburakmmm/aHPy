@@ -6,6 +6,7 @@ implemented below and rejects every other construct at its source position.
 """
 
 import copy
+import math
 import re
 
 from . import ExprNodes, Nodes, PyrexTypes
@@ -109,6 +110,76 @@ def _external_c_scalar_kind(value_type):
     return storage_kind
 
 
+class _ClosureCapture:
+    __slots__ = ("name", "entry", "field_cname")
+
+    def __init__(self, name, entry, field_cname):
+        self.name = name
+        self.entry = entry
+        self.field_cname = field_cname
+
+
+class _ClosureEnvSpec:
+    __slots__ = (
+        "index", "outer_def", "captures", "struct_cname", "type_cname",
+        "spec_cname", "module_global",
+    )
+
+    def __init__(self, index, outer_def, captures):
+        self.index = index
+        self.outer_def = outer_def
+        self.captures = captures
+        self.type_cname = "__pyx_hpy_closure_env_%d" % index
+        self.struct_cname = "%s_object" % self.type_cname
+        self.spec_cname = "%s_spec" % self.type_cname
+        self.module_global = self.type_cname
+
+
+class _ClosureFnSpec:
+    __slots__ = (
+        "index", "inner_def", "inner_node", "env_spec", "struct_cname",
+        "type_cname", "spec_cname", "module_global", "call_impl_cname",
+        "env_field_cname",
+    )
+
+    def __init__(self, index, inner_def, inner_node, env_spec):
+        self.index = index
+        self.inner_def = inner_def
+        self.inner_node = inner_node
+        self.env_spec = env_spec
+        self.type_cname = "__pyx_hpy_closure_fn_%d" % index
+        self.struct_cname = "%s_object" % self.type_cname
+        self.spec_cname = "%s_spec" % self.type_cname
+        self.module_global = self.type_cname
+        self.call_impl_cname = "%s_tp_call_impl" % self.type_cname
+        self.env_field_cname = "__pyx_hpy_closure_env"
+
+
+class _ClosureRegistry:
+    __slots__ = ("env_by_outer", "fn_by_inner_def", "fn_by_inner_node", "env_specs", "fn_specs")
+
+    def __init__(self, env_specs, fn_specs):
+        self.env_specs = tuple(env_specs)
+        self.fn_specs = tuple(fn_specs)
+        self.env_by_outer = {id(spec.outer_def): spec for spec in env_specs}
+        self.fn_by_inner_def = {id(spec.inner_def): spec for spec in fn_specs}
+        self.fn_by_inner_node = {id(spec.inner_node): spec for spec in fn_specs}
+
+    def field_layout_for_env(self, env_spec):
+        layout = {}
+        for capture in env_spec.captures:
+            layout[id(capture.entry)] = (
+                env_spec.struct_cname, capture.field_cname, "object")
+            layout[("field", capture.name)] = layout[id(capture.entry)]
+        return layout
+
+    def field_layout_for_fn_env_field(self, fn_spec):
+        return {
+            ("field", fn_spec.env_field_cname): (
+                fn_spec.struct_cname, fn_spec.env_field_cname, "object"),
+        }
+
+
 class UniversalHPyFunctionWriter:
     """Small line writer consumed by syntax-specific Cython AST nodes."""
 
@@ -126,6 +197,9 @@ class UniversalHPyFunctionWriter:
         rollback_module_publications=False,
         extension_field_layout=None,
         native_return_kind=None,
+        closure_registry=None,
+        closure_env_spec=None,
+        closure_env_owner_cname=None,
     ):
         self.runtime_api = runtime_api
         self.context_cname = runtime_api.context_contract().default_parameter_cname
@@ -137,6 +211,7 @@ class UniversalHPyFunctionWriter:
         self.available_module_globals = available_module_globals
         self.module_cname = module_cname
         self.default_owner_cname = module_cname
+        self._extension_runtime_receiver_cname = None
         self.constant_registry = constant_registry
         self.default_registry = default_registry
         self.use_constant_cache = use_constant_cache
@@ -145,6 +220,13 @@ class UniversalHPyFunctionWriter:
         self._rollback_module_attributes = set()
         self._module_publication_rollbacks = []
         self.extension_field_layout = extension_field_layout or {}
+        self.closure_registry = closure_registry
+        self.closure_env_spec = closure_env_spec
+        self._closure_env_owner_cname = closure_env_owner_cname
+        self._closure_in_closure_names = set()
+        if closure_env_spec is not None:
+            self._closure_in_closure_names = {
+                capture.name for capture in closure_env_spec.captures}
         # ``ssize`` / ``bool`` / ``hash`` convert HPy returns for native slots.
         self.native_return_kind = native_return_kind
         self.lines = []
@@ -164,6 +246,7 @@ class UniversalHPyFunctionWriter:
         self._next_field_owner = 0
         self._next_native_field = 0
         self._next_exception_handler = 0
+        self._next_thread_state = 0
         self._borrowed_arguments = {}
         self._local_values = {}
         self._temporary_values = {}
@@ -245,6 +328,19 @@ class UniversalHPyFunctionWriter:
             self._tracker_owned_arguments.add(source_name)
 
     def bind_extension_runtime_owners(self, receiver_cname):
+        if self._extension_runtime_receiver_cname not in (None, receiver_cname):
+            raise AssertionError("extension runtime receiver changed")
+        self._extension_runtime_receiver_cname = receiver_cname
+
+    def ensure_extension_runtime_owners(self, node=None):
+        if self.module_cname is not None and self.default_owner_cname is not None:
+            return
+        receiver_cname = self._extension_runtime_receiver_cname
+        if receiver_cname is None:
+            if node is None:
+                raise AssertionError("extension runtime owners are unavailable")
+            self.unsupported(
+                node, "operation requires the current module/type owner")
         type_cname = self.allocate_owned_handle(
             self.runtime_api.attribute_get_string(
                 receiver_cname,
@@ -278,9 +374,15 @@ class UniversalHPyFunctionWriter:
     def _materialize_extension_field_owner(self, field_node):
         struct_cname, field_cname, _ = self._extension_field_storage(
             field_node.entry)
-        owner_cname = self.materialize_owned_handle(
-            field_node.obj.generate_hpy_bootstrap_owned_result(self))
-        self.put_error_return_if_null(owner_cname)
+        # Incoming arguments remain valid for the complete call.  Owned locals
+        # are intentionally materialized: a side-effectful field-store RHS may
+        # rebind and close such a local after receiver evaluation.
+        owner_cname = self.borrow_direct_named_value(
+            field_node.obj, borrowed_arguments_only=True)
+        if owner_cname is None:
+            owner_cname = self.materialize_owned_handle(
+                field_node.obj.generate_hpy_bootstrap_owned_result(self))
+            self.put_error_return_if_null(owner_cname)
         data_cname = "__pyx_hpy_field_owner_%d" % self._next_field_owner
         self._next_field_owner += 1
         self.putln("%s *%s = %s_AsStruct(%s, %s);" % (
@@ -291,6 +393,11 @@ class UniversalHPyFunctionWriter:
             owner_cname,
         ))
         return owner_cname, "%s->%s" % (data_cname, field_cname)
+
+    def _close_extension_field_owner(self, owner_cname):
+        owner = self._handle_temps.use(owner_cname)
+        if owner.ownership is HandleOwnership.OWNED:
+            self.close_owned_handle(owner_cname)
 
     def _load_extension_field_value(self, owner_cname, field_cname):
         result_cname = self.allocate_owned_handle(
@@ -360,7 +467,7 @@ class UniversalHPyFunctionWriter:
             self.put_error_return_if_null(result_cname)
         else:
             raise AssertionError("unknown extension field storage kind")
-        self.close_owned_handle(owner_cname)
+        self._close_extension_field_owner(owner_cname)
         return result_cname
 
     def generate_external_c_scalar_call(self, call_node):
@@ -402,6 +509,11 @@ class UniversalHPyFunctionWriter:
                 (ExprNodes.CoerceFromPyTypeNode, ExprNodes.CoerceToTempNode),
             ):
                 argument = argument.arg
+            literal_argument = self._render_external_c_scalar_literal(
+                argument, argument_kind)
+            if literal_argument is not None:
+                native_arguments.append(literal_argument)
+                continue
             argument_cname = self.materialize_owned_handle(
                 argument.generate_hpy_bootstrap_owned_result(self))
             self.put_error_return_if_null(argument_cname)
@@ -447,6 +559,229 @@ class UniversalHPyFunctionWriter:
             self.close_owned_handle(argument_cname)
         return result_cname
 
+    @staticmethod
+    def _external_c_scalar_literal_value(node):
+        """Return a side-effect-free Python numeric literal, if ``node`` is one.
+
+        The caller still validates the value against the exact C destination.
+        Keeping extraction separate from rendering prevents an AST constant
+        from silently inheriting the host compiler's integer-width choices.
+        """
+        if isinstance(node, ExprNodes.BoolNode):
+            return node.value
+        if isinstance(node, ExprNodes.CharNode):
+            return ord(node.value)
+        if isinstance(node, ExprNodes.IntNode):
+            try:
+                return int(node.value, 0)
+            except (TypeError, ValueError):
+                return None
+        if isinstance(node, ExprNodes.FloatNode):
+            try:
+                return float(node.value)
+            except (TypeError, ValueError):
+                return None
+        if isinstance(node, (ExprNodes.UnaryPlusNode, ExprNodes.UnaryMinusNode)):
+            value = UniversalHPyFunctionWriter._external_c_scalar_literal_value(
+                node.operand)
+            if value is None:
+                return None
+            return value if isinstance(node, ExprNodes.UnaryPlusNode) else -value
+        return None
+
+    @staticmethod
+    def _render_external_c_scalar_literal(node, storage_kind):
+        """Render a portable C scalar literal or require checked HPy conversion.
+
+        Only values representable on every supported C data model take this
+        zero-handle path.  Wider or otherwise ambiguous values deliberately
+        fall back to HPy's checked conversions so overflow behaviour remains
+        observable instead of becoming implementation-defined C conversion.
+        """
+        value = UniversalHPyFunctionWriter._external_c_scalar_literal_value(node)
+        if value is None:
+            return None
+
+        if storage_kind in ("float", "double", "long-double"):
+            if isinstance(value, bool):
+                value = int(value)
+            if not isinstance(value, (int, float)):
+                return None
+            try:
+                numeric_value = float(value)
+            except (OverflowError, ValueError):
+                return None
+            if not math.isfinite(numeric_value):
+                return None
+            literal = repr(numeric_value)
+            c_type = {
+                "float": "float",
+                "double": "double",
+                "long-double": "long double",
+            }[storage_kind]
+            return "((%s)%s)" % (c_type, literal)
+
+        if isinstance(value, bool):
+            value = int(value)
+        if not isinstance(value, int):
+            return None
+        if storage_kind == "bint":
+            return "1" if value else "0"
+
+        portable_ranges = {
+            # Plain char signedness is implementation-defined.  Restricting it
+            # to the common non-negative subset keeps the literal portable.
+            "char": (0, (1 << 7) - 1, "char"),
+            "signed-char": (-(1 << 7), (1 << 7) - 1, "signed char"),
+            "unsigned-char": (0, (1 << 8) - 1, "unsigned char"),
+            "signed-short": (-(1 << 15), (1 << 15) - 1, "short"),
+            "unsigned-short": (0, (1 << 16) - 1, "unsigned short"),
+            "signed-int": (-(1 << 31), (1 << 31) - 1, "int"),
+            "unsigned-int": (0, (1 << 32) - 1, "unsigned int"),
+            # C guarantees at least 32 bits for long, not the LP64 width.
+            "signed-long": (-(1 << 31), (1 << 31) - 1, "long"),
+            "unsigned-long": (0, (1 << 32) - 1, "unsigned long"),
+            "signed-long-long": (
+                -(1 << 63), (1 << 63) - 1, "long long"),
+            "unsigned-long-long": (
+                0, (1 << 64) - 1, "unsigned long long"),
+        }
+        literal_range = portable_ranges.get(storage_kind)
+        if literal_range is None:
+            return None
+        minimum, maximum, c_type = literal_range
+        if not minimum <= value <= maximum:
+            return None
+        if value == -(1 << 63):
+            literal = "(-9223372036854775807LL - 1LL)"
+        elif storage_kind == "signed-long-long":
+            literal = "%sLL" % value
+        elif storage_kind == "unsigned-long-long":
+            literal = "%sULL" % value
+        elif storage_kind.startswith("unsigned-"):
+            literal = "%sULL" % value
+        else:
+            literal = str(value)
+        return "((%s)%s)" % (c_type, literal)
+
+    def generate_nogil_external_c_block(self, gil_node):
+        """Emit the first strictly Python-independent ``with nogil`` slice."""
+        if gil_node.state != "nogil":
+            self.unsupported(
+                gil_node,
+                "with gil blocks are not implemented in Universal HPy mode",
+            )
+        if gil_node.condition is not None:
+            self.unsupported(
+                gil_node,
+                "conditional with nogil blocks are not implemented; the "
+                "HPy execution-state transition must be unconditional",
+            )
+
+        calls = []
+        for statement in self.stats(gil_node.body):
+            if isinstance(statement, Nodes.ParallelStatNode):
+                self.reject_parallel_construct(statement)
+            if type(statement) is not Nodes.ExprStatNode:
+                self.unsupported(
+                    statement,
+                    "the initial with nogil lane permits only discarded "
+                    "calls to validated argumentless external C functions",
+                )
+            expression = statement.expr
+            while isinstance(
+                expression,
+                (
+                    ExprNodes.CoerceFromPyTypeNode,
+                    ExprNodes.CoerceToPyTypeNode,
+                    ExprNodes.CoerceToTempNode,
+                ),
+            ):
+                expression = expression.arg
+            if not isinstance(expression, ExprNodes.SimpleCallNode):
+                self.unsupported(
+                    statement,
+                    "the initial with nogil lane permits only discarded "
+                    "calls to validated argumentless external C functions",
+                )
+            if expression.self is not None or expression.coerced_self is not None:
+                self.unsupported(
+                    expression,
+                    "external C method calls are not implemented inside "
+                    "with nogil",
+                )
+            if expression.args is None or expression.args:
+                self.unsupported(
+                    expression,
+                    "external C calls inside with nogil must be argumentless "
+                    "in the initial Universal HPy lane",
+                )
+            entry = getattr(expression.function, "entry", None)
+            function_type = getattr(entry, "type", None)
+            if getattr(
+                entry, "ahpy_universal_external_c_scalar_kind", None
+            ) is None:
+                self.unsupported(
+                    expression,
+                    "with nogil may call only external C functions validated "
+                    "by a concrete, Python-independent header",
+                )
+            if function_type is None or not function_type.nogil:
+                self.unsupported(
+                    expression,
+                    "external C calls inside with nogil must be declared nogil",
+                )
+            if (
+                function_type.exception_value is not None
+                or function_type.exception_check
+            ):
+                self.unsupported(
+                    expression,
+                    "external C calls inside with nogil must be noexcept; "
+                    "Python exception inspection requires active execution state",
+                )
+            function_cname = str(entry.cname)
+            if not self.is_c_identifier(function_cname):
+                self.unsupported(
+                    expression,
+                    "external C function names must be plain C identifiers",
+                )
+            calls.append(function_cname)
+
+        if not calls:
+            self.unsupported(
+                gil_node,
+                "empty with nogil blocks are not part of the initial "
+                "Universal HPy execution-state slice",
+            )
+
+        thread_state_cname = "__pyx_hpy_thread_state_%d" % self._next_thread_state
+        self._next_thread_state += 1
+        self.putln("{")
+        self.indent()
+        self.putln("%s %s = %s;" % (
+            self.runtime_api.execution_state_type_cname(),
+            thread_state_cname,
+            self.runtime_api.leave_python_execution(
+                context_cname=self.context_cname),
+        ))
+        for function_cname in calls:
+            self.putln("(void)%s();" % function_cname)
+        self.putln("%s;" % self.runtime_api.reenter_python_execution(
+            thread_state_cname, context_cname=self.context_cname))
+        self.dedent()
+        self.putln("}")
+
+    def reject_parallel_construct(self, node):
+        self.unsupported(
+            node,
+            "prange/parallel requires backend-neutral scheduling and "
+            "reduction IR plus a public HPy worker-thread attach and error-"
+            "transport contract; HPy 0.9 only pairs Leave/Reenter on the "
+            "originating thread, and CPython PyThreadState/exception triples "
+            "are forbidden in Universal mode",
+        )
+
     def assign_extension_field(self, field_node, value):
         _, _, storage_kind = self._extension_field_storage(field_node.entry)
         if storage_kind != "object":
@@ -477,9 +812,12 @@ class UniversalHPyFunctionWriter:
             return
         owner_cname, field_cname = self._materialize_extension_field_owner(
             field_node)
-        value_cname = self.materialize_owned_handle(
-            value.generate_hpy_bootstrap_owned_result(self))
-        self.put_error_return_if_null(value_cname)
+        value_cname = self.borrow_direct_named_value(value)
+        value_is_owned = value_cname is None
+        if value_cname is None:
+            value_cname = self.materialize_owned_handle(
+                value.generate_hpy_bootstrap_owned_result(self))
+            self.put_error_return_if_null(value_cname)
         self.use_owned_handles(owner_cname, value_cname)
         self.putln("%s;" % self.runtime_api.field_store(
             owner_cname,
@@ -487,8 +825,9 @@ class UniversalHPyFunctionWriter:
             value_cname,
             context_cname=self.context_cname,
         ))
-        self.close_owned_handle(value_cname)
-        self.close_owned_handle(owner_cname)
+        if value_is_owned:
+            self.close_owned_handle(value_cname)
+        self._close_extension_field_owner(owner_cname)
 
     def _assign_native_extension_field(
             self, owner_cname, field_cname, storage_kind, value):
@@ -523,13 +862,13 @@ class UniversalHPyFunctionWriter:
             self.putln("%s %s %s;" % (
                 field_cname, operator, native_value))
             self.close_owned_handle(value_cname)
-            self.close_owned_handle(owner_cname)
+            self._close_extension_field_owner(owner_cname)
             return
         value_cname, native_value = self._convert_native_extension_field_value(
             owner_cname, storage_kind, value)
         self.putln("%s = %s;" % (field_cname, native_value))
         self.close_owned_handle(value_cname)
-        self.close_owned_handle(owner_cname)
+        self._close_extension_field_owner(owner_cname)
 
     def _convert_native_extension_field_value(
             self, owner_cname, storage_kind, value):
@@ -720,7 +1059,7 @@ class UniversalHPyFunctionWriter:
             )
             self.putln("%s = %s;" % (field_cname, native_value))
             self.close_owned_handle(result_cname)
-            self.close_owned_handle(owner_cname)
+            self._close_extension_field_owner(owner_cname)
             return
         owner_cname, field_cname = self._materialize_extension_field_owner(
             field_node)
@@ -748,7 +1087,7 @@ class UniversalHPyFunctionWriter:
             self.putln("%s %s %s;" % (
                 field_cname, operator, native_value))
             self.close_owned_handle(value_cname)
-            self.close_owned_handle(owner_cname)
+            self._close_extension_field_owner(owner_cname)
             return
         current_cname = self._load_extension_field_value(
             owner_cname, field_cname)
@@ -763,10 +1102,13 @@ class UniversalHPyFunctionWriter:
             context_cname=self.context_cname,
         ))
         self.close_owned_handle(result_cname)
-        self.close_owned_handle(owner_cname)
+        self._close_extension_field_owner(owner_cname)
 
     def duplicate_named_value(self, node, source_name):
         allow_null = bool(getattr(node, "allow_null", False))
+        closure_value = self._duplicate_closure_capture(node, source_name)
+        if closure_value is not None:
+            return closure_value
         cname = self._local_values.get(source_name)
         if cname is None:
             cname = self._borrowed_arguments.get(source_name)
@@ -780,6 +1122,7 @@ class UniversalHPyFunctionWriter:
                     node, "name %s has no initialized local HPy value" % source_name)
             if entry.is_builtin or entry.scope.is_builtin_scope:
                 self.name_registry.require_builtin(source_name)
+                self.ensure_extension_runtime_owners(node)
                 if self.module_cname is None:
                     self.unsupported(
                         node, "builtin lookup requires the current module handle")
@@ -802,6 +1145,7 @@ class UniversalHPyFunctionWriter:
                 return result_cname
             elif entry.is_cclass_var_entry:
                 self.name_registry.require_module_global(source_name)
+                self.ensure_extension_runtime_owners(node)
                 if self.module_cname is None:
                     self.unsupported(
                         node, "extension-type lookup requires the current module handle")
@@ -815,6 +1159,7 @@ class UniversalHPyFunctionWriter:
                 return result_cname
             elif entry.is_pyglobal:
                 self.name_registry.require_module_global(source_name)
+                self.ensure_extension_runtime_owners(node)
                 if self.module_cname is None:
                     self.unsupported(
                         node, "module-global lookup requires the current module handle")
@@ -847,6 +1192,31 @@ class UniversalHPyFunctionWriter:
         return self.runtime_api.duplicate_reference(
             cname, context_cname=self.context_cname)
 
+    def borrow_direct_named_value(self, node, borrowed_arguments_only=False):
+        """Return a live local/name handle for an API that only borrows it.
+
+        Global, builtin, extension-field, and closure loads still require an
+        owned materialization.  A stable local slot is checked for deletion
+        before its handle is exposed.  Ownership remains with the argument
+        frame/tracker or local lifetime and the ordinary failure epilogue.
+        """
+        if not isinstance(node, ExprNodes.NameNode):
+            return None
+        source_name = node.name
+        cname = self._borrowed_arguments.get(source_name)
+        if cname is None and not borrowed_arguments_only:
+            cname = self._local_values.get(source_name)
+        if cname is None:
+            return None
+        self._handle_temps.use(cname)
+        if source_name in self._stable_local_slots:
+            self.putln("if (%s) {" % self.runtime_api.null_check(cname))
+            self.indent()
+            self._raise_unbound_local_error(source_name)
+            self.dedent()
+            self.putln("}")
+        return cname
+
     def load_cached_constant(self, node, fallback_expression):
         """Load an interpreter-owned constant or use its construction expression."""
         attribute_name = None
@@ -854,6 +1224,7 @@ class UniversalHPyFunctionWriter:
             attribute_name = self.constant_registry.attribute_for_node(node)
         if attribute_name is None:
             return fallback_expression
+        self.ensure_extension_runtime_owners(node)
         if self.module_cname is None:
             self.unsupported(node, "constant cache lookup requires a module handle")
         result_cname = self.allocate_owned_handle(
@@ -872,6 +1243,7 @@ class UniversalHPyFunctionWriter:
         attribute_name = self.constant_registry.attribute_for_node(node)
         if attribute_name is None:
             return None
+        self.ensure_extension_runtime_owners(node)
         if self.module_cname is None:
             self.unsupported(node, "constant cache lookup requires a module handle")
         result_cname = self.allocate_owned_handle(
@@ -885,6 +1257,7 @@ class UniversalHPyFunctionWriter:
 
     def load_module_global(self, source_name):
         """Implement Python's module-then-builtins LOAD_GLOBAL semantics."""
+        self.ensure_extension_runtime_owners()
         name_cname = UniversalHPyModuleWriter._c_string(source_name)
         result_cname = self.allocate_owned_handle(
             self.runtime_api.null_reference_value())
@@ -982,6 +1355,12 @@ class UniversalHPyFunctionWriter:
         self.assign_local_from_owned_cname(source_name, cname)
 
     def assign_local_from_owned_cname(self, source_name, cname):
+        if (
+            self._closure_env_owner_cname is not None
+            and source_name in self._closure_in_closure_names
+        ):
+            self._store_closure_capture(source_name, cname)
+            return
         if source_name in self._stable_local_slots:
             self._move_into_owned_slot(self._local_values[source_name], cname)
             return
@@ -991,10 +1370,185 @@ class UniversalHPyFunctionWriter:
         self._local_values[source_name] = cname
 
     def assign_function_global(self, node, source_name, value):
+        self.ensure_extension_runtime_owners(node)
         if self.module_cname is None:
             self.unsupported(node, "global assignment requires the module receiver")
         self.store_module_global(
             node, source_name, value, self.module_cname, publish=True)
+
+    def _closure_capture_for_name(self, source_name):
+        if self.closure_env_spec is None:
+            return None
+        for capture in self.closure_env_spec.captures:
+            if capture.name == source_name:
+                return capture
+        return None
+
+    def _duplicate_closure_capture(self, node, source_name):
+        entry = getattr(node, "entry", None)
+        if entry is None or self.closure_env_spec is None:
+            return None
+        if not (entry.from_closure or entry.in_closure):
+            return None
+        if self._closure_env_owner_cname is None:
+            return None
+        if entry.from_closure:
+            capture_entry = entry.outer_entry
+        else:
+            capture_entry = entry
+        capture = None
+        for candidate in self.closure_env_spec.captures:
+            if id(candidate.entry) == id(capture_entry):
+                capture = candidate
+                break
+        if capture is None:
+            return None
+        owner_cname = self._closure_env_owner_cname
+        self._handle_temps.use(owner_cname)
+        data_cname = "__pyx_hpy_closure_data_%d" % self._next_field_owner
+        self._next_field_owner += 1
+        self.putln("%s *%s = %s_AsStruct(%s, %s);" % (
+            self.closure_env_spec.struct_cname,
+            data_cname,
+            self.closure_env_spec.struct_cname,
+            self.context_cname,
+            owner_cname,
+        ))
+        return self._load_extension_field_value(
+            owner_cname, "%s->%s" % (data_cname, capture.field_cname))
+
+    def _store_closure_capture(self, source_name, value_cname):
+        capture = self._closure_capture_for_name(source_name)
+        if capture is None:
+            raise AssertionError("unknown closure capture %s" % source_name)
+        owner_cname = self._closure_env_owner_cname
+        self._handle_temps.use(owner_cname)
+        self._handle_temps.use(value_cname)
+        data_cname = "__pyx_hpy_closure_data_%d" % self._next_field_owner
+        self._next_field_owner += 1
+        self.putln("%s *%s = %s_AsStruct(%s, %s);" % (
+            self.closure_env_spec.struct_cname,
+            data_cname,
+            self.closure_env_spec.struct_cname,
+            self.context_cname,
+            owner_cname,
+        ))
+        field_cname = "%s->%s" % (data_cname, capture.field_cname)
+        self.putln("%s;" % self.runtime_api.field_store(
+            owner_cname,
+            field_cname,
+            value_cname,
+            context_cname=self.context_cname,
+        ))
+        self.close_owned_handle(value_cname)
+
+    def allocate_closure_env_and_store_captures(self, outer_def):
+        if self.closure_registry is None:
+            return
+        env_spec = self.closure_registry.env_by_outer.get(id(outer_def))
+        if env_spec is None:
+            return
+        self.ensure_extension_runtime_owners(outer_def)
+        if self.module_cname is None:
+            self.unsupported(
+                outer_def,
+                "closure env allocation requires the current module handle",
+            )
+        self.closure_env_spec = env_spec
+        self._closure_in_closure_names = {
+            capture.name for capture in env_spec.captures}
+        env_type_cname = self.allocate_owned_handle(
+            self.runtime_api.attribute_get_string(
+                self.module_cname,
+                UniversalHPyModuleWriter._c_string(env_spec.module_global),
+                context_cname=self.context_cname,
+            ))
+        self.put_error_return_if_null(env_type_cname)
+        env_data_cname = "__pyx_hpy_closure_env_alloc_%d" % self._next_field_owner
+        self._next_field_owner += 1
+        self.putln("%s *%s;" % (env_spec.struct_cname, env_data_cname))
+        env_owner_cname = self.allocate_owned_handle(
+            "HPy_New(%s, %s, &%s)" % (
+                self.context_cname,
+                env_type_cname,
+                env_data_cname,
+            ))
+        self.put_error_return_if_null(env_owner_cname)
+        self.close_owned_handle(env_type_cname)
+        self._closure_env_owner_cname = env_owner_cname
+        # Store captures that are already live (typically args). Locals
+        # assigned later update the shared env field via assign_local.
+        for capture in env_spec.captures:
+            source_cname = self._local_values.get(capture.name)
+            if source_cname is None:
+                source_cname = self._borrowed_arguments.get(capture.name)
+            if source_cname is None:
+                continue
+            self._handle_temps.use(source_cname)
+            value_cname = self.allocate_owned_handle(
+                self.runtime_api.duplicate_reference(
+                    source_cname, context_cname=self.context_cname))
+            self.put_error_return_if_null(value_cname)
+            self._store_closure_capture(capture.name, value_cname)
+
+    def materialize_inner_function(self, inner_node):
+        if self.closure_registry is None:
+            self.unsupported(
+                inner_node,
+                "nested def closures are not available without a closure registry",
+            )
+        fn_spec = self.closure_registry.fn_by_inner_node.get(id(inner_node))
+        if fn_spec is None:
+            self.unsupported(
+                inner_node,
+                "nested def is not registered in the closure plan",
+            )
+        if self._closure_env_owner_cname is None:
+            self.unsupported(
+                inner_node,
+                "nested def materialization requires an active closure env",
+            )
+        self.ensure_extension_runtime_owners(inner_node)
+        if self.module_cname is None:
+            self.unsupported(
+                inner_node,
+                "nested def materialization requires the current module handle",
+            )
+        fn_type_cname = self.allocate_owned_handle(
+            self.runtime_api.attribute_get_string(
+                self.module_cname,
+                UniversalHPyModuleWriter._c_string(fn_spec.module_global),
+                context_cname=self.context_cname,
+            ))
+        self.put_error_return_if_null(fn_type_cname)
+        fn_data_cname = "__pyx_hpy_closure_fn_alloc_%d" % self._next_field_owner
+        self._next_field_owner += 1
+        self.putln("%s *%s;" % (fn_spec.struct_cname, fn_data_cname))
+        fn_owner_cname = self.allocate_owned_handle(
+            "HPy_New(%s, %s, &%s)" % (
+                self.context_cname,
+                fn_type_cname,
+                fn_data_cname,
+            ))
+        self.put_error_return_if_null(fn_owner_cname)
+        self.close_owned_handle(fn_type_cname)
+        self._handle_temps.use(self._closure_env_owner_cname)
+        self._handle_temps.use(fn_owner_cname)
+        env_field_cname = "%s->%s" % (fn_data_cname, fn_spec.env_field_cname)
+        env_copy_cname = self.allocate_owned_handle(
+            self.runtime_api.duplicate_reference(
+                self._closure_env_owner_cname,
+                context_cname=self.context_cname,
+            ))
+        self.put_error_return_if_null(env_copy_cname)
+        self.putln("%s;" % self.runtime_api.field_store(
+            fn_owner_cname,
+            env_field_cname,
+            env_copy_cname,
+            context_cname=self.context_cname,
+        ))
+        self.close_owned_handle(env_copy_cname)
+        return fn_owner_cname
 
     def assign_unpacked_sequence(self, target, value):
         """Unpack ``value`` into a fixed or starred list/tuple assignment target."""
@@ -1013,6 +1567,7 @@ class UniversalHPyFunctionWriter:
             target = target.target
         if isinstance(target, ExprNodes.NameNode):
             if target.entry is not None and target.entry.is_pyglobal:
+                self.ensure_extension_runtime_owners(target)
                 if self.module_cname is None:
                     self.unsupported(
                         target, "global unpack assignment requires the module receiver")
@@ -1406,6 +1961,7 @@ class UniversalHPyFunctionWriter:
         self.put_error_return_if_negative(status_cname)
 
     def delete_function_global(self, node, source_name):
+        self.ensure_extension_runtime_owners(node)
         if self.module_cname is None:
             self.unsupported(node, "global deletion requires the module receiver")
         name_cname = UniversalHPyModuleWriter._c_string(source_name)
@@ -1675,20 +2231,40 @@ class UniversalHPyFunctionWriter:
         self._module_publication_rollbacks.insert(0, rollback)
 
     def generate_binary_operation(self, operation, left, right):
-        left_cname = self.materialize_owned_handle(
-            left.generate_hpy_bootstrap_owned_result(self))
-        self.put_error_return_if_null(left_cname)
-        right_cname = self.materialize_owned_handle(
-            right.generate_hpy_bootstrap_owned_result(self))
-        self.put_error_return_if_null(right_cname)
+        # A direct right-hand name can always remain borrowed after the left
+        # expression has been evaluated.  A direct left-hand name can remain
+        # borrowed only when the right side is also a side-effect-free direct
+        # name: evaluating an arbitrary right expression may rebind/delete the
+        # left local, while Python keeps the already-evaluated left value alive.
+        left_cname = self.borrow_direct_named_value(left)
+        left_is_owned = left_cname is None
+        if left_cname is None:
+            left_cname = self.materialize_owned_handle(
+                left.generate_hpy_bootstrap_owned_result(self))
+            self.put_error_return_if_null(left_cname)
+            right_cname = self.borrow_direct_named_value(right)
+        else:
+            right_cname = self.borrow_direct_named_value(right)
+            if right_cname is None:
+                left_cname = self.materialize_owned_handle(
+                    left.generate_hpy_bootstrap_owned_result(self))
+                self.put_error_return_if_null(left_cname)
+                left_is_owned = True
+        right_is_owned = right_cname is None
+        if right_cname is None:
+            right_cname = self.materialize_owned_handle(
+                right.generate_hpy_bootstrap_owned_result(self))
+            self.put_error_return_if_null(right_cname)
         self.use_owned_handles(left_cname, right_cname)
         result_cname = self.allocate_owned_handle(
             self.runtime_api.binary_operation(
                 operation, left_cname, right_cname,
                 context_cname=self.context_cname,
             ))
-        self.close_owned_handle(right_cname)
-        self.close_owned_handle(left_cname)
+        if right_is_owned:
+            self.close_owned_handle(right_cname)
+        if left_is_owned:
+            self.close_owned_handle(left_cname)
         self.put_error_return_if_null(result_cname)
         return result_cname
 
@@ -2433,6 +3009,8 @@ class UniversalHPyFunctionWriter:
             self._temporary_values,
             self._stable_local_slots,
             self._tracker_owned_arguments,
+            self.module_cname,
+            self.default_owner_cname,
         ))
 
     def _restore_lifetime_state(self, snapshot):
@@ -2448,6 +3026,8 @@ class UniversalHPyFunctionWriter:
             self._temporary_values,
             self._stable_local_slots,
             self._tracker_owned_arguments,
+            self.module_cname,
+            self.default_owner_cname,
         ) = snapshot
 
     @staticmethod
@@ -2763,6 +3343,7 @@ class UniversalHPyFunctionWriter:
 
     def load_module_globals_dict(self, node):
         """Owned ``module.__dict__`` for ``globals()`` / module-scope ``locals()``."""
+        self.ensure_extension_runtime_owners(node)
         if self.module_cname is None:
             self.unsupported(
                 node,
@@ -3297,9 +3878,15 @@ class UniversalHPyFunctionWriter:
         ):
             return self.generate_method_call(
                 function.obj, function.attribute, arguments)
-        callable_cname = self.materialize_owned_handle(
-            function.generate_hpy_bootstrap_owned_result(self))
-        self.put_error_return_if_null(callable_cname)
+        callable_cname = None
+        callable_is_owned = True
+        if not arguments:
+            callable_cname = self.borrow_direct_named_value(function)
+            callable_is_owned = callable_cname is None
+        if callable_cname is None:
+            callable_cname = self.materialize_owned_handle(
+                function.generate_hpy_bootstrap_owned_result(self))
+            self.put_error_return_if_null(callable_cname)
         argument_cnames = []
         for argument in arguments:
             argument_cname = self.materialize_owned_handle(
@@ -3330,7 +3917,8 @@ class UniversalHPyFunctionWriter:
         result_cname = self.allocate_owned_handle(expression)
         for argument_cname in reversed(argument_cnames):
             self.close_owned_handle(argument_cname)
-        self.close_owned_handle(callable_cname)
+        if callable_is_owned:
+            self.close_owned_handle(callable_cname)
         self.put_error_return_if_null(result_cname)
         return result_cname
 
@@ -3530,6 +4118,7 @@ class UniversalHPyFunctionWriter:
 
         source_name = lhs.name
         if lhs.entry is not None and lhs.entry.is_pyglobal:
+            self.ensure_extension_runtime_owners(assignment)
             if self.module_cname is None:
                 self.unsupported(
                     assignment, "global walrus assignment requires the module receiver")
@@ -3894,9 +4483,69 @@ class UniversalHPyFunctionWriter:
                 self.bind_borrowed_argument(
                     argument.entry.name, cname, tracker_owned=True)
 
+    def bind_required_positional_arguments(
+            self, function_name, arguments, keyword_cname=None):
+        """Bind an exact positional-only argument array without a tracker."""
+        if keyword_cname is not None:
+            self.reject_keyword_arguments(function_name, keyword_cname)
+        type_error = self.runtime_api.context_constant(
+            RuntimeContextConstant.TYPE_ERROR,
+            context_cname=self.context_cname,
+        )
+        argument_count = len(arguments)
+        self.putln("if (nargs != %d) {" % argument_count)
+        self.indent()
+        noun = "argument" if argument_count == 1 else "arguments"
+        self.putln("%s;" % self.runtime_api.error_set_string(
+            type_error,
+            UniversalHPyModuleWriter._c_string(
+                "%s() takes exactly %d %s" % (
+                    function_name, argument_count, noun)),
+            context_cname=self.context_cname,
+        ))
+        self._emit_failure_exit()
+        self.dedent()
+        self.putln("}")
+        for index, argument in enumerate(arguments):
+            self.bind_borrowed_argument(
+                argument.entry.name, "args[%d]" % index)
+
+    def reject_keyword_arguments(self, function_name, keyword_cname):
+        self.putln("if (!%s) {" % self.runtime_api.null_check(keyword_cname))
+        self.indent()
+        keyword_count = "__pyx_hpy_positional_kw_count"
+        self.putln("HPy_ssize_t %s = %s;" % (
+            keyword_count,
+            self.runtime_api.length(
+                keyword_cname, context_cname=self.context_cname),
+        ))
+        self.putln("if (%s < 0) {" % keyword_count)
+        self.indent()
+        self._emit_failure_exit()
+        self.dedent()
+        self.putln("}")
+        self.putln("if (%s != 0) {" % keyword_count)
+        self.indent()
+        type_error = self.runtime_api.context_constant(
+            RuntimeContextConstant.TYPE_ERROR,
+            context_cname=self.context_cname,
+        )
+        self.putln("%s;" % self.runtime_api.error_set_string(
+            type_error,
+            UniversalHPyModuleWriter._c_string(
+                "%s() does not accept keyword arguments" % function_name),
+            context_cname=self.context_cname,
+        ))
+        self._emit_failure_exit()
+        self.dedent()
+        self.putln("}")
+        self.dedent()
+        self.putln("}")
+
     def _materialize_defaulted_arguments(
         self, function_name, arguments, output_cnames,
     ):
+        self.ensure_extension_runtime_owners()
         if self.default_registry is None or self.default_owner_cname is None:
             raise AssertionError(
                 "default arguments require interpreter-owned storage")
@@ -4600,6 +5249,9 @@ class UniversalHPyModuleWriter:
             self._render_extension_type_declarations(
             extension_types, module_name)
         )
+        closure_registry = self._collect_closure_registry(methods, module_name)
+        closure_lines, closure_fn_call_lines = (
+            self._render_closure_declarations(closure_registry, module_name))
         method_lines = []
         definitions = []
         for index, method in enumerate(methods):
@@ -4617,10 +5269,12 @@ class UniversalHPyModuleWriter:
                 module_cname="self",
                 constant_registry=self.constant_registry,
                 default_registry=self.default_registry,
+                closure_registry=closure_registry,
             )
             method.generate_hpy_bootstrap_definition(definition, function_writer)
             method_lines.extend(function_writer.lines)
             definitions.append(definition)
+        method_lines.extend(closure_fn_call_lines)
 
         for extension_type in extension_types:
             for (property_node, accessors,
@@ -4804,6 +5458,7 @@ class UniversalHPyModuleWriter:
             method_names,
             extension_types,
             type_specs,
+            closure_registry,
         )
 
         lines = [
@@ -4828,6 +5483,7 @@ class UniversalHPyModuleWriter:
                 lines.append('#include "%s"' % include_file)
         lines.append("")
         lines.extend(type_lines)
+        lines.extend(closure_lines)
         lines.extend(method_lines)
         lines.extend(exec_lines)
 
@@ -4883,6 +5539,425 @@ class UniversalHPyModuleWriter:
 
         visit(roots)
 
+    @staticmethod
+    def _flatten_stats(node):
+        flattened = []
+        pending = [node]
+        while pending:
+            current = pending.pop()
+            while type(current) is Nodes.CompilerDirectivesNode:
+                current = current.body
+            if type(current) is Nodes.StatListNode:
+                pending.extend(reversed(current.stats))
+            else:
+                flattened.append(current)
+        return flattened
+
+    @staticmethod
+    def _unwrap_nested_def_stat(stat):
+        while type(stat) is Nodes.CompilerDirectivesNode:
+            stat = stat.body
+        if isinstance(stat, Nodes.DefNode):
+            return stat
+        return None
+
+    def _iter_nested_defs(self, outer_def):
+        seen = set()
+        for stat in self._flatten_stats(outer_def.body):
+            inner_def = self._unwrap_nested_def_stat(stat)
+            if inner_def is None:
+                continue
+            inner_node = inner_def.py_cfunc_node
+            if inner_node is None:
+                self.unsupported(
+                    inner_def,
+                    "nested def requires InnerFunction closure synthesis",
+                )
+            seen.add(id(inner_node))
+            yield inner_def, inner_node
+        for stat in self._flatten_stats(outer_def.body):
+            if type(stat) is not Nodes.SingleAssignmentNode:
+                continue
+            inner_node = self._inner_function_from_expr(stat.rhs)
+            if inner_node is None or id(inner_node) in seen:
+                continue
+            inner_def = inner_node.def_node
+            if inner_def is None:
+                self.unsupported(
+                    stat,
+                    "nested def requires InnerFunction closure synthesis",
+                )
+            seen.add(id(inner_node))
+            yield inner_def, inner_node
+
+    def _contains_nested_def(self, def_node):
+        for stat in self._flatten_stats(def_node.body):
+            nested = self._unwrap_nested_def_stat(stat)
+            if nested is None or type(nested) is Nodes.GeneratorBodyDefNode:
+                continue
+            return nested
+        return None
+
+    @staticmethod
+    def _nested_def_contains_yield(def_node):
+        pending = [def_node.body]
+        while pending:
+            node = pending.pop()
+            if node is None:
+                continue
+            if isinstance(node, (ExprNodes.YieldExprNode, ExprNodes.YieldFromExprNode)):
+                return True
+            if type(node) is Nodes.GeneratorDefNode:
+                return True
+            for child_name in getattr(node, "child_attrs", ()):
+                child = getattr(node, child_name, None)
+                if child is None:
+                    continue
+                if isinstance(child, list):
+                    pending.extend(child)
+                else:
+                    pending.append(child)
+        return False
+
+    def _inner_function_from_expr(self, expr):
+        current = expr
+        while isinstance(current, ExprNodes.SimpleCallNode):
+            if not current.args:
+                break
+            current = current.args[0]
+        if isinstance(current, ExprNodes.InnerFunctionNode):
+            return current
+        return None
+
+    def _nested_def_assignment_is_decorated(self, outer_def, inner_node):
+        for stat in self._flatten_stats(outer_def.body):
+            if type(stat) is not Nodes.SingleAssignmentNode:
+                continue
+            if self._inner_function_from_expr(stat.rhs) is not inner_node:
+                continue
+            return type(stat.rhs) is not ExprNodes.InnerFunctionNode
+        return False
+
+    def _validate_nested_closure(self, outer_def, inner_def, inner_node):
+        if not isinstance(inner_node, ExprNodes.InnerFunctionNode):
+            self.unsupported(
+                inner_def,
+                "nested def requires InnerFunction closure synthesis",
+            )
+        if inner_def.decorators or inner_def.is_staticmethod or inner_def.is_classmethod:
+            self.unsupported(
+                inner_def,
+                "decorated nested def functions are not implemented",
+            )
+        if self._nested_def_assignment_is_decorated(outer_def, inner_node):
+            self.unsupported(
+                inner_def,
+                "decorated nested def functions are not implemented",
+            )
+        if inner_def.is_generator or self._nested_def_contains_yield(inner_def):
+            self.unsupported(
+                inner_def,
+                "generators and yield in nested def are not implemented",
+            )
+        if inner_def.needs_closure == Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE:
+            self.unsupported(
+                inner_def,
+                "nested nested def closures are not implemented",
+            )
+        nested_child = self._contains_nested_def(inner_def)
+        if nested_child is not None:
+            self.unsupported(
+                nested_child,
+                "nested nested def closures are not implemented",
+            )
+        if inner_def.star_arg is not None or inner_def.starstar_arg is not None:
+            self.unsupported(
+                inner_def,
+                "star arguments on nested def are not implemented",
+            )
+        for argument in inner_def.args:
+            if argument.default is not None:
+                self.unsupported(
+                    argument,
+                    "default arguments on nested def are not implemented",
+                )
+
+    def _collect_captures(self, inner_def):
+        captures = []
+        seen = set()
+        for scope in inner_def.local_scope.iter_local_scopes():
+            for name, entry in sorted(scope.entries.items()):
+                if not name or not entry.from_closure:
+                    continue
+                outer_entry = entry.outer_entry
+                if not outer_entry.type.is_pyobject:
+                    self.unsupported(
+                        inner_def,
+                        "C-typed closure captures are not implemented",
+                    )
+                key = id(outer_entry)
+                if key in seen:
+                    continue
+                seen.add(key)
+                field_cname = "__pyx_hpy_capture_%s" % (
+                    outer_entry.cname.replace(".", "_"))
+                captures.append(_ClosureCapture(
+                    outer_entry.name, outer_entry, field_cname))
+        return captures
+
+    def _collect_closure_registry(self, methods, module_name):
+        env_specs = {}
+        fn_specs = []
+        env_index = 0
+        fn_index = 0
+        for method in methods:
+            for inner_def, inner_node in self._iter_nested_defs(method):
+                self._validate_nested_closure(method, inner_def, inner_node)
+                outer_id = id(method)
+                captures = self._collect_captures(inner_def)
+                if outer_id not in env_specs:
+                    env_specs[outer_id] = _ClosureEnvSpec(
+                        env_index, method, captures)
+                    env_index += 1
+                else:
+                    # Sibling nested functions share one environment.  Its
+                    # layout must therefore be the stable union of every
+                    # sibling's captures, not merely the captures seen on the
+                    # first nested function.
+                    env_spec = env_specs[outer_id]
+                    captured_entries = {
+                        id(capture.entry) for capture in env_spec.captures}
+                    env_spec.captures.extend(
+                        capture for capture in captures
+                        if id(capture.entry) not in captured_entries
+                    )
+                fn_specs.append(_ClosureFnSpec(
+                    fn_index, inner_def, inner_node, env_specs[outer_id]))
+                fn_index += 1
+        for env_spec in env_specs.values():
+            # Even a capture-free nested function owns an empty environment
+            # object, so its synthetic type is still a required module cache.
+            self.name_registry.require_module_global(env_spec.module_global)
+        for fn_spec in fn_specs:
+            self.name_registry.require_module_global(fn_spec.module_global)
+        return _ClosureRegistry(env_specs.values(), fn_specs)
+
+    def _render_closure_object_type(
+            self, type_cname, struct_cname, spec_cname, module_name,
+            qualified_name, field_cnames, slot_definition_cnames):
+        lines = [
+            "typedef struct {",
+        ]
+        if field_cnames:
+            lines.extend("    HPyField %s;" % field_cname for field_cname in field_cnames)
+        else:
+            lines.append("    char __pyx_hpy_reserved;")
+        lines.extend([
+            "} %s;" % struct_cname,
+            "HPyType_HELPERS(%s)" % struct_cname,
+        ])
+        if field_cnames:
+            traverse_cname = "%s_traverse" % type_cname
+            lines.extend([
+                "static int %s_impl(void *object, "
+                "HPyFunc_visitproc visit, void *arg)" % traverse_cname,
+                "{",
+                "    %s *self = (%s *)object;" % (struct_cname, struct_cname),
+            ])
+            lines.extend(
+                "    HPy_VISIT(&self->%s);" % field_cname
+                for field_cname in field_cnames
+            )
+            lines.extend([
+                "    return 0;",
+                "}",
+                self.runtime_api.type_slot_definition(
+                    "tp_traverse", traverse_cname, "%s_impl" % traverse_cname),
+            ])
+            slot_definition_cnames = list(slot_definition_cnames) + [traverse_cname]
+            flags = "HPy_TPFLAGS_DEFAULT | HPy_TPFLAGS_HAVE_GC"
+        else:
+            flags = "HPy_TPFLAGS_DEFAULT"
+        lines.append(
+            self.runtime_api.type_definition_array_declaration(type_cname))
+        lines.extend("    &%s," % cname for cname in slot_definition_cnames)
+        lines.extend([
+            "    %s," % self.runtime_api.type_definition_array_terminator(),
+            "};",
+            self.runtime_api.type_specification_declaration(type_cname),
+            "    .name = %s," % self._c_string("%s.%s" % (module_name, qualified_name)),
+            "    .basicsize = sizeof(%s)," % struct_cname,
+            "    .itemsize = 0,",
+            "    .flags = %s," % flags,
+            "    .builtin_shape = SHAPE(%s)," % struct_cname,
+            "    .legacy_slots = NULL,",
+            "    .defines = %s_defines," % type_cname,
+            "    .doc = NULL,",
+            "};",
+            "",
+        ])
+        return lines, spec_cname, flags
+
+    def _render_closure_declarations(self, closure_registry, module_name):
+        if not closure_registry.env_specs and not closure_registry.fn_specs:
+            return [], []
+        lines = []
+        call_lines = []
+        rendered_env = set()
+        for env_spec in closure_registry.env_specs:
+            if env_spec.index in rendered_env:
+                continue
+            rendered_env.add(env_spec.index)
+            field_cnames = [capture.field_cname for capture in env_spec.captures]
+            env_lines, _, _ = self._render_closure_object_type(
+                env_spec.type_cname,
+                env_spec.struct_cname,
+                env_spec.spec_cname,
+                module_name,
+                env_spec.module_global,
+                field_cnames,
+                [],
+            )
+            lines.extend(env_lines)
+        for fn_spec in closure_registry.fn_specs:
+            slot_cnames = []
+            call_definition_cname = "%s_tp_call" % fn_spec.type_cname
+            lines.append(self.runtime_api.type_slot_definition(
+                "tp_call",
+                call_definition_cname,
+                fn_spec.call_impl_cname,
+            ))
+            slot_cnames.append(call_definition_cname)
+            fn_object_lines, _, _ = self._render_closure_object_type(
+                fn_spec.type_cname,
+                fn_spec.struct_cname,
+                fn_spec.spec_cname,
+                module_name,
+                fn_spec.module_global,
+                [fn_spec.env_field_cname],
+                slot_cnames,
+            )
+            lines.extend(fn_object_lines)
+            call_lines.extend(self._render_closure_fn_call_impl(
+                fn_spec, closure_registry))
+        return lines, call_lines
+
+    def _render_closure_fn_call_impl(self, fn_spec, closure_registry):
+        inner_def = fn_spec.inner_def
+        writer = UniversalHPyFunctionWriter(
+            self.runtime_api,
+            name_registry=self.name_registry,
+            module_cname=None,
+            constant_registry=self.constant_registry,
+            default_registry=None,
+            # Nested callables have no module receiver; construct literals
+            # directly rather than reading interpreter-owned module caches.
+            use_constant_cache=False,
+            closure_registry=closure_registry,
+            closure_env_spec=fn_spec.env_spec,
+        )
+        body = writer.stats(inner_def.body)
+        if not body or not inner_def._hpy_bootstrap_statement_terminates(body[-1]):
+            self.unsupported(
+                inner_def.body,
+                "nested def body must end with a return statement",
+            )
+        writer.putln(
+            "static HPy %s(HPyContext *%s, HPy self, "
+            "const HPy *args, size_t nargs, HPy kwnames)" % (
+                fn_spec.call_impl_cname, writer.context_cname))
+        writer.putln("{")
+        writer.indent()
+        writer.putln("%s *%s = %s_AsStruct(%s, self);" % (
+            fn_spec.struct_cname,
+            "__pyx_hpy_closure_self",
+            fn_spec.struct_cname,
+            writer.context_cname,
+        ))
+        env_field = "__pyx_hpy_closure_self->%s" % fn_spec.env_field_cname
+        writer.putln("if (HPyField_IsNull(%s)) {" % env_field)
+        writer.indent()
+        writer.putln("%s;" % writer.runtime_api.error_set_string(
+            writer.runtime_api.builtin_exception(
+                "RuntimeError", context_cname=writer.context_cname),
+            UniversalHPyModuleWriter._c_string(
+                "closure callable is missing its capture env"),
+            context_cname=writer.context_cname,
+        ))
+        writer._emit_failure_exit()
+        writer.dedent()
+        writer.putln("}")
+        writer._closure_env_owner_cname = writer.allocate_owned_handle(
+            writer.runtime_api.field_load(
+                "self", env_field, context_cname=writer.context_cname))
+        writer.put_error_return_if_null(writer._closure_env_owner_cname)
+        signature = inner_def.hpy_bootstrap_signature(writer)
+        if signature is RuntimeMethodSignature.VARARGS_KEYWORDS:
+            writer.parse_keyword_arguments(inner_def.name, inner_def.args)
+        elif signature is RuntimeMethodSignature.POSITIONAL_VARARGS:
+            writer.bind_required_positional_arguments(
+                inner_def.name, inner_def.args, keyword_cname="kwnames")
+        elif signature is RuntimeMethodSignature.ONEARG:
+            writer.reject_keyword_arguments(inner_def.name, "kwnames")
+            writer.putln("if (nargs != 1) {")
+            writer.indent()
+            writer.putln("%s;" % writer.runtime_api.error_set_string(
+                writer.runtime_api.builtin_exception(
+                    "TypeError", context_cname=writer.context_cname),
+                UniversalHPyModuleWriter._c_string(
+                    "%s() takes exactly one argument" % inner_def.name),
+                context_cname=writer.context_cname,
+            ))
+            writer._emit_failure_exit()
+            writer.dedent()
+            writer.putln("}")
+            writer.bind_borrowed_argument(
+                inner_def.args[0].entry.name, "args[0]")
+        elif signature is RuntimeMethodSignature.NOARGS:
+            writer.reject_keyword_arguments(inner_def.name, "kwnames")
+            writer.putln("if (nargs != 0) {")
+            writer.indent()
+            writer.putln("%s;" % writer.runtime_api.error_set_string(
+                writer.runtime_api.builtin_exception(
+                    "TypeError", context_cname=writer.context_cname),
+                UniversalHPyModuleWriter._c_string(
+                    "%s() takes no arguments" % inner_def.name),
+                context_cname=writer.context_cname,
+            ))
+            writer._emit_failure_exit()
+            writer.dedent()
+            writer.putln("}")
+        else:
+            writer.unsupported(
+                inner_def, "unsupported nested def signature for closures")
+        for statement in body:
+            statement.generate_hpy_bootstrap_execution_code(writer)
+        writer.assert_function_exit()
+        writer.dedent()
+        writer.putln("}")
+        writer.putln("")
+        return writer.lines
+
+    def _emit_closure_type_caches(self, writer, closure_registry):
+        for env_spec in closure_registry.env_specs:
+            type_cname = writer.allocate_owned_handle(
+                self.runtime_api.type_from_spec(
+                    env_spec.spec_cname,
+                    context_cname=writer.context_cname,
+                ))
+            writer.put_error_return_if_null(type_cname)
+            writer.store_materialized_module_global(
+                env_spec.module_global, type_cname, "m", publish=True)
+        for fn_spec in closure_registry.fn_specs:
+            type_cname = writer.allocate_owned_handle(
+                self.runtime_api.type_from_spec(
+                    fn_spec.spec_cname,
+                    context_cname=writer.context_cname,
+                ))
+            writer.put_error_return_if_null(type_cname)
+            writer.store_materialized_module_global(
+                fn_spec.module_global, type_cname, "m", publish=True)
+
     def _render_module_exec(
         self,
         definition_cname,
@@ -4890,6 +5965,7 @@ class UniversalHPyModuleWriter:
         method_names,
         extension_types,
         type_specs,
+        closure_registry,
     ):
         failure_epilogue = tuple(
             "(void)%s;" % self.runtime_api.attribute_delete_string(
@@ -4948,6 +6024,7 @@ class UniversalHPyModuleWriter:
             writer, include_argument_ids=type_default_argument_ids)
         writer.available_module_globals.update(method_names)
         self._emit_type_caches(writer, extension_types, type_specs)
+        self._emit_closure_type_caches(writer, closure_registry)
 
         for stat in module_stats:
             if type(stat) is Nodes.SingleAssignmentNode:
@@ -6476,6 +7553,12 @@ class UniversalHPyModuleWriter:
             writer.putln("(void)args;")
             writer.putln("(void)nargs;")
             writer.putln("(void)kw;")
+        elif all(
+            argument.pos_only and argument.default is None
+            for argument in method.args[1:]
+        ):
+            writer.bind_required_positional_arguments(
+                method.name, method.args[1:], keyword_cname="kw")
         else:
             writer.parse_keyword_arguments(
                 method.name, method.args[1:], keyword_dictionary=True)

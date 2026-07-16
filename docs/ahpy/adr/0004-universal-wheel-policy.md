@@ -34,13 +34,16 @@ the cross-interpreter compatibility of the contained HPy binary.
    publish misleading metadata.
 4. The correct Universal wheel/tag task remains blocked until an HPy/PyPA
    packaging contract is selected and implemented by the relevant tooling.
-5. PEP 517 isolation must also select an installable aHPy build frontend. It
-   must not resolve ordinary upstream Cython and silently lose this backend.
+5. PEP 517 isolation selects the exact `aHPy-compiler` build frontend under ADR
+   0012. It must not resolve ordinary upstream Cython or unrelated `ahpy` and
+   silently lose this backend.
 
 ## Consequences
 
 The maintained setuptools/cythonize example and CI gate build, audit, install,
 and execute the current host-tagged wheel. Cross-interpreter validation
 continues to use the separately hashed portability artifact, not that wheel.
-Clean sdist/PEP 517 isolation, standardized Universal wheel metadata, and PyPI
-publication remain release blockers rather than optimistic support claims.
+Clean aHPy sdist reproduction, standardized Universal wheel metadata,
+distribution-name reservation, and PyPI publication remain release blockers.
+The maintained PEP 517 wheel isolation gate is locally green under ADR 0012,
+but does not alter the wheel portability policy.

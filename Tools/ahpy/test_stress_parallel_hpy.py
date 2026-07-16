@@ -134,7 +134,7 @@ class ParallelHPyStressTest(unittest.TestCase):
         self.assertTrue(report["passed"])
         self.assertEqual(stored["schema_version"], 1)
         self.assertEqual(len(stored["round_results"]), 2)
-        self.assertEqual(stored["configuration"]["expected_fault_cases"], 232)
+        self.assertEqual(stored["configuration"]["expected_fault_cases"], 256)
 
 
 if __name__ == "__main__":

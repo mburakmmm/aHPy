@@ -1,0 +1,4 @@
+Add the ``aHPy-compiler`` distribution identity and a maintained PEP 517
+backend that pins the exact aHPy frontend, forces Universal HPy, rejects ABI or
+package substitution, and passes a real isolated wheel build plus normal/Debug
+installation gate.

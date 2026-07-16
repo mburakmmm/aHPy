@@ -5,13 +5,14 @@ Cython base: `b99cb0e3b5425e11414cadd24168a6cc850e8000`
 Status: expanded sequential normal/Debug gate passes
 
 One generated Universal module is source- and binary-audited, then executed in
-116 isolated processes. Runtime injection covers 12 operation families and 39
+128 isolated processes. Runtime injection covers 13 operation families and 41
 failure/one-past boundaries per mode: scalar conversion, three nested list and
 tuple builder builds, three dictionary insertions, four direct call layouts,
-one expanded call, three attribute/item reads, and attribute/item set/delete.
+one expanded call, one `HPy_CallMethod` direct method-call layout, three
+attribute/item reads, and attribute/item set/delete.
 
 The import lane derives its bounds from the generated module-exec function. It
-fails all three `HPyType_FromSpec` calls and all 14 `HPy_SetAttr_s` publication
+fails all three `HPyType_FromSpec` calls and all 18 `HPy_SetAttr_s` publication
 positions, plus each one-past success boundary, in normal and Debug modes.
 Every failure must be exact `MemoryError`, remove the module from `sys.modules`,
 survive collection, and leave Debug `LeakDetector` clean.

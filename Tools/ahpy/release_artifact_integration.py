@@ -1,0 +1,296 @@
+#!/usr/bin/env python3
+"""Prove clean aHPy sdist, offline install, removal, and onboarding."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path, PurePosixPath
+import shutil
+import subprocess
+import sys
+import tarfile
+from tempfile import TemporaryDirectory
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from ahpy_version import AHPY_DISTRIBUTION, AHPY_VERSION
+from pep517_integration import (
+    EXAMPLE,
+    _copy_frontend_source,
+    _frontend_metadata,
+    _runtime_program,
+)
+from verify_reproducible_packages import SOURCE_DATE_EPOCH, normalize_sdist
+
+
+def _run(command, *, cwd=None, env=None):
+    subprocess.run(command, cwd=cwd, env=env, check=True)
+
+
+def _sha256(path):
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _venv_python(venv):
+    relative = Path("Scripts/python.exe") if os.name == "nt" else Path("bin/python")
+    result = Path(venv) / relative
+    if not result.is_file():
+        raise AssertionError("venv did not create %s" % result)
+    return str(result)
+
+
+def verify_sdist(sdist):
+    required_suffixes = (
+        "/PKG-INFO",
+        "/setup.py",
+        "/pyproject.toml",
+        "/ahpy_version.py",
+        "/ahpy_build_backend.py",
+        "/ahpy_build_config.py",
+        "/Cython/Compiler/RuntimeAPI.py",
+        "/Tools/ahpy/release_artifact_integration.py",
+        "/Tools/ahpy/benchmark_hpy.py",
+        "/tests/ahpy/benchmark_generated.pyx",
+        "/tests/ahpy/benchmark_reference.c",
+        "/tests/ahpy/benchmark_external.c",
+        "/tests/ahpy/benchmark_external.h",
+        "/tests/ahpy/performance-budgets.toml",
+        "/docs/ahpy/onboarding.md",
+        "/examples/ahpy_pep517/pyproject.toml",
+        "/pyximport/__init__.py",
+        "/LICENSE.txt",
+    )
+    with tarfile.open(sdist, "r:gz") as archive:
+        members = archive.getmembers()
+        names = [member.name for member in members]
+        for member in members:
+            path = PurePosixPath(member.name)
+            if path.is_absolute() or ".." in path.parts:
+                raise AssertionError("unsafe sdist member: %s" % member.name)
+            if member.issym() or member.islnk():
+                raise AssertionError("sdist must not contain links: %s" % member.name)
+        for suffix in required_suffixes:
+            if not any(name.endswith(suffix) for name in names):
+                raise AssertionError("sdist lacks required member %s" % suffix)
+        forbidden = (
+            "/.git/", "/__pycache__/", ".DS_Store", ".so", ".pyd", ".pyc",
+        )
+        for name in names:
+            if any(token in name for token in forbidden):
+                raise AssertionError("sdist contains forbidden member: %s" % name)
+        pkg_info = next(name for name in names if name.endswith("/PKG-INFO"))
+        metadata = archive.extractfile(pkg_info).read().decode("utf8")
+    if "Name: %s\n" % AHPY_DISTRIBUTION not in metadata:
+        raise AssertionError("sdist metadata has the wrong distribution name")
+    if "Version: %s\n" % AHPY_VERSION not in metadata:
+        raise AssertionError("sdist metadata has the wrong version")
+    return len(names)
+
+
+def _assert_frontend(python, present, cwd):
+    if present:
+        program = (
+            "from importlib import metadata\n"
+            "assert metadata.version(%r) == %r\n" %
+            (AHPY_DISTRIBUTION, AHPY_VERSION) +
+            "from Cython.Compiler.RuntimeAPI import HPY_UNIVERSAL_BACKEND\n"
+            "assert HPY_UNIVERSAL_BACKEND == 'hpy-universal'\n"
+            "import ahpy_build_backend, ahpy_build_config\n"
+        )
+    else:
+        program = (
+            "from importlib import import_module, metadata, util\n"
+            "try:\n"
+            "    metadata.version(%r)\n" % AHPY_DISTRIBUTION +
+            "except metadata.PackageNotFoundError:\n"
+            "    pass\n"
+            "else:\n"
+            "    raise AssertionError('aHPy distribution survived uninstall')\n"
+            "try:\n"
+            "    import_module('Cython.Compiler.RuntimeAPI')\n"
+            "except ModuleNotFoundError:\n"
+            "    pass\n"
+            "else:\n"
+            "    raise AssertionError('aHPy compiler survived uninstall')\n"
+            "assert util.find_spec('ahpy_build_config') is None\n"
+        )
+    _run([python, "-c", program], cwd=cwd)
+
+
+def build_and_run(python, report_path=None):
+    python = os.path.abspath(python) if Path(python).exists() else shutil.which(python)
+    if python is None:
+        raise ValueError("Python interpreter not found")
+    with TemporaryDirectory(prefix="ahpy-release-artifacts-") as temp_dir:
+        temp = Path(temp_dir)
+        source = temp / "frontend-source"
+        _copy_frontend_source(source)
+        artifacts = temp / "artifacts"
+        artifacts.mkdir()
+        environment = os.environ.copy()
+        environment.pop("PYTHONPATH", None)
+        environment.pop("HPY", None)
+        environment["NO_CYTHON_COMPILE"] = "true"
+        environment["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+        environment["PYTHONHASHSEED"] = "0"
+        environment["SOURCE_DATE_EPOCH"] = SOURCE_DATE_EPOCH
+
+        _run([
+            python, "-m", "build", "--sdist", "--no-isolation",
+            "--outdir", str(artifacts), str(source),
+        ], env=environment)
+        sdists = sorted(artifacts.glob("ahpy_compiler-*.tar.gz"))
+        if len(sdists) != 1:
+            raise AssertionError("expected one clean aHPy sdist")
+        sdist = normalize_sdist(sdists[0])
+        member_count = verify_sdist(sdist)
+
+        wheelhouse = temp / "wheelhouse"
+        wheelhouse.mkdir()
+        _run([
+            python, "-m", "pip", "wheel", "--no-build-isolation",
+            "--no-deps", "--wheel-dir", str(wheelhouse),
+            "hpy==0.9.0", "setuptools==80.9.0",
+        ], env=environment)
+        dependency_wheels = sorted(wheelhouse.glob("*.whl"))
+        dependency_names = [path.name.lower() for path in dependency_wheels]
+        if len(dependency_wheels) != 2:
+            raise AssertionError("expected exact HPy and setuptools wheels")
+        if not any(name.startswith("hpy-0.9.0-") for name in dependency_names):
+            raise AssertionError("wheelhouse lacks exact HPy 0.9.0")
+        if not any(
+                name.startswith("setuptools-80.9.0-")
+                for name in dependency_names):
+            raise AssertionError("wheelhouse lacks exact setuptools 80.9.0")
+        isolated = environment.copy()
+        isolated["PIP_FIND_LINKS"] = str(wheelhouse)
+        isolated["PIP_NO_INDEX"] = "1"
+        _run([
+            python, "-m", "pip", "wheel", "--no-deps",
+            "--wheel-dir", str(artifacts), str(sdist),
+        ], env=isolated)
+        frontend_wheels = sorted(artifacts.glob("ahpy_compiler-*.whl"))
+        if len(frontend_wheels) != 1:
+            raise AssertionError("expected one frontend wheel built from sdist")
+        frontend_wheel = frontend_wheels[0]
+        _frontend_metadata(frontend_wheel)
+        shutil.copy2(frontend_wheel, wheelhouse / frontend_wheel.name)
+
+        clean_venv = temp / "clean-venv"
+        _run([python, "-m", "venv", str(clean_venv)])
+        clean_python = _venv_python(clean_venv)
+        install_environment = isolated.copy()
+        install_environment.pop("NO_CYTHON_COMPILE", None)
+        _run([
+            clean_python, "-m", "pip", "install", "--no-index",
+            "--find-links", str(wheelhouse),
+            "%s==%s" % (AHPY_DISTRIBUTION, AHPY_VERSION), "hpy==0.9.0",
+            "setuptools==80.9.0",
+        ], cwd=temp, env=install_environment)
+        _assert_frontend(clean_python, True, temp)
+
+        project = temp / "onboarding-project"
+        shutil.copytree(EXAMPLE, project)
+        example_dist = temp / "example-dist"
+        example_dist.mkdir()
+        _run([
+            clean_python, "-m", "pip", "wheel", "--no-deps",
+            "--wheel-dir", str(example_dist), str(project),
+        ], cwd=temp, env=install_environment)
+        example_wheels = sorted(example_dist.glob("ahpy_pep517_example-*.whl"))
+        if len(example_wheels) != 1:
+            raise AssertionError("onboarding did not produce the example wheel")
+        example_wheel = example_wheels[0]
+        _run([
+            clean_python, "-m", "pip", "install", "--no-deps",
+            str(example_wheel),
+        ], cwd=temp, env=install_environment)
+        runtime_environment = environment.copy()
+        runtime_environment.pop("NO_CYTHON_COMPILE", None)
+        _run([clean_python, "-c", _runtime_program(False)], env=runtime_environment)
+        debug_environment = runtime_environment.copy()
+        debug_environment["HPY"] = "debug"
+        _run([clean_python, "-c", _runtime_program(True)], env=debug_environment)
+
+        _run([
+            clean_python, "-m", "pip", "uninstall", "-y",
+            AHPY_DISTRIBUTION,
+        ], cwd=temp, env=install_environment)
+        _assert_frontend(clean_python, False, temp)
+        _run([
+            clean_python, "-m", "pip", "install", "--no-index",
+            "--find-links", str(wheelhouse),
+            "%s==%s" % (AHPY_DISTRIBUTION, AHPY_VERSION),
+        ], cwd=temp, env=install_environment)
+        _assert_frontend(clean_python, True, temp)
+
+        _run([
+            clean_python, "-m", "pip", "uninstall", "-y",
+            "ahpy-pep517-example",
+        ], cwd=temp, env=install_environment)
+        _run([
+            clean_python, "-c",
+            "from importlib.util import find_spec; "
+            "assert find_spec('ahpy_pep517_example') is None",
+        ], cwd=temp, env=runtime_environment)
+        _run([
+            clean_python, "-m", "pip", "install", "--no-deps",
+            str(example_wheel),
+        ], cwd=temp, env=install_environment)
+        _run([clean_python, "-c", _runtime_program(False)], env=runtime_environment)
+
+        report = {
+            "schema_version": 1,
+            "sdist": {
+                "name": sdist.name,
+                "sha256": _sha256(sdist),
+                "members": member_count,
+            },
+            "frontend_wheel": {
+                "name": frontend_wheel.name,
+                "sha256": _sha256(frontend_wheel),
+            },
+            "example_wheel": {
+                "name": example_wheel.name,
+                "sha256": _sha256(example_wheel),
+            },
+            "build_dependencies": [
+                {"name": path.name, "sha256": _sha256(path)}
+                for path in dependency_wheels
+            ],
+            "offline_install": True,
+            "frontend_uninstall_reinstall": True,
+            "example_uninstall_reinstall": True,
+            "runtime_modes": ["normal", "debug", "normal-after-reinstall"],
+        }
+        if report_path:
+            report_path = Path(report_path)
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+            report_path.write_text(
+                json.dumps(report, indent=2, sort_keys=True) + "\n",
+                encoding="utf8",
+            )
+        return report
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--python", default=sys.executable)
+    parser.add_argument("--output", type=Path)
+    args = parser.parse_args()
+    report = build_and_run(args.python, args.output)
+    print("aHPy clean release-artifact onboarding passed: %s" %
+          report["sdist"]["name"])
+
+
+if __name__ == "__main__":
+    main()

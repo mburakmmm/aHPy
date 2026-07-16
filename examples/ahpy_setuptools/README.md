@@ -15,7 +15,7 @@ cd examples/ahpy_setuptools
 PYTHONPATH=../.. ../../.venv-hpy09/bin/python setup.py \
     --hpy-abi=universal build_ext --inplace
 PYTHONPATH=. ../../.venv-hpy09/bin/python -c \
-    "import ahpy_setuptools_example as m; assert m.answer() == 42; assert m.external_add(20, 22) == 42"
+    "import ahpy_setuptools_example as m; assert m.answer() == 42; assert m.external_add(20, 22) == 42; assert m.external_nogil_probe() >= 1"
 HPY=debug PYTHONPATH=. ../../.venv-hpy09/bin/python -c \
     "import ahpy_setuptools_example as m; assert m.Box(42).identity() == 42"
 ```
@@ -31,6 +31,11 @@ conversion is source ordered and narrowing is checked. `Python.h`, inline
 verbatim C, external typedefs, pointers, aggregates, variables, variadics,
 optional parameters, and Python exception clauses are intentionally rejected.
 See `docs/ahpy/external-c.md` for the full contract.
+
+The example's `external_nogil_probe()` is the ADR 0010 transition oracle. Its
+discarded, argumentless native call is declared `noexcept nogil`; generated
+code leaves and re-enters Python execution with public HPy 0.9 APIs. This does
+not enable typed arguments/results, callbacks, `prange`, or general `nogil`.
 
 This is the maintained setuptools/cythonize example, not yet the clean isolated
 PEP 517 distribution path. The latter remains gated until the aHPy build

@@ -47,7 +47,12 @@ Design and implementation references:
 - [Source compatibility scanner](migration-scanner.md)
 - [Universal diagnostics catalog](diagnostics.md)
 - [Setuptools/cythonize example](../../examples/ahpy_setuptools/README.md)
+- [Direct non-setuptools build contract](direct-build.md)
+- [Isolated PEP 517 build contract](pep517.md)
+- [CMake, Meson, and scikit-build-core](build-systems.md)
+- [Clean release-artifact onboarding](onboarding.md)
 - [Python-independent external C contract](external-c.md)
+- [M9 ABI performance baseline](audits/m9-abi-performance-baseline.md)
 - [Architecture decisions](adr/)
 - [Audits](audits/)
 

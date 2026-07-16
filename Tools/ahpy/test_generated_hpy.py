@@ -32,6 +32,7 @@ def verify_source_boundary(generated, required=None):
     forbidden = (
         "#include <Python.h>",
         "PyObject *",
+        "PyThreadState *",
         "struct PyMethodDef",
         "struct PyModuleDef",
         "PyLong_FromLong(",
@@ -132,7 +133,12 @@ def verify_binary_boundary(binary):
             ", ".join(forbidden))
 
 
-def build_and_run(python):
+def build_and_run(python, runtime_prefix=()):
+    runtime_prefix = tuple(runtime_prefix)
+
+    def run_runtime(command, **kwargs):
+        run([*runtime_prefix, *command], **kwargs)
+
     with TemporaryDirectory(prefix="ahpy-generated-hpy09-") as temp_dir:
         temp = Path(temp_dir)
         generated = temp / (MODULE_NAME + ".c")
@@ -746,6 +752,25 @@ def build_and_run(python):
             "del bad_finalizer; gc.collect(); "
             "sys.unraisablehook = old_unraisablehook; "
             "assert finalizer_errors == [(RuntimeError, 'finalize failure')]; "
+            "left_cycle = bootstrap_types.GcCycleNode('left'); "
+            "right_cycle = bootstrap_types.GcCycleNode('right'); "
+            "left_cycle.link(right_cycle); right_cycle.link(left_cycle); "
+            "del left_cycle, right_cycle; assert gc.collect() >= 1; "
+            "field_clear = bootstrap_types.GcFieldClearBox(marker_instance, box); "
+            "assert field_clear.clear_fields() == ['cleared']; "
+            "assert field_clear.left is None and field_clear.right is None; "
+            "resurrect_del_events = []; "
+            "resurrect_del = bootstrap_types.ResurrectDel(resurrect_del_events); "
+            "del resurrect_del; gc.collect(); "
+            "assert len(resurrect_del_events) == 1; "
+            "alive_resurrect = resurrect_del_events.pop(); "
+            "del alive_resurrect; gc.collect(); "
+            "assert resurrect_del_events == []; "
+            "nested_finalize_events = []; "
+            "nested_sink = bootstrap_types.NestedFinalizeSink(nested_finalize_events); "
+            "nested_box = bootstrap_types.NestedFinalizeBox(nested_sink); "
+            "del nested_box, nested_sink; gc.collect(); "
+            "assert sorted(nested_finalize_events) == ['nested', 'outer']; "
             "native_initialized = bootstrap_types.make_native_initialized(-7, 1.25); "
             "assert native_initialized.count == -7; "
             "assert native_initialized.ratio == 1.25; "
@@ -1086,6 +1111,9 @@ def build_and_run(python):
             "gc_box = bootstrap_types.make_box(); "
             "assert gc.is_tracked(gc_box); "
             "gc_box.value = gc_box; del gc_box; assert gc.collect() >= 1; "
+            "clear_owner = bootstrap_types.GcFieldClearBox(marker_instance, box); "
+            "clear_owner.clear_fields(); "
+            "assert clear_owner.left is None and clear_owner.right is None; "
             "assert bootstrap_answer.read_module_value() == {'answer': 42}; "
             "assert bootstrap_answer.read_overwritten_value() == {'value': 'new'}; "
             "assert bootstrap_answer.imported_sqrt(81) == 9.0; "
@@ -1281,6 +1309,25 @@ def build_and_run(python):
             "lambda left, right: left + right) == 9\n"
             "assert bootstrap_answer.invoke_mixed("
             "lambda left, right: left + right) == 6\n"
+            "adder = bootstrap_answer.make_adder(2)\n"
+            "assert adder(3) == 5 and adder(3, **{}) == 5\n"
+            "try:\n"
+            "    adder(3, y=4)\n"
+            "except TypeError:\n"
+            "    pass\n"
+            "else:\n"
+            "    raise AssertionError('positional closure ignored keywords')\n"
+            "reader = bootstrap_answer.make_mutated_reader(1)\n"
+            "assert reader() == 11 and reader(**{}) == 11\n"
+            "try:\n"
+            "    reader(extra=1)\n"
+            "except TypeError:\n"
+            "    pass\n"
+            "else:\n"
+            "    raise AssertionError('noargs closure ignored keywords')\n"
+            "read_first, read_second = bootstrap_answer.make_readers(4, 9)\n"
+            "assert read_first() == 4 and read_second() == 9\n"
+            "assert bootstrap_answer.make_constant_reader()() == 7\n"
             "assert bootstrap_answer.invoke_expanded("
             "lambda *args: args, (value for value in (1, 2))) == (0, 1, 2, 3)\n"
             "class KeywordMapping:\n"
@@ -1293,6 +1340,8 @@ def build_and_run(python):
             "lambda *args, **kwargs: (args, kwargs), (2, 3), {'other': 5}) == "
             "((1, 2, 3), {'named': 4, 'other': 5})\n"
             "assert bootstrap_answer.invoke_method('hpy') == 'HPY'\n"
+            "assert bootstrap_answer.method_call_evaluation_order() == "
+            "[['receiver', 'left', 'right'], [1, 2]]\n"
             "assert bootstrap_answer.ellipsis_value() is Ellipsis\n"
             "assert bootstrap_answer.format_greeting('hpy') == 'hello hpy!'\n"
             "assert bootstrap_answer.format_repr('hpy') == \"'hpy'\"\n"
@@ -1620,12 +1669,15 @@ def build_and_run(python):
             "retry_case = importlib.import_module('retry_case')\n"
             "assert retry_case.dependency_value() == 73\n"
         )
-        run([python, "-c", retry_check], cwd=temp, env=runtime_environment)
-        run([python, "-c", semantic_check], cwd=temp, env=runtime_environment)
+        run_runtime(
+            [python, "-c", retry_check], cwd=temp, env=runtime_environment)
+        run_runtime(
+            [python, "-c", semantic_check], cwd=temp, env=runtime_environment)
 
         trace_environment = runtime_environment.copy()
         trace_environment["HPY"] = "trace"
-        run([python, "-c", semantic_check], cwd=temp, env=trace_environment)
+        run_runtime(
+            [python, "-c", semantic_check], cwd=temp, env=trace_environment)
 
         runtime_environment["HPY"] = "debug"
         debug_retry_check = (
@@ -1644,7 +1696,11 @@ def build_and_run(python):
             "assert retry_case.dependency_value() == 73\n"
             "detector.stop()"
         )
-        run([python, "-c", debug_retry_check], cwd=temp, env=runtime_environment)
+        run_runtime(
+            [python, "-c", debug_retry_check],
+            cwd=temp,
+            env=runtime_environment,
+        )
         debug_check = (
             "from hpy.debug import LeakDetector; "
             "import importlib, gc, sys, operator, warnings, ctypes; "
@@ -2078,6 +2134,25 @@ def build_and_run(python):
             "del bad_finalizer; gc.collect(); "
             "sys.unraisablehook = old_unraisablehook; "
             "assert finalizer_errors == [(RuntimeError, 'finalize failure')]; "
+            "left_cycle = bootstrap_types.GcCycleNode('left'); "
+            "right_cycle = bootstrap_types.GcCycleNode('right'); "
+            "left_cycle.link(right_cycle); right_cycle.link(left_cycle); "
+            "del left_cycle, right_cycle; assert gc.collect() >= 1; "
+            "field_clear = bootstrap_types.GcFieldClearBox(marker_instance, box); "
+            "assert field_clear.clear_fields() == ['cleared']; "
+            "assert field_clear.left is None and field_clear.right is None; "
+            "resurrect_del_events = []; "
+            "resurrect_del = bootstrap_types.ResurrectDel(resurrect_del_events); "
+            "del resurrect_del; gc.collect(); "
+            "assert len(resurrect_del_events) == 1; "
+            "alive_resurrect = resurrect_del_events.pop(); "
+            "del alive_resurrect; gc.collect(); "
+            "assert resurrect_del_events == []; "
+            "nested_finalize_events = []; "
+            "nested_sink = bootstrap_types.NestedFinalizeSink(nested_finalize_events); "
+            "nested_box = bootstrap_types.NestedFinalizeBox(nested_sink); "
+            "del nested_box, nested_sink; gc.collect(); "
+            "assert sorted(nested_finalize_events) == ['nested', 'outer']; "
             "native_initialized = bootstrap_types.make_native_initialized(-7, 1.25); "
             "assert native_initialized.count == -7; "
             "native_initialized_kw = bootstrap_types.NativeInitialized(ratio=2.5, count=9); "
@@ -2505,6 +2580,17 @@ def build_and_run(python):
             "lambda left, right: left + right) == 9; "
             "assert bootstrap_answer.invoke_mixed("
             "lambda left, right: left + right) == 6; "
+            "adder = bootstrap_answer.make_adder(2); "
+            "assert adder(3) == 5 and adder(3, **{}) == 5; "
+            "exec(\"try:\\n adder(3, y=4)\\nexcept TypeError:\\n pass\\n"
+            "else:\\n raise AssertionError('positional closure ignored keywords')\"); "
+            "reader = bootstrap_answer.make_mutated_reader(1); "
+            "assert reader() == 11 and reader(**{}) == 11; "
+            "exec(\"try:\\n reader(extra=1)\\nexcept TypeError:\\n pass\\n"
+            "else:\\n raise AssertionError('noargs closure ignored keywords')\"); "
+            "read_first, read_second = bootstrap_answer.make_readers(4, 9); "
+            "assert read_first() == 4 and read_second() == 9; "
+            "assert bootstrap_answer.make_constant_reader()() == 7; "
             "assert bootstrap_answer.invoke_expanded("
             "lambda *args: args, (value for value in (1, 2))) == (0, 1, 2, 3); "
             "KeywordMapping = type('KeywordMapping', (), {"
@@ -2517,6 +2603,8 @@ def build_and_run(python):
             "lambda *args, **kwargs: (args, kwargs), (2, 3), {'other': 5}) == "
             "((1, 2, 3), {'named': 4, 'other': 5}); "
             "assert bootstrap_answer.invoke_method('hpy') == 'HPY'; "
+            "assert bootstrap_answer.method_call_evaluation_order() == "
+            "[['receiver', 'left', 'right'], [1, 2]]; "
             "assert bootstrap_answer.ellipsis_value() is Ellipsis; "
             "assert bootstrap_answer.format_greeting('hpy') == 'hello hpy!'; "
             "assert bootstrap_answer.format_repr('hpy') == \"'hpy'\"; "
@@ -3168,7 +3256,8 @@ def build_and_run(python):
             "    raise AssertionError('duplicate expanded keyword did not fail')\n"
             "detector.stop()"
         )
-        run([python, "-c", debug_check], cwd=temp, env=runtime_environment)
+        run_runtime(
+            [python, "-c", debug_check], cwd=temp, env=runtime_environment)
 
 
 def main():
@@ -3177,6 +3266,12 @@ def main():
         "--python",
         default=str(ROOT / ".venv-hpy09" / "bin" / "python"),
         help="Python interpreter containing the selected HPy revision",
+    )
+    parser.add_argument(
+        "--runtime-prefix",
+        nargs=argparse.REMAINDER,
+        default=(),
+        help="command prefix applied only to generated-module runtime checks",
     )
     args = parser.parse_args()
     python_path = Path(args.python)
@@ -3189,7 +3284,7 @@ def main():
         python = shutil.which(args.python)
         if python is None:
             parser.error("Python interpreter not found: %s" % args.python)
-    build_and_run(python)
+    build_and_run(python, runtime_prefix=args.runtime_prefix)
     print("Generated Universal HPy module: normal, trace, and debug modes passed")
 
 

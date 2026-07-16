@@ -14,12 +14,17 @@ def add(left, right):
     return ahpy_external_add(left, right)
 ```
 
-The Universal emitter includes the header once, evaluates Python arguments in
-source order, converts each through public HPy APIs, checks integer narrowing,
-calls the C function, and converts its scalar result back to an owned HPy
-handle. A conversion or allocation failure preserves the original Python
-exception and closes every already-created handle. The generated translation
-unit still passes the `Python.h`/legacy-symbol source and binary audits.
+The Universal emitter includes the header once and evaluates arguments in
+source order. Dynamic arguments convert through public HPy APIs with checked
+integer narrowing. A side-effect-free numeric literal takes a zero-handle path
+only when its value is representable for the destination on every supported C
+data model; the emitter supplies an explicit C type and portable spelling.
+Non-finite floating values, signedness-ambiguous plain `char` values, and
+out-of-portable-range integers retain the checked HPy path. The scalar result
+always becomes an owned HPy handle. Any conversion or allocation failure
+preserves the original Python exception and closes every already-created
+handle. The generated translation unit still passes the
+`Python.h`/legacy-symbol source and binary audits.
 
 ## Accepted boundary
 
@@ -47,10 +52,14 @@ binary portable across operating systems or CPU architectures.
 - Cython/Python exception clauses on the native function.
 - C++ names, overloads, methods, templates, or exception translation.
 
-Native status-code, `errno`, pointer/buffer lifetime, callback, and `nogil`
-contracts need explicit designs before they can be enabled. Until then, a
-supported function must return its value without invoking Python APIs and must
-not require a Python exception indicator. Unsupported declarations fail at
+ADR 0010 enables one narrow `nogil` contract: a non-empty `with nogil` block
+may contain only discarded, argumentless calls to validated functions declared
+`noexcept nogil`. The native implementation must not call Python/HPy, access
+handles or Python-owned state, invoke Python callbacks, throw across the C
+boundary, or escape with `longjmp`. The emitter leaves and re-enters Python
+execution through public HPy APIs around that interval. Typed arguments,
+retained results, native status-code/`errno`, pointer/buffer lifetime, and
+callback contracts still need explicit designs. Unsupported forms fail at
 their source position; the backend never changes ABI mode as a fallback.
 
 ## Executable reference
@@ -60,4 +69,5 @@ files. `Tools/ahpy/setuptools_integration.py` builds and links them as a
 Universal `.hpy0`, audits generated source and undefined binary symbols, runs
 normal and HPy Debug semantics with leak detection, verifies narrowing failure,
 builds the current host-tagged wheel, installs it into an empty target, and
-runs it again.
+runs it again. The example also executes the ADR 0010 native counter probe in
+normal and Debug modes and audits the HPy execution-state spellings.

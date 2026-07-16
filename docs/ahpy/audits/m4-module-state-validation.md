@@ -60,7 +60,7 @@ publications are recorded once and rolled back in reverse order after a
 positively matched allocation failure. Since HPy 0.9 cleanup deletion may
 clear the current error and offers no public fetch/restore operation, the
 emitter re-establishes only the already matched `MemoryError`; other error
-classes retain the ordinary non-speculative propagation path. All 116 isolated
+classes retain the ordinary non-speculative propagation path. All 128 isolated
 normal/Debug processes pass with exact exception identity and clean handles.
 
 The source scanner requires `HPyDef_SLOT`, `HPy_mod_exec`, module attribute
@@ -75,14 +75,16 @@ every error exit prevents later traversal of stale loader memory and makes the
 post-collection retry plus process teardown deterministic in both runtime
 modes. Stress testing still observes intermittent loader `SystemError` for an
 immediate retry without that collection boundary even though the failed module
-is absent from `sys.modules`; that HPy 0.9 lifetime limitation remains an
-explicit open gate rather than a supported guarantee.
+is absent from `sys.modules`. That HPy 0.9 lifetime limitation is a documented
+upstream/loader gap (see `docs/ahpy/module-state.md`); aHPy keeps the
+collection gate and does not claim GC-free immediate retry as supported.
 
 ## Remaining M4 work
 
 HPy 0.9 cannot supply isolated mutable state through either process-shared
-`HPyGlobal` or its rejected positive module size. Unicode, bytes, and
-recursively immutable tuple caches therefore use module-owned values; type,
-code-object, and effectful-default caches remain. Relative/star imports and
-custom module `__getattr__` parity remain rejected or planned. See
-`docs/ahpy/module-state.md` for the exact safety boundary.
+`HPyGlobal` or its rejected positive module size. Unicode, bytes, imaginary,
+and recursively immutable tuple caches therefore use module-owned values;
+code-object caches remain blocked. Effectful defaults are cached once in
+`HPy_mod_exec`. Relative/star imports and custom module `__getattr__` parity
+remain rejected or planned. See `docs/ahpy/module-state.md` for the exact
+safety boundary.

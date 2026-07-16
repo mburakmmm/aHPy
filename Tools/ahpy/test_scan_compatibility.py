@@ -24,6 +24,14 @@ class CompatibilityScannerTest(unittest.TestCase):
         action = migration_action("future unsupported construct")
         self.assertEqual(action["id"], "unsupported-universal-construct")
         self.assertIn("avoid CPython/Hybrid fallback", action["text"])
+        action = migration_action(
+            "external C calls inside with nogil must be argumentless")
+        self.assertEqual(action["id"], "nogil-transition")
+        self.assertIn("ADR 0010", action["text"])
+        action = migration_action(
+            "prange/parallel requires a public HPy worker-thread attach")
+        self.assertEqual(action["id"], "parallel-worker-contract")
+        self.assertIn("ADR 0011", action["text"])
 
     def test_static_rules_detect_cpython_cimport_and_python_header(self):
         source = (

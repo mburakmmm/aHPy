@@ -60,6 +60,40 @@ concrete compiler value names, validating all input states, performing an
 explicit close transition, and declaring each handle result as owned local
 storage.
 
+### Direct borrowed operands
+
+An owned materialization is not required merely to pass a value to an HPy API
+whose argument contract is borrowed. The Universal emitter may reuse a direct
+live `NameNode` handle only when that name resolves to a call-scoped borrowed
+argument or a live owned local. Deleted stable slots receive the normal
+`UnboundLocalError` guard first. Globals, builtins, closure fields, extension
+fields, and arbitrary expressions still materialize owned handles.
+
+The enabled sites are `HPy_GetAttr_s` receivers, zero-argument `HPy_Call`
+callables, binary-operation operands, and fixed list/tuple builder items. A
+left binary operand remains borrowed only when the right operand is also a
+direct name. An arbitrary right expression may rebind or delete the left local,
+so that case duplicates the already-evaluated left value before evaluating the
+right. A direct right name may remain borrowed after a non-name left expression
+has completed. This preserves Python's left-to-right evaluation and value
+lifetime rules.
+
+The API call or builder-set operation cannot outlive the source handle;
+ownership remains with the argument frame/tracker or local lifetime, and the
+ordinary failure epilogue retains its cleanup obligation. The borrowed handle
+is never closed or returned directly. Emitter state tests, Debug Mode, Trace
+Mode, and allocation/API fault injection enforce this boundary.
+
+Extension-field `AsStruct`, load, and store operations apply a narrower rule:
+the owner may be reused directly only when it is an incoming borrowed argument,
+whose caller-owned lifetime spans the complete call. An owned local owner is
+materialized because a side-effectful store RHS could rebind and close that
+local after receiver evaluation. Direct Name field values may remain borrowed
+for `HPyField_Store`. Extension type/module owners are loaded lazily at the
+first constant, default, global, builtin, or closure access; field-only methods
+never create them. Branch lifetime snapshots include these lazy owner names so
+a handle declared inside one branch cannot leak into another branch's C code.
+
 ## Temporary integration
 
 `FunctionState` has a dedicated HPy temporary path layered over its existing C

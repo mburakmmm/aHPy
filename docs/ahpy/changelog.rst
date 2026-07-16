@@ -48,9 +48,57 @@ Bootstrap
   runtime and footprint budgets, and retains run-specific JSON history in CI.
 * Replaced unsafe ad-hoc parallel HPy validation with a bounded process-group
   stress gate that isolates temporary roots, preserves hashed child logs,
-  recursively cleans up timeouts, and passed five rounds/580 fault selectors.
+  recursively cleans up timeouts, and passed five rounds/640 fault selectors.
 * Added isolated schedule/manual-only CPython prerelease and HPy branch-tip
   allowed-failure jobs with exact installed interpreter/package/VCS provenance.
+* Added the first one-level nested-``def`` Universal slice with owned
+  ``HPyField`` environments/callables, shared mutation and sibling capture
+  unions, capture-free callables, runtime/Debug oracles, and strict rejection
+  of C-typed and deferred closure forms.
+* Declared an allowed-failure Linux Valgrind lane whose versioned suppressions
+  must preserve a definite-leak positive control before all five real
+  generated-corpus runtime processes can pass; hosted review remains pending.
+* Added ADR-backed HPy 0.9 generator gap diagnostics for top-level ``yield``,
+  ``yield from``, real generator expressions, and lambdas, preventing fallback
+  to CPython coroutine/code-object machinery.
+* Added a separate async-suspension ADR and HPy 0.9 diagnostics for native
+  coroutine/``await`` and async-generator functions.
+* Split HPy buffer producer capability from the missing 0.9 consumer API and
+  added an early typed-memoryview rejection before CPython buffer utilities can
+  contaminate Universal diagnostics.
+* Restored the CPython ``EarlyReplaceBuiltinCalls`` helper/handler ownership
+  after the HPy filter class had accidentally captured the base methods; all 38
+  focused C/C++ CPython semantic oracle tests pass again.
+* Added the pure-HPy fused-specialization design and exact fail-closed
+  diagnostics for fused ``def``/``cpdef`` without changing CPython dispatch.
+* Added the first public-HPy execution-state slice for discarded argumentless
+  ``noexcept nogil`` external-C calls, with real normal/Debug execution.
+* Added a neutral parallel-worker design and HPy 0.9-specific fail-closed
+  diagnostics before ``prange``/OpenMP can reach CPython thread-state code.
+* Added a schema-versioned, non-setuptools direct Universal build API/CLI with
+  HPy toolchain discovery, safe plans, source/binary audits, manifests, POSIX
+  and MSVC contracts, and public-loader normal/Debug integration.
+* Added the collision-safe ``aHPy-compiler`` distribution identity and an
+  exact-versioned Universal-only PEP 517 backend whose maintained example
+  passes a genuine isolated wheel build, ABI audits, installation, and
+  normal/Debug execution.
+* Added an installed, schema-versioned Universal toolchain contract and real
+  CMake, Meson, and isolated scikit-build-core examples with exact tool pins,
+  ABI audits, pip installation, and normal/Debug execution.
+* Added a clean frontend sdist safety gate, no-index wheel-from-sdist build,
+  fresh-environment installation, maintained PEP 517 onboarding, and verified
+  frontend/example uninstall/reinstall with hashed artifact evidence.
+* Added byte-for-byte two-root frontend sdist/wheel reproducibility, including
+  deterministic tar/gzip metadata normalization and exact build provenance.
+* Added per-operation HPy Trace API-call and handle-churn measurements to the
+  generated-versus-handwritten performance history, including equivalent
+  extension-type and Python-independent external-C reference paths.
+* Added separate classic Cython, HPy CPython ABI, and HPy Universal ABI
+  benchmark profiles with per-profile build, footprint, and peak-memory
+  evidence; no cross-ABI aggregate overhead is reported.
+* Corrected benchmark call-contract equivalence and eliminated redundant
+  Dup/Close pairs for borrowed direct-name attribute receivers and zero-argument
+  callables, reducing both paths to the handwritten reference API count.
 
 Release entries will state the exact Cython base revision, HPy revision,
 supported feature tiers, interpreter/platform matrix, known limitations, and

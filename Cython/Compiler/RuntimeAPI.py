@@ -108,6 +108,7 @@ class RuntimeModuleInitializationKind(Enum):
 class RuntimeMethodSignature(Enum):
     NOARGS = "noargs"
     ONEARG = "onearg"
+    POSITIONAL_VARARGS = "positional-varargs"
     VARARGS_KEYWORDS = "varargs-keywords"
     FASTCALL_KEYWORDS = "fastcall-keywords"
 
@@ -331,6 +332,17 @@ class RuntimeAPI(Protocol):
         ...
 
     def reference_type_cname(self) -> str:
+        ...
+
+    def execution_state_type_cname(self) -> str:
+        ...
+
+    def leave_python_execution(self, context_cname: str = "") -> str:
+        ...
+
+    def reenter_python_execution(
+        self, state_cname: str, context_cname: str = "",
+    ) -> str:
         ...
 
     def signed_integer_from_cvalue(
@@ -1119,6 +1131,7 @@ class _RuntimeAPIBase:
         layouts = {
             ("METH_NOARGS",): RuntimeMethodSignature.NOARGS,
             ("METH_O",): RuntimeMethodSignature.ONEARG,
+            ("METH_VARARGS",): RuntimeMethodSignature.POSITIONAL_VARARGS,
             ("METH_VARARGS", "METH_KEYWORDS"):
                 RuntimeMethodSignature.VARARGS_KEYWORDS,
             ("__Pyx_METH_FASTCALL", "METH_KEYWORDS"):
@@ -1212,6 +1225,15 @@ class CPythonRuntimeAPI(_RuntimeAPIBase):
 
     def reference_type_cname(self):
         return "PyObject *"
+
+    def execution_state_type_cname(self):
+        return "PyThreadState *"
+
+    def leave_python_execution(self, context_cname=""):
+        return "PyEval_SaveThread()"
+
+    def reenter_python_execution(self, state_cname, context_cname=""):
+        return "PyEval_RestoreThread(%s)" % state_cname
 
     def signed_integer_from_cvalue(self, value_cname, context_cname=""):
         return "PyLong_FromLongLong(%s)" % value_cname
@@ -1950,8 +1972,13 @@ class CPythonRuntimeAPI(_RuntimeAPIBase):
                 receiver_cname,
                 argument_cname,
             )
+        if definition.signature is RuntimeMethodSignature.POSITIONAL_VARARGS:
+            return "static PyObject *%s(PyObject *%s, PyObject *args)" % (
+                definition.implementation_cname,
+                receiver_cname,
+            )
         raise ValueError(
-            "bootstrap method declaration requires NOARGS or ONEARG")
+            "bootstrap method declaration requires a supported signature")
 
     def method_table_declaration(self, table_cname):
         return "static PyMethodDef %s[] = {" % table_cname
@@ -1961,6 +1988,7 @@ class CPythonRuntimeAPI(_RuntimeAPIBase):
         flags = {
             RuntimeMethodSignature.NOARGS: ["METH_NOARGS"],
             RuntimeMethodSignature.ONEARG: ["METH_O"],
+            RuntimeMethodSignature.POSITIONAL_VARARGS: ["METH_VARARGS"],
             RuntimeMethodSignature.VARARGS_KEYWORDS:
                 ["METH_VARARGS", "METH_KEYWORDS"],
             RuntimeMethodSignature.FASTCALL_KEYWORDS:
@@ -1971,6 +1999,7 @@ class CPythonRuntimeAPI(_RuntimeAPIBase):
         cast = {
             RuntimeMethodSignature.NOARGS: "PyCFunction",
             RuntimeMethodSignature.ONEARG: "PyCFunction",
+            RuntimeMethodSignature.POSITIONAL_VARARGS: "PyCFunction",
             RuntimeMethodSignature.VARARGS_KEYWORDS:
                 "PyCFunctionWithKeywords",
             RuntimeMethodSignature.FASTCALL_KEYWORDS:
@@ -2133,6 +2162,18 @@ class _HPyRuntimeAPIBase(_RuntimeAPIBase):
 
     def reference_type_cname(self):
         return "HPy"
+
+    def execution_state_type_cname(self):
+        return "HPyThreadState"
+
+    def leave_python_execution(self, context_cname=""):
+        context_cname = self._require_context(context_cname)
+        return "HPy_LeavePythonExecution(%s)" % context_cname
+
+    def reenter_python_execution(self, state_cname, context_cname=""):
+        context_cname = self._require_context(context_cname)
+        return "HPy_ReenterPythonExecution(%s, %s)" % (
+            context_cname, state_cname)
 
     def signed_integer_from_cvalue(self, value_cname, context_cname=""):
         context_cname = self._require_context(context_cname)
@@ -2865,6 +2906,7 @@ class _HPyRuntimeAPIBase(_RuntimeAPIBase):
         hpy_signature = {
             RuntimeMethodSignature.NOARGS: "HPyFunc_NOARGS",
             RuntimeMethodSignature.ONEARG: "HPyFunc_O",
+            RuntimeMethodSignature.POSITIONAL_VARARGS: "HPyFunc_VARARGS",
             RuntimeMethodSignature.VARARGS_KEYWORDS: "HPyFunc_KEYWORDS",
             RuntimeMethodSignature.FASTCALL_KEYWORDS: "HPyFunc_KEYWORDS",
         }[definition.signature]
@@ -2898,6 +2940,15 @@ class _HPyRuntimeAPIBase(_RuntimeAPIBase):
                 context_cname,
                 receiver_cname,
                 argument_cname,
+            )
+        if definition.signature is RuntimeMethodSignature.POSITIONAL_VARARGS:
+            return (
+                "static HPy %s(HPyContext *%s, HPy %s, const HPy *args, "
+                "size_t nargs)" % (
+                    definition.implementation_cname,
+                    context_cname,
+                    receiver_cname,
+                )
             )
         if definition.signature in (
             RuntimeMethodSignature.VARARGS_KEYWORDS,

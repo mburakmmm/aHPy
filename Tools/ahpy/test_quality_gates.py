@@ -107,6 +107,9 @@ class QualityGateTest(unittest.TestCase):
             "cc: clang",
             "cc: cl",
             "run_sanitized_hpy.py",
+            "native-memory-valgrind:",
+            "run_lsan_hpy.py",
+            "ahpy-valgrind-${{ github.run_id }}-${{ github.run_attempt }}",
             "requirements-hpy-dev.txt",
             "pypy3.11-v7.3.23",
             "graalpy-25.1.3",
@@ -183,6 +186,101 @@ class QualityGateTest(unittest.TestCase):
             environment["CFLAGS"],
             "-O2 -ffile-prefix-map=/tmp=/build",
         )
+
+    def test_manifest_status_set_allows_declared_release_states(self):
+        manifest = tomllib.loads(VERSION_MANIFEST.read_text(encoding="utf8"))
+        allowed = {
+            "required",
+            "early-warning",
+            "allowed-failure-early-warning",
+            "hosted-run-pending",
+        }
+        statuses = {manifest["stable"]["status"], manifest["development"]["status"]}
+        statuses.update(
+            manifest["nightly"][name]["status"]
+            for name in ("interpreter", "hpy")
+        )
+        statuses.update(
+            target["status"]
+            for target in tomllib.loads(
+                (ROOT / "tests" / "ahpy" / "interpreters.toml").read_text(
+                    encoding="utf8")
+            )["targets"]
+        )
+        self.assertTrue(statuses.issubset(allowed))
+
+    def test_stable_matrix_jobs_are_not_nightly_required_claims(self):
+        workflow = (ROOT / ".github" / "workflows" /
+                    "ahpy-universal.yml").read_text(encoding="utf8")
+        foundation, rest = workflow.split("  stable-universal:\n", 1)
+        stable_universal, after_stable = rest.split(
+            "  development-revision:\n", 1)
+        self.assertNotIn("continue-on-error: true", foundation)
+        self.assertNotIn("continue-on-error: true", stable_universal)
+        self.assertNotIn("requirements-hpy-nightly.txt", foundation)
+        self.assertIn("requirements-hpy09.txt", foundation)
+        nightly_section = after_stable.split("  nightly-interpreter:\n", 1)[1]
+        self.assertIn("continue-on-error: true", nightly_section)
+        self.assertIn("requirements-hpy-nightly.txt", nightly_section)
+
+    def test_docs_do_not_claim_supported_targets_while_hosted_pending(self):
+        validation_matrix = (
+            ROOT / "docs" / "ahpy" / "validation-matrix.md"
+        ).read_text(encoding="utf8")
+        interpreters = tomllib.loads(
+            (ROOT / "tests" / "ahpy" / "interpreters.toml").read_text(
+                encoding="utf8")
+        )
+        for target in interpreters["targets"]:
+            if target["status"] == "hosted-run-pending":
+                self.assertNotRegex(
+                    validation_matrix,
+                    r"%s[^\n]{0,120}\bsupported\b" % target["name"],
+                )
+        self.assertIn("hosted run pending", validation_matrix)
+        self.assertIn("continue-on-error", validation_matrix)
+
+    def test_nightly_jobs_keep_hpy_vcs_requirement_on_hpy_lane_only(self):
+        workflow = (ROOT / ".github" / "workflows" /
+                    "ahpy-universal.yml").read_text(encoding="utf8")
+        interpreter_job, rest = workflow.split("  nightly-interpreter:\n", 1)[1].split(
+            "  nightly-hpy:\n", 1)
+        hpy_job = rest.split("\n\n", 1)[0]
+        for job_name, job in (("interpreter", interpreter_job),
+                              ("hpy", hpy_job)):
+            self.assertIn("nightly-evidence", job, job_name)
+            self.assertIn("report_nightly_environment.py", job, job_name)
+        self.assertNotIn("--require-hpy-vcs", interpreter_job)
+        self.assertIn("--require-hpy-vcs", hpy_job)
+        self.assertIn("--expected-hpy-ref master", hpy_job)
+
+    def test_sanitizer_lane_disables_asan_leak_detection(self):
+        environment = run_sanitized_hpy.sanitizer_environment("gcc", "address")
+        self.assertIn("detect_leaks=0", environment["ASAN_OPTIONS"])
+        readme = (ROOT / "Tools" / "ahpy" / "README.md").read_text(
+            encoding="utf8")
+        validation_matrix = (
+            ROOT / "docs" / "ahpy" / "validation-matrix.md"
+        ).read_text(encoding="utf8")
+        for text in (readme, validation_matrix):
+            self.assertIn("detect_leaks=0", text)
+            self.assertIn("LeakSanitizer", text)
+        self.assertRegex(readme, r"handle-leak gate|leak detector")
+        self.assertIn("leak detector", validation_matrix)
+
+    def test_valgrind_lane_is_hosted_pending_and_enforces_real_corpus(self):
+        workflow = (ROOT / ".github" / "workflows" /
+                    "ahpy-universal.yml").read_text(encoding="utf8")
+        job = workflow.split("  native-memory-valgrind:\n", 1)[1].split(
+            "  build-portability-artifact:\n", 1)[0]
+        self.assertIn("continue-on-error: true", job)
+        self.assertIn("github.event_name == 'schedule'", job)
+        self.assertIn("github.event_name == 'workflow_dispatch'", job)
+        self.assertIn("valgrind", job)
+        self.assertIn("run_lsan_hpy.py", job)
+        self.assertNotIn("--positive-control-only", job)
+        self.assertIn("if: always()", job)
+        self.assertIn("valgrind-evidence", job)
 
 
 if __name__ == "__main__":

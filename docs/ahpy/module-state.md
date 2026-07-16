@@ -41,14 +41,14 @@ and application code must treat these private attributes as implementation
 state.
 
 Supported argument defaults use the same ownership rule without deduplication:
-each definition's scalar/list/tuple/dict default is evaluated once during
-`HPy_mod_exec` and stored under a reserved `__pyx_hpy_default_` attribute.
-Omitted calls load an owned handle to that object, preserving mutable-default
-identity within an interpreter. Provided arguments are duplicated out of the
-HPy parser tracker before the tracker closes. Effectful defaults remain
-rejected because correct Python semantics require evaluation at the original
-definition statement position, which the current bootstrap split does not yet
-retain.
+each definition's scalar/list/tuple/dict default—including effectful expressions
+such as `len([...])`—is evaluated once during `HPy_mod_exec` in source-safe
+order and stored under a reserved `__pyx_hpy_default_` attribute. Omitted calls
+load an owned handle to that object, preserving mutable-default identity within
+an interpreter. Provided arguments are duplicated out of the HPy parser tracker
+before the tracker closes. Python `__defaults__` / `__kwdefaults__`
+introspection remains blocked on HPy 0.9 because module methods are not Python
+function objects.
 
 HPy 0.9 does not expose usable positive-size module state: its runtime rejects
 `HPyModuleDef.size > 0`. The backend therefore keeps `.size = 0` and emits no
@@ -73,8 +73,12 @@ collects HPy 0.9's failed loader state, and then proves that a corrected retry
 succeeds. HPy Debug Mode runs the failed path and collection boundary under
 `LeakDetector`; generated-method removal also makes later cyclic-GC teardown
 deterministic despite HPy 0.9's loader-owned module-definition lifetime.
-Immediate retry without explicit collection remains an open HPy 0.9 stress
-gate after intermittent loader `SystemError` was reproduced.
+Immediate retry without that explicit collection boundary is a documented
+HPy 0.9 / loader lifetime upstream gap: stress has reproduced intermittent
+loader `SystemError` even after the failed module was already absent from
+`sys.modules`. aHPy therefore keeps the collection gate in
+`Tools/ahpy/test_generated_hpy.py` (`retry_case`) and does not claim
+GC-free immediate retry as supported Universal behavior.
 
 Module initialization also maintains a source-ordered publication transaction
 for backend-generated module attributes. Each successful publication is
@@ -84,7 +88,7 @@ roll back in reverse order, and `MemoryError` is re-established after cleanup.
 This last step is required because HPy 0.9 attribute deletion may clear the
 active error and exposes no public exception fetch/restore API. Non-memory
 errors follow the ordinary propagation path and are never speculatively
-replaced. A 116-process normal/Debug fault matrix exercises every generated
+replaced. A 128-process normal/Debug fault matrix exercises every generated
 type creation and publication position.
 
 ## Deliberately unsupported or unsafe patterns

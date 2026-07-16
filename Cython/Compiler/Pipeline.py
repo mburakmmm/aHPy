@@ -220,6 +220,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         ForwardDeclareTypes(context),
         InjectGilHandling(),
         AnalyseDeclarationsTransform(context),
+        abort_on_errors if is_hpy_universal_bootstrap else None,
         AutoTestDictTransform(context),
         EmbedSignature(context),
         (

@@ -1,6 +1,7 @@
 #include "ahpy_external.h"
 
 static int ahpy_external_byte_call_count;
+static long long ahpy_external_nogil_probe_call_count;
 
 long long ahpy_external_signed_answer(void)
 {
@@ -41,4 +42,15 @@ int ahpy_external_byte_calls(void)
 double ahpy_external_scale(double value, double factor)
 {
     return value * factor;
+}
+
+long long ahpy_external_nogil_probe(void)
+{
+    ahpy_external_nogil_probe_call_count += 1;
+    return ahpy_external_nogil_probe_call_count;
+}
+
+long long ahpy_external_nogil_probe_calls(void)
+{
+    return ahpy_external_nogil_probe_call_count;
 }

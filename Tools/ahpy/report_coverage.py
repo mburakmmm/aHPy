@@ -48,13 +48,24 @@ FAMILY_MODULES = (
     )),
 )
 
+PACKAGING_FILES = (
+    "ahpy_build_backend.py",
+    "ahpy_build_config.py",
+    "ahpy_version.py",
+)
+
 
 def utility_files(root=ROOT):
-    return tuple(
+    tool_files = tuple(
         path.relative_to(root).as_posix()
         for path in sorted((root / "Tools" / "ahpy").glob("*.py"))
         if not path.name.startswith("test_")
     )
+    packaging_files = tuple(
+        filename for filename in PACKAGING_FILES
+        if (root / filename).is_file()
+    )
+    return tool_files + packaging_files
 
 
 def coverage_areas(root=ROOT):

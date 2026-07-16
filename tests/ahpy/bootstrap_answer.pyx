@@ -346,6 +346,30 @@ def invoke_method(value, /):
     return value.upper()
 
 
+METHOD_EVAL_LOG = []
+
+
+cdef class MethodEvalProbe:
+    def join(self, left, right):
+        return [left, right]
+
+
+def _method_eval_tag(name, value):
+    METHOD_EVAL_LOG.append(name)
+    return value
+
+
+def method_call_evaluation_order():
+    """Receiver then positional args before HPy_CallMethod (no bound GetAttr)."""
+    METHOD_EVAL_LOG[:] = []
+    probe = MethodEvalProbe()
+    result = _method_eval_tag("receiver", probe).join(
+        _method_eval_tag("left", 1),
+        _method_eval_tag("right", 2),
+    )
+    return [list(METHOD_EVAL_LOG), result]
+
+
 def ellipsis_value():
     return ...
 
@@ -977,6 +1001,33 @@ def contains_value(key, container, /):
 
 def excludes_value(key, container, /):
     return key not in container
+
+
+def make_adder(x, /):
+    def add(y, /):
+        return x + y
+    return add
+
+
+def make_mutated_reader(x, /):
+    def read():
+        return x
+    x = x + 10
+    return read
+
+
+def make_readers(first, second, /):
+    def read_first():
+        return first
+    def read_second():
+        return second
+    return [read_first, read_second]
+
+
+def make_constant_reader():
+    def read():
+        return 7
+    return read
 
 
 # Module-scope ``dir()`` → SortedDictKeysNode(globals().__dict__).

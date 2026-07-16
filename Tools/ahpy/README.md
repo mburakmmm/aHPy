@@ -39,10 +39,15 @@ declared platform/compiler matrix, sanitizer setup, and byte-for-byte
 deterministic Universal source generation. `run_sanitized_hpy.py` builds and
 runs the real generated corpus with GCC ASan/UBSan on Linux and Apple Clang on
 macOS, provided the selected Python executable permits dynamic sanitizer
-preloading. LeakSanitizer is disabled in that mixed
-instrumented-extension/uninstrumented-interpreter process; HPy Debug Mode
-remains the mandatory handle-leak gate until a validated LSan suppression
-policy exists.
+preloading. `ASAN_OPTIONS` sets `detect_leaks=0` because the host CPython
+process is not built with matching instrumentation; that ASan lane is therefore
+not an LSan leak gate. LeakSanitizer remains disabled in that mixed
+instrumented-extension/uninstrumented-interpreter process. The independent
+schedule/manual Linux `run_lsan_hpy.py` lane runs a mandatory C leak positive
+control and then all five generated-corpus normal/Trace/Debug runtime processes
+under Valgrind, failing on definite leaks through the versioned suppression
+file. It remains allowed-failure and hosted-pending until its first reviewed
+green run; HPy Debug Mode remains the mandatory handle-leak gate meanwhile.
 
 `doctor.py` is the repository's `ahpy doctor` equivalent. It probes the exact
 interpreter path without resolving a virtual-environment symlink, validates the
@@ -88,8 +93,47 @@ module-function plus pure-type semantics in normal and Debug modes. It also
 inspects and pip-installs the current wheel. ADR 0004 explains why its
 CPython-specific compatibility tag is not a Universal distribution claim.
 
+`direct_build.py` is the versioned non-setuptools build API/CLI. It probes the
+selected interpreter, creates an auditable Universal compile/link plan, uses
+HPy's helper static library or source fallback, refuses unsafe output reuse,
+and verifies the generated source and linked binary. `direct_build_integration.py`
+generates the maintained module and loads the direct artifact through public
+`hpy.universal.load` in normal and Debug modes. See
+`docs/ahpy/direct-build.md`; this path intentionally does not create a wheel or
+loader stub.
+
+`pep517_integration.py` first builds the exact `aHPy-compiler` frontend wheel
+from a clean source copy, then lets pip create a genuine isolated build
+environment for `examples/ahpy_pep517`. The aHPy PEP 517 backend rejects
+upstream-Cython/unrelated-`ahpy` substitution and non-Universal ABI requests.
+The gate audits the emitted source and `.hpy0`, installs the host-tagged wheel,
+and runs normal/Debug semantics. See `docs/ahpy/pep517.md` and ADR 0012.
+
+`build_system_config.py` renders the installed `ahpy_build_config` Universal
+toolchain contract for CMake or Meson. `build_system_integration.py` uses the
+maintained native examples and verifies both build systems through binary
+audits and normal/Debug loading. `scikit_build_integration.py` adds a closed,
+no-index PEP 517 wheelhouse around the maintained scikit-build-core/CMake
+package and proves ordinary pip install/import. See `docs/ahpy/build-systems.md`.
+
+`release_artifact_integration.py` builds the frontend sdist from a clean source
+copy, rejects unsafe or incomplete archive contents, and constructs the
+frontend wheel with index access disabled and exact HPy/setuptools inputs. It
+then creates a fresh virtual environment, executes the maintained PEP 517
+example in normal/Debug modes, and proves clean uninstall/reinstall cycles for
+both distributions. The JSON report hashes all artifacts and build-dependency
+wheels. See `docs/ahpy/onboarding.md` and ADR 0014.
+
+`verify_reproducible_packages.py` builds the `aHPy-compiler` sdist and
+pure-Python wheel from two independent clean roots. A fixed epoch/hash seed and
+streaming tar/gzip metadata normalization make complete archive bytes the
+comparison unit; the JSON result retains hashes, sizes, and exact
+interpreter/build-tool provenance. ADR 0015 records why logical payload equality
+is insufficient. Standardized Universal extension-wheel reproducibility stays
+open.
+
 `test_fault_injection.py` generates one dedicated Universal module and
-interposes test-only wrappers after the public HPy header. Its 116 isolated
+interposes test-only wrappers after the public HPy header. Its 128 isolated
 normal/Debug processes cover scalar allocation; nested list/tuple builder
 builds; dictionary insertion; direct/expanded calls; attribute/item
 read/write/delete; every generated type creation; and every module/type
@@ -106,7 +150,7 @@ native compiler descendants behind. Its documented stress-only `-O0 -g0`
 profile preserves the same HPy semantic/failure paths while excluding the
 pathological Apple Clang time spent optimizing the large type corpus at `-O3`.
 Normal runtime and release gates retain their ordinary build flags. The local
-acceptance run completed five full 48-case rounds and all 580 fault selectors;
+acceptance run completed five full 48-case rounds and all 640 fault selectors;
 CI repeats one bounded round and uploads the JSON plus hashed logs.
 
 `coverage_guided_fuzz.py` deterministically generates 64 candidates across 16
@@ -115,19 +159,59 @@ files while compiling every candidate, and greedily retains candidates that
 add line coverage or a previously unseen family. The selected corpus is then
 compiled once, source/binary audited, and compared to execution of the same
 Python source in normal and HPy Debug modes. Seed `0xC0A4F9` currently selects
-16 mutations and a 3,864-line compiler frontier; three unit tests guard source
+16 mutations and a 4,075-line compiler frontier; three unit tests guard source
 determinism, greedy selection, and isolation from global random state.
 
-`benchmark_hpy.py` builds six equivalent operations twice: once from aHPy
+`benchmark_hpy.py` builds nine equivalent operations twice: once from aHPy
 generated Universal C and once from a handwritten public-HPy reference. It
 alternates both modules across seven repeats, records per-call medians and raw
 samples for identity/call overhead, arithmetic, containers, attributes, nested
-calls, and exceptions, and rejects ratios or source/binary sizes outside
+calls, exceptions, extension-type construction/method calls, and a shared
+Python-independent external-C function, and rejects ratios or source/binary sizes outside
 `tests/ahpy/performance-budgets.toml`. The exact HPy and interpreter family are
 part of the budget contract. Both binaries receive source/import audits and a
-separate Debug `LeakDetector` semantic pass. CI uploads the timestamped JSON
+separate Debug `LeakDetector` semantic pass. Each implementation also runs all
+nine operations in its own clean child to record peak RSS without cross-module
+high-water contamination. CI uploads the timestamped JSON
 result under a run-specific artifact name, forming append-only benchmark
 history without comparing noisy absolute timings across different hosts.
+
+The benchmark also launches a separate HPy Trace child for 1,000 calls per
+operation and records exact API deltas, calls per iteration, plus
+`ctx_Dup`/`ctx_Close` churn for generated and handwritten modules. The initial
+baseline exposed tracker/dup overhead in arithmetic, containers, attributes,
+and extension types plus the external-C wrapper. Positional-only functions with
+two or more required arguments now use `HPyFunc_VARARGS`, avoiding the keyword
+parser/tracker. Direct live names are also borrowed for binary operands and
+fixed list/tuple builder items when evaluation order proves that safe.
+Arithmetic and container paths therefore match the references at one and four
+API calls respectively with zero Dup/Close churn, as attribute and zero-argument
+call paths already do. The exception path also matches the reference API count.
+Extension-field owners and values now remain borrowed where their call-scoped
+lifetime proves that safe, while type/module owners are loaded only when a
+method actually needs constants, defaults, globals, builtins, or closures.
+Positional-only initializers also bind their raw slot argument array without a
+tracker. Type methods therefore match the handwritten two-call Trace contract;
+type creation adds only the separate generated `__cinit__` `AsStruct` call.
+Representable numeric literal arguments to validated external-C scalar
+functions are emitted as explicitly typed, portable C literals instead of
+being boxed and unboxed through HPy. Dynamic, non-finite, ambiguous plain-char,
+and out-of-portable-range values retain checked HPy conversion. The external-C
+path therefore matches the handwritten one-call Trace contract with zero
+Dup/Close churn.
+These are optimization candidates, not permission to remove proven cleanup.
+
+The same invocation records a three-profile ABI matrix without blending their
+costs: classic Cython has standalone timings, HPy CPython ABI has its own
+generated/handwritten ratios, and HPy Universal retains its independent
+generated/handwritten ratios and release regression gate. Each profile records
+its applicable build, footprint, and clean-process peak-memory evidence.
+
+The performance invocation also regenerates the large `bootstrap_types.pyx`
+corpus and compiles its Universal C once at `-O0` and once at `-O3`, each under
+a 60-second liveness ceiling. This keeps native optimizer time distinct from
+runtime ratios. The isolated Apple Clang 21 baseline was 1.59/5.29 seconds for
+the 4.98 MB, 87,259-line C file; hosted history must precede a tighter limit.
 
 `build_portability_artifact.py` builds `bootstrap_answer` and
 `bootstrap_types` once with the CPython 3.11/HPy 0.9 builder, rejects forbidden
@@ -142,4 +226,5 @@ allowed-failure early warnings rather than support claims.
 file/debug-prefix maps. It requires identical file sets and byte content,
 including both `.hpy0` binaries and their SHA-256 manifest. This is the
 Universal portability-artifact gate; future sdist/wheel archive reproducibility
-remains a separate packaging task.
+was split into the now-green frontend archive gate and the still-open future
+standardized Universal extension-wheel gate.

@@ -1811,25 +1811,6 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return node
         return self._dispatch_to_handler(node, function, node.args)
 
-
-class HPyEarlyReplaceSequenceBuiltins(EarlyReplaceBuiltinCalls):
-    """Universal HPy: only list/any/all/dict genexp → inlined sequence forms."""
-
-    _hpy_safe_builtins = frozenset(('list', 'any', 'all', 'dict'))
-
-    def visit_SimpleCallNode(self, node):
-        self.visitchildren(node)
-        function = node.function
-        if not self._function_is_builtin_name(function):
-            return node
-        if function.name not in self._hpy_safe_builtins:
-            return node
-        return self._dispatch_to_handler(node, function, node.args)
-
-    def visit_GeneralCallNode(self, node):
-        self.visitchildren(node)
-        return node
-
     def visit_GeneralCallNode(self, node):
         self.visitchildren(node)
         function = node.function
@@ -2260,6 +2241,27 @@ class HPyEarlyReplaceSequenceBuiltins(EarlyReplaceBuiltinCalls):
         if not isinstance(kwargs, ExprNodes.DictNode):
             return node
         return kwargs
+
+
+class HPyEarlyReplaceSequenceBuiltins(EarlyReplaceBuiltinCalls):
+    """Universal HPy: only list/any/all/dict genexp → inlined sequence forms."""
+
+    _hpy_safe_builtins = frozenset(('list', 'any', 'all', 'dict'))
+
+    def visit_SimpleCallNode(self, node):
+        self.visitchildren(node)
+        function = node.function
+        if not self._function_is_builtin_name(function):
+            return node
+        if function.name not in self._hpy_safe_builtins:
+            return node
+        return self._dispatch_to_handler(node, function, node.args)
+
+    def visit_GeneralCallNode(self, node):
+        # Expanded/keyword layouts are emitted by the HPy call writer.  The
+        # CPython-oriented early replacement handlers may inject C-API nodes.
+        self.visitchildren(node)
+        return node
 
 
 class InlineDefNodeCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTransform):

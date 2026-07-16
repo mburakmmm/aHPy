@@ -10,16 +10,30 @@ iterations = 100000
 warmups = 2
 repeats = 7
 
+[large_type_compile]
+# Per-optimization liveness ceiling for the 4.9 MB extension-type corpus.
+# Hosted history is required before adopting a tighter timing regression limit.
+timeout_seconds = 60
+
 [runtime_ratio]
 # aHPy median / equivalent handwritten Universal HPy median. These initial
 # budgets detect large regressions without pretending that shared CI runners
 # provide release-grade absolute timings.
-identity = 6.50
-arithmetic = 5.50
-container = 5.25
-attribute = 3.50
-call = 2.50
+identity = 1.50
+# Positional-only dispatch and direct-name borrowing make these paths match
+# the handwritten HPy Trace/API contract; retain headroom for shared runners.
+arithmetic = 1.50
+container = 1.50
+attribute = 1.50
+call = 1.50
 exception = 1.50
+# Lazy type/module owners and borrowed HPyField operands make these paths
+# equivalent to the handwritten reference apart from cinit's separate AsStruct.
+type_create = 1.50
+type_method = 1.50
+# Portable literal arguments bypass the Python-object round trip and match the
+# handwritten one-call Trace contract. Dynamic values remain checked.
+external_c = 1.50
 
 [footprint]
 generated_c_bytes = 750000

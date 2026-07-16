@@ -1,0 +1,11 @@
+# Reviewed LSan/Valgrind suppression template for aHPy native-memory lanes.
+# Populate only after a hosted Linux run records interpreter-owned allocations
+# that are unrelated to the generated Universal HPy extension under test.
+#
+# Example entry shape (do not enable until reviewed):
+# {
+#    leak:CPythonInterpreterArena
+#    Memcheck:Leak
+#    ...
+#    fun:PyObject_Malloc
+# }

@@ -1,3 +1,7 @@
+cdef extern from "fault_injection_helpers.h":
+    long long __pyx_ahpy_fault_long(long long value)
+
+
 cdef class FaultType:
     pass
 
@@ -11,11 +15,20 @@ cdef class FaultTypeThird:
 
 
 def build_values():
-    return [101, 102, 103]
+    # External C longs force runtime HPyLong_FromLongLong (module int caches
+    # skip that API at call sites that only Dup cached attributes).
+    return [
+        __pyx_ahpy_fault_long(101),
+        __pyx_ahpy_fault_long(102),
+        __pyx_ahpy_fault_long(103),
+    ]
 
 
 def build_nested_lists():
-    return [[101], [102, 103]]
+    return [
+        [__pyx_ahpy_fault_long(101)],
+        [__pyx_ahpy_fault_long(102), __pyx_ahpy_fault_long(103)],
+    ]
 
 
 def build_nested_tuples(value, /):
@@ -36,6 +49,11 @@ def call_variants(callable, value, /):
 
 def call_expanded(callable, positional, keywords, /):
     return callable(*positional, **keywords)
+
+
+def call_method_variants(value, /):
+    # One HPy_CallMethod site for fault injection (receiver as args[0]).
+    return value.upper()
 
 
 def read_attributes(value, /):

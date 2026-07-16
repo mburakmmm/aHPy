@@ -9,5 +9,7 @@ long long ahpy_external_add(long long left, long long right);
 signed char ahpy_external_byte(signed char value);
 int ahpy_external_byte_calls(void);
 double ahpy_external_scale(double value, double factor);
+long long ahpy_external_nogil_probe(void);
+long long ahpy_external_nogil_probe_calls(void);
 
 #endif

@@ -50,10 +50,18 @@ def catalog_source(root, relative_path):
         if not isinstance(node, ast.Call) or not node.args:
             continue
         function = node.func
-        if not (
+        is_unsupported = (
             isinstance(function, ast.Attribute)
             and function.attr == "unsupported"
-        ):
+        )
+        is_ahpy_error = (
+            isinstance(function, ast.Name)
+            and function.id == "error"
+            and len(node.args) >= 2
+            and "aHPy bootstrap backend:" in _message_expression(
+                node.args[-1], source)
+        )
+        if not (is_unsupported or is_ahpy_error):
             continue
         message_node = node.args[-1]
         message = _message_expression(message_node, source)

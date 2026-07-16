@@ -18,15 +18,17 @@ context operand.
 | provably pure C | no hidden context |
 | Python-interacting helper | hidden `HPyContext *ctx` required |
 | callback | rejected pending entry policy |
-| closure | rejected pending environment policy |
+| closure (nested `def` slice) | call-entry `ctx` only; captures are `HPyField`s on an owned env object (ADR 0005); never store `ctx` in cells |
 | generator/coroutine | rejected pending resume policy |
 | public C API | rejected pending ABI policy |
 
 A Python-interacting caller propagates its `ctx` to another
 Python-interacting helper and passes nothing to a pure-C helper. A pure-C caller
 cannot reach a context-requiring helper without first being reclassified. Any
-attempt to store `ctx` in a field, global, closure, or other long-lived storage
-is a compiler-model error.
+attempt to store `ctx` in a field, global, closure cell, env object, or other
+long-lived storage is a compiler-model error. Nested `def` captures hold
+interpreter-owned Python values through `HPyField` load/store under that
+call-scoped `ctx` (see `docs/ahpy/adr/0005-closure-capture-model.md`).
 
 Bootstrap Universal emission (`UniversalHPyModuleWriter`) already threads
 call-scoped `ctx` through generated `*_impl` wrappers, `HPy_mod_exec`, and

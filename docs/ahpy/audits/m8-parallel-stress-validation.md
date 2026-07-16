@@ -64,11 +64,11 @@ Command:
 | 4 | 17.33 s | 13.81 s | 7.04 s | 10.02 s |
 | 5 | 15.04 s | 12.23 s | 6.17 s | 9.08 s |
 
-All twenty child commands exited zero with no timeout. All 580 isolated fault
+All twenty child commands exited zero with no timeout. All 640 isolated fault
 selectors passed in normal/Debug mode, as did five generated corpora, five
 wheel builds/installations, and five complete 48-case fuzz oracles. The exact
 historical `SystemError` did not reproduce. A subsequent ordinary sequential
-116-case fault run also passed.
+128-case fault run also passed.
 
 The event is therefore classified as a non-reproduced result from unsafe
 ad-hoc orchestration, with process-tree leakage and native optimization
@@ -77,7 +77,7 @@ backend defect because no repeatable backend failure was isolated. The bounded
 one-round CI gate preserves recurrence evidence without weakening the separate
 sequential and release-profile gates.
 
-After the five rounds, the ordinary sequential 116-case fault gate passed. A
+After the five rounds, the ordinary sequential 128-case fault gate passed. A
 separate normal generated-corpus retry entered Apple Clang optimization of
 `bootstrap_types.c` and continued consuming CPU beyond 15 minutes without an
 error or second process tree; it was deliberately terminated and reaped rather

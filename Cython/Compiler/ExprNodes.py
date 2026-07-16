@@ -7560,6 +7560,11 @@ class InlinedDefNodeCallNode(CallNode):
                         break
         return self
 
+    def generate_hpy_bootstrap_owned_result(self, code):
+        # Universal mode does not inline into CPython pyfunc_cname; call the
+        # owned nested callable through the public HPy call path instead.
+        return code.generate_positional_call(self.function_name, self.args)
+
     def generate_result_code(self, code):
         self_code = self.function_name.py_result()
         if not self.function.def_node.is_cyfunction:
@@ -8167,9 +8172,12 @@ class AttributeNode(ExprNode):
     def generate_hpy_bootstrap_owned_result(self, code):
         if code.is_extension_field(self):
             return code.load_extension_field(self)
-        receiver_cname = code.materialize_owned_handle(
-            self.obj.generate_hpy_bootstrap_owned_result(code))
-        code.put_error_return_if_null(receiver_cname)
+        receiver_cname = code.borrow_direct_named_value(self.obj)
+        receiver_is_owned = receiver_cname is None
+        if receiver_cname is None:
+            receiver_cname = code.materialize_owned_handle(
+                self.obj.generate_hpy_bootstrap_owned_result(code))
+            code.put_error_return_if_null(receiver_cname)
         code.use_owned_handles(receiver_cname)
         result_cname = code.allocate_owned_handle(
             code.runtime_api.attribute_get_string(
@@ -8177,7 +8185,8 @@ class AttributeNode(ExprNode):
                 StringEncoding.EncodedString(self.attribute).as_c_string_literal(),
                 context_cname=code.context_cname,
             ))
-        code.close_owned_handle(receiver_cname)
+        if receiver_is_owned:
+            code.close_owned_handle(receiver_cname)
         code.put_error_return_if_null(result_cname)
         return result_cname
 
@@ -8889,12 +8898,16 @@ class SequenceNode(ExprNode):
         builder = code.runtime_api.sequence_builder(kind)
         builder_cname = code.allocate_sequence_builder(builder, len(self.args))
         for index, arg in enumerate(self.args):
-            item_cname = code.materialize_owned_handle(
-                arg.generate_hpy_bootstrap_owned_result(code))
-            code.put_error_return_if_null(item_cname)
+            item_cname = code.borrow_direct_named_value(arg)
+            item_is_owned = item_cname is None
+            if item_cname is None:
+                item_cname = code.materialize_owned_handle(
+                    arg.generate_hpy_bootstrap_owned_result(code))
+                code.put_error_return_if_null(item_cname)
             code.set_sequence_builder_item(
                 builder, builder_cname, index, item_cname)
-            code.close_owned_handle(item_cname)
+            if item_is_owned:
+                code.close_owned_handle(item_cname)
         result_cname = code.build_sequence(builder, builder_cname)
         if self.mult_factor is not None:
             return code.multiply_materialized_sequence(
@@ -11303,6 +11316,9 @@ class InnerFunctionNode(PyCFunctionNode):
             return "((PyObject*)%s)" % Naming.cur_scope_cname
         return "NULL"
 
+    def generate_hpy_bootstrap_owned_result(self, code):
+        return code.materialize_inner_function(self)
+
 
 class DefFuncLikeNode:
     """
@@ -11573,6 +11589,13 @@ class LambdaNode(InnerFunctionNode):
         self.def_node.generate_execution_code(code)
         super().generate_result_code(code)
 
+    def generate_hpy_bootstrap_owned_result(self, code):
+        return code.unsupported(
+            self,
+            "lambda closures are not implemented in Universal HPy mode; "
+            "use the supported one-level nested def slice",
+        )
+
 
 class GeneratorExpressionNode(LambdaNode):
     # A generator expression, e.g.  (i for i in range(10))
@@ -11623,6 +11646,14 @@ class GeneratorExpressionNode(LambdaNode):
                 args_to_call,
                 code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
+
+    def generate_hpy_bootstrap_owned_result(self, code):
+        return code.unsupported(
+            self,
+            "HPy 0.9 lacks the public iterator-next API and type slots "
+            "required for a real Universal generator expression; only "
+            "the explicitly inlined sequence-safe consumers are available",
+        )
 
 
 class YieldExprNode(ExprNode):

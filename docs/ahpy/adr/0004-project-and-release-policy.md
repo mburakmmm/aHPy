@@ -13,7 +13,10 @@ recorded.
 
 ## Versioning
 
-The distribution name is `aHPy`. Stable versions contain the corresponding
+The product/command name is `aHPy`. ADR 0012 amends the original distribution
+identity to `aHPy-compiler` because normalized `ahpy` is an unrelated existing
+PyPI project. The new distribution identity remains publication-pending until
+it is reserved by the project owner. Stable versions contain the corresponding
 Cython base version followed by an aHPy release counter:
 
 ```text

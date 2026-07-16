@@ -61,6 +61,77 @@ REJECTED_CASES = (
         "    yield 1\n",
         "GeneratorDefNode is not implemented",
     ),
+    (
+        "nested-nested-def",
+        "def rejected():\n"
+        "    def inner():\n"
+        "        def deepest():\n"
+        "            return 1\n"
+        "        return deepest\n"
+        "    return inner\n",
+        "nested nested def closures are not implemented",
+    ),
+    (
+        "nested-def-default",
+        "def rejected(base, /):\n"
+        "    def inner(arg=base):\n"
+        "        return arg\n"
+        "    return inner\n",
+        "default arguments on nested def are not implemented",
+    ),
+    (
+        "nested-def-starargs",
+        "def rejected():\n"
+        "    def inner(*args):\n"
+        "        return args\n"
+        "    return inner\n",
+        "star arguments on nested def are not implemented",
+    ),
+    (
+        "nested-def-yield",
+        "def rejected():\n"
+        "    def inner():\n"
+        "        yield 1\n"
+        "    return inner\n",
+        "generators and yield in nested def are not implemented",
+    ),
+    (
+        "freelist-directive",
+        "cimport cython\n"
+        "@cython.freelist(4)\n"
+        "cdef class RejectedFreelist:\n"
+        "    pass\n",
+        "pure Universal HPy @cython.freelist is not implemented",
+    ),
+    (
+        "multiple-inheritance",
+        "cdef class RejectedBaseA:\n"
+        "    pass\n\n"
+        "cdef class RejectedBaseB:\n"
+        "    pass\n\n"
+        "cdef class RejectedDerived(RejectedBaseA, RejectedBaseB):\n"
+        "    pass\n",
+        "Only one extension type base class allowed",
+    ),
+    (
+        "metaclass",
+        "class RejectedMetaclass(metaclass=type):\n"
+        "    pass\n",
+        "pure Universal HPy metaclass customization is not implemented",
+    ),
+    (
+        "deallocator",
+        "cdef class RejectedDealloc:\n"
+        "    def __dealloc__(self):\n"
+        "        pass\n",
+        "pure Universal HPy __dealloc__ is not implemented",
+    ),
+    (
+        "variable-size-layout",
+        "cdef class RejectedVarSize:\n"
+        "    cdef int items[4]\n",
+        "pure Universal HPy variable-size extension layout is not implemented",
+    ),
 )
 
 
@@ -73,7 +144,7 @@ def generate_source(seed=DEFAULT_SEED, case_count=DEFAULT_CASES):
         functions.append(name)
         values = [rng.randint(0, 20) for _ in range(5)]
         tag = "tag-%d-%d" % (index, rng.randint(0, 9999))
-        template = index % 4
+        template = index % 9
         if template == 0:
             body = (
                 "    first = [%d, %d]\n"
@@ -99,7 +170,7 @@ def generate_source(seed=DEFAULT_SEED, case_count=DEFAULT_CASES):
                 "        counter -= 1\n"
                 "    return values\n"
             ) % count
-        else:
+        elif template == 3:
             body = (
                 "    total = 0\n"
                 "    for item in [%d, %d, %d]:\n"
@@ -108,6 +179,40 @@ def generate_source(seed=DEFAULT_SEED, case_count=DEFAULT_CASES):
                 "    result[1:3] = [%d, %d]\n"
                 "    return [result, item]\n"
             ) % tuple(values[:3] + values[:3] + values[:2])
+        elif template == 4:
+            body = (
+                "    marker = %d\n"
+                "    dir()\n"
+                "    globals()\n"
+                "    return [marker, marker]\n"
+            ) % values[0]
+        elif template == 5:
+            target_index = values[4] % 4
+            body = (
+                "    values = [%d, %d, %d, %d]\n"
+                "    target = values[%d]\n"
+                "    return [values.count(target), target]\n"
+            ) % (values[0], values[1], values[2], values[3], target_index)
+        elif template == 6:
+            body = (
+                "    values = [%d, %d, %d]\n"
+                "    return [type(values).__name__, values.count(%d)]\n"
+            ) % (values[0], values[1], values[2], values[3] % 3)
+        elif template == 7:
+            body = (
+                "    seed = %d\n"
+                "    def inner():\n"
+                "        return seed + %d\n"
+                "    return inner()\n"
+            ) % (values[1], values[0])
+            blocks.append("def %s():\n%s" % (name, body))
+            continue
+        else:
+            body = (
+                "    boxed = [%d, %r]\n"
+                "    dir()\n"
+                "    return [type(boxed).__name__, boxed]\n"
+            ) % (values[1], tag)
         blocks.append("def %s():\n%s" % (name, body))
     return "\n\n".join(blocks) + "\n", functions
 
@@ -235,6 +340,8 @@ class SupportedSurfaceFuzzTest(unittest.TestCase):
         for name, source, expected in REJECTED_CASES:
             self.assertTrue(name)
             self.assertTrue(expected)
+            if "cimport " in source or "cdef class" in source:
+                continue
             compile(source, "<ahpy-rejected-%s>" % name, "exec")
 
 

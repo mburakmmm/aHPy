@@ -4,7 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
-from .. import Main, Options
+from .. import Main, Optimize, Options
 from ..RuntimeAPI import HPY_UNIVERSAL_BACKEND
 
 
@@ -27,6 +27,16 @@ class UniversalHPyModuleWriterTest(TestCase):
             )
         generated = output.read_text(encoding="utf8") if output.exists() else ""
         return result, generated, diagnostics.getvalue()
+
+    def test_hpy_early_builtin_filter_does_not_steal_base_handlers(self):
+        base = Optimize.EarlyReplaceBuiltinCalls
+        hpy = Optimize.HPyEarlyReplaceSequenceBuiltins
+        self.assertIn("_function_is_builtin_name", base.__dict__)
+        self.assertIn("_dispatch_to_handler", base.__dict__)
+        self.assertIn("_handle_simple_function_float", base.__dict__)
+        self.assertNotIn("_function_is_builtin_name", hpy.__dict__)
+        self.assertIn("visit_SimpleCallNode", hpy.__dict__)
+        self.assertIn("visit_GeneralCallNode", hpy.__dict__)
 
     def test_signed_64_bit_literal_boundaries_are_portable_c(self):
         result, generated, diagnostics = self.compile_source(
@@ -360,6 +370,11 @@ class UniversalHPyModuleWriterTest(TestCase):
             "if (HPy_IsNull(__pyx_hpy_temp_2))", item_call)
         self.assertIn("HPy_Close(ctx, __pyx_hpy_temp_1);", generated[item_call:item_error])
         self.assertIn("HPy_Close(ctx, __pyx_hpy_temp_0);", generated[item_call:item_error])
+        attribute_impl = generated[generated.index("attribute_impl"):]
+        attribute_impl = attribute_impl[:attribute_impl.index("\n}\n")]
+        self.assertIn('HPy_GetAttr_s(ctx, arg, "real")', attribute_impl)
+        self.assertNotIn("HPy_Dup(ctx, arg)", attribute_impl)
+        self.assertNotIn("HPy_Close(ctx, arg)", attribute_impl)
 
     def test_zero_and_one_argument_calls_close_operands_before_error_return(self):
         result, generated, diagnostics = self.compile_source(
@@ -371,7 +386,11 @@ class UniversalHPyModuleWriterTest(TestCase):
             "    return value.upper()\n"
         )
         self.assertEqual(result.num_errors, 0, diagnostics)
-        self.assertIn("HPy_Call(ctx, __pyx_hpy_temp_0, NULL, 0, HPy_NULL)", generated)
+        invoke_impl = generated[generated.index("invoke_impl"):]
+        invoke_impl = invoke_impl[:invoke_impl.index("\n}\n")]
+        self.assertIn("HPy_Call(ctx, arg, NULL, 0, HPy_NULL)", invoke_impl)
+        self.assertNotIn("HPy_Dup(ctx, arg)", invoke_impl)
+        self.assertNotIn("HPy_Close(ctx, arg)", invoke_impl)
         self.assertIn(
             "HPy_Call(ctx, __pyx_hpy_temp_0, &__pyx_hpy_temp_1, 1, HPy_NULL)",
             generated,
@@ -388,6 +407,27 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertIn("HPy_CallMethod(ctx,", generated)
         self.assertNotIn("HPy_GetAttr_s(ctx,", generated)
         self.assertNotIn("HPy_Call(ctx,", generated)
+
+    def test_method_call_emits_receiver_as_callmethod_args0(self):
+        result, generated, diagnostics = self.compile_source(
+            "def invoke(value, left, right, /):\n"
+            "    return value.join(left, right)\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn("HPy_CallMethod(ctx,", generated)
+        self.assertNotIn("HPy_GetAttr_s(ctx,", generated.split("invoke_impl", 1)[1].split(
+            "HPy_CallMethod", 1)[0]
+        )
+        impl = generated[generated.index("invoke_impl"):]
+        call_method = impl.index("HPy_CallMethod(ctx,")
+        prefix = impl[:call_method]
+        # Receiver handle is args[0]; both positional args are in the same array.
+        self.assertRegex(
+            prefix,
+            r"HPy __pyx_hpy_call_args_\d+\[\] = "
+            r"\{__pyx_hpy_temp_\d+, __pyx_hpy_temp_\d+, __pyx_hpy_temp_\d+\};",
+        )
+        self.assertIn('HPyUnicode_FromString(ctx, "join")', prefix)
 
     def test_ellipsis_literal_duplicates_context_constant(self):
         result, generated, diagnostics = self.compile_source(
@@ -421,7 +461,7 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertEqual(result.num_errors, 0, diagnostics)
         self.assertIn("HPy_Dup(ctx,", generated)
         impl_start = generated.index("decide_impl")
-        self.assertIn("HPy_Length(ctx,", generated[impl_start:])
+        self.assertIn("HPy_Call(ctx,", generated[impl_start:])
 
     def test_sequence_unpacking_uses_length_and_indexed_getitem(self):
         result, generated, diagnostics = self.compile_source(
@@ -619,6 +659,47 @@ class UniversalHPyModuleWriterTest(TestCase):
             "return __pyx_hpy_temp_", ordinary_start)
         self.assertLess(tracker_close, result_return)
 
+    def test_required_positional_signature_binds_borrowed_argument_array(self):
+        result, generated, diagnostics = self.compile_source(
+            "def add(left, right, /):\n"
+            "    return left + right\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn(
+            'HPyDef_METH(__pyx_hpy_def_0_add, "add", HPyFunc_VARARGS)',
+            generated,
+        )
+        start = generated.index("static HPy __pyx_hpy_def_0_add_impl")
+        implementation = generated[start:generated.index("HPyDef_SLOT", start)]
+        self.assertIn("const HPy *args, size_t nargs)", implementation)
+        self.assertNotIn("HPy kwnames", implementation)
+        self.assertIn("if (nargs != 2) {", implementation)
+        self.assertIn("add() takes exactly 2 arguments", implementation)
+        self.assertIn("HPy_Add(ctx, args[0], args[1])", implementation)
+        self.assertNotIn("HPy_Dup", implementation)
+        self.assertNotIn("HPy_Close", implementation)
+        self.assertNotIn("HPyArg_ParseKeywords", implementation)
+        self.assertNotIn("HPyTracker", implementation)
+
+    def test_required_positional_instance_method_uses_varargs_contract(self):
+        result, generated, diagnostics = self.compile_source(
+            "cdef class Pair:\n"
+            "    def combine(self, left, right, /):\n"
+            "        return [left, right]\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn('"combine", HPyFunc_VARARGS', generated)
+        start = generated.index("_combine_impl")
+        implementation = generated[start:generated.index("HPyDef_SLOT", start)]
+        self.assertIn("const HPy *args, size_t nargs)", implementation)
+        self.assertIn("if (nargs != 2) {", implementation)
+        self.assertIn(
+            "HPyListBuilder_Set(ctx, __pyx_hpy_builder_0, 0, args[0])",
+            implementation,
+        )
+        self.assertNotIn("HPyArg_ParseKeywords", implementation)
+        self.assertNotIn("HPyTracker", implementation)
+
     def test_required_keyword_only_and_positional_arity_are_validated(self):
         result, generated, diagnostics = self.compile_source(
             "def configure(value, *, option):\n"
@@ -700,7 +781,9 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertEqual(result.num_errors, 0, diagnostics)
         self.assertIn("if (__pyx_hpy_truth_0) {", generated)
         self.assertIn("if (__pyx_hpy_truth_1) {", generated)
-        self.assertGreaterEqual(generated.count("HPyTracker_Close(ctx,"), 3)
+        impl = generated[generated.index("choose_impl"):]
+        self.assertNotIn("HPyTracker_Close(ctx,", impl.split("HPyDef_SLOT", 1)[0])
+        self.assertGreaterEqual(impl.count("HPy_Close(ctx,"), 3)
         self.assertEqual(generated.count("return __pyx_hpy_temp_"), 3)
 
     def test_builtin_exception_literal_raise_closes_locals_and_tracker(self):
@@ -949,7 +1032,7 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertIn("while (1) {", generated)
         self.assertIn("HPy_GetItem_i(ctx,", generated)
 
-    def test_binary_number_operations_use_owned_operands(self):
+    def test_binary_number_operations_borrow_direct_name_operands(self):
         result, generated, diagnostics = self.compile_source(
             "def add(left, right, /):\n"
             "    return left + right\n\n"
@@ -993,9 +1076,53 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertIn("HPy_Or(ctx,", generated)
         self.assertIn("HPy_Power(ctx,", generated)
         self.assertIn("ctx->h_None)", generated)
-        add_call = generated.index("HPy_Add(ctx,")
-        self.assertLess(
-            add_call, generated.index("HPy_Close(ctx,", add_call))
+        add_start = generated.index("static HPy __pyx_hpy_def_0_add_impl")
+        add_impl = generated[add_start:generated.index("static HPy", add_start + 1)]
+        self.assertIn("HPy_Add(ctx, args[0], args[1])", add_impl)
+        self.assertNotIn("HPy_Dup", add_impl)
+        self.assertNotIn("HPy_Close", add_impl)
+
+    def test_binary_borrowing_preserves_side_effectful_evaluation_order(self):
+        result, generated, diagnostics = self.compile_source(
+            "def left_then_call(left, make, /):\n"
+            "    return left + make()\n\n"
+            "def call_then_right(make, right, /):\n"
+            "    return make() + right\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        left_start = generated.index("left_then_call_impl")
+        left_end = generated.index("static HPy", left_start + 1)
+        left_impl = generated[left_start:left_end]
+        left_dup = left_impl.index("HPy_Dup(ctx, args[0])")
+        right_call = left_impl.index("HPy_Call(ctx, args[1]")
+        add_call = left_impl.index("HPy_Add(ctx,")
+        self.assertLess(left_dup, right_call)
+        self.assertLess(right_call, add_call)
+
+        right_start = generated.index("call_then_right_impl")
+        right_end = generated.index("HPyDef_SLOT", right_start)
+        right_impl = generated[right_start:right_end]
+        self.assertIn("HPy_Add(ctx, __pyx_hpy_temp_0, args[1])", right_impl)
+        self.assertNotIn("HPy_Dup(ctx, args[1])", right_impl)
+
+    def test_fixed_sequence_builder_borrows_direct_name_items(self):
+        result, generated, diagnostics = self.compile_source(
+            "def pair(left, right, /):\n"
+            "    return [left, right]\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        start = generated.index("pair_impl")
+        implementation = generated[start:generated.index("HPyDef_SLOT", start)]
+        self.assertIn(
+            "HPyListBuilder_Set(ctx, __pyx_hpy_builder_0, 0, args[0])",
+            implementation,
+        )
+        self.assertIn(
+            "HPyListBuilder_Set(ctx, __pyx_hpy_builder_0, 1, args[1])",
+            implementation,
+        )
+        self.assertNotIn("HPy_Dup", implementation)
+        self.assertNotIn("HPy_Close", implementation)
 
     def test_rich_comparisons_return_owned_boolean_handles(self):
         result, generated, diagnostics = self.compile_source(
@@ -1498,6 +1625,138 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertIn("HPyFloat_FromDouble(ctx, fabs(", generated)
         self.assertNotIn("Python.h", generated)
 
+    def test_external_c_scalar_literals_bypass_hpy_round_trip(self):
+        result, generated, diagnostics = self.compile_source(
+            "cdef extern from \"portable_scalars.h\":\n"
+            "    long long add(long long left, long long right)\n"
+            "    unsigned long long keep(unsigned long long value)\n"
+            "    double scale(double value)\n"
+            "    bint choose(bint value)\n\n"
+            "def added():\n"
+            "    return add(20, 22)\n\n"
+            "def minimum():\n"
+            "    return add(-9223372036854775808, 0)\n\n"
+            "def unsigned_maximum():\n"
+            "    return keep(18446744073709551615)\n\n"
+            "def scaled():\n"
+            "    return scale(1.25)\n\n"
+            "def chosen():\n"
+            "    return choose(True)\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn(
+            "add(((long long)20LL), ((long long)22LL))", generated)
+        self.assertIn(
+            "add(((long long)(-9223372036854775807LL - 1LL)), "
+            "((long long)0LL))",
+            generated,
+        )
+        self.assertIn(
+            "keep(((unsigned long long)18446744073709551615ULL))",
+            generated,
+        )
+        self.assertIn("scale(((double)1.25))", generated)
+        self.assertIn("choose(1)", generated)
+
+        self.assertNotIn("HPyLong_As", generated)
+        self.assertNotIn("HPyFloat_As", generated)
+
+    def test_external_c_out_of_portable_range_keeps_checked_conversion(self):
+        result, generated, diagnostics = self.compile_source(
+            "cdef extern from \"portable_scalars.h\":\n"
+            "    long keep_long(long value)\n\n"
+            "def too_wide_for_portable_long():\n"
+            "    return keep_long(4294967296)\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn("HPyLong_AsLong(ctx,", generated)
+        self.assertNotIn("keep_long(((long)4294967296", generated)
+
+    def test_argumentless_noexcept_external_c_call_can_run_with_nogil(self):
+        result, generated, diagnostics = self.compile_source(
+            "cdef extern from \"worker.h\":\n"
+            "    long tick() noexcept nogil\n\n"
+            "def run():\n"
+            "    with nogil:\n"
+            "        tick()\n"
+            "    return 1\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn("HPyThreadState __pyx_hpy_thread_state_0", generated)
+        self.assertIn(
+            "HPy_LeavePythonExecution(ctx)", generated)
+        self.assertIn("(void)tick();", generated)
+        self.assertIn(
+            "HPy_ReenterPythonExecution(ctx, __pyx_hpy_thread_state_0)",
+            generated,
+        )
+        self.assertNotIn("PyThreadState *", generated)
+
+    def test_nogil_external_c_arguments_are_fail_closed(self):
+        result, generated, diagnostics = self.compile_source(
+            "cdef extern from \"worker.h\":\n"
+            "    long tick(long value) noexcept nogil\n\n"
+            "def run():\n"
+            "    with nogil:\n"
+            "        tick(1)\n"
+            "    return 1\n"
+        )
+        self.assertEqual(result.num_errors, 1)
+        self.assertFalse(generated)
+        self.assertIn(
+            "external C calls inside with nogil must be argumentless",
+            diagnostics,
+        )
+
+    def test_empty_nogil_transition_is_fail_closed(self):
+        result, generated, diagnostics = self.compile_source(
+            "def run():\n"
+            "    with nogil:\n"
+            "        pass\n"
+            "    return 1\n"
+        )
+        self.assertEqual(result.num_errors, 1)
+        self.assertFalse(generated)
+        self.assertIn(
+            "empty with nogil blocks are not part of the initial",
+            diagnostics,
+        )
+
+    def test_parallel_constructs_have_hpy09_worker_contract_diagnostic(self):
+        sources = (
+            (
+                "prange",
+                "from cython.parallel cimport prange\n\n"
+                "def work():\n"
+                "    cdef int i\n"
+                "    for i in prange(4, nogil=True):\n"
+                "        pass\n"
+                "    return 4\n",
+            ),
+            (
+                "parallel",
+                "from cython.parallel cimport parallel\n\n"
+                "def work():\n"
+                "    with nogil, parallel():\n"
+                "        pass\n"
+                "    return 1\n",
+            ),
+        )
+        for feature, source in sources:
+            with self.subTest(feature=feature):
+                result, generated, diagnostics = self.compile_source(source)
+                self.assertEqual(result.num_errors, 1)
+                self.assertFalse(generated)
+                self.assertIn(
+                    "public HPy worker-thread attach and error-transport",
+                    diagnostics,
+                )
+                self.assertIn("HPy 0.9 only pairs Leave/Reenter", diagnostics)
+                self.assertIn(
+                    "CPython PyThreadState/exception triples are forbidden",
+                    diagnostics,
+                )
+
     def test_external_c_variadic_arguments_remain_rejected(self):
         result, generated, diagnostics = self.compile_source(
             "cdef extern from \"stdio.h\":\n"
@@ -1903,7 +2162,10 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertIn('"|OO:keyword_default"', generated)
         self.assertEqual(
             generated.count(
-                'HPy_GetAttr_s(ctx, self, "__class__")'), 7)
+                'HPy_GetAttr_s(ctx, self, "__class__")'), 6)
+        read_start = generated.index("_read_impl")
+        read_impl = generated[read_start:generated.index("static int", read_start)]
+        self.assertNotIn('HPy_GetAttr_s(ctx, self, "__class__")', read_impl)
         self.assertEqual(generated.count("HPy_tp_new"), 2)
         self.assertIn(
             ".flags = HPy_TPFLAGS_DEFAULT | HPy_TPFLAGS_BASETYPE | "
@@ -2155,7 +2417,11 @@ class UniversalHPyModuleWriterTest(TestCase):
             "_nb_power_right_impl(ctx, right, left, modulus)", generated)
         self.assertIn(
             '"__pyx_hpy_slot_owner_bootstrap_case_Power"', generated)
-        self.assertIn("HPy_Dup(ctx, modulus)", generated)
+        self.assertIn(
+            "HPyListBuilder_Set(ctx, __pyx_hpy_builder_0, 2, modulus)",
+            generated,
+        )
+        self.assertNotIn("HPy_Dup(ctx, modulus)", generated)
         self.assertNotIn("__pyx_hpy_default_", generated)
 
     def test_two_argument_power_rejects_non_none_modulus_in_slot(self):
@@ -2324,6 +2590,11 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertIn("HPy_Dup(ctx, ctx->h_None)", generated)
         self.assertNotIn('HPy_GetAttr_s(ctx, __pyx_hpy_temp_0, "hidden")', generated)
         self.assertNotIn('HPy_SetAttr_s(ctx, __pyx_hpy_temp_0, "hidden"', generated)
+        read_start = generated.index("_read_hidden_impl")
+        read_impl = generated[read_start:generated.index("static HPy", read_start + 1)]
+        self.assertIn("__pyx_hpy_type_Box_object_AsStruct(ctx, self)", read_impl)
+        self.assertNotIn("HPy_Dup(ctx, self)", read_impl)
+        self.assertNotIn("HPy_Close(ctx, self)", read_impl)
 
     def test_initializer_uses_tp_init_and_keyword_dictionary_parser(self):
         result, generated, diagnostics = self.compile_source(
@@ -2345,6 +2616,28 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertIn("HPyField_Store(ctx,", generated)
         self.assertIn("return 0;", generated)
         self.assertNotIn('"__init__", HPyFunc_', generated)
+
+    def test_positional_initializer_uses_borrowed_slot_arguments(self):
+        result, generated, diagnostics = self.compile_source(
+            "cdef class PositionalInitialized:\n"
+            "    cdef object value\n\n"
+            "    def __cinit__(self, value, /):\n"
+            "        self.value = value\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        marker = "static int __pyx_hpy_type_0_PositionalInitialized_cinit_impl"
+        declaration = generated.index(marker)
+        start = generated.index(marker, declaration + len(marker))
+        implementation = generated[start:generated.index("HPyDef_SLOT", start)]
+        self.assertIn("if (nargs != 1) {", implementation)
+        self.assertIn("HPy_Length(ctx, kw)", implementation)
+        self.assertIn("AsStruct(ctx, self)", implementation)
+        self.assertIn("HPyField_Store(ctx, self,", implementation)
+        self.assertIn(", args[0]);", implementation)
+        self.assertNotIn("HPyArg_ParseKeywords", implementation)
+        self.assertNotIn("HPyTracker", implementation)
+        self.assertNotIn("HPy_Dup(ctx, args[0])", implementation)
+        self.assertNotIn("HPy_Close(ctx, args[0])", implementation)
 
     def test_initializer_converts_and_stores_native_fields(self):
         result, generated, diagnostics = self.compile_source(
@@ -2675,6 +2968,54 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertFalse(generated)
         self.assertIn(
             "requires one generated pure HPy base declared earlier", diagnostics)
+
+    def test_m5_shape_walls_have_actionable_compile_time_diagnostics(self):
+        cases = (
+            (
+                "freelist",
+                "cimport cython\n"
+                "@cython.freelist(4)\n"
+                "cdef class FreelistBox:\n"
+                "    pass\n",
+                "pure Universal HPy @cython.freelist is not implemented",
+            ),
+            (
+                "multiple-inheritance",
+                "cdef class BaseA:\n"
+                "    pass\n\n"
+                "cdef class BaseB:\n"
+                "    pass\n\n"
+                "cdef class Derived(BaseA, BaseB):\n"
+                "    pass\n",
+                "Only one extension type base class allowed",
+            ),
+            (
+                "metaclass",
+                "class MetaclassBox(metaclass=type):\n"
+                "    pass\n",
+                "pure Universal HPy metaclass customization is not implemented",
+            ),
+            (
+                "variable-size-layout",
+                "cdef class VarSizeBox:\n"
+                "    cdef int items[4]\n",
+                "pure Universal HPy variable-size extension layout is not "
+                "implemented",
+            ),
+            (
+                "deallocator",
+                "cdef class NativeResource:\n"
+                "    def __dealloc__(self):\n"
+                "        pass\n",
+                "pure Universal HPy __dealloc__ is not implemented",
+            ),
+        )
+        for label, source, expected_diagnostic in cases:
+            with self.subTest(label=label):
+                result, generated, diagnostics = self.compile_source(source)
+                self.assertEqual(result.num_errors, 1, diagnostics)
+                self.assertFalse(generated)
+                self.assertIn(expected_diagnostic, diagnostics)
 
     def test_unsupported_cdef_class_shapes_are_rejected_at_type_boundary(self):
         cases = (
@@ -3100,6 +3441,91 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertIn("HPy 0.9 lacks a public generic iterator API", diagnostics)
         self.assertIn("generator expressions cannot drive for-loops", diagnostics)
 
+    def test_generator_function_has_versioned_hpy09_diagnostic(self):
+        for source in (
+            "def values():\n"
+            "    yield 1\n",
+            "def delegated(values, /):\n"
+            "    yield from values\n",
+        ):
+            with self.subTest(source=source):
+                result, generated, diagnostics = self.compile_source(source)
+                self.assertEqual(result.num_errors, 1)
+                self.assertFalse(generated)
+                self.assertIn(
+                    "HPy 0.9 lacks the public iterator-next API", diagnostics)
+                self.assertIn("without CPython emulation", diagnostics)
+
+    def test_real_generator_expression_has_versioned_hpy09_diagnostic(self):
+        result, generated, diagnostics = self.compile_source(
+            "def values(items, /):\n"
+            "    return (item for item in items)\n"
+        )
+        self.assertEqual(result.num_errors, 1)
+        self.assertFalse(generated)
+        self.assertIn(
+            "HPy 0.9 lacks the public iterator-next API", diagnostics)
+        self.assertIn("inlined sequence-safe consumers", diagnostics)
+
+    def test_async_functions_have_versioned_hpy09_diagnostics(self):
+        for source, feature in (
+            (
+                "async def consume(value):\n"
+                "    return await value\n",
+                "native coroutine objects and await",
+            ),
+            (
+                "async def values():\n"
+                "    yield 1\n",
+                "async generator objects and async yield",
+            ),
+        ):
+            with self.subTest(feature=feature):
+                result, generated, diagnostics = self.compile_source(source)
+                self.assertEqual(result.num_errors, 1)
+                self.assertFalse(generated)
+                self.assertIn("HPy 0.9 lacks the public async protocol", diagnostics)
+                self.assertIn(feature, diagnostics)
+                self.assertIn("CPython coroutine utilities are forbidden", diagnostics)
+
+    def test_typed_memoryview_argument_has_hpy09_consumer_diagnostic(self):
+        result, generated, diagnostics = self.compile_source(
+            "def first(double[:] values):\n"
+            "    return values[0]\n"
+        )
+        self.assertEqual(result.num_errors, 1)
+        self.assertFalse(generated)
+        self.assertIn("HPy_buffer producer slots", diagnostics)
+        self.assertIn("no public buffer acquire/release consumer API", diagnostics)
+        self.assertIn("cannot use CPython Py_buffer utilities", diagnostics)
+
+    def test_fused_functions_require_pure_hpy_dispatch(self):
+        for declaration in ("def", "cpdef"):
+            with self.subTest(declaration=declaration):
+                result, generated, diagnostics = self.compile_source(
+                    "ctypedef fused number:\n"
+                    "    int\n"
+                    "    double\n\n"
+                    "%s identity(number value):\n"
+                    "    return value\n" % declaration
+                )
+                self.assertEqual(result.num_errors, 1)
+                self.assertFalse(generated)
+                self.assertIn("pure HPy specialization dispatcher", diagnostics)
+                self.assertIn("typed argument conversion", diagnostics)
+                self.assertIn("interpreter-owned signature metadata", diagnostics)
+                self.assertIn("CPython __Pyx_FusedFunction", diagnostics)
+
+    def test_lambda_has_closure_slice_diagnostic(self):
+        result, generated, diagnostics = self.compile_source(
+            "def make_identity():\n"
+            "    return lambda value: value\n"
+        )
+        self.assertEqual(result.num_errors, 1)
+        self.assertFalse(generated)
+        self.assertIn("lambda closures are not implemented", diagnostics)
+        self.assertIn("one-level nested def slice", diagnostics)
+
     def test_assert_uses_public_assertion_error(self):
         result, generated, diagnostics = self.compile_source(
             "def check(value, /):\n"
@@ -3185,3 +3611,160 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertFalse(generated)
         self.assertIn("cpython.* cimports expose the CPython C API", diagnostics)
         self.assertIn("port the dependency to public HPy APIs", diagnostics)
+
+    def test_nested_def_closure_emits_env_and_callable_types(self):
+        result, generated, diagnostics = self.compile_source(
+            "def make_adder(x, /):\n"
+            "    def add(y, /):\n"
+            "        return x + y\n"
+            "    return add\n\n"
+            "def make_mutated_reader(x, /):\n"
+            "    def read():\n"
+            "        return x\n"
+            "    x = x + 10\n"
+            "    return read\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn("__pyx_hpy_closure_env_0_object", generated)
+        self.assertIn("__pyx_hpy_closure_fn_0_object", generated)
+        self.assertIn("HPyField_Store", generated)
+        self.assertIn("HPyField_Load", generated)
+        self.assertIn("__pyx_hpy_closure_env_0", generated)
+        self.assertIn("__pyx_hpy_closure_fn_0", generated)
+        self.assertIn("HPyType_FromSpec", generated)
+
+    def test_nested_positional_varargs_rejects_keywords_without_tracker(self):
+        result, generated, diagnostics = self.compile_source(
+            "def make_adder(base, /):\n"
+            "    def add(left, right, /):\n"
+            "        return base + left + right\n"
+            "    return add\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn("if (!HPy_IsNull(kwnames)) {", generated)
+        self.assertIn("HPy_Length(ctx, kwnames)", generated)
+        self.assertIn("if (__pyx_hpy_positional_kw_count != 0) {", generated)
+        self.assertIn("add() does not accept keyword arguments", generated)
+        self.assertIn("if (nargs != 2) {", generated)
+        self.assertNotIn("HPyArg_ParseKeywords", generated)
+        self.assertNotIn("HPyTracker", generated)
+
+    def test_nested_noargs_and_onearg_reject_keywords(self):
+        result, generated, diagnostics = self.compile_source(
+            "def make_functions():\n"
+            "    def zero():\n"
+            "        return 0\n"
+            "    def one(value, /):\n"
+            "        return value\n"
+            "    return [zero, one]\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn("HPy_Length(ctx, kwnames)", generated)
+        self.assertIn("zero() does not accept keyword arguments", generated)
+        self.assertIn("one() does not accept keyword arguments", generated)
+        self.assertIn("if (nargs != 0) {", generated)
+        self.assertIn("if (nargs != 1) {", generated)
+        self.assertNotIn("HPyArg_ParseKeywords", generated)
+        self.assertNotIn("HPyTracker", generated)
+
+    def test_sibling_nested_defs_share_union_of_captures(self):
+        result, generated, diagnostics = self.compile_source(
+            "def make_readers(first, second, /):\n"
+            "    def read_first():\n"
+            "        return first\n"
+            "    def read_second():\n"
+            "        return second\n"
+            "    return [read_first, read_second]\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertEqual(generated.count("HPyField __pyx_hpy_capture_"), 2)
+        self.assertIn("__pyx_hpy_closure_fn_0_object", generated)
+        self.assertIn("__pyx_hpy_closure_fn_1_object", generated)
+
+    def test_nested_def_without_captures_still_has_an_environment_type(self):
+        result, generated, diagnostics = self.compile_source(
+            "def make_constant():\n"
+            "    def constant():\n"
+            "        return 7\n"
+            "    return constant\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn("__pyx_hpy_closure_env_0_object", generated)
+        self.assertIn("char __pyx_hpy_reserved;", generated)
+        self.assertIn("__pyx_hpy_closure_fn_0_object", generated)
+
+    def test_c_typed_closure_capture_is_rejected(self):
+        result, generated, diagnostics = self.compile_source(
+            "def outer(int value):\n"
+            "    def inner():\n"
+            "        return value\n"
+            "    return inner\n"
+        )
+        self.assertEqual(result.num_errors, 1)
+        self.assertFalse(generated)
+        self.assertIn(
+            "C-typed closure captures are not implemented", diagnostics)
+
+    def test_nested_nested_def_is_rejected(self):
+        result, generated, diagnostics = self.compile_source(
+            "def outer():\n"
+            "    def inner():\n"
+            "        def deepest():\n"
+            "            return 1\n"
+            "        return deepest\n"
+            "    return inner\n"
+        )
+        self.assertEqual(result.num_errors, 1)
+        self.assertFalse(generated)
+        self.assertIn("nested nested def closures are not implemented", diagnostics)
+
+    def test_nested_def_defaults_are_rejected(self):
+        result, generated, diagnostics = self.compile_source(
+            "def outer(value, /):\n"
+            "    def inner(arg=value):\n"
+            "        return arg\n"
+            "    return inner\n"
+        )
+        self.assertEqual(result.num_errors, 1)
+        self.assertFalse(generated)
+        self.assertIn("default arguments on nested def are not implemented", diagnostics)
+
+    def test_nested_def_star_args_are_rejected(self):
+        result, generated, diagnostics = self.compile_source(
+            "def outer():\n"
+            "    def inner(*args):\n"
+            "        return args\n"
+            "    return inner\n"
+        )
+        self.assertEqual(result.num_errors, 1)
+        self.assertFalse(generated)
+        self.assertIn("star arguments on nested def are not implemented", diagnostics)
+
+    def test_nested_def_yield_is_rejected(self):
+        result, generated, diagnostics = self.compile_source(
+            "def outer():\n"
+            "    def inner():\n"
+            "        yield 1\n"
+            "    return inner\n"
+        )
+        self.assertEqual(result.num_errors, 1)
+        self.assertFalse(generated)
+        self.assertIn(
+            "generators and yield in nested def are not implemented",
+            diagnostics,
+        )
+
+    def test_decorated_nested_def_is_rejected(self):
+        result, generated, diagnostics = self.compile_source(
+            "def outer():\n"
+            "    @staticmethod\n"
+            "    def inner():\n"
+            "        return 1\n"
+            "    return inner\n"
+        )
+        self.assertEqual(result.num_errors, 1)
+        self.assertFalse(generated)
+        self.assertIn(
+            "decorated nested def functions are not implemented",
+            diagnostics,
+        )

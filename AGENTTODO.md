@@ -6,7 +6,7 @@ checklist. An agent must update both files when implementation status changes.
 
 ## 1. Snapshot and source of truth
 
-- Snapshot date: 2026-07-15 (handoff + coverage-track authorization).
+- Snapshot date: 2026-07-16 (Cursor continuation audited and reconciled).
 - Workspace: `/Users/melihburakmemis/Documents/aHPy`.
 - Branch: `codex/ahpy-bootstrap`.
 - Cython base/HEAD: `b99cb0e3b5425e11414cadd24168a6cc850e8000`.
@@ -72,31 +72,39 @@ and the first performance regression gate.
 
 Last verified local gates:
 
-- Focused compiler suite: 323 tests pass (includes U1 closable surface:
+- Focused compiler suite: 354 tests pass (includes U1 closable surface and
+  closure-registry regressions:
   `dir()`/`globals()`/`__dict__`, reject-duplicates keywords, imag constant
   cache, richer terminal try, sequence-safe inlined genexps, slot early
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 51 tests pass.
-- Focused coverage (post–U1 closable pack, Python 3.11): 382 tests traced.
-  - backend 72.82%, frontend_seam 26.20%, quality_tools 41.11%.
+- Quality-tool suite: 110 tests pass (one expected Valgrind availability skip
+  on macOS).
+- Focused coverage (post–M9 external-literal gate, Python 3.11): 464 tests
+  traced.
+  - backend 74.02%, frontend_seam 28.78%, quality_tools 35.49%.
   - CI floors remain 71%, 25%, and 35%; do not lower them to hide new code.
-  - Prior Python 3.14 snapshot (pre–U1 pack): backend 71.65%, frontend
-    seam 25.07%, tools 40.62% — re-measure on 3.14 after large emitter
-    deltas before claiming the dual-interpreter floor.
-- Fault injection: 116 isolated normal/Debug cases pass sequentially.
-- Bounded parallel HPy stress: five full rounds, 580 fault selectors, twenty
+  - Python 3.14.6: backend 73.20%, frontend seam 28.65%, quality tools
+    35.60%; current dual-interpreter floors remain satisfied.
+- Fault injection: 128 isolated normal/Debug cases pass sequentially.
+- Bounded parallel HPy stress: five full rounds, 640 fault selectors, twenty
   child gates, no timeout or `SystemError`; recursive descendant cleanup is
   unit-tested and one round recurs in CI.
-- Fixed-seed supported-surface fuzz: 48 cases pass.
+- Fixed-seed supported-surface fuzz: 48 cases pass (`dir()`/`globals()` side
+  effects, method-call, Python `type()` surface, plus five M5 reject samples).
 - Coverage-guided fuzz: 16 of 64 mutations retained across 16 families and a
-  3,864-line compiler frontier; normal/Debug oracle and ABI audits pass.
-- Performance gate: generated and handwritten Universal HPy modules pass six
+  4,075-line compiler frontier; normal/Debug oracle and ABI audits pass.
+- Performance gate: generated and handwritten Universal HPy modules pass nine
   versioned runtime budgets, footprint budgets, binary audits, and Debug leak
   checks. CI writes a timestamped JSON history artifact.
 - Diagnostic catalog, Python compileall, CI YAML parsing, and `git diff
   --check` pass.
+- Clean release artifact: the warning-free, self-contained
+  `ahpy_compiler-3.3.0.1.dev0.tar.gz` passes safety/completeness; the no-index
+  wheel installs in a new venv with exact HPy 0.9.0/setuptools 80.9.0; the
+  frontend and maintained PEP 517 example pass normal/Debug plus verified
+  uninstall/reinstall. CI execution is declared; hosted evidence is pending.
 
 The generated runtime, fault, fuzz, reproducibility, setuptools/wheel,
 portability, sanitizer declarations, and CPython semantic oracles have dedicated
@@ -143,6 +151,8 @@ audit/changelog fragments in the same change.
    **(U1 closable pack done: `dir`/`globals`/`SortedDictKeys`/reject-duplicates/
    imag cache/inlined sequence genexp; sets/GetIter still refused)**
 3. Direct method-call layout optimization after evaluation-order parity tests.
+   **(done: `HPy_CallMethod` with receiver as `args[0]`; eval-order oracle and
+   fault injection cover the new family)**
 4. Mixed terminating/continuing branches; return/raise from loops; keep
    generic iterators blocked on HPy 0.9. **(done for module functions + slot
    early-return unification; GetIter still blocked)**
@@ -150,16 +160,24 @@ audit/changelog fragments in the same change.
    0.9 exception-state. **(defaults done; richer terminal try/except lane
    done; `except as`/else/finally still blocked)**
 6. Expand generated runtime corpus and intermediate API failure coverage.
-   **(closable-pack corpus/oracle/fuzz green; further M3/M5 expansion open)**
+   **(done for U1 closable pack plus dir/globals/method-call/Python-type fuzz
+   templates and five new M5 reject corpus samples; hosted expansion remains
+   open)**
 7. Richer global/type/default caches; keep code-object caches blocked.
    **(imag/complex constant cache done; code objects still blocked)**
 8. Document or close failed-import-without-GC with evidence.
+   **(done as documented upstream/loader gap; immediate retry without GC remains
+   blocked on HPy 0.9)**
 9. Remaining M5 type constructors/slots/native typed-C operators/getset/
    MI/cross-module/builtin bases/metaclasses/var-size/freelist/callable
    `__new__` gates; keep weakref/`__dict__`/iter slots rejected on 0.9.
-   **(slot early returns done for len/bool/hash/contains/call/property)**
+   **(compile-time diagnostics added for freelist, multiple inheritance,
+   metaclass, variable-size layout, and existing `__dealloc__` wall; slot early
+   returns done for len/bool/hash/contains/call/property)**
 10. Close M5 local GC/clear/finalize/resurrection stress; hosted
     all-interpreter promotion waits on Phase U2.
+    **(local cycle/finalize/resurrect/field-clear oracle green on Python
+    3.11; hosted promotion open)**
 
 ### Phase U2 — M8 evidence and native memory (continue M8 without false claims)
 
@@ -168,8 +186,15 @@ A1 is done. Proceed when unblocked:
 - A2 hosted platform/compiler matrix — blocked until `origin` + authorized push.
 - A3 same-binary PyPy/GraalPy hosted hashes — blocked until hosted jobs.
 - A4 nightly contract tests / wording guards (local remaining pieces).
+  **(manifest status-set guards, stable-vs-nightly separation, hosted-pending
+  wording checks, ASan `detect_leaks=0` documentation, and nightly job
+  contract tests are local-green; hosted evidence remains open)**
 - A5 Linux LSan/Valgrind positive-control lane; Windows AppVerifier when a
   Windows environment exists.
+  **(the schedule/manual Linux job now makes the positive control and all five
+  real generated-corpus runtime processes mandatory under Valgrind; it remains
+  allowed-failure/hosted-pending until suppression review and a first green.
+  Windows remains open.)**
 - A6 package reproducibility — after Phase U3 Universal packaging formats.
 
 ### Phase U3 — M6 advanced families (one gated family at a time)
@@ -181,6 +206,11 @@ enabled partial support.
 
 Section 7 items 1–7, including PEP 517, Meson/CMake, Universal wheel tags only
 after HPy/PyPA standardize them, clean sdist/install, and new-user scripts.
+**(local clean sdist, offline wheel/install, frontend/example
+uninstall/reinstall, normal/Debug, and documented new-user execution are now
+green; frontend archives are byte-reproducible; publication, standardized
+tags, cross-interpreter package installation, standardized Universal
+extension-wheel reproducibility, and hosted evidence remain open.)**
 
 ### Phase U5 — M9 performance, M10 pilots, M11 upstreaming/release
 
@@ -197,7 +227,7 @@ blocked.
 
 Current evidence:
 
-- The mandatory sequential 116-case fault gate is green.
+- The mandatory sequential 128-case fault gate is green.
 - An earlier ad-hoc run concurrent with three independent HPy build gates once
   raised import `SystemError` without an active exception.
 - A new first parallel round completed fault, setuptools, and fuzz successfully;
@@ -209,7 +239,9 @@ Current evidence:
 - A clean single generated-corpus retry showed that Apple Clang can spend more
   than 4 minutes 36 seconds of CPU compiling the large `bootstrap_types.c` at
   `-O3`. A two-minute timeout is therefore invalid evidence of a hang.
-  Parallel safety is still not proven.
+  That was the last point at which parallel safety was unproven; the bounded
+  O0 stress profile below then proved five clean concurrent rounds. Ordinary
+  O3 compile time was then tracked as a separate M9 debt.
 
 Required next implementation:
 
@@ -234,12 +266,20 @@ Required next implementation:
   evidence. Update `TODO.md`, the validation matrix, and an M8 audit together.
 
 Acceptance result: five bounded rounds finished with every child exit code
-zero, no timeout, and all 580 fault selectors. The subsequent sequential
-116-case fault gate passed. The generated corpus also passed five times in the
+zero, no timeout, and all 640 fault selectors. The subsequent sequential
+128-case fault gate passed. The generated corpus also passed five times in the
 stress profile. A post-stress ordinary O3 retry remained inside Apple Clang's
 `bootstrap_types.c` optimization beyond 15 minutes and was terminated/reaped;
-do not call that run green. Ordinary O3 validation and its compile-time budget
-remain independent release/M9 gates.
+  that historical run was not green. A later isolated, single-compiler M9 gate
+  regenerated the current 4.98 MB/87,259-line corpus and measured Apple Clang
+  21 at 1.59 seconds `-O0` and 5.29 seconds `-O3`; both are now guarded by a
+  60-second per-profile liveness ceiling. The earlier >15-minute state is not
+  reproducible in a single-compiler run. During the first borrowed-handle
+  validation, accidentally launching the same full-corpus command twice made
+  two `bootstrap_answer.c -O3` compiler processes exceed four CPU minutes;
+  terminating the older owned process let the bounded O0 semantic rerun finish
+  in 10.50 seconds. This directly confirms concurrency as a major trigger,
+  while the isolated large-type liveness gate remains the timing authority.
 
 ### A2. Hosted platform/compiler matrix
 
@@ -283,11 +323,15 @@ repository and is externally blocked until the user supplies/authorizes it.
 
 ### A6. Future package reproducibility
 
-This depends on the packaging work in section 7. Once real aHPy sdist and
-Universal wheel formats exist, build each twice in independent roots with
-normalized timestamps, archive metadata, file/debug prefix maps, and provenance;
-require byte-identical content. The current `.hpy0` portability artifact gate
-does not complete this future-format item.
+The real `aHPy-compiler` sdist and pure-Python frontend wheel now build
+byte-identically in two independent roots with fixed epoch/hash seed,
+normalized tar/gzip ownership/time/name metadata, and recorded
+Python/platform/build/setuptools provenance. The first gate caught 40 generated
+directory/`PKG-INFO` timestamp differences with identical payload content; the
+streaming normalizer fixed them. The future standardized Universal extension
+wheel still needs its own two-root native compiler/linker/archive gate. The
+current `.hpy0` portability artifact and CPython-tagged example wheels do not
+complete that future-format item.
 
 ## 5. Backend semantic completion queue
 
@@ -340,6 +384,8 @@ then implement ownership/cleanup, then execute normal/Debug/failure oracles.
 10. Close the extension-type milestone only after cyclic GC, clearing,
     finalization, resurrection, weak-reference, and all-interpreter stress gates
     are clean.
+    **(local cyclic GC, field-clear, finalize, and resurrection oracle green;
+    hosted all-interpreter promotion remains open)**
 
 ## 6. Advanced feature queue
 
@@ -347,12 +393,40 @@ Do not start these before their ownership/context/storage designs are written.
 Implement one independently gated family at a time:
 
 1. Closures and captured Python values.
+   **(one-level nested `def` slice green locally: env/callable HPy types,
+   `HPyField` captures per ADR 0005, shared sibling-capture union, capture-free
+   envs, mutation visibility, runtime oracles, and explicit C-typed-capture
+   rejection; normal/Trace/Debug generated corpus is green. Nested-nested,
+   defaults, starargs, generators, and decorators remain rejected)**.
 2. Generators and generator cleanup.
+   **(ADR 0006 and source-located HPy 0.9 diagnostics now cover top-level
+   `yield`, `yield from`, and real generator expressions. Implementation stays
+   blocked on public iterator-next slots and iterator/exception-state APIs;
+   CPython coroutine utilities are forbidden.)**
 3. Native coroutines, `async`/`await`, and async generators.
+   **(ADR 0007 and source-located HPy 0.9 diagnostics cover native coroutine
+   and async-generator functions. Implementation is blocked on public async
+   protocol slots and exception-state/cancellation operations.)**
 4. Buffer acquire/release and typed memoryviews.
+   **(ADR 0008 separates HPy 0.9's available producer slots from its missing
+   public consumer API. Typed buffer/memoryview arguments now fail early with
+   one actionable diagnostic before CPython MemoryView utilities run; producer
+   implementation remains open.)**
 5. Fused types and specialization dispatch.
+   **(ADR 0009 defines neutral specialization descriptors, a pure-HPy
+   callable/subscriptable dispatcher, typed conversion, and interpreter-owned
+   metadata. Fused `def`/`cpdef` now fail closed before CPython fused-function
+   machinery; implementation remains open.)**
 6. `nogil`, Python-state transitions, exception reacquisition, `prange`,
    OpenMP, synchronization, and free-threading.
+   **(ADR 0010 and a runtime-tested first slice now permit only non-empty
+   blocks of discarded, argumentless calls to validated external C functions
+   declared `noexcept nogil`; emission uses public HPy leave/re-enter APIs and
+   a local `HPyThreadState`. Typed arguments/results, nested `with gil`, native
+   failures, and callbacks remain open. ADR 0011 now defines the neutral
+   parallel plan and native-only worker path; `prange`/`parallel()` fail closed
+   because HPy 0.9 has no public arbitrary-worker attach/error transport.
+   OpenMP implementation and free-threading remain open.)**
 7. C callbacks with Python state, public/API declarations, capsules, and
    cross-module C APIs.
 8. C++ exceptions, STL conversions, and RAII interaction with handle cleanup.
@@ -368,26 +442,87 @@ implementation.
 ## 7. Build, packaging, and onboarding queue
 
 1. Define the public non-setuptools/direct-build contract.
+   **(completed: `direct_build.py` exposes a versioned plan/API/CLI with exact
+   Universal compile/link inputs, safe artifact rules, source/binary audits,
+   POSIX/MSVC plan tests, and real public-loader normal/Debug integration;
+   hosted stable-matrix executions remain evidence-pending.)**
 2. Add a maintained isolated PEP 517 backend/path.
+   **(completed locally: `aHPy-compiler` has a separate exact versioned
+   identity, `ahpy_build_backend` rejects Cython/unrelated-`ahpy` substitution
+   and non-Universal ABI requests, and a real pip-isolated example wheel passes
+   source/binary audits plus normal/Debug install execution. The PyPI name is
+   not reserved or published; standardized Universal tags remain open.)**
 3. Add Meson and CMake/scikit-build-core integrations where applicable.
+   **(completed locally: installed `ahpy_build_config` feeds strict CMake and
+   Meson contracts; both native examples pass normal/Debug and ABI audits; a
+   no-index isolated scikit-build-core wheel also passes pip install/import.
+   Hosted Linux/Windows evidence and cross-compilation remain open.)**
 4. Adopt Universal wheel naming/tags only after HPy/PyPA standardize them; do
    not publish CPython-tagged wheels as portable.
 5. Test clean sdist, isolated wheel, install, uninstall/reinstall, and
    reproducibility in empty environments.
+   **(clean sdist safety, no-index wheel-from-sdist, fresh-venv install,
+   frontend/example uninstall/absence/reinstall, normal/Debug, and artifact
+   hashes and two-root byte reproducibility of the frontend sdist/wheel are
+   completed locally; standardized Universal extension-wheel reproducibility
+   remains open.)**
 6. Add isolated minimal, extension-type, external-C, and packaging examples.
 7. Have a new-user clean-environment script execute documentation literally.
+   **(completed locally by `release_artifact_integration.py` and
+   `docs/ahpy/onboarding.md`; hosted evidence remains open.)**
 
 ## 8. Performance, pilots, upstreaming, and release queue
 
-1. Extend the handwritten HPy benchmark reference beyond the current six
-   operations to types, iteration, memoryviews, and external-C wrappers.
-2. Compare classic Cython, HPy CPython ABI, and HPy Universal ABI separately;
-   never combine their overheads into one number.
+1. Extend the handwritten HPy benchmark reference beyond the current nine
+   operations to iteration and memoryviews once those generated Universal
+   paths exist. Extension-type creation/method calls and a shared
+   Python-independent external-C wrapper now have equivalent generated and
+   handwritten references; do not fabricate iteration/memoryview numbers.
+2. Keep the completed classic Cython, HPy CPython ABI, and HPy Universal ABI
+   benchmark profiles separate; never combine their overheads into one number.
+   Add hosted history before enforcing non-Universal release budgets.
 3. Record compile time, native compiler time, C size, binary size, peak memory,
    HPy Trace API counts, and handle churn. Optimize duplicate/close pairs only
    after ownership proofs and tests.
-   Start by isolating why Apple Clang `-O3` on the generated type corpus exceeds
-   15 minutes while the same O0 stress build finishes in 10.40–13.81 seconds.
+   **(Trace measurement completed for all nine comparable operations: exact
+   per-API deltas and dup/close churn are in benchmark JSON; arithmetic,
+   container, attribute, call, extension-type, and external-C overhead is
+   quantified. Separate-clean-process peak RSS, frontend/native build times,
+   and source/binary sizes are also recorded. The currently blocked
+   iteration/memoryview families remain open; remove no cleanup without
+   ownership/failure proofs.)**
+   **(The first ownership-proven optimization is complete: benchmark call
+   contracts are genuinely positional-only on both sides, and direct live Name
+   handles are borrowed for attribute receivers and zero-argument callables.
+   Both paths now match the reference at 1 API call/iteration with zero
+   Dup/Close churn; normal/Trace/Debug and 128 fault selectors are green.)**
+   **(The second ownership-proven optimization is complete: two-or-more
+   required positional-only functions use `HPyFunc_VARARGS` without a keyword
+   parser/tracker; direct live Names feed borrowing binary and fixed sequence
+   builder APIs under a left-to-right evaluation proof. Arithmetic/container
+   now match the references at 1/4 API calls with zero Dup/Close churn and
+   0.97×/1.07× tightened-budget ratios. Their ceilings are 1.5×; 185 emitter tests,
+   normal/Trace/Debug, and 128 fault selectors are green. Closure call slots
+   accept empty `**{}` but reject non-empty keywords for no-, one-, and
+   multi-argument positional-only nested functions.)**
+   **(The third ownership-proven optimization is complete: extension-field
+   owners/values stay borrowed under call-lifetime and evaluation-order proofs;
+   type/module owners load lazily; positional-only initializers bypass keyword
+   trackers. Type creation/method ratios are 1.02×/0.96× under new 1.5×
+   ceilings, Trace is 3/2 and 2.003/2.002 calls with zero generated Dup/Close,
+   and 186 emitter tests plus normal/Trace/Debug and 128 fault selectors are
+   green. Lazy owner names are part of branch lifetime snapshots; the isolated
+   4.65 MB large-type C corpus compiles at O0/O3.)**
+   **(The fourth ownership-proven optimization is complete: representable
+   numeric literals in validated external-C scalar calls emit portable typed C
+   literals directly, while dynamic, non-finite, ambiguous `char`, and
+   out-of-portable-range values retain checked HPy conversion. External-C
+   Trace is now 1/1 call with zero Dup/Close churn, Universal/HPy-CPython
+   ratios are 0.99×/1.00×, its ceiling is 1.5×, and 188 emitter tests plus
+   normal/Trace/Debug and 128 fault selectors are green.)**
+   **(The large-type compile is now isolated in this gate: current Apple Clang
+   21 evidence is 1.59 seconds `-O0`, 5.29 seconds `-O3`, ratio 3.32×, under a
+   60-second per-profile timeout. Preserve hosted history before tightening.)**
 4. Turn the current conservative regression ceilings into release budgets only
    after hosted history exists. Document interpreter/HPy overhead separately
    from backend overhead.
@@ -429,6 +564,15 @@ git diff --check
 
 .venv-hpy09/bin/python Tools/ahpy/test_generated_hpy.py \
     --python .venv-hpy09/bin/python
+.venv-hpy09/bin/python Tools/ahpy/direct_build_integration.py \
+    --python .venv-hpy09/bin/python
+.venv-hpy09/bin/python Tools/ahpy/pep517_integration.py \
+    --python .venv-hpy09/bin/python --output /tmp/ahpy-pep517.json
+.venv-hpy09/bin/python Tools/ahpy/build_system_integration.py \
+    --python .venv-hpy09/bin/python --system all \
+    --output /tmp/ahpy-build-systems.json
+.venv-hpy09/bin/python Tools/ahpy/scikit_build_integration.py \
+    --python .venv-hpy09/bin/python --output /tmp/ahpy-scikit-build.json
 .venv-hpy09/bin/python Tools/ahpy/test_fault_injection.py \
     --python .venv-hpy09/bin/python
 .venv-hpy09/bin/python Tools/ahpy/fuzz_supported_surface.py \

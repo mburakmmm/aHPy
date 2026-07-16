@@ -55,6 +55,9 @@ def _runtime_program(debug):
         "assert events == ['left', 'right']\n"
         "assert module.external_byte(-128) == -128\n"
         "assert module.external_scale(1.5, 4.0) == 6.0\n"
+        "nogil_calls = module.external_nogil_probe()\n"
+        "assert nogil_calls >= 1\n"
+        "assert module.external_nogil_probe() == nogil_calls + 1\n"
         "byte_calls = module.external_byte_calls()\n"
         "try:\n"
         "    module.external_byte(128)\n"
@@ -101,6 +104,8 @@ def build_and_run(python):
                 "#include <hpy.h>", "HPyDef_METH", "HPyType_FromSpec",
                 "HPy_MODINIT", '#include "ahpy_external.h"',
                 "HPyLong_FromUnsignedLongLong",
+                "HPyThreadState", "HPy_LeavePythonExecution",
+                "HPy_ReenterPythonExecution",
             ),
         )
         binaries = list(build_root.rglob(MODULE_NAME + "*.hpy0.*"))

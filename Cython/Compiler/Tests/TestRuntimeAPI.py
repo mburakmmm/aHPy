@@ -46,6 +46,14 @@ class RuntimeAPITest(TestCase):
         self.assertIs(cpython.context_contract().kind, RuntimeContextKind.NONE)
         self.assertEqual(cpython.reference_type_cname(), "PyObject *")
         self.assertEqual(
+            cpython.execution_state_type_cname(), "PyThreadState *")
+        self.assertEqual(
+            cpython.leave_python_execution(), "PyEval_SaveThread()")
+        self.assertEqual(
+            cpython.reenter_python_execution("state"),
+            "PyEval_RestoreThread(state)",
+        )
+        self.assertEqual(
             cpython.context_constant(RuntimeContextConstant.NONE), "Py_None")
         self.assertEqual(
             cpython.context_constant(RuntimeContextConstant.NOT_IMPLEMENTED),
@@ -155,6 +163,17 @@ class RuntimeAPITest(TestCase):
             self.assertTrue(context.required_for_python_operations)
             self.assertFalse(context.may_be_persisted)
             self.assertEqual(hpy.reference_type_cname(), "HPy")
+            self.assertEqual(
+                hpy.execution_state_type_cname(), "HPyThreadState")
+            self.assertEqual(
+                hpy.leave_python_execution(context_cname="ctx"),
+                "HPy_LeavePythonExecution(ctx)",
+            )
+            self.assertEqual(
+                hpy.reenter_python_execution(
+                    "state", context_cname="ctx"),
+                "HPy_ReenterPythonExecution(ctx, state)",
+            )
             self.assertEqual(
                 hpy.context_constant(
                     RuntimeContextConstant.NONE, context_cname="ctx"),
@@ -1346,6 +1365,7 @@ class RuntimeAPITest(TestCase):
         layouts = {
             ("METH_NOARGS",): RuntimeMethodSignature.NOARGS,
             ("METH_O",): RuntimeMethodSignature.ONEARG,
+            ("METH_VARARGS",): RuntimeMethodSignature.POSITIONAL_VARARGS,
             ("METH_VARARGS", "METH_KEYWORDS"):
                 RuntimeMethodSignature.VARARGS_KEYWORDS,
             ("__Pyx_METH_FASTCALL", "METH_KEYWORDS"):
@@ -1405,6 +1425,21 @@ class RuntimeAPITest(TestCase):
             runtime_api.method_implementation_declaration(onearg),
             "static PyObject *onearg_impl(PyObject *self, PyObject *arg)",
         )
+        positional = RuntimeMethodDefinition(
+            signature=RuntimeMethodSignature.POSITIONAL_VARARGS,
+            definition_cname="positional",
+            python_name_cname='"positional"',
+            implementation_cname="positional_impl",
+            doc_cname="0",
+        )
+        self.assertEqual(
+            runtime_api.method_implementation_declaration(positional),
+            "static PyObject *positional_impl(PyObject *self, PyObject *args)",
+        )
+        self.assertEqual(
+            runtime_api.method_table_entry(positional, ","),
+            '{"positional", (PyCFunction)positional_impl, METH_VARARGS, 0},',
+        )
 
     def test_hpy_method_definition_contract_uses_definitions_array(self):
         runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
@@ -1453,6 +1488,23 @@ class RuntimeAPITest(TestCase):
             runtime_api.method_implementation_declaration(
                 onearg, context_cname="ctx", argument_cname="arg"),
             "static HPy onearg_def_impl(HPyContext *ctx, HPy self, HPy arg)",
+        )
+        positional = RuntimeMethodDefinition(
+            signature=RuntimeMethodSignature.POSITIONAL_VARARGS,
+            definition_cname="positional_def",
+            python_name_cname='"positional"',
+            implementation_cname="positional_def_impl",
+            doc_cname="0",
+        )
+        self.assertEqual(
+            runtime_api.method_definition_declaration(positional),
+            'HPyDef_METH(positional_def, "positional", HPyFunc_VARARGS)',
+        )
+        self.assertEqual(
+            runtime_api.method_implementation_declaration(
+                positional, context_cname="ctx"),
+            "static HPy positional_def_impl(HPyContext *ctx, HPy self, "
+            "const HPy *args, size_t nargs)",
         )
         keywords = RuntimeMethodDefinition(
             signature=RuntimeMethodSignature.VARARGS_KEYWORDS,

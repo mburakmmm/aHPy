@@ -324,7 +324,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def hpy_bootstrap_contents(self, diagnostics):
         """Return supported functions, module statements, and pure HPy types."""
-        from . import ExprNodes
+        from . import ExprNodes, FusedNode
         from .HPyModuleWriter import (
             _external_c_scalar_kind,
             _resolve_extension_field_storage_type,
@@ -341,6 +341,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             stat = pending.pop()
             if type(stat) is Nodes.StatListNode:
                 pending.extend(reversed(stat.stats))
+            elif type(stat) is Nodes.CompilerDirectivesNode:
+                pending.append(stat.body)
             else:
                 stats.append(stat)
         methods = []
@@ -363,6 +365,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         "not available in Universal HPy mode; port the "
                         "dependency to public HPy APIs",
                     )
+                elif module_name == "cython":
+                    continue
             if type(stat) is Nodes.CDefExternNode:
                 include_file = (
                     str(stat.include_file) if stat.include_file is not None
@@ -511,6 +515,41 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "storage or an HPy member descriptor",
                 )
                 continue
+            if type(stat) is FusedNode.FusedCFuncDefNode:
+                diagnostics.unsupported(
+                    stat,
+                    "fused functions require a pure HPy specialization "
+                    "dispatcher, typed argument conversion, and "
+                    "interpreter-owned signature metadata; CPython "
+                    "__Pyx_FusedFunction/PyCFunction dispatch is forbidden "
+                    "in Universal mode",
+                )
+                continue
+            if type(stat) in (
+                Nodes.AsyncDefNode,
+                Nodes.IterableAsyncDefNode,
+                Nodes.AsyncGenNode,
+            ):
+                if type(stat) is Nodes.AsyncGenNode:
+                    feature = "async generator objects and async yield"
+                else:
+                    feature = "native coroutine objects and await"
+                diagnostics.unsupported(
+                    stat,
+                    "HPy 0.9 lacks the public async protocol type slots and "
+                    "exception-state surface required for Universal %s; "
+                    "CPython coroutine utilities are forbidden" % feature,
+                )
+                continue
+            if type(stat) is Nodes.GeneratorDefNode:
+                diagnostics.unsupported(
+                    stat,
+                    "HPy 0.9 lacks the public iterator-next API and type "
+                    "slots required for Universal generator objects; "
+                    "generator functions, yield, and yield from remain "
+                    "unavailable without CPython emulation",
+                )
+                continue
             if type(stat) is Nodes.DefNode:
                 if stat.name in method_names:
                     diagnostics.unsupported(
@@ -648,6 +687,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     method for method in user_methods
                     if method.name in initial_numeric_method_names
                 ]
+                array_fields = [
+                    field for field in fields if field.type.is_array
+                ]
                 reserved_runtime_entries = sorted(
                     name for name, entry in extension_type.scope.entries.items()
                     if (
@@ -658,7 +700,31 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     )
                     and not getattr(entry, "is_inherited", False)
                 )
-                if reserved_runtime_entries:
+                if extension_type.entry.type.multiple_bases:
+                    diagnostics.unsupported(
+                        stat,
+                        "pure Universal HPy multiple inheritance is not "
+                        "implemented: HPy 0.9 type publication currently "
+                        "supports exactly one generated pure HPy base via "
+                        "HPyType_SpecParam_Base",
+                    )
+                elif extension_type.scope.directives.get('freelist', 0):
+                    diagnostics.unsupported(
+                        stat,
+                        "pure Universal HPy @cython.freelist is not "
+                        "implemented: CPython freelist allocation and "
+                        "module-state bookkeeping have no validated HPy 0.9 "
+                        "Universal ABI equivalent",
+                    )
+                elif array_fields:
+                    diagnostics.unsupported(
+                        array_fields[0],
+                        "pure Universal HPy variable-size extension layout is "
+                        "not implemented: C array extension fields with "
+                        "non-zero itemsize require a separately validated HPy "
+                        "member layout and type-spec contract",
+                    )
+                elif reserved_runtime_entries:
                     diagnostics.unsupported(
                         stat,
                         "pure HPy type members use reserved runtime cache "
@@ -878,6 +944,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 continue
             if type(stat) is Nodes.FromImportStatNode:
                 module_stats.append(stat)
+                continue
+            if type(stat) is Nodes.PyClassDefNode:
+                if stat.metaclass:
+                    diagnostics.unsupported(
+                        stat,
+                        "pure Universal HPy metaclass customization is not "
+                        "implemented: HPy 0.9 type publication uses "
+                        "HPyType_FromSpec with a fixed meta-layout; "
+                        "user-defined metaclasses require a separately "
+                        "validated type-creation and lifecycle contract",
+                    )
+                else:
+                    diagnostics.unsupported(
+                        stat,
+                        "module-level %s is not implemented by the bootstrap "
+                        "Universal HPy emitter" % stat.__class__.__name__,
+                    )
                 continue
             diagnostics.unsupported(
                 stat,
