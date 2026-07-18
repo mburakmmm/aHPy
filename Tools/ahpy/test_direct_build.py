@@ -1,8 +1,15 @@
+import os
 from pathlib import Path
+import subprocess
+import sys
 from tempfile import TemporaryDirectory
 import unittest
 
 from direct_build import create_build_plan
+
+
+ROOT = Path(__file__).resolve().parents[2]
+DIRECT_BUILD = ROOT / "Tools" / "ahpy" / "direct_build.py"
 
 
 def _probe(os_name="posix", root=None):
@@ -100,6 +107,21 @@ class DirectBuildTest(unittest.TestCase):
                 Path(temp) / "build", runtime="auto")
             self.assertEqual(plan["runtime_mode"], "sources")
             self.assertEqual(plan["runtime_inputs"], [str(helper)])
+
+    def test_cli_imports_repository_modules_from_clean_working_directory(self):
+        with TemporaryDirectory() as temp:
+            environment = os.environ.copy()
+            environment.pop("PYTHONPATH", None)
+            result = subprocess.run(
+                [sys.executable, str(DIRECT_BUILD), "--help"],
+                cwd=temp,
+                env=environment,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--plan-only", result.stdout)
 
 
 if __name__ == "__main__":

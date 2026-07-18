@@ -369,21 +369,25 @@ failure paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 465 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 466 focused tests under Python's built-in
 line-event tracer and derives executable lines from nested code-object line
 tables. It reports the Universal backend, touched Cython frontend seam, and
 quality tools independently, plus ownership, Runtime API, emitter,
 compiler-seam, and quality-tool feature families. The current Python 3.11
-validation records 74.02%, 28.78%, and 35.49%, including installed packaging
+validation records 74.02%, 28.78%, and 35.47%, including installed packaging
 and build-contract modules in the quality-tools denominator. Python 3.14.6
-records 73.20%, 28.65%, and 35.60%. CI keeps cross-version floors of 71%, 25%,
+records 73.20%, 28.65%, and 35.57%. CI keeps cross-version floors of 71%, 25%,
 and 35%.
 
 Every external `uses:` entry in the aHPy workflow is pinned to a full
 40-character commit SHA. A quality regression parses the complete workflow and
 rejects tags, branches, and shortened hashes. The first hosted push exposed
 seven 39-character `actions/upload-artifact` pins before checkout; the full-SHA
-fix is locally YAML-valid and covered by the 111-test quality suite.
+fix is locally YAML-valid and covered by the quality suite. The replacement
+hosted run reached project code and exposed that the direct-build CLI depended
+on the checkout root being present in `PYTHONPATH`. It now derives that root
+from `Tools/ahpy/direct_build.py` itself, and a subprocess regression removes
+`PYTHONPATH` and runs from an unrelated temporary working directory.
 
 This is intentionally Python-source coverage. Generated C, native HPy runtime
 behavior, child processes, allocation failures, and binary boundaries remain

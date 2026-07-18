@@ -10,7 +10,10 @@ the same schema-versioned plan and execution contract.
 
 Unit tests prove POSIX static-runtime ordering/defines/suffix, MSVC
 `HPyInit_*` export and `.hpy0.pyd` naming, invalid-module rejection, and strict
-static-library cardinality. The real integration generates
+static-library cardinality. They also launch the CLI from an unrelated
+temporary working directory with `PYTHONPATH` removed, proving that repository
+module discovery depends on the script location rather than caller state. The
+real integration generates
 `bootstrap_answer.c`, compiles and links it without setuptools, applies source
 and undefined-symbol audits, and loads the exact artifact through public
 `hpy.universal.load` in normal and Debug LeakDetector modes. Local macOS ARM64
@@ -22,6 +25,12 @@ Linux ARM64 GCC, macOS Intel/ARM64 Clang, and Windows x64 MSVC. Those entries
 remain declared validation targets until actual hosted runs are green. This
 audit does not claim PEP 517, sdist, wheel/import-stub, or package-install
 support.
+
+Hosted run `29490936993` supplied the clean-checkout evidence for this guard:
+the prior implementation raised `ModuleNotFoundError: ahpy_build_config` before
+the direct build began. The repaired CLI and the complete local normal/Debug
+integration are green; a replacement hosted run remains required before any
+platform support promotion.
 
 After adding the direct tool to the automatically discovered quality coverage
 area, the local gates pass 345 focused compiler tests and 73 quality-tool tests
