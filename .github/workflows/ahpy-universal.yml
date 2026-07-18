@@ -127,6 +127,7 @@ jobs:
       - name: API and allocation fault injection
         run: python Tools/ahpy/test_fault_injection.py --python python
       - name: Bounded parallel HPy stress
+        id: parallel_stress
         run: >-
           python Tools/ahpy/stress_parallel_hpy.py
           --python python
@@ -135,7 +136,7 @@ jobs:
           --timeout-seconds 600
           --output stress-results/parallel-hpy.json
       - name: Upload parallel stress evidence
-        if: always()
+        if: ${{ always() && steps.parallel_stress.outcome != 'skipped' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ahpy-parallel-stress-${{ github.run_id }}-${{ github.run_attempt }}

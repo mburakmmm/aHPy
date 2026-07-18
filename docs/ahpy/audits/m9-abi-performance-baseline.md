@@ -38,7 +38,8 @@ combined native build took 2.446 seconds, and peak RSS was
 The same run regenerated the 4,978,328-byte/87,259-line extension-type corpus.
 Frontend generation took 0.806 seconds; isolated Apple Clang 21 compilation
 took 1.593 seconds at `-O0` and 5.290 seconds at `-O3` (3.321×). Both profiles
-are subject to a 60-second liveness ceiling. This controlled single-compiler
+were subject to the original 60-second liveness ceiling. The hosted guard is
+now 180 seconds after Ubuntu GCC 13 reached 60 seconds at `-O3`. This controlled single-compiler
 measurement did not reproduce the earlier >15-minute post-stress state.
 
 These absolute local timings and memory values are diagnostic baselines, not
@@ -93,7 +94,7 @@ their handwritten references at 1/4 API calls with zero Dup/Close churn.
 Generated Universal C is 33,703 bytes and its binary is 76,672 bytes versus a
 76,080-byte reference. The isolated 4,930,017-byte/86,250-line type corpus
 compiled in 2.367 seconds at `-O0` and 10.321 seconds at `-O3`, both below the
-60-second liveness ceiling. Hosted history is still required before any local
+current 180-second hosted liveness ceiling. Hosted history is still required before any local
 absolute value becomes a release budget.
 
 ## Extension owner and initializer follow-up

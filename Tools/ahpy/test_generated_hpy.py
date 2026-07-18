@@ -29,6 +29,13 @@ def run(command, **kwargs):
                 exc.returncode, " ".join(map(str, command[:2])))) from None
 
 
+def write_runtime_check(directory, name, source):
+    """Write a runtime check without placing its source on the command line."""
+    path = directory / name
+    path.write_text(source, encoding="utf8")
+    return path
+
+
 def verify_source_boundary(generated, required=None):
     source = generated.read_text(encoding="utf8")
     forbidden = (
@@ -1660,15 +1667,28 @@ def build_and_run(python, runtime_prefix=()):
             "retry_case = importlib.import_module('retry_case')\n"
             "assert retry_case.dependency_value() == 73\n"
         )
+        retry_check_path = write_runtime_check(
+            temp, "retry_check.py", retry_check)
+        semantic_check_path = write_runtime_check(
+            temp, "semantic_check.py", semantic_check)
         run_runtime(
-            [python, "-c", retry_check], cwd=temp, env=runtime_environment)
+            [python, str(retry_check_path)],
+            cwd=temp,
+            env=runtime_environment,
+        )
         run_runtime(
-            [python, "-c", semantic_check], cwd=temp, env=runtime_environment)
+            [python, str(semantic_check_path)],
+            cwd=temp,
+            env=runtime_environment,
+        )
 
         trace_environment = runtime_environment.copy()
         trace_environment["HPY"] = "trace"
         run_runtime(
-            [python, "-c", semantic_check], cwd=temp, env=trace_environment)
+            [python, str(semantic_check_path)],
+            cwd=temp,
+            env=trace_environment,
+        )
 
         runtime_environment["HPY"] = "debug"
         debug_retry_check = (
@@ -1687,8 +1707,10 @@ def build_and_run(python, runtime_prefix=()):
             "assert retry_case.dependency_value() == 73\n"
             "detector.stop()"
         )
+        debug_retry_check_path = write_runtime_check(
+            temp, "debug_retry_check.py", debug_retry_check)
         run_runtime(
-            [python, "-c", debug_retry_check],
+            [python, str(debug_retry_check_path)],
             cwd=temp,
             env=runtime_environment,
         )
@@ -3247,8 +3269,13 @@ def build_and_run(python, runtime_prefix=()):
             "    raise AssertionError('duplicate expanded keyword did not fail')\n"
             "detector.stop()"
         )
+        debug_check_path = write_runtime_check(
+            temp, "debug_check.py", debug_check)
         run_runtime(
-            [python, "-c", debug_check], cwd=temp, env=runtime_environment)
+            [python, str(debug_check_path)],
+            cwd=temp,
+            env=runtime_environment,
+        )
 
 
 def main():

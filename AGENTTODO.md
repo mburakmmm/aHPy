@@ -83,10 +83,10 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 122 tests pass (one expected Valgrind availability skip
+- Quality-tool suite: 123 tests pass (one expected Valgrind availability skip
   on macOS).
 - Focused coverage (post–hosted-platform CI regressions, Python 3.11):
-  476 tests
+  477 tests
   traced.
   - backend 74.02%, frontend_seam 28.78%, quality_tools 35.94%.
   - CI floors remain 71%, 25%, and 35%; do not lower them to hide new code.
@@ -289,7 +289,7 @@ stress profile. A post-stress ordinary O3 retry remained inside Apple Clang's
   that historical run was not green. A later isolated, single-compiler M9 gate
   regenerated the current 4.98 MB/87,259-line corpus and measured Apple Clang
   21 at 1.59 seconds `-O0` and 5.29 seconds `-O3`; both are now guarded by a
-  60-second per-profile liveness ceiling. The earlier >15-minute state is not
+  180-second hosted per-profile liveness ceiling. The earlier >15-minute state is not
   reproducible in a single-compiler run. During the first borrowed-handle
   validation, accidentally launching the same full-corpus command twice made
   two `bootstrap_answer.c -O3` compiler processes exceed four CPU minutes;
@@ -539,7 +539,9 @@ implementation.
    normal/Trace/Debug and 128 fault selectors are green.)**
    **(The large-type compile is now isolated in this gate: current Apple Clang
    21 evidence is 1.59 seconds `-O0`, 5.29 seconds `-O3`, ratio 3.32×, under a
-   60-second per-profile timeout. Preserve hosted history before tightening.)**
+   180-second hosted per-profile timeout. The first Ubuntu GCC 13 run reached
+   the former 60-second O3 ceiling; preserve further hosted history before
+   tightening.)**
 4. Turn the current conservative regression ceilings into release budgets only
    after hosted history exists. Document interpreter/HPy overhead separately
    from backend overhead.

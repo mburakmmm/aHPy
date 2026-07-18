@@ -380,7 +380,7 @@ failure paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 476 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 477 focused tests under Python's built-in
 line-event tracer and derives executable lines from nested code-object line
 tables. It reports the Universal backend, touched Cython frontend seam, and
 quality tools independently, plus ownership, Runtime API, emitter,
@@ -493,7 +493,7 @@ ratio is treated as a release threshold. The initial evidence and exact
 measurement contract are in `audits/m9-abi-performance-baseline.md`.
 
 The record additionally regenerates the large extension-type corpus and runs
-one isolated native compile at `-O0` and `-O3`, with a 60-second liveness budget
+one isolated native compile at `-O0` and `-O3`, with a 180-second hosted liveness budget
 per optimization. The current Apple Clang 21 result is 1.59 and 5.29 seconds
 (3.32×) for 4,978,328 bytes/87,259 lines. Accidentally running two full-corpus
 `bootstrap_answer.c -O3` builds concurrently later reproduced multi-minute

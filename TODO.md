@@ -1271,8 +1271,8 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         Universal benchmark JSON.
   - [x] Isolate and budget the generated `bootstrap_types.c` native compile:
         every benchmark regenerates the 4.98 MB/87,259-line corpus, measures
-        `-O0` and `-O3` independently, and enforces a 60-second per-profile
-        liveness ceiling. A clean Apple Clang 21 run completed in 1.59/5.29
+        `-O0` and `-O3` independently, and enforces a 180-second per-profile
+        hosted liveness ceiling. A clean Apple Clang 21 run completed in 1.59/5.29
         seconds (3.32×); the earlier post-stress >15-minute result is not
         reproducible without the discarded concurrent/orphaned process state.
 - [x] Use HPy Trace Mode to identify excess API calls and handle churn; record

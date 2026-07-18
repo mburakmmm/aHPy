@@ -213,9 +213,11 @@ its applicable build, footprint, and clean-process peak-memory evidence.
 
 The performance invocation also regenerates the large `bootstrap_types.pyx`
 corpus and compiles its Universal C once at `-O0` and once at `-O3`, each under
-a 60-second liveness ceiling. This keeps native optimizer time distinct from
+a 180-second hosted liveness ceiling. This keeps native optimizer time distinct from
 runtime ratios. The isolated Apple Clang 21 baseline was 1.59/5.29 seconds for
-the 4.98 MB, 87,259-line C file; hosted history must precede a tighter limit.
+the 4.98 MB, 87,259-line C file. The first Ubuntu GCC 13 hosted run reached the
+former 60-second O3 ceiling; the expanded guard records shared-runner liveness
+without treating an absolute cross-host duration as a performance regression.
 
 `build_portability_artifact.py` builds `bootstrap_answer` and
 `bootstrap_types` once with the CPython 3.11/HPy 0.9 builder, rejects forbidden

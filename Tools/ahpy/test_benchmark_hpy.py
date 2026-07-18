@@ -110,6 +110,8 @@ class BenchmarkHPyTest(unittest.TestCase):
     def test_default_budget_file_is_valid_and_json_serializable(self):
         budgets = benchmark_hpy.load_budgets(benchmark_hpy.DEFAULT_BUDGETS)
         self.assertEqual(budgets["schema_version"], 1)
+        self.assertEqual(
+            budgets["large_type_compile"]["timeout_seconds"], 180)
         self.assertEqual(tuple(budgets["runtime_ratio"]),
                          benchmark_hpy.OPERATIONS)
         json.dumps(budgets, sort_keys=True)

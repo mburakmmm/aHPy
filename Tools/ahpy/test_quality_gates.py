@@ -24,6 +24,16 @@ VERSION_MANIFEST = ROOT / "tests" / "ahpy" / "hpy-versions.toml"
 
 
 class QualityGateTest(unittest.TestCase):
+    def test_runtime_check_is_written_to_a_script(self):
+        with tempfile.TemporaryDirectory() as temp:
+            directory = Path(temp)
+            source = "assert 'x' * 40000\n"
+            path = test_generated_hpy.write_runtime_check(
+                directory, "semantic_check.py", source)
+
+            self.assertEqual(path, directory / "semantic_check.py")
+            self.assertEqual(path.read_text(encoding="utf8"), source)
+
     def test_binary_import_parser_rejects_cpython_symbols_and_dll(self):
         output = (
             "                 U _PyLong_FromLong\n"
@@ -184,6 +194,8 @@ class QualityGateTest(unittest.TestCase):
             "ahpy-performance-${{ github.run_id }}-${{ github.run_attempt }}",
             "stress_parallel_hpy.py",
             "ahpy-parallel-stress-${{ github.run_id }}-${{ github.run_attempt }}",
+            "id: parallel_stress",
+            "steps.parallel_stress.outcome != 'skipped'",
             "nightly-interpreter:",
             "nightly-hpy:",
             "report_nightly_environment.py",

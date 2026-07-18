@@ -23,15 +23,21 @@ The repairs keep the test strength:
    compared;
 2. one shared artifact helper matches the complete native `.hpy0.so` or
    `.hpy0.pyd` suffix, excluding linker sidecars across integration, fuzz,
-   fault, and portability tools;
+   fault, and portability tools. Generated runtime checks execute from
+   temporary scripts, retaining the full semantic corpus without exceeding
+   the Windows `CreateProcess` command-line limit;
 3. macOS forces one native architecture and uses a temporary
    ASan-linked `Py_BytesMain` launcher. A preload probe rejects the lane unless
    the compiler-selected runtime is already loaded before extension import;
 4. portability smoke revalidates the manifest and runs four isolated stages.
    Python-stub and native HPy import paths are explicit, while every tested
    `.hpy0` byte remains unchanged.
+5. the first hosted Ubuntu GCC 13 benchmark reached the original 60-second O3
+   liveness ceiling. The versioned guard is now 180 seconds, while relative
+   generated/reference budgets remain unchanged; a skipped stress step no
+   longer produces a misleading missing-artifact failure.
 
-Local evidence on macOS ARM64 / CPython 3.11 / HPy 0.9 includes 122 quality
+Local evidence on macOS ARM64 / CPython 3.11 / HPy 0.9 includes 123 quality
 tests, generated normal/Trace/Debug execution, a staged CPython portability
 artifact, and the full ASan/UBSan generated corpus. No hosted platform or
 alternate interpreter is promoted until the replacement GitHub run is green
