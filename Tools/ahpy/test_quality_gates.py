@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from contextlib import redirect_stdout
+import io
+import json
 import os
 from pathlib import Path
 import re
@@ -42,24 +45,85 @@ class QualityGateTest(unittest.TestCase):
                 "gcc", "address,undefined")
         self.assertEqual(environment["LD_PRELOAD"].split(":")[0],
                          "/usr/lib/libasan.so")
+        self.assertIn("-O0", environment["CFLAGS"])
         self.assertIn("-fsanitize=address,undefined", environment["CFLAGS"])
         self.assertIn("halt_on_error=1", environment["UBSAN_OPTIONS"])
 
+    @mock.patch.object(
+        run_sanitized_hpy.platform, "machine", return_value="arm64")
     @mock.patch.object(run_sanitized_hpy.sys, "platform", "darwin")
     @mock.patch.object(run_sanitized_hpy.subprocess, "run")
-    def test_sanitizer_environment_preloads_apple_runtime(self, run):
+    def test_sanitizer_environment_preloads_apple_runtime(
+        self, run, _machine,
+    ):
         run.return_value.stdout = "/toolchain/libclang_rt.asan_osx_dynamic.dylib\n"
         with mock.patch.object(Path, "is_file", return_value=True):
             environment = run_sanitized_hpy.sanitizer_environment(
                 "clang", "address,undefined")
         self.assertEqual(
-            environment["DYLD_INSERT_LIBRARIES"].split(":")[0],
+            environment["AHPY_ASAN_RUNTIME"],
             "/toolchain/libclang_rt.asan_osx_dynamic.dylib",
         )
+        self.assertNotIn("DYLD_INSERT_LIBRARIES", environment)
+        self.assertEqual(environment["ARCHFLAGS"], "-arch arm64")
+
+    def test_apple_launcher_replaces_program_name_before_python_init(self):
+        source = run_sanitized_hpy.APPLE_SANITIZER_LAUNCHER
+        self.assertIn('getenv("AHPY_REAL_PYTHON")', source)
+        self.assertIn("argv[0] = (char *)selected_python", source)
+        self.assertIn("Py_BytesMain(argc, argv)", source)
+
+    @mock.patch.object(
+        run_sanitized_hpy.shutil, "which", return_value="/usr/bin/otool")
+    @mock.patch.object(run_sanitized_hpy.subprocess, "run")
+    def test_macos_launcher_strips_universal2_arches_and_links_asan(
+        self, run, _which,
+    ):
+        runtime = "/toolchain/libclang_rt.asan_osx_dynamic.dylib"
+        with tempfile.TemporaryDirectory() as temp:
+            bindir = Path(temp)
+            python_config = bindir / "python3.11-config"
+            python_config.touch()
+            run.side_effect = (
+                mock.Mock(stdout=json.dumps({
+                    "bindir": str(bindir), "version": "3.11"})),
+                mock.Mock(stdout=(
+                    "-I/include -arch x86_64 -arch arm64 "
+                    "-L/lib -lpython3.11")),
+                mock.Mock(stdout=""),
+                mock.Mock(stdout="launcher:\n\t%s\n" % runtime),
+            )
+            environment = {
+                "ARCHFLAGS": "-arch arm64",
+                "AHPY_ASAN_RUNTIME": runtime,
+            }
+            with run_sanitized_hpy.macos_sanitizer_python(
+                "/selected/python", "clang", "address,undefined",
+                environment,
+            ) as launcher:
+                self.assertTrue(launcher.endswith("asan-python"))
+
+        compile_command = run.call_args_list[2].args[0]
+        self.assertNotIn("x86_64", compile_command)
         self.assertEqual(
-            environment["AHPY_DYLD_INSERT_LIBRARIES"],
-            environment["DYLD_INSERT_LIBRARIES"],
-        )
+            compile_command[compile_command.index("-arch") + 1], "arm64")
+        self.assertIn("-fsanitize=address,undefined", compile_command)
+        self.assertEqual(environment["AHPY_REAL_PYTHON"], "/selected/python")
+
+    @mock.patch.object(run_sanitized_hpy.subprocess, "run")
+    def test_macos_preload_probe_requires_selected_runtime(self, run):
+        run.return_value = mock.Mock(returncode=0, stdout="preloaded\n", stderr="")
+        environment = {
+            "AHPY_ASAN_RUNTIME": "/toolchain/libclang_rt.asan.dylib",
+            "ARCHFLAGS": "-arch arm64",
+        }
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(
+                run_sanitized_hpy.verify_macos_preload(
+                    "/tmp/asan-python", environment),
+                environment["AHPY_ASAN_RUNTIME"],
+            )
+        self.assertEqual(run.call_args.kwargs["env"], environment)
 
     def test_hpy_revisions_are_exactly_pinned(self):
         manifest = tomllib.loads(VERSION_MANIFEST.read_text(encoding="utf8"))
@@ -193,6 +257,15 @@ class QualityGateTest(unittest.TestCase):
             {target["status"] for target in targets.values()},
             {"hosted-run-pending"},
         )
+
+        workflow = (ROOT / ".github" / "workflows" /
+                    "ahpy-universal.yml").read_text(encoding="utf8")
+        job = workflow.split("  cross-interpreter:\n", 1)[1].split(
+            "  nightly-interpreter:\n", 1)[0]
+        self.assertIn("portability_smoke.py", job)
+        self.assertIn("Execute staged unchanged Universal binaries", job)
+        self.assertNotIn("import platform, hpy.universal", job)
+        self.assertIn("continue-on-error: true", job)
 
     def test_reproducible_flag_append_preserves_existing_flags(self):
         environment = {"CFLAGS": "-O2"}

@@ -8,6 +8,8 @@ import shutil
 import subprocess
 from tempfile import TemporaryDirectory
 
+from artifact_utils import require_universal_binary
+
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "tests" / "ahpy" / "bootstrap_answer.pyx"
@@ -143,9 +145,6 @@ def build_and_run(python, runtime_prefix=()):
         temp = Path(temp_dir)
         generated = temp / (MODULE_NAME + ".c")
         environment = os.environ.copy()
-        sanitizer_preload = environment.get("AHPY_DYLD_INSERT_LIBRARIES")
-        if sanitizer_preload:
-            environment["DYLD_INSERT_LIBRARIES"] = sanitizer_preload
         environment["PYTHONPATH"] = str(ROOT)
         run([
             python,
@@ -278,23 +277,15 @@ def build_and_run(python, runtime_prefix=()):
             "--build-base", str(build_root),
         ], cwd=temp, env=environment, stdout=subprocess.DEVNULL)
 
-        binaries = list(build_root.rglob(MODULE_NAME + "*.hpy0.*"))
-        if len(binaries) != 1:
-            raise AssertionError("expected one .hpy0 binary, got %r" % binaries)
-        build_lib = binaries[0].parent
+        binary = require_universal_binary(build_root, MODULE_NAME)
+        build_lib = binary.parent
         if not build_lib.joinpath(MODULE_NAME + ".py").exists():
             raise AssertionError("HPy universal loader stub was not generated")
-        verify_binary_boundary(binaries[0])
-        retry_binaries = list(build_root.rglob(RETRY_MODULE_NAME + "*.hpy0.*"))
-        if len(retry_binaries) != 1:
-            raise AssertionError(
-                "expected one retry .hpy0 binary, got %r" % retry_binaries)
-        verify_binary_boundary(retry_binaries[0])
-        type_binaries = list(build_root.rglob(TYPE_MODULE_NAME + "*.hpy0.*"))
-        if len(type_binaries) != 1:
-            raise AssertionError(
-                "expected one pure-type .hpy0 binary, got %r" % type_binaries)
-        verify_binary_boundary(type_binaries[0])
+        verify_binary_boundary(binary)
+        retry_binary = require_universal_binary(build_root, RETRY_MODULE_NAME)
+        verify_binary_boundary(retry_binary)
+        type_binary = require_universal_binary(build_root, TYPE_MODULE_NAME)
+        verify_binary_boundary(type_binary)
 
         retry_dependency = temp / "ahpy_retry_dependency.py"
         retry_dependency.write_text("# VALUE is added after the failed import.\n")

@@ -54,7 +54,13 @@ builds the module-function and pure-extension-type corpora, audits both
 binaries, copies each `.hpy0` file and Python loader unchanged, and records
 SHA-256 plus size metadata. PyPy 7.3.23 (Python 3.11.15 compatible) and GraalPy
 25.1.3 (Python 3.12 compatible) download that one artifact rather than
-rebuilding it. Their exact setup identifiers live in
+rebuilding it. The smoke driver verifies every manifest digest before running
+four isolated stages (module import and semantics for functions and pure HPy
+types). A signal or nonzero exit therefore identifies the exact failing stage.
+Interpreters exposing `hpy.universal` use the unchanged Python stubs; native
+HPy interpreters receive a temporary directory containing only byte-identical
+`.hpy0` binaries so a CPython loader stub cannot shadow their native importer.
+Their exact setup identifiers live in
 `tests/ahpy/interpreters.toml`. Both jobs are early warnings until their first
 green hosted executions are recorded; only then may `continue-on-error` be
 removed and the support matrix reconsidered.
@@ -68,9 +74,14 @@ This does not yet claim reproducible sdist or wheel archives.
 ## Sanitizers and deterministic output
 
 The Linux GCC and macOS ARM64 Apple Clang jobs instrument the generated
-extension and bundled HPy runtime with ASan and UBSan. The runner discovers and
-preloads the compiler-matching `libasan` or Apple dynamic ASan runtime before
-Python imports the extension, then stops at the first diagnostic.
+extension and bundled HPy runtime with ASan and UBSan at `-O0`. Linux discovers
+and preloads the compiler-matching `libasan`. macOS forces the runner's native
+architecture through `ARCHFLAGS`, builds a tiny `Py_BytesMain` launcher linked
+to the compiler-matching Apple ASan runtime, and proves that runtime is already
+loaded before the generated extension is imported. This avoids signed Python
+launchers discarding `DYLD_INSERT_LIBRARIES` and prevents a `universal2` link
+from combining native ARM64 objects with a missing x86-64 slice. Both lanes
+stop at the first diagnostic.
 `run_sanitized_hpy.py` sets `ASAN_OPTIONS=abort_on_error=1:detect_leaks=0:...`
 because the host CPython process is not built with matching instrumentation.
 LeakSanitizer is intentionally disabled in that mixed ASan lane; unsuppressed
@@ -134,7 +145,7 @@ than rejected fuzz cases.
 under Python line tracing, and greedily retains a candidate when it adds a new
 line in `HPyModuleWriter`, `HandleModel`, `RuntimeAPI`, `Nodes`, or `ExprNodes`,
 or introduces a new feature family. Seed `0xC0A4F9` selects 16 candidates,
-preserves all 16 families, and reaches a 4,075-line compiler frontier. The
+preserves all 16 families, and reaches a 4,141-line compiler frontier. The
 combined corpus covers arithmetic, containers, direct/expanded/keyword calls,
 globals, terminal handlers, loops, slices, comparisons, imports, mutation,
 starred values, in-place operators, and conditional expressions. It is
@@ -346,13 +357,13 @@ python3 Tools/ahpy/benchmark_hpy.py --python .venv-hpy09/bin/python \
     --output /tmp/ahpy-benchmark.json
 ```
 
-The sanitizer command supports Linux GCC and Apple Clang. The local signed
-Homebrew Python 3.11 executable on macOS 26 strips
-`DYLD_INSERT_LIBRARIES`, so that local Apple run is not recorded as green; the
-explicit `macos-15` hosted job remains the authoritative pending gate. Full
-Cython CPython regression coverage remains in the repository's existing
-`ci.yml`; the aHPy workflow adds the focused C/C++ semantic oracle so backend
-changes receive a fast, explicit parity signal.
+The sanitizer command supports Linux GCC and Apple Clang. The ASan-linked
+launcher makes the local signed Homebrew Python 3.11 lane executable without
+mutating that interpreter; local macOS ARM64 normal/Trace/Debug plus ASan/UBSan
+is green. The explicit `macos-15` hosted job remains the authoritative pending
+platform gate. Full Cython CPython regression coverage remains in the
+repository's existing `ci.yml`; the aHPy workflow adds the focused C/C++
+semantic oracle so backend changes receive a fast, explicit parity signal.
 
 The allocation/API fault-injection gate passes all 128 isolated normal/Debug
 processes. An early ad-hoc stress run once produced an import `SystemError`
@@ -369,14 +380,14 @@ failure paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 466 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 476 focused tests under Python's built-in
 line-event tracer and derives executable lines from nested code-object line
 tables. It reports the Universal backend, touched Cython frontend seam, and
 quality tools independently, plus ownership, Runtime API, emitter,
 compiler-seam, and quality-tool feature families. The current Python 3.11
-validation records 74.02%, 28.78%, and 35.47%, including installed packaging
+validation records 74.02%, 28.78%, and 35.94%, including installed packaging
 and build-contract modules in the quality-tools denominator. Python 3.14.6
-records 73.20%, 28.65%, and 35.57%. CI keeps cross-version floors of 71%, 25%,
+records 73.20%, 28.65%, and 36.04%. CI keeps cross-version floors of 71%, 25%,
 and 35%.
 
 Every external `uses:` entry in the aHPy workflow is pinned to a full

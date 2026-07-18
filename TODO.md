@@ -1136,6 +1136,9 @@ until its full existing Cython test subset and new HPy-specific tests pass.
           machine-readable manifest; build and hash one CPython-hosted
           Universal artifact, then download that unchanged artifact in both
           target jobs.
+    - [x] Verify every downloaded member digest, separate Python-stub and
+          native HPy loading, and isolate module imports/semantics into four
+          subprocess stages so a signal identifies its exact boundary.
     - [ ] Record the first green hosted execution on both interpreters and
           remove `continue-on-error` before claiming cross-interpreter support.
 - [x] Add the HPy 0.9 release lane and a full-commit-pinned HPy development
@@ -1158,7 +1161,9 @@ until its full existing Cython test subset and new HPy-specific tests pass.
   - [x] Add a Linux GCC ASan/UBSan build-and-execute job with matching
         `libasan` preload and fail-fast diagnostics.
   - [x] Add an Apple Clang ASan/UBSan job that discovers and preloads the
-        matching dynamic sanitizer runtime before Python imports the module.
+        matching dynamic sanitizer runtime before Python imports the module;
+        use a native-architecture ASan-linked `Py_BytesMain` launcher because
+        signed Python executables may discard `DYLD_INSERT_LIBRARIES`.
   - [ ] Add a separately validated LSan/Valgrind lane with versioned
         suppressions for the uninstrumented host interpreter; do not treat
         unrelated interpreter allocations as backend leaks.

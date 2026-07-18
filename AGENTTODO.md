@@ -83,15 +83,15 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 112 tests pass (one expected Valgrind availability skip
+- Quality-tool suite: 122 tests pass (one expected Valgrind availability skip
   on macOS).
-- Focused coverage (post–clean-checkout direct-build regression, Python 3.11):
-  466 tests
+- Focused coverage (post–hosted-platform CI regressions, Python 3.11):
+  476 tests
   traced.
-  - backend 74.02%, frontend_seam 28.78%, quality_tools 35.47%.
+  - backend 74.02%, frontend_seam 28.78%, quality_tools 35.94%.
   - CI floors remain 71%, 25%, and 35%; do not lower them to hide new code.
   - Python 3.14.6: backend 73.20%, frontend seam 28.65%, quality tools
-    35.57%; current dual-interpreter floors remain satisfied.
+    36.04%; current dual-interpreter floors remain satisfied.
 - Fault injection: 128 isolated normal/Debug cases pass sequentially.
 - Bounded parallel HPy stress: five full rounds, 640 fault selectors, twenty
   child gates, no timeout or `SystemError`; recursive descendant cleanup is
@@ -99,7 +99,7 @@ Last verified local gates:
 - Fixed-seed supported-surface fuzz: 48 cases pass (`dir()`/`globals()` side
   effects, method-call, Python `type()` surface, plus five M5 reject samples).
 - Coverage-guided fuzz: 16 of 64 mutations retained across 16 families and a
-  4,075-line compiler frontier; normal/Debug oracle and ABI audits pass.
+  4,141-line compiler frontier; normal/Debug oracle and ABI audits pass.
 - Performance gate: generated and handwritten Universal HPy modules pass nine
   versioned runtime budgets, footprint budgets, binary audits, and Debug leak
   checks. CI writes a timestamped JSON history artifact.
@@ -198,6 +198,9 @@ A1 is done. Proceed when unblocked:
   now derives the repository root from its own file and a cwd/PYTHONPATH-isolated
   subprocess regression guards that contract. Hosted rerun evidence pending.)**
 - A3 same-binary PyPy/GraalPy hosted hashes — blocked until hosted jobs.
+  **(the artifact now revalidates all hashes, separates Python-stub and native
+  HPy loading, and isolates four import/semantic stages; new hosted evidence is
+  still required before either target is promoted.)**
 - A4 nightly contract tests / wording guards (local remaining pieces).
   **(manifest status-set guards, stable-vs-nightly separation, hosted-pending
   wording checks, ASan `detect_leaks=0` documentation, and nightly job

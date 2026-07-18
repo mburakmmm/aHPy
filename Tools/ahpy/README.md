@@ -38,10 +38,14 @@ unambiguous.
 declared platform/compiler matrix, sanitizer setup, and byte-for-byte
 deterministic Universal source generation. `run_sanitized_hpy.py` builds and
 runs the real generated corpus with GCC ASan/UBSan on Linux and Apple Clang on
-macOS, provided the selected Python executable permits dynamic sanitizer
-preloading. `ASAN_OPTIONS` sets `detect_leaks=0` because the host CPython
-process is not built with matching instrumentation; that ASan lane is therefore
-not an LSan leak gate. LeakSanitizer remains disabled in that mixed
+macOS. Linux preloads the compiler-selected `libasan`; macOS pins the native
+architecture and runs through a temporary `Py_BytesMain` launcher linked to
+the compiler-selected Apple ASan runtime, avoiding signed-launcher dyld
+filtering and `universal2` cross-architecture links. Both compile the generated
+corpus at `-O0` with frame pointers. `ASAN_OPTIONS` sets `detect_leaks=0`
+because the host CPython process is not built with matching instrumentation;
+that ASan lane is therefore not an LSan leak gate. LeakSanitizer remains
+disabled in that mixed
 instrumented-extension/uninstrumented-interpreter process. The independent
 schedule/manual Linux `run_lsan_hpy.py` lane runs a mandatory C leak positive
 control and then all five generated-corpus normal/Trace/Debug runtime processes
@@ -159,7 +163,7 @@ files while compiling every candidate, and greedily retains candidates that
 add line coverage or a previously unseen family. The selected corpus is then
 compiled once, source/binary audited, and compared to execution of the same
 Python source in normal and HPy Debug modes. Seed `0xC0A4F9` currently selects
-16 mutations and a 4,075-line compiler frontier; three unit tests guard source
+16 mutations and a 4,141-line compiler frontier; three unit tests guard source
 determinism, greedy selection, and isolation from global random state.
 
 `benchmark_hpy.py` builds nine equivalent operations twice: once from aHPy
@@ -217,9 +221,12 @@ the 4.98 MB, 87,259-line C file; hosted history must precede a tighter limit.
 `bootstrap_types` once with the CPython 3.11/HPy 0.9 builder, rejects forbidden
 binary imports, copies the `.hpy0` files and loader stubs without rebuilding,
 and writes sizes plus SHA-256 digests to `artifact-manifest.json`.
-`portability_smoke.py` is then executed against those exact files by the pinned
-PyPy and GraalPy hosted jobs. Until both first runs are green, these jobs remain
-allowed-failure early warnings rather than support claims.
+`portability_smoke.py` revalidates every digest and runs imports/semantics in
+four isolated subprocess stages. Python `hpy.universal` runtimes use the
+unchanged stubs; native HPy runtimes use a temporary directory containing only
+the unchanged binaries so CPython stubs cannot shadow native loading. The
+pinned PyPy and GraalPy jobs remain allowed-failure early warnings until both
+first runs are green.
 
 `verify_reproducible_artifact.py` performs two independent builds with a fixed
 `SOURCE_DATE_EPOCH`, deterministic archive mode, and compiler

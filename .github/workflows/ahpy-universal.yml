@@ -367,11 +367,11 @@ jobs:
         with:
           name: ahpy-linux-x64-universal
           path: portability-artifact
-      - name: Report interpreter and HPy loader
+      - name: Report target interpreter
         run: >-
-          python -c "import platform, hpy.universal;
+          python -c "import platform;
           print(platform.python_implementation(), platform.python_version())"
-      - name: Execute exactly the uploaded binary
+      - name: Execute staged unchanged Universal binaries
         run: python portability-artifact/portability_smoke.py
 
   nightly-interpreter:

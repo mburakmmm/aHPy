@@ -13,6 +13,7 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 
+from artifact_utils import find_universal_binaries
 from test_generated_hpy import run, verify_binary_boundary, verify_source_boundary
 
 
@@ -95,7 +96,7 @@ def build_artifact(python, output):
             "--build-base", str(build_root),
         ], cwd=temp, env=environment, stdout=subprocess.DEVNULL)
 
-        binaries = sorted(build_root.rglob("*.hpy0.*"))
+        binaries = find_universal_binaries(build_root)
         if len(binaries) != len(SOURCES):
             raise AssertionError(
                 "expected %d Universal binaries, got %r" %
@@ -108,7 +109,7 @@ def build_artifact(python, output):
         artifact_names = []
         for module_name, _ in SOURCES:
             candidates = (
-                list(build_lib.glob(module_name + "*.hpy0.*")) +
+                find_universal_binaries(build_lib, module_name) +
                 [build_lib / (module_name + ".py")]
             )
             for candidate in candidates:

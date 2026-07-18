@@ -11,7 +11,7 @@ when it executes a previously unseen line in `HPyModuleWriter`, `HandleModel`,
 `RuntimeAPI`, `Nodes`, or `ExprNodes`, or represents a previously unseen family.
 
 The current Python 3.11 run selects 16/64 candidates, retains all 16 families,
-and records 4,075 compiler/backend lines. The selection is source ordered and
+and records 4,141 compiler/backend lines. The selection is source ordered and
 depends only on the explicit seed and observed line sets; it does not modify
 Python's global random state.
 

@@ -12,6 +12,7 @@ import sys
 from tempfile import TemporaryDirectory
 import zipfile
 
+from artifact_utils import require_universal_binary
 from test_generated_hpy import run, verify_binary_boundary, verify_source_boundary
 
 
@@ -108,13 +109,11 @@ def build_and_run(python):
                 "HPy_ReenterPythonExecution",
             ),
         )
-        binaries = list(build_root.rglob(MODULE_NAME + "*.hpy0.*"))
-        if len(binaries) != 1:
-            raise AssertionError("expected one .hpy0 binary, got %r" % binaries)
-        verify_binary_boundary(binaries[0])
+        binary = require_universal_binary(build_root, MODULE_NAME)
+        verify_binary_boundary(binary)
 
         runtime_environment = environment.copy()
-        runtime_environment["PYTHONPATH"] = str(binaries[0].parent)
+        runtime_environment["PYTHONPATH"] = str(binary.parent)
         run([
             python, "-c", _runtime_program(False),
         ], cwd=temp, env=runtime_environment)

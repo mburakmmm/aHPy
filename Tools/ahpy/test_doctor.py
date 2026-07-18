@@ -88,8 +88,10 @@ class DoctorTest(unittest.TestCase):
 
     def test_main_preserves_virtualenv_symlink_path(self):
         with TemporaryDirectory() as temp:
+            target = Path(temp) / "python-target"
+            target.touch()
             python = Path(temp) / "python"
-            python.symlink_to("/usr/bin/python3")
+            python.symlink_to(target.name)
             with (
                 mock.patch.object(
                     doctor, "build_report",
@@ -104,9 +106,10 @@ class DoctorTest(unittest.TestCase):
             ):
                 with redirect_stdout(io.StringIO()):
                     self.assertEqual(doctor.main(), 0)
-        selected = build_report.call_args.args[0]
-        self.assertEqual(selected, os.path.abspath(python))
-        self.assertNotEqual(selected, os.path.realpath(python))
+            selected = build_report.call_args.args[0]
+            self.assertEqual(selected, os.path.abspath(python))
+            self.assertEqual(os.path.realpath(python), str(target.resolve()))
+            self.assertNotEqual(selected, os.path.realpath(python))
 
 
 if __name__ == "__main__":
