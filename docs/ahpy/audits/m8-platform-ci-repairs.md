@@ -25,7 +25,9 @@ The repairs keep the test strength:
    `.hpy0.pyd` suffix, excluding linker sidecars across integration, fuzz,
    fault, and portability tools. Generated runtime checks execute from
    temporary scripts, retaining the full semantic corpus without exceeding
-   the Windows `CreateProcess` command-line limit;
+   the Windows `CreateProcess` command-line limit. The non-setuptools direct
+   builder uses `vswhere.exe` and `vcvarsall.bat` when `cl.exe` is not already
+   available, then invokes the compiler and linker commands itself;
 3. macOS forces one native architecture and uses a temporary
    ASan-linked `Py_BytesMain` launcher. A preload probe rejects the lane unless
    the compiler-selected runtime is already loaded before extension import;
@@ -37,7 +39,7 @@ The repairs keep the test strength:
    generated/reference budgets remain unchanged; a skipped stress step no
    longer produces a misleading missing-artifact failure.
 
-Local evidence on macOS ARM64 / CPython 3.11 / HPy 0.9 includes 123 quality
+Local evidence on macOS ARM64 / CPython 3.11 / HPy 0.9 includes 125 quality
 tests, generated normal/Trace/Debug execution, a staged CPython portability
 artifact, and the full ASan/UBSan generated corpus. No hosted platform or
 alternate interpreter is promoted until the replacement GitHub run is green

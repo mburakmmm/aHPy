@@ -100,7 +100,8 @@ CPython-specific compatibility tag is not a Universal distribution claim.
 `direct_build.py` is the versioned non-setuptools build API/CLI. It probes the
 selected interpreter, creates an auditable Universal compile/link plan, uses
 HPy's helper static library or source fallback, refuses unsafe output reuse,
-and verifies the generated source and linked binary. `direct_build_integration.py`
+activates the installed MSVC toolchain through `vswhere`/`vcvarsall` when
+needed, and verifies the generated source and linked binary. `direct_build_integration.py`
 generates the maintained module and loads the direct artifact through public
 `hpy.universal.load` in normal and Debug modes. See
 `docs/ahpy/direct-build.md`; this path intentionally does not create a wheel or

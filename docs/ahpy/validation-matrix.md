@@ -256,7 +256,9 @@ the selected interpreter for its HPy development contract, compiles and links
 the artifact without setuptools, verifies source and undefined symbols, and
 loads it with public `hpy.universal.load` in normal and Debug LeakDetector
 modes. Unit tests cover POSIX/static and MSVC/export plans plus fail-closed
-inputs. The stable platform/compiler matrix executes the same integration;
+inputs. On Windows the executor locates Visual Studio with `vswhere.exe` and
+loads `vcvarsall.bat` only when `cl.exe` is not already on `PATH`; compile and
+link execution remains direct. The stable platform/compiler matrix executes the same integration;
 declared jobs are not promoted to support until hosted evidence is reviewed.
 
 ## Isolated PEP 517 frontend gate
@@ -380,14 +382,14 @@ failure paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 477 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 479 focused tests under Python's built-in
 line-event tracer and derives executable lines from nested code-object line
 tables. It reports the Universal backend, touched Cython frontend seam, and
 quality tools independently, plus ownership, Runtime API, emitter,
 compiler-seam, and quality-tool feature families. The current Python 3.11
-validation records 74.02%, 28.78%, and 35.94%, including installed packaging
+validation records 74.02%, 28.78%, and 36.72%, including installed packaging
 and build-contract modules in the quality-tools denominator. Python 3.14.6
-records 73.20%, 28.65%, and 36.04%. CI keeps cross-version floors of 71%, 25%,
+records 73.20%, 28.65%, and 36.82%. CI keeps cross-version floors of 71%, 25%,
 and 35%.
 
 Every external `uses:` entry in the aHPy workflow is pinned to a full

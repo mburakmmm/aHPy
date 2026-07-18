@@ -4,7 +4,9 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 import unittest
+from unittest import mock
 
+import direct_build
 from direct_build import create_build_plan
 
 
@@ -85,6 +87,55 @@ class DirectBuildTest(unittest.TestCase):
         self.assertTrue(plan["artifact"].endswith("demo.hpy0.pyd"))
         self.assertIn("/DHPY_ABI_UNIVERSAL", plan["compile_commands"][0])
         self.assertIn("/EXPORT:HPyInit_demo", plan["link_command"])
+
+    @mock.patch.object(direct_build.shutil, "which")
+    @mock.patch.object(direct_build.subprocess, "run")
+    def test_msvc_environment_uses_vswhere_and_vcvarsall(self, run, which):
+        with TemporaryDirectory() as temp:
+            program_files = Path(temp) / "Program Files (x86)"
+            vswhere = (
+                program_files / "Microsoft Visual Studio" /
+                "Installer" / "vswhere.exe"
+            )
+            vswhere.parent.mkdir(parents=True)
+            vswhere.touch()
+            installation = Path(temp) / "Visual Studio"
+            vcvarsall = (
+                installation / "VC" / "Auxiliary" / "Build" /
+                "vcvarsall.bat"
+            )
+            vcvarsall.parent.mkdir(parents=True)
+            vcvarsall.touch()
+            run.side_effect = (
+                mock.Mock(stdout=str(installation) + "\n"),
+                mock.Mock(stdout="Path=C:\\msvc\\bin\nINCLUDE=C:\\msvc\\include\n"),
+            )
+            which.side_effect = (None, None, "C:\\msvc\\bin\\cl.exe")
+
+            environment = direct_build.discover_msvc_environment(
+                "AMD64",
+                {
+                    "PATH": "C:\\Windows",
+                    "ProgramFiles(x86)": str(program_files),
+                    "COMSPEC": "C:\\Windows\\cmd.exe",
+                },
+            )
+
+        self.assertEqual(environment["Path"], "C:\\msvc\\bin")
+        self.assertEqual(environment["INCLUDE"], "C:\\msvc\\include")
+        self.assertEqual(run.call_args_list[0].args[0][0], str(vswhere))
+        vcvars_command = run.call_args_list[1].args[0]
+        self.assertIn(str(vcvarsall), vcvars_command[-1])
+        self.assertIn(" x64 ", vcvars_command[-1])
+
+    @mock.patch.object(
+        direct_build.shutil, "which", return_value="C:\\tools\\cl.exe")
+    def test_msvc_environment_preserves_an_active_toolchain(self, _which):
+        environment = {"PATH": "C:\\tools", "MARKER": "preserved"}
+        self.assertEqual(
+            direct_build.discover_msvc_environment("x86_64", environment),
+            environment,
+        )
 
     def test_invalid_module_and_missing_static_runtime_fail_closed(self):
         with TemporaryDirectory() as temp:

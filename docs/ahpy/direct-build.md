@@ -16,6 +16,11 @@ The version-1 plan contract contains:
   the exact artifact path, target Python, HPy version, platform, and machine;
 - MSVC's explicit `HPyInit_<module>` export contract.
 
+On Windows, an already-active `cl.exe` environment is preserved. Otherwise
+the executor locates Visual Studio through `vswhere.exe`, loads the target's
+`vcvarsall.bat` environment, and still runs every recorded compiler/linker argv
+itself; setuptools is not used as a build driver.
+
 The executor refuses to overwrite an artifact or reuse a non-empty object
 directory. Before compilation it applies the generated-source Universal
 boundary audit; after linking it rejects forbidden undefined CPython symbols

@@ -4,6 +4,8 @@ binary discovery, execute large runtime checks from temporary scripts, run
 Apple sanitizers through a native ASan-linked Python
 launcher, and stage same-binary PyPy/GraalPy imports with explicit native versus
 Python-stub loader provenance.
+The non-setuptools Windows builder now discovers and activates the installed
+MSVC toolchain before invoking ``cl.exe`` directly.
 The hosted large-type GCC ``-O3`` liveness guard is now 180 seconds, and a
 stress artifact upload is skipped when an earlier gate prevents stress from
 running.
