@@ -36,6 +36,8 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
                 "tests/ahpy/requirements-hpy09.txt",
                 "docs/ahpy/onboarding.md",
                 "examples/ahpy_pep517/pyproject.toml",
+                "CONTRIBUTING.md",
+                "SECURITY.md",
             ):
                 self.assertTrue((destination / relative).is_file(), relative)
             self.assertFalse(any(

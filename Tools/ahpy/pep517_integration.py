@@ -47,6 +47,7 @@ def _copy_frontend_source(destination):
         "CHANGES.rst", "COPYING.txt", "LICENSE.txt", "MANIFEST.in",
         "cython.py", "ahpy_version.py", "ahpy_build_backend.py",
         "ahpy_build_config.py", "TODO.md", "AGENTTODO.md",
+        "CONTRIBUTING.md", "SECURITY.md",
     ):
         shutil.copy2(ROOT / name, destination / name)
 

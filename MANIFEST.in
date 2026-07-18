@@ -1,5 +1,5 @@
 include MANIFEST.in README.rst CHANGES.rst COPYING.txt LICENSE.txt
-include TODO.md AGENTTODO.md
+include TODO.md AGENTTODO.md CONTRIBUTING.md SECURITY.md
 include setup.py setup.cfg pyproject.toml
 include ahpy_version.py ahpy_build_backend.py ahpy_build_config.py cython.py
 include bin/*

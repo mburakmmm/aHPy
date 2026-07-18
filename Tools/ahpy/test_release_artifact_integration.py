@@ -31,6 +31,8 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
         "examples/ahpy_pep517/pyproject.toml",
         "pyximport/__init__.py",
         "LICENSE.txt",
+        "CONTRIBUTING.md",
+        "SECURITY.md",
     )
 
     def write_sdist(self, path, *, extra_members=(), metadata=None):

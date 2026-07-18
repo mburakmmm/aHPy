@@ -68,6 +68,8 @@ def verify_sdist(sdist):
         "/examples/ahpy_pep517/pyproject.toml",
         "/pyximport/__init__.py",
         "/LICENSE.txt",
+        "/CONTRIBUTING.md",
+        "/SECURITY.md",
     )
     with tarfile.open(sdist, "r:gz") as archive:
         members = archive.getmembers()

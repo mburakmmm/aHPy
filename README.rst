@@ -134,12 +134,16 @@ License.  See `LICENSE.txt <LICENSE.txt>`_.
 Contributing
 ------------
 
-Start with `AGENTTODO.md <AGENTTODO.md>`_ for the verified snapshot and exact
+Read `CONTRIBUTING.md <CONTRIBUTING.md>`_, then start with
+`AGENTTODO.md <AGENTTODO.md>`_ for the verified snapshot and exact
 validation commands, then use `TODO.md <TODO.md>`_ for normative milestone and
 release criteria.  Keep unsupported Universal features fail-closed and include
 ownership, failure-path, CPython-regression, documentation, and audit evidence
 with each change.  Upstream Cython contribution guidance remains available in
 `docs/CONTRIBUTING.rst <docs/CONTRIBUTING.rst>`_.
+
+Security vulnerabilities must not be posted publicly; follow
+`SECURITY.md <SECURITY.md>`_ for the private reporting path.
 
 Upstream Cython background
 --------------------------
