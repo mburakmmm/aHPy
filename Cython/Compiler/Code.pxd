@@ -62,6 +62,9 @@ cdef class FunctionState:
     cdef set zombie_temps
     cdef size_t temp_counter
     cdef list[set[tuple]] collect_temps_stack
+    cdef public object handle_temps
+    cdef public object handle_builders
+    cdef public object runtime_context_cname
 
     cdef readonly object closure_temps
     cdef bint should_declare_error_indicator

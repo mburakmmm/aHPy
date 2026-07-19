@@ -574,11 +574,11 @@ class HandleBuilderManagerTest(TestCase):
 
     def test_sequence_emitter_uses_separate_hpy_builder_lifecycle(self):
         writer = CCodeWriter()
-        writer.globalstate = SimpleNamespace(
-            runtime_api=create_runtime_api(HPY_UNIVERSAL_BACKEND))
-        writer.code_config = CCodeConfig()
-        writer.funcstate = FunctionState(
-            writer, scope=SimpleNamespace(name="builder_emitter"))
+        writer.set_global_state(SimpleNamespace(
+            runtime_api=create_runtime_api(HPY_UNIVERSAL_BACKEND),
+            code_config=CCodeConfig(),
+        ))
+        writer.enter_cfunc_scope(SimpleNamespace(name="builder_emitter"))
         writer.funcstate.bind_runtime_context(writer.globalstate.runtime_api)
 
         item = _BorrowedHandleExpression(None)
@@ -668,7 +668,11 @@ class HandleExpressionTemporaryTest(TestCase):
         code = _HandleExpressionCode()
         expression = _HandleExpression(None)
         expression.allocate_temp_result(code)
-        temp_type, manage_ref = code.funcstate.temps_used_type[expression.result()]
+        active_temps = {
+            name: (temp_type, manage_ref)
+            for name, temp_type, manage_ref in code.funcstate.temps_in_use()
+        }
+        temp_type, manage_ref = active_temps[expression.result()]
         self.assertIs(temp_type, hpy_handle_type)
         self.assertFalse(manage_ref)
         expression.generate_disposal_code(code)
@@ -725,10 +729,11 @@ class RuntimeGlobalLoadOwnershipTest(TestCase):
     @staticmethod
     def _writer(backend):
         writer = CCodeWriter()
-        writer.globalstate = SimpleNamespace(runtime_api=create_runtime_api(backend))
-        writer.code_config = CCodeConfig()
-        writer.funcstate = FunctionState(
-            writer, scope=SimpleNamespace(name="global_load"))
+        writer.set_global_state(SimpleNamespace(
+            runtime_api=create_runtime_api(backend),
+            code_config=CCodeConfig(),
+        ))
+        writer.enter_cfunc_scope(SimpleNamespace(name="global_load"))
         return writer
 
     def test_hpy_global_load_is_owned_temp_closed_exactly_once(self):
