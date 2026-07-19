@@ -1,4 +1,5 @@
 # mode: compile
+# distutils: sources = ../../../../tests/ahpy/benchmark_external.c
 
 """Representative runtime paths for the aHPy performance regression gate."""
 
