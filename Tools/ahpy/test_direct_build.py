@@ -125,8 +125,12 @@ class DirectBuildTest(unittest.TestCase):
         self.assertEqual(environment["INCLUDE"], "C:\\msvc\\include")
         self.assertEqual(run.call_args_list[0].args[0][0], str(vswhere))
         vcvars_command = run.call_args_list[1].args[0]
-        self.assertIn(str(vcvarsall), vcvars_command[-1])
-        self.assertIn(" x64 ", vcvars_command[-1])
+        self.assertEqual(vcvars_command[1:3], ["/d", "/c"])
+        self.assertTrue(vcvars_command[-1].endswith("activate.cmd"))
+        activation_source = direct_build._msvc_activation_script(
+            vcvarsall, "x64")
+        self.assertIn('call "%s" x64' % vcvarsall, activation_source)
+        self.assertIn("if errorlevel 1 exit /b 1", activation_source)
 
     @mock.patch.object(
         direct_build.shutil, "which", return_value="C:\\tools\\cl.exe")

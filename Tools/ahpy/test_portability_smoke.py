@@ -59,6 +59,31 @@ class PortabilitySmokeTest(unittest.TestCase):
         find_spec.return_value = object()
         self.assertTrue(portability_smoke.has_python_hpy_loader())
 
+    @mock.patch.object(
+        portability_smoke, "has_python_hpy_loader", return_value=True)
+    def test_pypy_and_graalpy_prefer_native_importers(self, _has_loader):
+        for implementation in ("PyPy", "GraalVM"):
+            with self.subTest(implementation=implementation):
+                with mock.patch.object(
+                    portability_smoke.platform,
+                    "python_implementation",
+                    return_value=implementation,
+                ):
+                    self.assertEqual(
+                        portability_smoke.select_loader_mode(), "native")
+
+    @mock.patch.object(
+        portability_smoke.platform,
+        "python_implementation",
+        return_value="CPython",
+    )
+    @mock.patch.object(portability_smoke, "has_python_hpy_loader")
+    def test_cpython_requires_the_python_loader(self, has_loader, _implementation):
+        has_loader.return_value = True
+        self.assertEqual(portability_smoke.select_loader_mode(), "python-stub")
+        has_loader.return_value = False
+        self.assertEqual(portability_smoke.select_loader_mode(), "native")
+
 
 if __name__ == "__main__":
     unittest.main()

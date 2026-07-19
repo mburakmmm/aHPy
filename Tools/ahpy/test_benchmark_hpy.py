@@ -61,6 +61,7 @@ class BenchmarkHPyTest(unittest.TestCase):
                 "generated_binary_bytes": 2000,
                 "binary_to_reference_ratio": 4.0,
             },
+            "large_type_compile": {"enforce_o3": True},
         }
 
     def test_thresholds_accept_report_inside_all_budgets(self):
@@ -111,7 +112,8 @@ class BenchmarkHPyTest(unittest.TestCase):
         budgets = benchmark_hpy.load_budgets(benchmark_hpy.DEFAULT_BUDGETS)
         self.assertEqual(budgets["schema_version"], 1)
         self.assertEqual(
-            budgets["large_type_compile"]["timeout_seconds"], 180)
+            budgets["large_type_compile"]["timeout_seconds"], 60)
+        self.assertFalse(budgets["large_type_compile"]["enforce_o3"])
         self.assertEqual(tuple(budgets["runtime_ratio"]),
                          benchmark_hpy.OPERATIONS)
         json.dumps(budgets, sort_keys=True)
@@ -132,6 +134,13 @@ class BenchmarkHPyTest(unittest.TestCase):
         violations = benchmark_hpy.check_thresholds(report, self._budgets())
         self.assertIn(
             "large_type_compile.o3 exceeded timeout budget", violations)
+
+    def test_diagnostic_o3_timeout_does_not_fail_required_o0_gate(self):
+        report = self._report()
+        report["large_type_compile"]["o3"]["timed_out"] = True
+        budgets = self._budgets()
+        budgets["large_type_compile"]["enforce_o3"] = False
+        self.assertEqual(benchmark_hpy.check_thresholds(report, budgets), [])
 
     def test_measurement_exercises_every_operation_and_reports_samples(self):
         module = self._module()

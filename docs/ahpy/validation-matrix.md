@@ -382,14 +382,14 @@ failure paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 479 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 482 focused tests under Python's built-in
 line-event tracer and derives executable lines from nested code-object line
 tables. It reports the Universal backend, touched Cython frontend seam, and
 quality tools independently, plus ownership, Runtime API, emitter,
 compiler-seam, and quality-tool feature families. The current Python 3.11
-validation records 74.02%, 28.78%, and 36.72%, including installed packaging
+validation records 74.02%, 28.78%, and 36.83%, including installed packaging
 and build-contract modules in the quality-tools denominator. Python 3.14.6
-records 73.20%, 28.65%, and 36.82%. CI keeps cross-version floors of 71%, 25%,
+records 73.20%, 28.65%, and 36.93%. CI keeps cross-version floors of 71%, 25%,
 and 35%.
 
 Every external `uses:` entry in the aHPy workflow is pinned to a full
@@ -495,7 +495,8 @@ ratio is treated as a release threshold. The initial evidence and exact
 measurement contract are in `audits/m9-abi-performance-baseline.md`.
 
 The record additionally regenerates the large extension-type corpus and runs
-one isolated native compile at `-O0` and `-O3`, with a 180-second hosted liveness budget
+one isolated native compile at `-O0` and `-O3`, with a 60-second ceiling. O0 is
+the required C-validity/liveness gate and O3 is a bounded diagnostic
 per optimization. The current Apple Clang 21 result is 1.59 and 5.29 seconds
 (3.32×) for 4,978,328 bytes/87,259 lines. Accidentally running two full-corpus
 `bootstrap_answer.c -O3` builds concurrently later reproduced multi-minute

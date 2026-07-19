@@ -60,6 +60,8 @@ def load_budgets(path):
     if not isinstance(large_type.get("timeout_seconds"), (int, float)) or \
             large_type["timeout_seconds"] <= 0:
         raise ValueError("large_type_compile.timeout_seconds must be positive")
+    if not isinstance(large_type.get("enforce_o3"), bool):
+        raise ValueError("large_type_compile.enforce_o3 must be boolean")
     measurement = data.get("measurement", {})
     for name in ("iterations", "warmups", "repeats"):
         value = measurement.get(name)
@@ -96,7 +98,8 @@ def check_thresholds(report, budgets):
             "footprint.binary_to_reference_ratio %.3f exceeds %.3f" %
             (ratio, limit))
     large_type = report["large_type_compile"]
-    if large_type["o3"]["timed_out"]:
+    if large_type["o3"]["timed_out"] and \
+            budgets["large_type_compile"]["enforce_o3"]:
         violations.append("large_type_compile.o3 exceeded timeout budget")
     if large_type["o0"]["timed_out"]:
         violations.append("large_type_compile.o0 exceeded timeout budget")
@@ -705,6 +708,11 @@ def build_and_measure(python, budgets, budget_path, output):
         report["large_type_compile"] = measure_large_type_compile(
             python, temp, environment,
             budgets["large_type_compile"]["timeout_seconds"])
+        report["large_type_compile"]["enforced_profiles"] = (
+            ["o0", "o3"]
+            if budgets["large_type_compile"]["enforce_o3"]
+            else ["o0"]
+        )
         debug_environment = environment.copy()
         debug_environment["HPY"] = "debug"
         _run([

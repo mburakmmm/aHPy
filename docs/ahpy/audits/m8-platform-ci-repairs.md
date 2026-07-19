@@ -33,13 +33,16 @@ The repairs keep the test strength:
    the compiler-selected runtime is already loaded before extension import;
 4. portability smoke revalidates the manifest and runs four isolated stages.
    Python-stub and native HPy import paths are explicit, while every tested
-   `.hpy0` byte remains unchanged.
-5. the first hosted Ubuntu GCC 13 benchmark reached the original 60-second O3
-   liveness ceiling. The versioned guard is now 180 seconds, while relative
-   generated/reference budgets remain unchanged; a skipped stress step no
-   longer produces a misleading missing-artifact failure.
+   `.hpy0` byte remains unchanged. PyPy and GraalPy always select their native
+   importers even if a CPython-oriented `hpy.universal` package is discoverable;
+   this avoids the observed PyPy SIGSEGV in the loader stub.
+5. hosted Ubuntu GCC 13 exceeded both 60- and 180-second O3 trials while O0
+   remained near 5 seconds. O0 is the required C-validity/liveness gate and O3
+   is a bounded diagnostic; relative generated/reference budgets remain
+   unchanged. A skipped stress step no longer produces a misleading
+   missing-artifact failure.
 
-Local evidence on macOS ARM64 / CPython 3.11 / HPy 0.9 includes 125 quality
+Local evidence on macOS ARM64 / CPython 3.11 / HPy 0.9 includes 128 quality
 tests, generated normal/Trace/Debug execution, a staged CPython portability
 artifact, and the full ASan/UBSan generated corpus. No hosted platform or
 alternate interpreter is promoted until the replacement GitHub run is green

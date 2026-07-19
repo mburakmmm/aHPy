@@ -12,6 +12,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+from tempfile import TemporaryDirectory
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -52,6 +53,15 @@ def _replace_environment_value(environment, name, value):
         if key.lower() == name.lower():
             del environment[key]
     environment[name] = value
+
+
+def _msvc_activation_script(vcvarsall, architecture):
+    return (
+        "@echo off\n"
+        'call "%s" %s >nul\n' % (vcvarsall, architecture) +
+        "if errorlevel 1 exit /b 1\n"
+        "set\n"
+    )
 
 
 def discover_msvc_environment(machine, environment=None):
@@ -110,17 +120,19 @@ def discover_msvc_environment(machine, environment=None):
         raise RuntimeError(
             "unsupported Visual C++ target architecture: %s" % machine) from None
     command_processor = _environment_value(environment, "COMSPEC") or "cmd.exe"
-    result = subprocess.run(
-        [
-            command_processor,
-            "/d", "/s", "/c",
-            'call "%s" %s >nul && set' % (vcvarsall, architecture),
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-        env=environment,
-    )
+    with TemporaryDirectory(prefix="ahpy-msvc-environment-") as temp:
+        activation = Path(temp) / "activate.cmd"
+        activation.write_text(
+            _msvc_activation_script(vcvarsall, architecture),
+            encoding="utf8",
+        )
+        result = subprocess.run(
+            [command_processor, "/d", "/c", str(activation)],
+            check=True,
+            capture_output=True,
+            text=True,
+            env=environment,
+        )
     loaded = 0
     for line in result.stdout.splitlines():
         name, separator, value = line.partition("=")
