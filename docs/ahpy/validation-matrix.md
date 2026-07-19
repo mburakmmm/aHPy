@@ -16,14 +16,24 @@ GCC/Clang and `/Od` on MSVC so optimizer cost cannot mask semantic liveness.
 The direct non-setuptools integration and the separately budgeted performance
 gate retain their own explicit optimization profiles.
 
-| Runner | Architecture | Compiler | Initial state |
+| Runner | Architecture | Compiler | Hosted evidence |
 |---|---:|---|---|
-| `ubuntu-24.04` | x86-64 | GCC | declared; hosted run pending |
-| `ubuntu-24.04` | x86-64 | Clang | declared; hosted run pending |
-| `ubuntu-24.04-arm` | ARM64 | GCC | declared; hosted run pending |
-| `macos-15-intel` | x86-64 | Apple Clang | declared; hosted run pending |
-| `macos-15` | ARM64 | Apple Clang | declared; hosted run pending |
-| `windows-2025` | x86-64 | MSVC | declared; hosted run pending |
+| `ubuntu-24.04` | x86-64 | GCC | [green, job 88188395901](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395901) |
+| `ubuntu-24.04` | x86-64 | Clang | [green, job 88188395939](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395939) |
+| `ubuntu-24.04-arm` | ARM64 | GCC | [green, job 88188395936](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395936) |
+| `macos-15-intel` | x86-64 | Apple Clang | [green, job 88188395931](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395931) |
+| `macos-15` | ARM64 | Apple Clang | [green, job 88188395966](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395966) |
+| `windows-2025` | x86-64 | MSVC | [green, job 88188395905](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395905) |
+
+Push run [29685285138](https://github.com/mburakmmm/aHPy/actions/runs/29685285138)
+validated commit `02d9f8cdd8386eaf277e89dc876fcee9f75e4054` from a clean checkout.
+The exact runner images were Ubuntu x64 `20260714.240.1`, Ubuntu ARM64
+`20260714.61.1`, macOS Intel `20260715.0340.1`, macOS ARM64
+`20260715.0234.1`, and Windows `20260714.173.1`. Their versioned image
+manifests identify GCC 13.3.0, Ubuntu Clang 18.1.3, Apple Clang/LLVM 17.0.0,
+and the MSVC 14.44 x86/x64 toolset in Visual Studio Enterprise
+18.7.11925.98. These six non-allowed-failure jobs are the initial supported
+hosted platform/compiler baseline.
 
 The runner labels follow GitHub's current hosted-runner reference:
 <https://docs.github.com/actions/reference/runners/github-hosted-runners>.
@@ -36,9 +46,11 @@ release platform.
 uses a 40-character commit rather than `master`. Python 3.11 is the validated
 development lane. Python 3.14 is allowed to fail as an experimental signal
 because the pinned revision currently crashes the generated corpus on the
-locally tested macOS arm64 configuration. A future green result must not alter
-stable support until the pin, compatibility audit, and support matrix are
-updated together.
+locally tested macOS arm64 configuration and with exit status -11 in hosted
+Ubuntu job
+[88188395904](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395904).
+A future green result must not alter stable support until the pin,
+compatibility audit, and support matrix are updated together.
 
 Two moving nightly lanes are deliberately separate from that pinned
 development lane. A schedule/manual-only CPython `3.15-dev` job installs stable
@@ -63,10 +75,20 @@ types). A signal or nonzero exit therefore identifies the exact failing stage.
 Interpreters exposing `hpy.universal` use the unchanged Python stubs; native
 HPy interpreters receive a temporary directory containing only byte-identical
 `.hpy0` binaries so a CPython loader stub cannot shadow their native importer.
-Their exact setup identifiers live in
-`tests/ahpy/interpreters.toml`. Both jobs are early warnings until their first
-green hosted executions are recorded; only then may `continue-on-error` be
-removed and the support matrix reconsidered.
+Their exact setup identifiers and evidence job IDs live in
+`tests/ahpy/interpreters.toml`. Run 29685285138 reached the first isolated
+module-import stage on both targets: PyPy terminated through its bundled HPy
+bridge, while GraalPy exposed neither that bridge nor a native `.hpy0` import
+hook. Both therefore remain allowed-failure early warnings. Only a future
+green hosted execution may remove `continue-on-error` or alter support.
+
+The artifact builder [job 88188395887](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395887)
+recorded CPython 3.11.15 and byte-for-byte verified these principal binaries:
+`bootstrap_answer.hpy0.so` =
+`2630e3aef4f00d277742b0b331a01b7916a2f04759f3a77c4cd5f967a75dcaac`
+(3,101,256 bytes) and `bootstrap_types.hpy0.so` =
+`cd0a86cd37c89f83d237300123cfb46faf3841eba69711fbc0cd1776d8ba0655`
+(2,432,936 bytes).
 
 Two independent local portability-artifact builds use a fixed
 `SOURCE_DATE_EPOCH`, `ZERO_AR_DATE`, and compiler file/debug-prefix maps. The
@@ -262,7 +284,7 @@ modes. Unit tests cover POSIX/static and MSVC/export plans plus fail-closed
 inputs. On Windows the executor locates Visual Studio with `vswhere.exe` and
 loads `vcvarsall.bat` only when `cl.exe` is not already on `PATH`; compile and
 link execution remains direct. The stable platform/compiler matrix executes the same integration;
-declared jobs are not promoted to support until hosted evidence is reviewed.
+all six jobs are green in reviewed run 29685285138.
 
 ## Isolated PEP 517 frontend gate
 
@@ -275,8 +297,8 @@ upstream `Cython` or the unrelated PyPI `ahpy` distribution from satisfying the
 build requirement. The example's generated source and `.hpy0` binary are
 audited, pip-installed into an empty target, and run in normal and HPy Debug
 modes. The compiler-and-quality CI job executes the gate; hosted evidence is
-pending. ADR 0012 defines identity/provenance and ADR 0004 still governs the
-host-specific wheel tag.
+green in job 88188395921. ADR 0012 defines identity/provenance and ADR 0004
+still governs the host-specific wheel tag.
 
 ## CMake, Meson, and scikit-build-core gates
 
@@ -285,7 +307,7 @@ both native examples. `build_system_integration.py` generates their C through
 aHPy, builds CMake `MODULE` and Meson `shared_module` targets, verifies exact
 `.hpy0` output plus source/binary boundaries, and executes function/type
 semantics in normal and Debug modes. The local macOS ARM64 CMake and Meson
-paths are green; the compiler-and-quality workflow declares the Linux gate.
+paths and hosted Linux compiler-and-quality job 88188395921 are green.
 
 `scikit_build_integration.py` separately builds the frontend wheel and a hashed
 build-dependency wheelhouse, disables index access, and asks scikit-build-core
@@ -308,9 +330,10 @@ normal plus Debug LeakDetector semantics. It uninstalls both distributions
 separately, verifies their absence from a temporary working directory, then
 reinstalls and executes again. The compiler-and-quality workflow records
 SHA-256 evidence for the sdist, frontend/example wheels, and exact build
-dependencies. Local macOS ARM64/CPython 3.11 is green; hosted execution,
-publication, cross-interpreter packaging, standardized Universal wheel tags,
-and standardized Universal extension-wheel reproducibility remain open.
+dependencies. Local macOS ARM64/CPython 3.11 and hosted Linux job 88188395921
+are green. Publication, cross-interpreter
+packaging, standardized Universal wheel tags, and standardized Universal
+extension-wheel reproducibility remain open.
 
 ## Frontend package reproducibility gate
 
@@ -365,10 +388,11 @@ python3 Tools/ahpy/benchmark_hpy.py --python .venv-hpy09/bin/python \
 The sanitizer command supports Linux GCC and Apple Clang. The ASan-linked
 launcher makes the local signed Homebrew Python 3.11 lane executable without
 mutating that interpreter; local macOS ARM64 normal/Trace/Debug plus ASan/UBSan
-is green. The explicit `macos-15` hosted job remains the authoritative pending
-platform gate. Full Cython CPython regression coverage remains in the
-repository's existing `ci.yml`; the aHPy workflow adds the focused C/C++
-semantic oracle so backend changes receive a fast, explicit parity signal.
+is green. The explicit `macos-15` hosted job is green in run 29685285138 and
+remains the authoritative ARM64 platform gate. Full Cython CPython regression
+coverage remains in the repository's existing `ci.yml`; the aHPy workflow adds
+the focused C/C++ semantic oracle so backend changes receive a fast, explicit
+parity signal.
 
 The allocation/API fault-injection gate passes all 128 isolated normal/Debug
 processes. An early ad-hoc stress run once produced an import `SystemError`

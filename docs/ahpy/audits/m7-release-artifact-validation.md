@@ -1,7 +1,7 @@
 # M7 clean release-artifact validation
 
 Date: 2026-07-16
-Status: local sdist, offline install, and uninstall/reinstall green
+Status: local and hosted Linux sdist/install/uninstall/reinstall green
 
 `Tools/ahpy/release_artifact_integration.py` built
 `ahpy_compiler-3.3.0.1.dev0.tar.gz` from a clean frontend source tree. The
@@ -23,10 +23,13 @@ wheel, HPy 0.9 wheel, and setuptools 80.9.0 wheel. Exact hashes are preserved
 in the requested local JSON output and in the CI evidence artifact for hosted
 runs, avoiding a self-referential hash inside the sdist itself.
 
-This is local macOS ARM64/CPython 3.11 evidence. Hosted Linux execution,
-cross-interpreter package installation, standardized Universal extension-wheel
-reproducibility, publication, and standardized Universal wheel metadata remain
-open. The example wheel's CPython tag is not a portability claim.
+Local macOS ARM64/CPython 3.11 evidence is complemented by the green clean
+sdist/onboarding step in hosted
+[compiler-and-quality job 88188395921](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395921).
+Cross-interpreter package installation, standardized Universal
+extension-wheel reproducibility, publication, and standardized Universal wheel
+metadata remain open. The example wheel's CPython tag is not a portability
+claim.
 
 The current quality-tool suite passes 111 tests with one expected local
 Valgrind availability skip. The 455-test focused trace remains above the

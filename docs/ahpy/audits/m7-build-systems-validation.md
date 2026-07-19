@@ -1,7 +1,7 @@
 # M7 external build-system validation
 
 Date: 2026-07-16
-Status: CMake, Meson, and isolated scikit-build-core locally green
+Status: CMake, Meson, and isolated scikit-build-core locally and hosted green
 
 The installed `ahpy_build_config` module and CLI wrapper emit schema-version 1
 contracts for the selected Python/HPy toolchain. Focused tests cover POSIX and
@@ -30,8 +30,10 @@ Valgrind availability skip. The 455-test focused trace reports 73.69% backend,
 denominator. Python 3.14.6 independently reports 72.85%, 28.62%, and 35.60%,
 so both current local interpreter snapshots remain above the same floors.
 
-Linux CI executions are declared but hosted evidence is pending. Windows/MSVC,
-cross-compilation, and standardized Universal wheel metadata remain open.
+All three Linux CI integrations are green in hosted
+[compiler-and-quality job 88188395921](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395921).
+Windows/MSVC execution of these external build systems, cross-compilation, and
+standardized Universal wheel metadata remain open.
 Clean sdist and uninstall/reinstall evidence is recorded separately in
 `m7-release-artifact-validation.md`. The CPython-specific wheel tag is
 packaging smoke evidence only.

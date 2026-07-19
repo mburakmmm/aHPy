@@ -1,5 +1,5 @@
 schema_version = 1
-validated_on = "2026-07-15"
+validated_on = "2026-07-19"
 
 [stable]
 version = "0.9.0"
@@ -21,6 +21,12 @@ python = "3.14.6"
 platform = "macOS 26 arm64"
 failure = "SIGSEGV while executing the generated semantic corpus"
 policy = "experimental CI only; does not alter the Python 3.11 validated lane"
+
+[[development.known_failures]]
+python = "3.14.6"
+platform = "Ubuntu 24.04 x86-64"
+failure = "SIGSEGV while executing semantic_check.py in hosted job 88188395904"
+policy = "allowed-failure CI signal; does not alter the Python 3.11 validated lane"
 
 [nightly.interpreter]
 setup_python = "3.15-dev"

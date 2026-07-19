@@ -17,5 +17,9 @@ pathological hosted GCC ``-O3`` compile is a bounded recorded diagnostic. A
 stress artifact upload is skipped when an earlier gate prevents stress from running.
 Hosted semantic and portability builds explicitly use ``-O0`` (MSVC ``/Od``),
 leaving direct-build and performance optimization profiles independent.
+Hosted run ``29685285138`` validates the complete required Linux, macOS,
+Windows, sanitizer, portability, pinned-development, and quality matrix; exact
+job/image/compiler evidence and portability hashes are recorded in the M8
+audit.
 The deterministic rejection corpus also follows the versioned HPy 0.9
 generator API-gap diagnostic instead of an obsolete generic node error.

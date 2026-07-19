@@ -267,8 +267,12 @@ class QualityGateTest(unittest.TestCase):
             targets["GraalPy"]["setup_python"], "graalpy-25.1.3")
         self.assertEqual(
             {target["status"] for target in targets.values()},
-            {"hosted-run-pending"},
+            {"allowed-failure-early-warning"},
         )
+        self.assertEqual(targets["PyPy"]["evidence_run"], 29685285138)
+        self.assertEqual(targets["PyPy"]["evidence_job"], 88188460273)
+        self.assertEqual(targets["GraalPy"]["evidence_run"], 29685285138)
+        self.assertEqual(targets["GraalPy"]["evidence_job"], 88188460282)
 
         workflow = (ROOT / ".github" / "workflows" /
                     "ahpy-universal.yml").read_text(encoding="utf8")
@@ -333,7 +337,7 @@ class QualityGateTest(unittest.TestCase):
         self.assertIn("continue-on-error: true", nightly_section)
         self.assertIn("requirements-hpy-nightly.txt", nightly_section)
 
-    def test_docs_do_not_claim_supported_targets_while_hosted_pending(self):
+    def test_docs_do_not_claim_unsupported_early_warning_interpreters(self):
         validation_matrix = (
             ROOT / "docs" / "ahpy" / "validation-matrix.md"
         ).read_text(encoding="utf8")
@@ -342,12 +346,13 @@ class QualityGateTest(unittest.TestCase):
                 encoding="utf8")
         )
         for target in interpreters["targets"]:
-            if target["status"] == "hosted-run-pending":
+            if target["status"] != "required":
                 self.assertNotRegex(
                     validation_matrix,
                     r"%s[^\n]{0,120}\bsupported\b" % target["name"],
                 )
-        self.assertIn("hosted run pending", validation_matrix)
+        self.assertIn("First hosted executions are still pending", validation_matrix)
+        self.assertIn("allowed-failure early warnings", validation_matrix)
         self.assertIn("continue-on-error", validation_matrix)
 
     def test_nightly_jobs_keep_hpy_vcs_requirement_on_hpy_lane_only(self):

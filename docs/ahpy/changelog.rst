@@ -51,6 +51,10 @@ Bootstrap
   recursively cleans up timeouts, and passed five rounds/640 fault selectors.
 * Added isolated schedule/manual-only CPython prerelease and HPy branch-tip
   allowed-failure jobs with exact installed interpreter/package/VCS provenance.
+* Recorded the first fully green required hosted matrix across Linux x64/ARM64,
+  macOS Intel/ARM64, Windows MSVC, sanitizers, portability, pinned HPy
+  development, packaging, performance, fault/stress, and fuzz gates; PyPy,
+  GraalPy, and Python 3.14 remain explicit allowed-failure early warnings.
 * Added the first one-level nested-``def`` Universal slice with owned
   ``HPyField`` environments/callables, shared mutation and sibling capture
   unions, capture-free callables, runtime/Debug oracles, and strict rejection

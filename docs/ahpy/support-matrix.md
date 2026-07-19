@@ -44,10 +44,10 @@ change.
 | CPython-only third-party C APIs | blocked | Dependency must expose an HPy API |
 | NumPy C-API | blocked | Requires a validated Universal path |
 | HPy Hybrid fallback | rejected | Must be an explicit future mode |
-| Direct non-setuptools build | partial | The version-1 plan/API/CLI discovers the selected HPy toolchain, enforces Universal definitions, forbid-header ordering, helper static/source runtime inputs, `.hpy0` suffix and MSVC export rules, refuses unsafe reuse, audits source/binary boundaries, and passes local normal/Debug public-loader execution. Linux GCC/Clang, ARM64, macOS Intel/ARM64, and Windows MSVC executions are declared in the stable matrix but remain support-evidence pending; packaging/import stubs are separate |
-| CMake/Meson native builds | partial | Installed `ahpy_build_config` renders one selected-interpreter Universal contract; maintained CMake `MODULE` and Meson `shared_module` examples pass local macOS ARM64 source/binary audits plus normal/Debug loading. Linux CI is declared; Windows/MSVC and cross-compilation remain evidence/design pending |
-| scikit-build-core packaging | partial | The exact `aHPy-compiler` frontend, HPy 0.9, setuptools 80.9.0, scikit-build-core, CMake, and Ninja are resolved from a closed hashed wheelhouse; the isolated CMake wheel installs and imports in normal/Debug locally. Its CPython-specific tag is not a portable Universal wheel claim, and hosted/cross-compilation evidence remains open |
-| Frontend sdist and onboarding | partial | A clean `aHPy-compiler` sdist passes member safety/completeness and exact-identity audits; its no-index wheel installs with exact HPy 0.9/setuptools 80.9.0 in a new venv; the maintained PEP 517 example and frontend each pass uninstall/absence/reinstall plus normal/Debug execution. The frontend sdist and pure-Python wheel are byte-reproducible across two clean roots after deterministic tar/gzip normalization. Publication, standardized Universal tags/wheel reproducibility, cross-interpreter package installation, and hosted evidence remain open |
+| Direct non-setuptools build | partial | The version-1 plan/API/CLI discovers the selected HPy toolchain, enforces Universal definitions, forbid-header ordering, helper static/source runtime inputs, `.hpy0` suffix and MSVC export rules, refuses unsafe reuse, audits source/binary boundaries, and passes normal/Debug public-loader execution. Run 29685285138 is green on Linux GCC/Clang, Linux ARM64 GCC, macOS Intel/ARM64 Clang, and Windows MSVC; packaging/import stubs are separate |
+| CMake/Meson native builds | partial | Installed `ahpy_build_config` renders one selected-interpreter Universal contract; maintained CMake `MODULE` and Meson `shared_module` examples pass source/binary audits plus normal/Debug loading locally on macOS ARM64 and hosted on Linux x64 in run 29685285138. Windows/MSVC execution and cross-compilation remain evidence/design pending |
+| scikit-build-core packaging | partial | The exact `aHPy-compiler` frontend, HPy 0.9, setuptools 80.9.0, scikit-build-core, CMake, and Ninja are resolved from a closed hashed wheelhouse; the isolated CMake wheel installs and imports in normal/Debug locally and on hosted Linux in run 29685285138. Its CPython-specific tag is not a portable Universal wheel claim, and cross-compilation evidence remains open |
+| Frontend sdist and onboarding | partial | A clean `aHPy-compiler` sdist passes member safety/completeness and exact-identity audits; its no-index wheel installs with exact HPy 0.9/setuptools 80.9.0 in a new venv; the maintained PEP 517 example and frontend each pass uninstall/absence/reinstall plus normal/Debug execution locally and on hosted Linux in run 29685285138. The frontend sdist and pure-Python wheel are byte-reproducible across two clean roots after deterministic tar/gzip normalization. Publication, standardized Universal tags/wheel reproducibility, and cross-interpreter package installation remain open |
 
 ## Target validation dimensions
 
@@ -57,17 +57,17 @@ Cython, HPy, and interpreter versions rather than an untested numerical range.
 | Dimension | Required lanes |
 |---|---|
 | Runtime backend | CPython regression, HPy CPython ABI, HPy Universal ABI |
-| Interpreter | Supported CPython, PyPy, and GraalPy releases |
+| Interpreter | CPython 3.11 stable baseline; pinned PyPy/GraalPy early warnings until green |
 | HPy | 0.9 release and one pinned validated development revision |
 | OS | Linux x86-64/ARM64, macOS Intel/ARM, Windows x64 |
 | Compiler | GCC, Clang, MSVC |
 | Runtime mode | release, HPy debug, HPy trace |
 | Analysis | forbidden symbols, ASan, UBSan, leak checks |
 
-The initial stable workflow is declared for Linux x86-64/ARM64, macOS
-Intel/ARM64, and Windows x64 with GCC, Clang, and MSVC. These entries remain
-validation targets—not supported-platform claims—until their first hosted runs
-are green. Local macOS ARM64 validation passes HPy 0.9.0 on Python 3.11 in
+The stable workflow supports its CPython 3.11/HPy 0.9 baseline on Linux
+x86-64/ARM64, macOS Intel/ARM64, and Windows x64 with GCC, Clang, and MSVC.
+All six required jobs are green in hosted run 29685285138. Local macOS ARM64
+validation also passes HPy 0.9.0 on Python 3.11 in
 release, Trace, and Debug modes. Pinned HPy development commit
 `b57a33c1cec766a1cc3e89f6fd1e2eff73ba9381` passes the same gate on Python
 3.11; its Python 3.14.6 semantic run currently terminates with `SIGSEGV` and is

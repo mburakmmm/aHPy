@@ -1,7 +1,7 @@
 # M8 hosted platform CI repair audit
 
-Status: local regressions and macOS ARM64 sanitizer gate green; hosted rerun
-pending.
+Status: required hosted platform/compiler matrix green; alternate-interpreter
+early warnings remain unsupported.
 
 The first broad hosted run exposed four independent infrastructure boundaries,
 not a reason to weaken Universal semantics:
@@ -45,19 +45,52 @@ The repairs keep the test strength:
    direct-build and performance checks keep independent explicit optimization
    profiles.
 
+## Reviewed hosted evidence
+
+Push run [29685285138](https://github.com/mburakmmm/aHPy/actions/runs/29685285138)
+completed successfully for commit
+`02d9f8cdd8386eaf277e89dc876fcee9f75e4054`. All mandatory jobs started from
+clean checkouts. The stable evidence is:
+
+| Target | Job | Duration | Runner image | Compiler |
+|---|---:|---:|---|---|
+| Linux x64 | [GCC 88188395901](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395901) | 41 s | `ubuntu-24.04` `20260714.240.1` | GCC 13.3.0 |
+| Linux x64 | [Clang 88188395939](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395939) | 47 s | `ubuntu-24.04` `20260714.240.1` | Clang 18.1.3 |
+| Linux ARM64 | [GCC 88188395936](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395936) | 56 s | `ubuntu-24.04-arm` `20260714.61.1` | GCC 13.3.0 |
+| macOS Intel | [Clang 88188395931](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395931) | 58 s | `macos-15` `20260715.0340.1` | Apple Clang/LLVM 17.0.0 |
+| macOS ARM64 | [Clang 88188395966](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395966) | 31 s | `macos-15-arm64` `20260715.0234.1` | Apple Clang/LLVM 17.0.0 |
+| Windows x64 | [MSVC 88188395905](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395905) | 65 s | `windows-2025-vs2026` `20260714.173.1` | MSVC 14.44 / VS 18.7.11925.98 |
+
+The same run also passed Linux/macOS sanitizers, pinned HPy development on
+CPython 3.11, and the 10m23s
+[compiler-and-quality job](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395921),
+including coverage, performance, fault injection, bounded stress, both fuzz
+oracles, reproducibility, C/C++ semantics, packaging, and external build
+systems. The portability builder
+[job 88188395887](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395887)
+recorded CPython 3.11.15. Its downloaded manifest was independently rehashed:
+
+- `bootstrap_answer.hpy0.so`: 3,101,256 bytes,
+  `2630e3aef4f00d277742b0b331a01b7916a2f04759f3a77c4cd5f967a75dcaac`;
+- `bootstrap_types.hpy0.so`: 2,432,936 bytes,
+  `cd0a86cd37c89f83d237300123cfb46faf3841eba69711fbc0cd1776d8ba0655`.
+
 Local evidence on macOS ARM64 / CPython 3.11 / HPy 0.9 includes 127 quality
 tests, generated normal/Trace/Debug execution, a staged CPython portability
-artifact, and the full ASan/UBSan generated corpus. No hosted platform or
-alternate interpreter is promoted until the replacement GitHub run is green
-and its exact URLs are recorded.
+artifact, and the full ASan/UBSan generated corpus. The six stable hosted
+platform/compiler entries are now promoted for the CPython 3.11/HPy 0.9
+baseline. Alternate interpreters remain outside that claim.
 
 The same-binary early-warning evidence remains intentionally red. PyPy job
-`88139862401` reached the first import through its bundled `hpy.universal` and
+[`88188460273`](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188460273)
+reached the first import through its bundled `hpy.universal` and
 terminated with signal 11. An experimental native-only staging attempt in job
 `88185919115` proved that PyPy does not install a `.hpy0` import hook, failing
 cleanly with `ModuleNotFoundError`; the bridge path is therefore restored.
-GraalPy job `88185919098` likewise reports `ModuleNotFoundError` with the
-unchanged binary. Neither interpreter is listed as supported.
+GraalPy job
+[`88188460282`](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188460282)
+likewise reports `ModuleNotFoundError` with the unchanged binary. Neither
+interpreter is listed as supported.
 
 Two hosted retries also exposed a cross-platform HPy 0.9 failure-path race:
 successful attribute deletions during non-memory module rollback could clear

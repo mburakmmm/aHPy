@@ -41,5 +41,7 @@ before checkout or project code executed: seven `actions/upload-artifact`
 references were one hexadecimal character short. They now use the full
 40-character upstream commit, and the quality suite parses every external
 `uses:` entry so shortened hashes cannot recur. This is workflow bootstrapping
-evidence, not a hosted platform green; the replacement run still requires
-review.
+evidence, not a hosted platform green. Stable replacement run `29685285138` is
+now reviewed and green; the two schedule/manual-only nightly jobs were
+intentionally skipped on that push and still require their own hosted
+executions.

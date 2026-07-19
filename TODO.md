@@ -1411,12 +1411,17 @@ emulated.
 
 ### U2 - M8 evidence without false claims
 
-- [ ] Record first green hosted runs for every declared Linux/macOS/Windows
-      compiler job. The authorized origin/push prerequisite is complete;
-      workflow run `29490045367` is the first hosted aHPy execution and remains
-      evidence-pending until every required job finishes and is reviewed.
+- [x] Record first green hosted runs for every declared Linux/macOS/Windows
+      compiler job. Push run `29685285138` is green at commit `02d9f8cdd` for
+      Linux x64 GCC/Clang, Linux ARM64 GCC, macOS Intel/ARM64 Clang, Windows x64
+      MSVC, both sanitizer jobs, pinned HPy development on Python 3.11, and the
+      complete compiler/quality job; exact job URLs, runner images, compiler
+      versions, and portability hashes are in the M8 platform repair audit.
 - [ ] Record same-binary PyPy and GraalPy hosted executions and remove
-      `continue-on-error` only after green evidence.
+      `continue-on-error` only after green evidence. Run `29685285138` records
+      both executions as red allowed-failure early warnings: PyPy terminates at
+      its first bridge import and GraalPy has no HPy bridge/native `.hpy0`
+      import hook. Neither target is supported.
 - [x] Finish local nightly contract tests and support-claim wording guards:
       manifest status sets, stable-vs-nightly separation, hosted-pending
       wording, ASan `detect_leaks=0`, job contracts, and exact revision reports.

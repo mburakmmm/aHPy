@@ -1,7 +1,7 @@
 # M7 isolated PEP 517 validation
 
 Date: 2026-07-16
-Status: maintained isolated frontend/wheel path locally green
+Status: maintained isolated frontend/wheel path locally and hosted green
 
 The repository distribution is `aHPy-compiler==3.3.0.1.dev0`; this intentionally
 differs from both upstream `Cython` and the unrelated existing PyPI `ahpy`
@@ -34,3 +34,8 @@ quality tools, above the unchanged 71%/25%/35% floors. The compiler distribution
 name is not yet reserved or published, and this gate does not claim clean aHPy
 sdist reproduction, uninstall/reinstall, standardized Universal wheel tags, or
 hosted platform support.
+
+The same isolated PEP 517 integration is green on hosted Linux in
+[compiler-and-quality job 88188395921](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395921).
+This adds a clean hosted packaging execution, not a standardized Universal
+wheel tag or cross-interpreter installation claim.

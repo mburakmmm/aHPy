@@ -12,7 +12,7 @@ checklist. An agent must update both files when implementation status changes.
 - Cython base/HEAD: `b99cb0e3b5425e11414cadd24168a6cc850e8000`.
 - Stable local environment: `.venv-hpy09`, CPython 3.11.15, HPy 0.9.0.
 - Additional local coverage interpreter: `python3`, CPython 3.14.6.
-- The verified aHPy implementation is committed through `39c7c6830`; preserve
+- The verified aHPy implementation is committed through `02d9f8cdd`; preserve
   later user/agent work and do not reset, clean, overwrite, or discard it.
 - `.DS_Store` and
   `docs/examples/userguide/wrapping_CPlusPlus/rect_with_attributes.cpp` are
@@ -109,7 +109,7 @@ Last verified local gates:
   `ahpy_compiler-3.3.0.1.dev0.tar.gz` passes safety/completeness; the no-index
   wheel installs in a new venv with exact HPy 0.9.0/setuptools 80.9.0; the
   frontend and maintained PEP 517 example pass normal/Debug plus verified
-  uninstall/reinstall. CI execution is declared; hosted evidence is pending.
+  uninstall/reinstall. Hosted Linux execution is green in run `29685285138`.
 
 The generated runtime, fault, fuzz, reproducibility, setuptools/wheel,
 portability, sanitizer declarations, and CPython semantic oracles have dedicated
@@ -188,19 +188,17 @@ audit/changelog fragments in the same change.
 
 A1 is done. Proceed when unblocked:
 
-- A2 hosted platform/compiler matrix — origin/push prerequisite complete;
-  inspect and repair the first hosted run before promoting any support claim.
-  **(first push run `29490348041` failed before checkout because seven
-  `actions/upload-artifact` references used a 39-character SHA; all occurrences
-  now use the full upstream 40-character commit and a workflow-wide regression
-  test rejects shortened external action pins. Replacement run `29490936993`
-  then exposed a clean-checkout import failure in the direct-build CLI; the CLI
-  now derives the repository root from its own file and a cwd/PYTHONPATH-isolated
-  subprocess regression guards that contract. Hosted rerun evidence pending.)**
-- A3 same-binary PyPy/GraalPy hosted hashes — blocked until hosted jobs.
-  **(the artifact now revalidates all hashes, separates Python-stub and native
-  HPy loading, and isolates four import/semantic stages; new hosted evidence is
-  still required before either target is promoted.)**
+- A2 hosted platform/compiler matrix — complete for the initial stable
+  CPython 3.11/HPy 0.9 baseline.
+  **(push run `29685285138` is green for all six Linux/macOS/Windows compiler
+  jobs, both sanitizer jobs, pinned HPy development on Python 3.11, portability,
+  and compiler/quality. Exact URLs, runner images, compiler versions, and
+  binary hashes are recorded in `docs/ahpy/audits/m8-platform-ci-repairs.md`.)**
+- A3 same-binary PyPy/GraalPy hosted hashes — evidence captured; compatibility
+  remains blocked on the target runtimes.
+  **(run `29685285138` revalidated the unchanged artifact hashes, then PyPy
+  terminated at its first bundled-bridge import and GraalPy reported no bridge
+  or native `.hpy0` import hook. Both remain allowed-failure early warnings.)**
 - A4 nightly contract tests / wording guards (local remaining pieces).
   **(manifest status-set guards, stable-vs-nightly separation, hosted-pending
   wording checks, ASan `detect_leaks=0` documentation, and nightly job
@@ -226,7 +224,8 @@ after HPy/PyPA standardize them, clean sdist/install, and new-user scripts.
 uninstall/reinstall, normal/Debug, and documented new-user execution are now
 green; frontend archives are byte-reproducible; publication, standardized
 tags, cross-interpreter package installation, standardized Universal
-extension-wheel reproducibility, and hosted evidence remain open.)**
+extension-wheel reproducibility remain open; hosted Linux packaging is green
+in run `29685285138`.)**
 
 ### Phase U5 — M9 performance, M10 pilots, M11 upstreaming/release
 
@@ -300,17 +299,17 @@ stress profile. A post-stress ordinary O3 retry remained inside Apple Clang's
 
 ### A2. Hosted platform/compiler matrix
 
-The workflow already declares Linux x64 GCC/Clang, Linux ARM64 GCC, macOS
-Intel/ARM64 Clang, and Windows x64 MSVC. The repository and authorized push now
-exist; first hosted aHPy run `29490045367` started from commit `39c7c6830`.
+The workflow declares Linux x64 GCC/Clang, Linux ARM64 GCC, macOS Intel/ARM64
+Clang, and Windows x64 MSVC. Push run `29685285138` validated every mandatory
+platform job from commit `02d9f8cdd`.
 
 - Preserve `origin` as `https://github.com/mburakmmm/aHPy.git` and keep
   `upstream` pointed at official Cython.
-- Treat the first run as pending evidence until every required job completes.
-- Record run URLs, exact runner images, compiler versions, and artifact hashes.
-- Fix failures with focused regressions.
-- Promote a platform/compiler only after its required job is green from a clean
-  checkout. Remove no mandatory lane to make the matrix green.
+- Preserve run/job URLs, exact runner images, compiler versions, and artifact
+  hashes in `docs/ahpy/audits/m8-platform-ci-repairs.md`.
+- Keep all six jobs mandatory and repair future regressions with focused tests.
+- Do not extend this baseline to alternate interpreters or moving nightlies;
+  their independent evidence remains allowed-failure.
 
 ### A3. Same-binary PyPy/GraalPy evidence
 
@@ -463,7 +462,7 @@ implementation.
    **(completed: `direct_build.py` exposes a versioned plan/API/CLI with exact
    Universal compile/link inputs, safe artifact rules, source/binary audits,
    POSIX/MSVC plan tests, and real public-loader normal/Debug integration;
-   hosted stable-matrix executions remain evidence-pending.)**
+   all six hosted stable-matrix executions are green in run `29685285138`.)**
 2. Add a maintained isolated PEP 517 backend/path.
    **(completed locally: `aHPy-compiler` has a separate exact versioned
    identity, `ahpy_build_backend` rejects Cython/unrelated-`ahpy` substitution
@@ -487,7 +486,8 @@ implementation.
 6. Add isolated minimal, extension-type, external-C, and packaging examples.
 7. Have a new-user clean-environment script execute documentation literally.
    **(completed locally by `release_artifact_integration.py` and
-   `docs/ahpy/onboarding.md`; hosted evidence remains open.)**
+   `docs/ahpy/onboarding.md`; hosted Linux evidence is green in run
+   `29685285138`.)**
 
 ## 8. Performance, pilots, upstreaming, and release queue
 

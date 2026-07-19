@@ -1,5 +1,5 @@
 schema_version = 1
-validated_on = "2026-07-15"
+validated_on = "2026-07-19"
 
 [builder]
 implementation = "CPython"
@@ -10,10 +10,16 @@ hpy = "0.9.0"
 name = "PyPy"
 setup_python = "pypy3.11-v7.3.23"
 python_compatibility = "3.11.15"
-status = "hosted-run-pending"
+status = "allowed-failure-early-warning"
+evidence_run = 29685285138
+evidence_job = 88188460273
+failure_stage = "first module import through the interpreter HPy bridge"
 
 [[targets]]
 name = "GraalPy"
 setup_python = "graalpy-25.1.3"
 python_compatibility = "3.12"
-status = "hosted-run-pending"
+status = "allowed-failure-early-warning"
+evidence_run = 29685285138
+evidence_job = 88188460282
+failure_stage = "first module import without an interpreter HPy bridge"

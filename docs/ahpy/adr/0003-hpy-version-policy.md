@@ -32,9 +32,10 @@ may continue to evolve before a later major release.
 
 The initial development lane is pinned to HPy commit
 `b57a33c1cec766a1cc3e89f6fd1e2eff73ba9381` (observed as
-`0.9.1.dev100+gb57a33c1c`) and is validated on Python 3.11. On 2026-07-15 the
-same revision built on Python 3.14.6/macOS arm64 but the generated semantic
-corpus terminated with `SIGSEGV`. Python 3.14 therefore remains an explicitly
+`0.9.1.dev100+gb57a33c1c`) and is validated on Python 3.11. The same revision
+built on Python 3.14.6 but its generated semantic corpus terminated with
+`SIGSEGV` both locally on macOS arm64 (2026-07-15) and in hosted Ubuntu job
+`88188395904` (2026-07-19). Python 3.14 therefore remains an explicitly
 experimental early-warning lane; it is not included in the validated support
 claim. The machine-readable record is `tests/ahpy/hpy-versions.toml`.
 
