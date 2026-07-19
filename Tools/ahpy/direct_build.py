@@ -64,6 +64,14 @@ def _msvc_activation_script(vcvarsall, architecture):
     )
 
 
+def _resolve_msvc_executable(environment):
+    executable = shutil.which(
+        "cl.exe", path=_environment_value(environment, "PATH"))
+    if executable is None:
+        raise RuntimeError("Visual C++ environment does not expose cl.exe")
+    return executable
+
+
 def discover_msvc_environment(machine, environment=None):
     """Load the native Visual C++ command environment through vcvarsall."""
     environment = dict(os.environ if environment is None else environment)
@@ -285,11 +293,19 @@ def execute_build_plan(plan):
     build_dir.mkdir(parents=True, exist_ok=True)
     environment = os.environ.copy()
     first_command = plan["compile_commands"][0]
+    msvc_executable = None
     if Path(first_command[0]).name.lower() in ("cl", "cl.exe"):
         environment = discover_msvc_environment(
             plan["machine"], environment)
+        # CreateProcess does not consistently resolve the extensionless `cl`
+        # stored by Python's Windows build configuration. Execute the exact
+        # cl.exe exposed by vcvarsall instead of depending on PATH lookup.
+        msvc_executable = _resolve_msvc_executable(environment)
     for command in plan["compile_commands"] + [plan["link_command"]]:
-        subprocess.run(command, check=True, env=environment)
+        execution_command = list(command)
+        if msvc_executable is not None:
+            execution_command[0] = msvc_executable
+        subprocess.run(execution_command, check=True, env=environment)
     if not artifact.is_file():
         raise RuntimeError("direct linker did not create %s" % artifact)
     verify_binary_boundary(artifact)

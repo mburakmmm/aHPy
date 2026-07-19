@@ -141,6 +141,41 @@ class DirectBuildTest(unittest.TestCase):
             environment,
         )
 
+    def test_msvc_execution_uses_the_resolved_executable(self):
+        resolved = "C:\\msvc\\bin\\cl.exe"
+        commands = []
+        with TemporaryDirectory() as temp:
+            source = self._source(temp)
+            plan = create_build_plan(
+                _probe("nt", temp), "demo", source, Path(temp) / "out",
+                Path(temp) / "build", runtime="static")
+
+            def execute(command, **_kwargs):
+                commands.append(command)
+                if "/link" in command:
+                    Path(plan["artifact"]).write_bytes(b"portable binary")
+                return mock.Mock(returncode=0)
+
+            with (
+                mock.patch.object(
+                    direct_build, "discover_msvc_environment",
+                    return_value={"Path": "C:\\msvc\\bin"},
+                ),
+                mock.patch.object(
+                    direct_build, "_resolve_msvc_executable",
+                    return_value=resolved,
+                ),
+                mock.patch.object(
+                    direct_build.subprocess, "run", side_effect=execute),
+                mock.patch.object(direct_build, "verify_source_boundary"),
+                mock.patch.object(direct_build, "verify_binary_boundary"),
+            ):
+                manifest = direct_build.execute_build_plan(plan)
+
+        self.assertEqual(manifest["abi"], "universal")
+        self.assertTrue(commands)
+        self.assertTrue(all(command[0] == resolved for command in commands))
+
     def test_invalid_module_and_missing_static_runtime_fail_closed(self):
         with TemporaryDirectory() as temp:
             source = self._source(temp)

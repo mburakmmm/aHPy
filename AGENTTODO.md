@@ -83,15 +83,15 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 128 tests pass (one expected Valgrind availability skip
+- Quality-tool suite: 127 tests pass (one expected Valgrind availability skip
   on macOS).
 - Focused coverage (post–hosted-platform CI regressions, Python 3.11):
-  482 tests
+  481 tests
   traced.
-  - backend 74.02%, frontend_seam 28.78%, quality_tools 36.83%.
+  - backend 74.02%, frontend_seam 28.78%, quality_tools 36.80%.
   - CI floors remain 71%, 25%, and 35%; do not lower them to hide new code.
   - Python 3.14.6: backend 73.20%, frontend seam 28.65%, quality tools
-    36.93%; current dual-interpreter floors remain satisfied.
+    36.90%; current dual-interpreter floors remain satisfied.
 - Fault injection: 128 isolated normal/Debug cases pass sequentially.
 - Bounded parallel HPy stress: five full rounds, 640 fault selectors, twenty
   child gates, no timeout or `SystemError`; recursive descendant cleanup is

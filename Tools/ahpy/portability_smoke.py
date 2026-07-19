@@ -56,13 +56,6 @@ def has_python_hpy_loader():
         return False
 
 
-def select_loader_mode():
-    """Choose the interpreter's native HPy importer before CPython's stub."""
-    if platform.python_implementation() in ("PyPy", "GraalVM"):
-        return "native"
-    return "python-stub" if has_python_hpy_loader() else "native"
-
-
 def prepare_native_directory(artifact_dir, manifest, destination):
     binaries = []
     for record in manifest["files"]:
@@ -170,7 +163,7 @@ def main():
         return 0
 
     manifest = verify_manifest(artifact_dir)
-    loader_mode = select_loader_mode()
+    loader_mode = "python-stub" if has_python_hpy_loader() else "native"
     provenance = {
         "implementation": platform.python_implementation(),
         "python": platform.python_version(),

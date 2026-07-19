@@ -33,17 +33,25 @@ The repairs keep the test strength:
    the compiler-selected runtime is already loaded before extension import;
 4. portability smoke revalidates the manifest and runs four isolated stages.
    Python-stub and native HPy import paths are explicit, while every tested
-   `.hpy0` byte remains unchanged. PyPy and GraalPy always select their native
-   importers even if a CPython-oriented `hpy.universal` package is discoverable;
-   this avoids the observed PyPy SIGSEGV in the loader stub.
+   `.hpy0` byte remains unchanged. PyPy's bundled `hpy.universal` is its native
+   HPy bridge and therefore keeps using the unchanged loader stubs. GraalPy
+   25.1.3 exposes neither that bridge nor a native `.hpy0` import suffix.
 5. hosted Ubuntu GCC 13 exceeded both 60- and 180-second O3 trials while O0
    remained near 5 seconds. O0 is the required C-validity/liveness gate and O3
    is a bounded diagnostic; relative generated/reference budgets remain
    unchanged. A skipped stress step no longer produces a misleading
    missing-artifact failure.
 
-Local evidence on macOS ARM64 / CPython 3.11 / HPy 0.9 includes 128 quality
+Local evidence on macOS ARM64 / CPython 3.11 / HPy 0.9 includes 127 quality
 tests, generated normal/Trace/Debug execution, a staged CPython portability
 artifact, and the full ASan/UBSan generated corpus. No hosted platform or
 alternate interpreter is promoted until the replacement GitHub run is green
 and its exact URLs are recorded.
+
+The same-binary early-warning evidence remains intentionally red. PyPy job
+`88139862401` reached the first import through its bundled `hpy.universal` and
+terminated with signal 11. An experimental native-only staging attempt in job
+`88185919115` proved that PyPy does not install a `.hpy0` import hook, failing
+cleanly with `ModuleNotFoundError`; the bridge path is therefore restored.
+GraalPy job `88185919098` likewise reports `ModuleNotFoundError` with the
+unchanged binary. Neither interpreter is listed as supported.
