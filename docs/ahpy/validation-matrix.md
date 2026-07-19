@@ -382,14 +382,14 @@ failure paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 481 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 482 focused tests under Python's built-in
 line-event tracer and derives executable lines from nested code-object line
 tables. It reports the Universal backend, touched Cython frontend seam, and
 quality tools independently, plus ownership, Runtime API, emitter,
 compiler-seam, and quality-tool feature families. The current Python 3.11
-validation records 74.02%, 28.78%, and 36.80%, including installed packaging
+validation records 74.04%, 28.78%, and 37.63%, including installed packaging
 and build-contract modules in the quality-tools denominator. Python 3.14.6
-records 73.20%, 28.65%, and 36.90%. CI keeps cross-version floors of 71%, 25%,
+records 73.21%, 28.65%, and 37.73%. CI keeps cross-version floors of 71%, 25%,
 and 35%.
 
 Every external `uses:` entry in the aHPy workflow is pinned to a full

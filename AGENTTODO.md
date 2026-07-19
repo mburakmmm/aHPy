@@ -76,7 +76,7 @@ and the first performance regression gate.
 
 Last verified local gates:
 
-- Focused compiler suite: 354 tests pass (includes U1 closable surface and
+- Focused compiler suite: 355 tests pass (includes U1 closable surface and
   closure-registry regressions:
   `dir()`/`globals()`/`__dict__`, reject-duplicates keywords, imag constant
   cache, richer terminal try, sequence-safe inlined genexps, slot early
@@ -86,12 +86,12 @@ Last verified local gates:
 - Quality-tool suite: 127 tests pass (one expected Valgrind availability skip
   on macOS).
 - Focused coverage (post–hosted-platform CI regressions, Python 3.11):
-  481 tests
+  482 tests
   traced.
-  - backend 74.02%, frontend_seam 28.78%, quality_tools 36.80%.
+  - backend 74.04%, frontend_seam 28.78%, quality_tools 37.63%.
   - CI floors remain 71%, 25%, and 35%; do not lower them to hide new code.
-  - Python 3.14.6: backend 73.20%, frontend seam 28.65%, quality tools
-    36.90%; current dual-interpreter floors remain satisfied.
+  - Python 3.14.6: backend 73.21%, frontend seam 28.65%, quality tools
+    37.73%; current dual-interpreter floors remain satisfied.
 - Fault injection: 128 isolated normal/Debug cases pass sequentially.
 - Bounded parallel HPy stress: five full rounds, 640 fault selectors, twenty
   child gates, no timeout or `SystemError`; recursive descendant cleanup is

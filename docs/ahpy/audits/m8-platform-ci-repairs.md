@@ -55,3 +55,10 @@ terminated with signal 11. An experimental native-only staging attempt in job
 cleanly with `ModuleNotFoundError`; the bridge path is therefore restored.
 GraalPy job `88185919098` likewise reports `ModuleNotFoundError` with the
 unchanged binary. Neither interpreter is listed as supported.
+
+Two hosted retries also exposed a cross-platform HPy 0.9 failure-path race:
+successful attribute deletions during non-memory module rollback could clear
+the active import exception, yielding `SystemError` in Linux sanitizer job
+`88126392914` and Windows Debug job `88186685203`. The backend now performs
+attribute rollback only for `MemoryError`, which HPy 0.9 can reconstruct after
+cleanup; arbitrary exceptions retain their original identity and traceback.

@@ -1361,6 +1361,23 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertEqual(
             cleanup.count('(void)HPy_DelAttr_s(ctx, m, "FIRST");'), 1)
 
+    def test_module_exec_preserves_non_memory_import_errors(self):
+        result, generated, diagnostics = self.compile_source(
+            "from ahpy_retry_dependency import VALUE\n\n"
+            "def dependency_value():\n"
+            "    return VALUE\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        import_call = generated.index(
+            'HPyImport_ImportModule(ctx, "ahpy_retry_dependency")')
+        failure = generated.index("if (HPy_IsNull(", import_call)
+        next_statement = generated.index("HPy_GetAttr_s(ctx,", failure)
+        cleanup = generated[failure:next_statement]
+        memory_branch_end = cleanup.index("HPyErr_NoMemory(ctx);")
+        non_memory_exit = cleanup[memory_branch_end:]
+        self.assertIn("return -1;", non_memory_exit)
+        self.assertNotIn("HPy_DelAttr_s", non_memory_exit)
+
     def test_fieldless_methodless_cdef_class_uses_pure_hpy_type_spec(self):
         result, generated, diagnostics = self.compile_source(
             "cdef class Marker:\n"

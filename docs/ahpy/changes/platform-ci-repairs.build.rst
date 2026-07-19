@@ -9,6 +9,9 @@ stubs; native-only staging is reserved for interpreters without that bridge.
 The non-setuptools Windows builder now discovers and activates the installed
 MSVC toolchain, resolves the exact ``cl.exe`` exposed by ``vcvarsall``, and
 invokes that executable directly.
+Failed module execution now preserves arbitrary active exceptions on HPy 0.9;
+attribute rollback remains limited to the reconstructable ``MemoryError`` path
+so loader retries cannot degrade into exceptionless ``SystemError`` failures.
 The large-type ``-O0`` compile remains the required liveness gate while the
 pathological hosted GCC ``-O3`` compile is a bounded recorded diagnostic. A
 stress artifact upload is skipped when an earlier gate prevents stress from running.

@@ -4405,8 +4405,14 @@ class UniversalHPyFunctionWriter:
         self.putln("return %s;" % self.failure_return_value)
         self.dedent()
         self.putln("}")
-        # Preserve non-MemoryError failures without speculative replacement.
-        self._emit_failure_exit(exclude_handles=exclude_handles)
+        # HPy 0.9 cannot fetch and restore an arbitrary active exception.
+        # Deleting published attributes here can clear that exception on some
+        # runtimes, making the loader report a SystemError. A failed module is
+        # discarded, so close owned resources but leave its attributes alone.
+        self._emit_failure_exit(
+            exclude_handles=exclude_handles,
+            include_failure_epilogue=False,
+        )
 
     def put_module_publication_error_if_negative(self, expression):
         if not self.rollback_module_publications:
@@ -4713,7 +4719,9 @@ class UniversalHPyFunctionWriter:
         self.dedent()
         self.putln("}")
 
-    def _put_failure_cleanup(self, exclude_handles=()):
+    def _put_failure_cleanup(
+        self, exclude_handles=(), include_failure_epilogue=True,
+    ):
         failure_scope = (
             self._failure_scopes[-1] if self._failure_scopes else None)
         preserved_handles = (
@@ -4748,7 +4756,7 @@ class UniversalHPyFunctionWriter:
                 continue
             self.putln(self.runtime_api.close_argument_tracker(
                 cname, context_cname=self.context_cname))
-        if failure_scope is None:
+        if failure_scope is None and include_failure_epilogue:
             for line in self.failure_epilogue:
                 self.putln(line)
 
@@ -4770,8 +4778,14 @@ class UniversalHPyFunctionWriter:
         if scope["label"] != label:
             raise AssertionError("bootstrap failure scope changed")
 
-    def _emit_failure_exit(self, exclude_handles=(), failure_value=None):
-        self._put_failure_cleanup(exclude_handles=exclude_handles)
+    def _emit_failure_exit(
+        self, exclude_handles=(), failure_value=None,
+        include_failure_epilogue=True,
+    ):
+        self._put_failure_cleanup(
+            exclude_handles=exclude_handles,
+            include_failure_epilogue=include_failure_epilogue,
+        )
         if self._failure_scopes:
             self.putln("goto %s;" % self._failure_scopes[-1]["label"])
         else:
