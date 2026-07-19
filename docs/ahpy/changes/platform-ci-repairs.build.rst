@@ -15,5 +15,7 @@ so loader retries cannot degrade into exceptionless ``SystemError`` failures.
 The large-type ``-O0`` compile remains the required liveness gate while the
 pathological hosted GCC ``-O3`` compile is a bounded recorded diagnostic. A
 stress artifact upload is skipped when an earlier gate prevents stress from running.
+Hosted semantic and portability builds explicitly use ``-O0`` (MSVC ``/Od``),
+leaving direct-build and performance optimization profiles independent.
 The deterministic rejection corpus also follows the versioned HPy 0.9
 generator API-gap diagnostic instead of an obsolete generic node error.

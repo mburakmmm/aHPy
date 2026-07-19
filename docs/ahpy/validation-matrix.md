@@ -11,7 +11,10 @@ The stable lane installs `hpy==0.9.0` and `setuptools==80.9.0` on Python 3.11.
 Every platform job generates C directly through `hpy-universal`, compiles a
 `.hpy0` module, audits generated source and undefined binary imports, then runs
 the semantic corpus in HPy release, Trace, and Debug modes. Debug Mode uses
-`LeakDetector` for backend handle leaks.
+`LeakDetector` for backend handle leaks. These correctness builds use `-O0` on
+GCC/Clang and `/Od` on MSVC so optimizer cost cannot mask semantic liveness.
+The direct non-setuptools integration and the separately budgeted performance
+gate retain their own explicit optimization profiles.
 
 | Runner | Architecture | Compiler | Initial state |
 |---|---:|---|---|
@@ -376,9 +379,10 @@ stdout/stderr, recursively terminates descendants, and records timeout,
 exit/signal, command, and duration evidence. Five full local rounds completed
 without the `SystemError`: 640 fault selectors plus the generated corpus,
 setuptools integration, and 48-case fuzz all passed. CI repeats one bounded
-round. The stress-only O0 profile is deliberately separate from normal O3
-release validation; it changes optimization cost, not the HPy semantics and
-failure paths under concurrency.
+round. The stress-only O0 profile matches the hosted semantic matrix while
+remaining separate from explicitly optimized direct-build and performance
+validation; it changes optimization cost, not the HPy semantics and failure
+paths under concurrency.
 
 ## Focused Python coverage
 

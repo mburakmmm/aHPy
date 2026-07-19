@@ -154,7 +154,8 @@ record, and recursive timeout cleanup; a killed orchestration cannot leave
 native compiler descendants behind. Its documented stress-only `-O0 -g0`
 profile preserves the same HPy semantic/failure paths while excluding the
 pathological Apple Clang time spent optimizing the large type corpus at `-O3`.
-Normal runtime and release gates retain their ordinary build flags. The local
+Hosted semantic jobs likewise use `-O0` (or MSVC `/Od`); direct-build and
+performance gates retain their own explicit optimization flags. The local
 acceptance run completed five full 48-case rounds and all 640 fault selectors;
 CI repeats one bounded round and uploads the JSON plus hashed logs.
 
@@ -224,7 +225,9 @@ misclassifying optimizer cost as a backend correctness regression.
 `build_portability_artifact.py` builds `bootstrap_answer` and
 `bootstrap_types` once with the CPython 3.11/HPy 0.9 builder, rejects forbidden
 binary imports, copies the `.hpy0` files and loader stubs without rebuilding,
-and writes sizes plus SHA-256 digests to `artifact-manifest.json`.
+and writes sizes plus SHA-256 digests to `artifact-manifest.json`. Its hosted
+correctness build uses `-O0`; cross-interpreter portability does not depend on
+optimizer throughput.
 `portability_smoke.py` revalidates every digest and runs imports/semantics in
 four isolated subprocess stages. Python `hpy.universal` runtimes use the
 unchanged stubs; native HPy runtimes use a temporary directory containing only

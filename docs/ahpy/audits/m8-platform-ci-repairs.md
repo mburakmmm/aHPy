@@ -40,7 +40,10 @@ The repairs keep the test strength:
    remained near 5 seconds. O0 is the required C-validity/liveness gate and O3
    is a bounded diagnostic; relative generated/reference budgets remain
    unchanged. A skipped stress step no longer produces a misleading
-   missing-artifact failure.
+   missing-artifact failure. The hosted stable, pinned-development, and
+   portability semantic builds now explicitly use O0 (`/Od` on MSVC), while
+   direct-build and performance checks keep independent explicit optimization
+   profiles.
 
 Local evidence on macOS ARM64 / CPython 3.11 / HPy 0.9 includes 127 quality
 tests, generated normal/Trace/Debug execution, a staged CPython portability

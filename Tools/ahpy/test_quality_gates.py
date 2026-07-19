@@ -320,6 +320,15 @@ class QualityGateTest(unittest.TestCase):
         self.assertNotIn("continue-on-error: true", stable_universal)
         self.assertNotIn("requirements-hpy-nightly.txt", foundation)
         self.assertIn("requirements-hpy09.txt", foundation)
+        self.assertEqual(stable_universal.count("cflags: -O0"), 5)
+        self.assertEqual(stable_universal.count("cflags: /Od"), 1)
+        self.assertIn("CFLAGS: ${{ matrix.cflags }}", stable_universal)
+        development = after_stable.split("  sanitizers:\n", 1)[0]
+        self.assertIn("CFLAGS: -O0", development)
+        portability = after_stable.split(
+            "  build-portability-artifact:\n", 1
+        )[1].split("  cross-interpreter:\n", 1)[0]
+        self.assertIn("CFLAGS: -O0", portability)
         nightly_section = after_stable.split("  nightly-interpreter:\n", 1)[1]
         self.assertIn("continue-on-error: true", nightly_section)
         self.assertIn("requirements-hpy-nightly.txt", nightly_section)
