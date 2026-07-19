@@ -1,3 +1,5 @@
+# mode: compile
+
 from ahpy_retry_dependency import VALUE
 
 

@@ -1,3 +1,5 @@
+# mode: compile
+
 """Representative runtime paths for the aHPy performance regression gate."""
 
 

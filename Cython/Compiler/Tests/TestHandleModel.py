@@ -41,6 +41,11 @@ from ..HandleModel import (
 )
 
 
+def _function_state(name):
+    owner = SimpleNamespace(putln=lambda line: None)
+    return FunctionState(owner, scope=SimpleNamespace(name=name))
+
+
 class HandleStorageTest(TestCase):
     def test_storage_kinds_have_distinct_runtime_representations(self):
         expected = {
@@ -162,12 +167,12 @@ class ContextPropagationModelTest(TestCase):
             model.persist_context("helper", "a global variable")
 
     def test_function_state_binds_context_from_runtime_contract(self):
-        funcstate = FunctionState(None, scope=SimpleNamespace(name="context"))
+        funcstate = _function_state("context")
         hpy = create_runtime_api(HPY_UNIVERSAL_BACKEND)
         self.assertEqual(funcstate.bind_runtime_context(hpy), "ctx")
         self.assertEqual(funcstate.runtime_context_cname, "ctx")
         with self.assertRaisesRegex(ValueError, "context-free"):
-            FunctionState(None, scope=SimpleNamespace(name="cpython")).bind_runtime_context(
+            _function_state("cpython").bind_runtime_context(
                 create_runtime_api("cpython"), "ctx")
 
     def test_local_hpyfield_is_rejected(self):
@@ -496,7 +501,7 @@ class HandleTemporaryManagerTest(TestCase):
             temps.assert_no_live_owned_handles()
 
     def test_function_state_allocation_and_disposal_use_handle_lifetimes(self):
-        funcstate = FunctionState(None, scope=SimpleNamespace(name="test"))
+        funcstate = _function_state("test")
         name = funcstate.allocate_handle_temp(
             py_object_type, HandleOwnership.OWNED)
         funcstate.close_handle_temp(name)
@@ -515,7 +520,7 @@ class HandleTemporaryManagerTest(TestCase):
         funcstate.validate_exit()
 
     def test_function_state_rejects_live_owned_handle_at_exit(self):
-        funcstate = FunctionState(None, scope=SimpleNamespace(name="test"))
+        funcstate = _function_state("test")
         funcstate.allocate_handle_temp(py_object_type, HandleOwnership.OWNED)
         with self.assertRaisesRegex(
             InvalidHandleTransitionError, "function exit",
@@ -562,7 +567,7 @@ class HandleBuilderManagerTest(TestCase):
             builders.cancel("builder")
 
     def test_function_state_tracks_builder_temp_lifecycle(self):
-        funcstate = FunctionState(None, scope=SimpleNamespace(name="builder"))
+        funcstate = _function_state("builder")
         name = funcstate.allocate_handle_builder_temp(py_object_type)
         with self.assertRaisesRegex(
             InvalidHandleTransitionError, "builders remain live",
