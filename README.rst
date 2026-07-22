@@ -89,15 +89,18 @@ Validation snapshot
 
 The current local M9 snapshot records:
 
-* 355 focused compiler tests and 127 quality-tool tests;
+* 355 focused compiler tests and 128 quality-tool tests (one expected skip);
 * 482 focused coverage tests on CPython 3.11 and 3.14;
 * normal, HPy Trace, and HPy Debug execution;
 * 128 isolated allocation/API fault selectors;
 * nine generated-versus-handwritten Universal HPy performance budgets;
 * reproducible frontend wheel/sdist and portability artifacts.
 
-Hosted Linux/macOS/Windows, PyPy, and GraalPy evidence remains open and is not
-presented as completed support.  See
+The CPython 3.11/HPy 0.9 stable baseline is green on hosted Linux x86-64 and
+ARM64, macOS Intel and ARM64, and Windows x64.  Same-binary PyPy and GraalPy
+executions are recorded as allowed-failure early warnings: their selected
+runtimes currently fail before aHPy's Universal module semantics can run, so
+neither interpreter is a support claim.  See
 `the validation matrix <docs/ahpy/validation-matrix.md>`_ and
 `M9 performance audits <docs/ahpy/audits/m9-abi-performance-baseline.md>`_.
 

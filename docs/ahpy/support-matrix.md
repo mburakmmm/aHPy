@@ -66,8 +66,9 @@ Cython, HPy, and interpreter versions rather than an untested numerical range.
 
 The stable workflow supports its CPython 3.11/HPy 0.9 baseline on Linux
 x86-64/ARM64, macOS Intel/ARM64, and Windows x64 with GCC, Clang, and MSVC.
-All six required jobs are green in hosted run 29685285138. Local macOS ARM64
-validation also passes HPy 0.9.0 on Python 3.11 in
+All six required jobs first went green in hosted run 29685285138 and were
+revalidated at implementation commit `20e401ca7` in hosted run 29900694746.
+Local macOS ARM64 validation also passes HPy 0.9.0 on Python 3.11 in
 release, Trace, and Debug modes. Pinned HPy development commit
 `b57a33c1cec766a1cc3e89f6fd1e2eff73ba9381` passes the same gate on Python
 3.11; its Python 3.14.6 semantic run currently terminates with `SIGSEGV` and is

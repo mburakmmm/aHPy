@@ -35,6 +35,13 @@ and the MSVC 14.44 x86/x64 toolset in Visual Studio Enterprise
 18.7.11925.98. These six non-allowed-failure jobs are the initial supported
 hosted platform/compiler baseline.
 
+PR run [29900694746](https://github.com/mburakmmm/aHPy/actions/runs/29900694746)
+revalidated all six stable jobs, both dedicated sanitizer jobs, portability,
+HPy development on Python 3.11, and compiler/quality at implementation commit
+`20e401ca71a0440ed91e9b6f9d083f3d6a24ef25`. Its Python 3.14 HPy-development
+and same-binary PyPy/GraalPy jobs remain explicit allowed-failure early
+warnings and do not weaken the stable result.
+
 The runner labels follow GitHub's current hosted-runner reference:
 <https://docs.github.com/actions/reference/runners/github-hosted-runners>.
 Explicit labels prevent a moving `*-latest` alias from silently changing a

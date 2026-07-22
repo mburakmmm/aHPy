@@ -56,12 +56,16 @@ Design and implementation references:
 - [Architecture decisions](adr/)
 - [Audits](audits/)
 
-## Initial scope
+## Implemented scope
 
-The first vertical slice covers module-level functions, primitive conversions,
-basic containers, calls, imports, and exceptions. Pure HPy extension types,
-garbage collection, generators, coroutines, buffers, memoryviews, C++ support,
-and third-party Python C APIs are later gated phases.
+The implemented subset now covers module-level functions, the documented
+expression/container/call/control-flow surface, module state and imports,
+restricted current-error handlers, pure HPy extension types with HPy fields,
+native scalar fields, GC, strict same-module single inheritance, supported
+slots/properties, one-level closures, Python-independent external C calls, and
+a strict native-only `with nogil` slice. Generators, coroutines, buffer
+consumers and typed memoryviews, broad C++, and CPython-only third-party APIs
+remain blocked, planned, or rejected as recorded in the support matrix.
 
 The project does not claim that arbitrary Cython code is automatically
 Universal-compatible. In particular, source code or dependencies that expose
@@ -70,15 +74,17 @@ third-party C API require a separate port or produce a compiler diagnostic.
 
 ## Current generated-code tier
 
-The enabled bootstrap tier accepts simple-identifier modules containing
-undecorated `def` functions with required untyped ordinary, multiple, and
-positional-only arguments. Its strict statement subset includes linear local
-assignment/reassignment and one-clause conditional early returns; its value
-subset is recorded in the support matrix. It emits public HPy-only C with
-`HPyFunc_NOARGS`, `HPyFunc_O`, `HPyFunc_KEYWORDS`, deterministic definition
-arrays, `HPyModuleDef`, and `HPy_MODINIT`. Unsupported forms are rejected at
-their source position; there is no CPython fallback.
+The enabled tier accepts the explicitly documented partial surfaces for module
+functions and pure HPy extension types. It emits public HPy-only C through the
+typed runtime API/emitter seam, including exact HPy function/slot signatures,
+interpreter-owned module/type state, deterministic definition arrays,
+`HPyModuleDef`, and `HPy_MODINIT`. The support matrix is authoritative for each
+supported, partial, blocked, and rejected family. Unsupported forms are
+rejected at their source position; there is no CPython or Hybrid fallback.
 
-`Tools/ahpy/test_generated_hpy.py` generates this tier from Cython source,
-scans the C boundary, builds a Universal `.hpy0` artifact, and runs it in normal
-and HPy Debug Mode with explicit leak detection.
+`Tools/ahpy/test_generated_hpy.py` generates the maintained function and type
+corpora from Cython source, scans the C boundary, builds Universal `.hpy0`
+artifacts, and runs them in normal, Trace, and HPy Debug modes with explicit
+leak detection. Focused compiler, failure-injection, fuzz, sanitizer,
+portability, packaging, and CPython C/C++ regression gates complement that
+runtime oracle.
