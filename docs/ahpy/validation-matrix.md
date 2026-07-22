@@ -66,8 +66,17 @@ Both are allowed-failure early warnings. Their report step rejects an
 unexpected interpreter minor, non-VCS HPy install, wrong repository/ref, or a
 resolved commit that is not exactly 40 hexadecimal characters. Local workflow
 contract tests prove that neither moving dependency is present in a stable
-support job. First hosted executions are still pending and are not support
-evidence.
+support job. Manual run 29906185775 resolved `3.15-dev` to CPython
+`3.15.0-beta.4`; stable HPy 0.9 then failed to build before aHPy ran because
+its `-Werror` rejected `_POSIX_C_SOURCE` redefinition between Python 3.15's
+`pyconfig.h` and glibc. The HPy-master lane resolved to the already pinned
+`b57a33c1cec766a1cc3e89f6fd1e2eff73ba9381` commit and recorded upstream VCS
+provenance on CPython 3.11, but unlike the green pinned lane it omitted
+`CFLAGS=-O0`; its optimized generated-corpus build ran unbounded for more than
+90 minutes. Both runtime steps now use the validated `-O0` semantic profile
+and a 30-minute timeout, and require a bounded rerun.
+Neither result is support evidence; both jobs remain allowed-failure early
+warnings with unconditional evidence upload.
 
 ## Same-binary interpreter gate
 
@@ -120,16 +129,22 @@ LeakSanitizer is intentionally disabled in that mixed ASan lane; unsuppressed
 interpreter allocations would not be an actionable backend signal. HPy Debug
 Mode remains the mandatory leak detector.
 
-An independent schedule/manual Linux Valgrind job is now declared as an
-allowed-failure early warning. Its versioned suppression file is applied first
+An independent schedule/manual Linux Valgrind job is a required native-memory
+gate whenever that workflow mode executes. Its versioned suppression file is
+applied first
 to a deliberately leaking C positive control; failure to report that definite
 leak rejects the lane, preventing an over-broad suppression set. It then runs
 all five generated-corpus normal/Trace/Debug runtime subprocesses under
 `--errors-for-leak-kinds=definite` and requires zero exits from each. The job
 uploads the exact suppression hash, toolchain/interpreter versions, positive
-control log, and per-process Valgrind logs. Its first hosted green and
-suppression review remain pending, so it is not yet a release requirement or a
-Linux native-memory support claim.
+control log, and per-process Valgrind logs. Manual run 29906185775, job
+88878105102, is green on CPython 3.11.15/GCC 13.3.0/Valgrind 3.22.0: the
+positive control reports 64 definitely lost bytes, all five real logs report
+zero definitely lost bytes and zero errors, and the reviewed suppression file
+contains no active entries. Artifact digest is
+`sha256:296535447ec22e70dcdf0cf3046c92ebffc191bcd673e002203aeb90f729a4a2`.
+The job is therefore no longer `continue-on-error`; Windows native-memory
+tooling remains open.
 
 `Tools/ahpy/test_quality_gates.py` compiles the same source twice in independent
 directories and compares the emitted bytes. This gate found and fixed an

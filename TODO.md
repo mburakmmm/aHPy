@@ -1418,8 +1418,11 @@ emulated.
       fixtures remain covered. Its Windows C++/Python 3.11 full lane later hit
       the known hosted MSVC parallel-link transient `LNK1158` when `link.exe`
       could not launch the otherwise-present Windows SDK `rc.exe`; Windows
-      `runtests.py` parallelism is now bounded at four and awaits replacement
-      hosted evidence.
+      `runtests.py` parallelism was bounded at four, but replacement run
+      `29905498043` showed `shared_utility_module` overlapping its internal
+      `build_ext -j3` with that outer pool. Both `shared_utility` trees are now
+      isolated from the four-worker pass while retaining their internal
+      parallel build; replacement hosted evidence remains required.
 - [x] Record first green hosted runs for every declared Linux/macOS/Windows
       compiler job. Push run `29685285138` is green at commit `02d9f8cdd` for
       Linux x64 GCC/Clang, Linux ARM64 GCC, macOS Intel/ARM64 Clang, Windows x64
@@ -1436,11 +1439,19 @@ emulated.
       wording, ASan `detect_leaks=0`, job contracts, and exact revision reports.
 - [ ] Record first green hosted executions of both moving nightly jobs; retain
       allowed-failure early-warning status and do not alter stable support.
+      Manual run `29906185775` records CPython 3.15.0-beta.4 failing in HPy
+      0.9's own `-Werror` build before aHPy runs, while HPy `master` passed VCS
+      provenance at the already pinned `b57a33c1...` commit but omitted the
+      pinned lane's `-O0` profile and hung in the optimized generated build for
+      over 90 minutes. Both runtime steps now use `-O0` and a 30-minute timeout;
+      a bounded first green for each lane remains open.
 - [ ] Add reviewed Linux LSan/Valgrind and Windows Application Verifier lanes
       with positive leak controls.
-      The Linux job now enforces the positive control and real generated corpus
-      but remains allowed-failure/hosted-pending; suppression review, its first
-      green run, and the Windows lane remain open.
+  - [x] Promote the Linux job after manual run `29906185775`, job
+        `88878105102`, detected the 64-byte positive control, produced five
+        clean real-corpus logs, and confirmed zero active suppressions.
+  - [ ] Add and review the Windows native-memory lane with an independent
+        positive control.
 - [ ] Apply reproducibility gates to future aHPy sdist and Universal wheel
       formats after U4 packaging exists.
 

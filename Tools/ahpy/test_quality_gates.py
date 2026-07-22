@@ -292,6 +292,12 @@ class QualityGateTest(unittest.TestCase):
             self.assertIn("continue-on-error: true", job)
             self.assertIn("if: always()", job)
             self.assertIn("nightly-evidence", job)
+            self.assertIn(
+                "- name: Build, audit, and run Universal module\n"
+                "        timeout-minutes: 30\n",
+                job,
+            )
+            self.assertIn("CFLAGS: -O0", job)
         self.assertIn("requirements-hpy09.txt", interpreter_job)
         self.assertNotIn("requirements-hpy-nightly.txt", interpreter_job)
         self.assertIn("requirements-hpy-nightly.txt", hpy_job)
@@ -393,7 +399,9 @@ class QualityGateTest(unittest.TestCase):
                     validation_matrix,
                     r"%s[^\n]{0,120}\bsupported\b" % target["name"],
                 )
-        self.assertIn("First hosted executions are still pending", validation_matrix)
+        self.assertIn("Manual run 29906185775", validation_matrix)
+        self.assertIn("3.15.0-beta.4", validation_matrix)
+        self.assertIn("bounded rerun", validation_matrix)
         self.assertIn("allowed-failure early warnings", validation_matrix)
         self.assertIn("continue-on-error", validation_matrix)
 
@@ -425,12 +433,13 @@ class QualityGateTest(unittest.TestCase):
         self.assertRegex(readme, r"handle-leak gate|leak detector")
         self.assertIn("leak detector", validation_matrix)
 
-    def test_valgrind_lane_is_hosted_pending_and_enforces_real_corpus(self):
+    def test_valgrind_lane_is_promoted_and_enforces_real_corpus(self):
         workflow = (ROOT / ".github" / "workflows" /
                     "ahpy-universal.yml").read_text(encoding="utf8")
         job = workflow.split("  native-memory-valgrind:\n", 1)[1].split(
             "  build-portability-artifact:\n", 1)[0]
-        self.assertIn("continue-on-error: true", job)
+        self.assertNotIn("continue-on-error: true", job)
+        self.assertIn("native memory gate (Linux Valgrind definite leaks)", job)
         self.assertIn("github.event_name == 'schedule'", job)
         self.assertIn("github.event_name == 'workflow_dispatch'", job)
         self.assertIn("valgrind", job)

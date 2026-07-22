@@ -89,7 +89,7 @@ Validation snapshot
 
 The current local M9 snapshot records:
 
-* 355 focused compiler tests and 128 quality-tool tests (one expected skip);
+* 355 focused compiler tests and 129 quality-tool tests (one expected skip);
 * 482 focused coverage tests on CPython 3.11 and 3.14;
 * normal, HPy Trace, and HPy Debug execution;
 * 128 isolated allocation/API fault selectors;

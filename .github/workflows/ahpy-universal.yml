@@ -289,10 +289,9 @@ jobs:
           --cc ${{ matrix.cc }}
 
   native-memory-valgrind:
-    name: early warning (Linux Valgrind definite leaks)
+    name: native memory gate (Linux Valgrind definite leaks)
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-24.04
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -414,6 +413,9 @@ jobs:
           --requested-python 3.15-dev
           --output nightly-evidence/environment.json
       - name: Build, audit, and run Universal module
+        timeout-minutes: 30
+        env:
+          CFLAGS: -O0
         run: python Tools/ahpy/test_generated_hpy.py --python python
       - name: Upload interpreter-nightly evidence
         if: always()
@@ -455,6 +457,9 @@ jobs:
           --expected-hpy-ref master
           --output nightly-evidence/environment.json
       - name: Build, audit, and run Universal module
+        timeout-minutes: 30
+        env:
+          CFLAGS: -O0
         run: python Tools/ahpy/test_generated_hpy.py --python python
       - name: Upload HPy-nightly evidence
         if: always()

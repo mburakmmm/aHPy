@@ -219,15 +219,19 @@ A1 is done. Proceed when unblocked:
   terminated at its first bundled-bridge import and GraalPy reported no bridge
   or native `.hpy0` import hook. Both remain allowed-failure early warnings.)**
 - A4 nightly contract tests / wording guards (local remaining pieces).
-  **(manifest status-set guards, stable-vs-nightly separation, hosted-pending
-  wording checks, ASan `detect_leaks=0` documentation, and nightly job
-  contract tests are local-green; hosted evidence remains open)**
+  **(manifest status-set guards, stable-vs-nightly separation, support wording,
+  ASan `detect_leaks=0`, 30-minute runtime bounds, and nightly job contracts
+  are local-green. Manual run `29906185775` records HPy 0.9 failing to build on
+  CPython 3.15.0-beta.4 before aHPy and HPy master resolving to the pinned
+  `b57a33c1...` commit before its missing `-O0` profile caused an optimized
+  build hang; both runtime steps now use `-O0` plus a 30-minute bound, and
+  first-green evidence remains open.)**
 - A5 Linux LSan/Valgrind positive-control lane; Windows AppVerifier when a
   Windows environment exists.
-  **(the schedule/manual Linux job now makes the positive control and all five
-  real generated-corpus runtime processes mandatory under Valgrind; it remains
-  allowed-failure/hosted-pending until suppression review and a first green.
-  Windows remains open.)**
+  **(Linux is promoted: manual run `29906185775`, job `88878105102`, detected
+  the 64-byte positive control, recorded five clean real-corpus logs, and used
+  no active suppression. Its schedule/manual job is now required. Windows
+  remains open.)**
 - A6 package reproducibility — after Phase U3 Universal packaging formats.
 
 ### Phase U3 — M6 advanced families (one gated family at a time)

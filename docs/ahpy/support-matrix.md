@@ -80,7 +80,12 @@ One uses the moving CPython `3.15-dev` prerelease with stable HPy 0.9; the other
 uses CPython 3.11 with HPy's official `master` branch. Both are allowed-failure,
 run independently of the full-commit development lane, and upload actual
 interpreter/package/VCS provenance. A green or red nightly is early warning
-only and cannot promote an interpreter or HPy revision to supported.
+only and cannot promote an interpreter or HPy revision to supported. Manual
+run 29906185775 records CPython 3.15.0-beta.4 failing while building HPy 0.9
+before aHPy executes and HPy master resolving to the pinned
+`b57a33c1cec766a1cc3e89f6fd1e2eff73ba9381` commit before an unbounded
+optimized build hung. Both runtime steps now use the validated `-O0` semantic
+profile, are bounded to 30 minutes, and still need first-green evidence.
 
 The baseline Cython revision is
 `b99cb0e3b5425e11414cadd24168a6cc850e8000` from 2026-07-13.
