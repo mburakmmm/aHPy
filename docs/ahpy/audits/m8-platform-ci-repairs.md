@@ -98,3 +98,31 @@ the active import exception, yielding `SystemError` in Linux sanitizer job
 `88126392914` and Windows Debug job `88186685203`. The backend now performs
 attribute rollback only for `MemoryError`, which HPy 0.9 can reconstruct after
 cleanup; arbitrary exceptions retain their original identity and traceback.
+
+## Current-head classic regression repairs
+
+General Cython PR run
+[29900694989](https://github.com/mburakmmm/aHPy/actions/runs/29900694989)
+first exposed that three executable Universal-only aHPy fixtures were also
+being discovered by GraalPy's generic classic-C-API test lane. The classic
+output reached GraalPy 25.1.3's unimplemented
+`PyUnicode_DecodeUnicodeEscape` before the Universal contract could run.
+`graal_bugs.txt` now excludes only `bootstrap_answer`, `bootstrap_types`, and
+`fault_injection` on GraalPy; compile-only `benchmark_generated` and
+`retry_case` remain in the generic C/C++ suite, and the dedicated Universal
+workflow retains the executable semantics.
+
+The same broad run's Windows C++/Python 3.11 job
+[88866582910](https://github.com/mburakmmm/aHPy/actions/runs/29900694989/job/88866582910)
+compiled 1,418 C++ test modules before one concurrent end-to-end package link
+failed with `LNK1158: cannot run 'rc.exe'`. The runner had successfully used
+the same Windows SDK helper in adjacent links, the run's early Windows C++ job
+was green, and the previous full Windows C++ job was green. This is the
+intermittent parallel-link failure already documented beside the Windows
+bootstrap build policy, not generated aHPy behavior. The full test runner had
+nevertheless still launched seven independent MSVC test trees; Windows now
+bounds that outer parallelism at four while retaining GraalPy's independent
+two-worker policy. A quality contract locks both limits. Local `bash -n`, 129
+quality tests (one expected Valgrind skip), codestyle, and whitespace gates are
+green; replacement hosted evidence remains required before closing the
+current-head mandatory-matrix item.

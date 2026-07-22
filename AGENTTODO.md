@@ -12,12 +12,12 @@ checklist. An agent must update both files when implementation status changes.
 - Branch: `codex/ahpy-bootstrap`.
 - Upstream Cython baseline: `b99cb0e3b5425e11414cadd24168a6cc850e8000`.
 - Last fully green dedicated-aHPy reference:
-  `b8dc12f674c30f60588f5231fb8217c315cd0215`; always obtain the live branch
+  `20e401ca71a0440ed91e9b6f9d083f3d6a24ef25`; always obtain the live branch
   HEAD with `git rev-parse HEAD` before reporting or changing evidence.
 - Stable local environment: `.venv-hpy09`, CPython 3.11.15, HPy 0.9.0.
 - Additional local coverage interpreter: `python3`, CPython 3.14.6.
-- The full dedicated aHPy/coverage/sanitizer set is verified through
-  `b8dc12f67`; preserve
+- The dedicated aHPy and sanitizer sets are verified through `20e401ca7`;
+  the last complete coverage set is verified through `b8dc12f67`. Preserve
   later user/agent work and do not reset, clean, overwrite, or discard it.
 - `.DS_Store` and
   `docs/examples/userguide/wrapping_CPlusPlus/rect_with_attributes.cpp` are
@@ -26,19 +26,19 @@ checklist. An agent must update both files when implementation status changes.
   `b99cb0e3b` is published as `main`, `codex/ahpy-bootstrap` is pushed, and
   draft PR [#2](https://github.com/mburakmmm/aHPy/pull/2) carries the aHPy
   integration.
-- At branch HEAD, dedicated aHPy run
-  [29689246328](https://github.com/mburakmmm/aHPy/actions/runs/29689246328),
-  coverage run
-  [29689246359](https://github.com/mburakmmm/aHPy/actions/runs/29689246359),
+- At published implementation HEAD, dedicated aHPy run
+  [29900694746](https://github.com/mburakmmm/aHPy/actions/runs/29900694746)
   and sanitizer run
-  [29689246387](https://github.com/mburakmmm/aHPy/actions/runs/29689246387)
-  are green. General Cython run
-  [29689246389](https://github.com/mburakmmm/aHPy/actions/runs/29689246389)
-  is red only in its classic-C-API GraalPy job: that job accidentally executes
-  Universal-only aHPy runtime fixtures and reaches GraalPy 25.1.3's missing
-  `PyUnicode_DecodeUnicodeEscape`. A focused fixture-isolation fix has local
-  evidence but still requires replacement hosted confirmation. Do not call the
-  complete mandatory matrix green until that confirmation lands.
+  [29900695065](https://github.com/mburakmmm/aHPy/actions/runs/29900695065)
+  are green. Coverage run
+  [29900694762](https://github.com/mburakmmm/aHPy/actions/runs/29900694762)
+  is still running. General Cython run
+  [29900694989](https://github.com/mburakmmm/aHPy/actions/runs/29900694989)
+  moved its GraalPy lane beyond the former Universal-fixture import failure,
+  then exposed the known Windows/MSVC concurrent-link `LNK1158` transient in
+  one full C++ job. Local Windows test parallelism is now bounded at four and
+  requires replacement hosted confirmation. Do not call the complete
+  mandatory matrix green until that confirmation lands.
 - User mandate (2026-07-15): complete **HPy 0.9 max Universal coverage** and the
   **full M2–M11 roadmap** (options 1+3). Work the ordered queues below; never
   mark a HPy-0.9 API gap as supported; never claim hosted lanes without green
@@ -100,7 +100,7 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 128 tests pass (one expected Valgrind availability skip
+- Quality-tool suite: 129 tests pass (one expected Valgrind availability skip
   on macOS).
 - Focused coverage (post–hosted-platform CI regressions, Python 3.11):
   482 tests
@@ -279,7 +279,10 @@ Current item: **1**. Local tests prove that only `bootstrap_answer`,
 `bootstrap_types`, and `fault_injection` are excluded from GraalPy's generic
 classic backend run; compile-only `benchmark_generated` and `retry_case`
 remain in that run, and the dedicated Universal workflow remains authoritative
-for the three executable fixtures.
+for the three executable fixtures. The same broad run later reproduced
+Windows/MSVC `LNK1158` under seven concurrent test trees; local policy now
+bounds Windows at four workers, keeps GraalPy at two, and awaits a clean
+replacement hosted matrix.
 
 ### A1. Resolve the parallel fault-gate transient — completed
 

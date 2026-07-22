@@ -1413,10 +1413,13 @@ emulated.
 
 - [ ] Keep every mandatory workflow green on the current aHPy branch HEAD,
       including the upstream Cython C/C++ and non-CPython regression matrix.
-      Run `29689246389` is green except for GraalPy executing three
-      Universal-only aHPy runtime fixtures through the classic C-API backend;
-      the focused exclusion keeps compile-only aHPy fixtures covered and
-      awaits replacement hosted evidence.
+      Run `29900694989` verifies that the focused GraalPy exclusion moved past
+      the former Universal-fixture import failure while compile-only aHPy
+      fixtures remain covered. Its Windows C++/Python 3.11 full lane later hit
+      the known hosted MSVC parallel-link transient `LNK1158` when `link.exe`
+      could not launch the otherwise-present Windows SDK `rc.exe`; Windows
+      `runtests.py` parallelism is now bounded at four and awaits replacement
+      hosted evidence.
 - [x] Record first green hosted runs for every declared Linux/macOS/Windows
       compiler job. Push run `29685285138` is green at commit `02d9f8cdd` for
       Linux x64 GCC/Clang, Linux ARM64 GCC, macOS Intel/ARM64 Clang, Windows x64

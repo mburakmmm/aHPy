@@ -48,6 +48,18 @@ class QualityGateTest(unittest.TestCase):
             self.assertFalse(is_excluded(compile_only_fixture),
                              compile_only_fixture)
 
+    def test_windows_ci_bounds_parallel_msvc_test_trees(self):
+        script = (ROOT / "Tools" / "ci-run.sh").read_text(encoding="utf8")
+        self.assertIn(
+            'if [[ $OSTYPE == "msys" || $OSTYPE == "cygwin" ]]; then\n'
+            "  # Several end-to-end tests launch their own multi-extension "
+            "MSVC builds.\n",
+            script,
+        )
+        self.assertIn("  TEST_PARALLELISM=-j4\n", script)
+        self.assertIn('elif [[ $PYTHON_VERSION == "graalpy"* ]]; then', script)
+        self.assertIn("  TEST_PARALLELISM=-j2\n", script)
+
     def test_runtime_check_is_written_to_a_script(self):
         with tempfile.TemporaryDirectory() as temp:
             directory = Path(temp)

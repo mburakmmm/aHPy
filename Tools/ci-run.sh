@@ -207,7 +207,13 @@ if [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" && $OSTYPE != "cygwin" ]];
   fi
 fi
 
-if [[ $PYTHON_VERSION == "graalpy"* ]]; then
+if [[ $OSTYPE == "msys" || $OSTYPE == "cygwin" ]]; then
+  # Several end-to-end tests launch their own multi-extension MSVC builds.
+  # Running seven of those trees concurrently has intermittently made
+  # link.exe fail to launch the Windows SDK rc.exe helper (LNK1158), even
+  # though the same runner successfully uses rc.exe in adjacent tests.
+  TEST_PARALLELISM=-j4
+elif [[ $PYTHON_VERSION == "graalpy"* ]]; then
   # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
   # JIT actually makes it faster! And reduces the number of cores each process uses.
   GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
