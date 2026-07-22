@@ -1181,6 +1181,10 @@ until its full existing Cython test subset and new HPy-specific tests pass.
     - [ ] Record the first hosted run, inspect tool discovery and every uploaded
           log, repair any runner/tool mismatch, then remove `continue-on-error`
           only after the positive control and real corpus are both proven.
+      - [x] Review probe run `29945115651`, job `89008424404`: both x64 tools
+            exist and cleanup passed; replace the unreliable aggregate
+            `gflags /p` assertion with direct enable output plus AppVerifier's
+            `Heaps`/`Full=true` query.
 - [x] Audit generated source plus undefined binary imports on Unix and Windows;
       fail closed when no supported symbol reader exists.
 - [x] Add byte-for-byte deterministic Universal source generation from two

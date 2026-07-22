@@ -17,6 +17,7 @@ from run_appverifier_hpy import (
     _appverif_export_command,
     _candidate_paths,
     _copy_raw_logs,
+    _validate_settings,
     _xml_errors,
     _xml_severities,
 )
@@ -90,6 +91,24 @@ class AppVerifierScaffoldTest(unittest.TestCase):
             )
             self.assertEqual(_xml_severities(xml), ["warning", "error"])
             self.assertEqual(_xml_errors(xml), ["error"])
+
+    def test_hosted_settings_shape_proves_full_page_heap(self):
+        target = "ahpy_target.exe"
+        appverif = (
+            "Settings for ahpy_target.exe:\n"
+            "Test [Heaps] enabled.\n"
+            "    Full = true\n"
+        )
+        gflags = (
+            "path: SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\"
+            "Image File Execution Options\n"
+            "    ahpy_target.exe: page heap enabled with flags (full traces)\n"
+        )
+        _validate_settings(target, appverif, gflags)
+        with self.assertRaisesRegex(RuntimeError, "AppVerifier query"):
+            _validate_settings(target, appverif.replace("true", "false"), gflags)
+        with self.assertRaisesRegex(RuntimeError, "GFlags enable output"):
+            _validate_settings(target, appverif, "No application enabled")
 
     def test_raw_log_copy_is_limited_to_configured_targets(self):
         with tempfile.TemporaryDirectory(prefix="ahpy-appverif-raw-") as temp:

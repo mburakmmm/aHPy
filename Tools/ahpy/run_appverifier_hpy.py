@@ -99,27 +99,41 @@ def _run(command, *, environment=None, cwd=None, check=True, timeout=120):
     )
 
 
+def _validate_settings(target_name, appverif_text, gflags_enable_text):
+    target = target_name.lower()
+    appverif = appverif_text.lower()
+    gflags = gflags_enable_text.lower()
+    if not all(value in appverif for value in (
+            target, "test [heaps] enabled.", "full = true")):
+        raise RuntimeError(
+            "AppVerifier query did not prove enabled full heap verification "
+            "for %s" % target_name)
+    if target not in gflags or "page heap enabled" not in gflags:
+        raise RuntimeError(
+            "GFlags enable output did not prove page heap for %s" %
+            target_name)
+
+
 def _configure_target(appverif, gflags, target_name, evidence_dir):
     _run([appverif, "-delete", "logs", "-for", target_name], check=False)
     _run([appverif, "-delete", "settings", "-for", target_name], check=False)
     _run([gflags, "/p", "/disable", target_name], check=False)
     _run([appverif, "/verify", target_name])
-    _run([gflags, "/p", "/enable", target_name, "/full"])
+    page_heap_enable = _run(
+        [gflags, "/p", "/enable", target_name, "/full"])
     query = _run([appverif, "-query", "*", "-for", target_name])
     page_heap = _run([gflags, "/p"])
+    (evidence_dir / (target_name + "-gflags-enable.txt")).write_text(
+        page_heap_enable.stdout + page_heap_enable.stderr, encoding="utf8")
     (evidence_dir / (target_name + "-appverif-query.txt")).write_text(
         query.stdout + query.stderr, encoding="utf8")
     (evidence_dir / (target_name + "-gflags-query.txt")).write_text(
         page_heap.stdout + page_heap.stderr, encoding="utf8")
-    query_text = (query.stdout + query.stderr).lower()
-    heap_text = (page_heap.stdout + page_heap.stderr).lower()
-    if target_name.lower() not in query_text or "heap" not in query_text:
-        raise RuntimeError(
-            "AppVerifier query did not prove Basics/heap verification for %s" %
-            target_name)
-    if target_name.lower() not in heap_text or "full traces" not in heap_text:
-        raise RuntimeError(
-            "GFlags query did not prove full page heap for %s" % target_name)
+    _validate_settings(
+        target_name,
+        query.stdout + query.stderr,
+        page_heap_enable.stdout + page_heap_enable.stderr,
+    )
 
 
 def _cleanup_target(appverif, gflags, target_name):

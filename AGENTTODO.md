@@ -304,6 +304,11 @@ five real runtime processes, proves a native heap overrun is detected, rejects
 AppVerifier XML errors from the corpus, uploads raw evidence, and removes both
 settings in `finally`. The immediate next action is a manual hosted run and
 artifact review; do not promote the job before that evidence exists.
+Manual run `29945115651`, job `89008424404`, found both hosted x64 tools and
+proved AppVerifier `Heaps`/`Full=true`, but the aggregate `gflags /p` listing
+did not expose AppVerifier-owned settings; the job failed closed before target
+execution and cleanup succeeded. The replacement uses direct GFlags enable
+output plus the AppVerifier query as authority and still needs hosted review.
 
 ### A1. Resolve the parallel fault-gate transient — completed
 
