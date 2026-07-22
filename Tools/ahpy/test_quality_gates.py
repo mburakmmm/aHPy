@@ -57,6 +57,12 @@ class QualityGateTest(unittest.TestCase):
             script,
         )
         self.assertIn("  TEST_PARALLELISM=-j4\n", script)
+        self.assertIn(
+            '  WINDOWS_SHARED_UTILITY_EXCLUDE="-x tag:shared_utility"\n',
+            script,
+        )
+        self.assertEqual(script.count("$WINDOWS_SHARED_UTILITY_EXCLUDE"), 2)
+        self.assertIn("    -j1 \\\n    tag:shared_utility || EXIT_CODE=1\n", script)
         self.assertIn('elif [[ $PYTHON_VERSION == "graalpy"* ]]; then', script)
         self.assertIn("  TEST_PARALLELISM=-j2\n", script)
 

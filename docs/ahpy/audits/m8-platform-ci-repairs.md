@@ -122,7 +122,18 @@ intermittent parallel-link failure already documented beside the Windows
 bootstrap build policy, not generated aHPy behavior. The full test runner had
 nevertheless still launched seven independent MSVC test trees; Windows now
 bounds that outer parallelism at four while retaining GraalPy's independent
-two-worker policy. A quality contract locks both limits. Local `bash -n`, 129
-quality tests (one expected Valgrind skip), codestyle, and whitespace gates are
-green; replacement hosted evidence remains required before closing the
-current-head mandatory-matrix item.
+two-worker policy.
+
+Replacement run
+[29905498043](https://github.com/mburakmmm/aHPy/actions/runs/29905498043)
+proved that the outer cap alone was insufficient. Windows C++/Python 3.9 job
+[88881761829](https://github.com/mburakmmm/aHPy/actions/runs/29905498043/job/88881761829)
+compiled all 1,418 C++ modules, then the `shared_utility_module` end-to-end
+test launched its own `build_ext -j3` while other outer workers were active;
+one of those three links again received `LNK1158`. Windows therefore excludes
+the two `tag:shared_utility` trees from the four-worker pass and executes them
+in a separate one-tree pass. Their internal `-j3` behavior remains tested,
+but no unrelated outer build competes for `rc.exe`. A quality contract locks
+the separation, Windows limit, and GraalPy limit. Replacement hosted evidence
+for this stronger fix remains required before closing the current-head
+mandatory-matrix item.

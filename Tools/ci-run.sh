@@ -209,10 +209,12 @@ fi
 
 if [[ $OSTYPE == "msys" || $OSTYPE == "cygwin" ]]; then
   # Several end-to-end tests launch their own multi-extension MSVC builds.
-  # Running seven of those trees concurrently has intermittently made
-  # link.exe fail to launch the Windows SDK rc.exe helper (LNK1158), even
-  # though the same runner successfully uses rc.exe in adjacent tests.
+  # Keep the ordinary trees bounded and run the internally parallel
+  # shared-utility trees in isolation below. Otherwise their build_ext -j3
+  # subprocesses can overlap the outer pool and make link.exe fail to launch
+  # the Windows SDK rc.exe helper (LNK1158).
   TEST_PARALLELISM=-j4
+  WINDOWS_SHARED_UTILITY_EXCLUDE="-x tag:shared_utility"
 elif [[ $PYTHON_VERSION == "graalpy"* ]]; then
   # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
   # JIT actually makes it faster! And reduces the number of cores each process uses.
@@ -253,9 +255,26 @@ $PYTHON $GRAAL_PYTHON_ARGS runtests.py \
   --backends=$BACKEND \
   $SHARED_UTILITY \
   $EXCLUDE \
+  $WINDOWS_SHARED_UTILITY_EXCLUDE \
   $RUNTESTS_ARGS
 
 EXIT_CODE=$?
+
+if [[ $WINDOWS_SHARED_UTILITY_EXCLUDE ]]; then
+  # Preserve the tests' own build_ext -j3 coverage without competing outer
+  # test trees on the same Windows runner. The final -j1 overrides the outer
+  # pool size only for this isolated tag run.
+  $PYTHON runtests.py \
+    -vv --no-code-style \
+    --no-cleanup \
+    -x Debugger \
+    --backends=$BACKEND \
+    $SHARED_UTILITY \
+    $EXCLUDE \
+    $RUNTESTS_ARGS \
+    -j1 \
+    tag:shared_utility || EXIT_CODE=1
+fi
 
 ccache -s -v -v 2>/dev/null || true
 

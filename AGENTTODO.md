@@ -26,19 +26,21 @@ checklist. An agent must update both files when implementation status changes.
   `b99cb0e3b` is published as `main`, `codex/ahpy-bootstrap` is pushed, and
   draft PR [#2](https://github.com/mburakmmm/aHPy/pull/2) carries the aHPy
   integration.
-- At published implementation HEAD, dedicated aHPy run
-  [29900694746](https://github.com/mburakmmm/aHPy/actions/runs/29900694746)
+- At pre-repair HEAD `cfbd94b64475306036a11474d5cc587ab9bf8ac6`, dedicated
+  aHPy run
+  [29905497837](https://github.com/mburakmmm/aHPy/actions/runs/29905497837),
+  coverage run
+  [29905497811](https://github.com/mburakmmm/aHPy/actions/runs/29905497811),
   and sanitizer run
-  [29900695065](https://github.com/mburakmmm/aHPy/actions/runs/29900695065)
-  are green. Coverage run
-  [29900694762](https://github.com/mburakmmm/aHPy/actions/runs/29900694762)
-  is still running. General Cython run
-  [29900694989](https://github.com/mburakmmm/aHPy/actions/runs/29900694989)
-  moved its GraalPy lane beyond the former Universal-fixture import failure,
-  then exposed the known Windows/MSVC concurrent-link `LNK1158` transient in
-  one full C++ job. Local Windows test parallelism is now bounded at four and
-  requires replacement hosted confirmation. Do not call the complete
-  mandatory matrix green until that confirmation lands.
+  [29905498058](https://github.com/mburakmmm/aHPy/actions/runs/29905498058)
+  are green. General Cython run
+  [29905498043](https://github.com/mburakmmm/aHPy/actions/runs/29905498043)
+  confirmed the GraalPy fixture isolation but reproduced Windows/MSVC
+  `LNK1158` inside `shared_utility_module`: its own `build_ext -j3` overlapped
+  the bounded four-worker outer pool. The stronger local repair excludes both
+  `tag:shared_utility` trees from that pool and runs them alone while retaining
+  their internal parallel build. Replacement hosted confirmation remains
+  mandatory; do not call the complete matrix green before it lands.
 - User mandate (2026-07-15): complete **HPy 0.9 max Universal coverage** and the
   **full M2–M11 roadmap** (options 1+3). Work the ordered queues below; never
   mark a HPy-0.9 API gap as supported; never claim hosted lanes without green
@@ -279,10 +281,12 @@ Current item: **1**. Local tests prove that only `bootstrap_answer`,
 `bootstrap_types`, and `fault_injection` are excluded from GraalPy's generic
 classic backend run; compile-only `benchmark_generated` and `retry_case`
 remain in that run, and the dedicated Universal workflow remains authoritative
-for the three executable fixtures. The same broad run later reproduced
-Windows/MSVC `LNK1158` under seven concurrent test trees; local policy now
-bounds Windows at four workers, keeps GraalPy at two, and awaits a clean
-replacement hosted matrix.
+for the three executable fixtures. Two broad runs reproduced Windows/MSVC
+`LNK1158`: first under seven outer test trees, then inside an internally
+parallel `shared_utility_module` build under the four-worker cap. Windows now
+runs ordinary tests at four workers and the `shared_utility` tag in an isolated
+one-tree pass, preserving each selected test's own `build_ext -j3`; GraalPy
+stays at two workers. A clean replacement hosted matrix is still required.
 
 ### A1. Resolve the parallel fault-gate transient — completed
 
