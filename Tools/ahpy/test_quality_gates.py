@@ -21,9 +21,33 @@ import test_generated_hpy
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "tests" / "ahpy" / "bootstrap_answer.pyx"
 VERSION_MANIFEST = ROOT / "tests" / "ahpy" / "hpy-versions.toml"
+GRAAL_EXCLUSIONS = ROOT / "tests" / "graal_bugs.txt"
 
 
 class QualityGateTest(unittest.TestCase):
+    def test_graalpy_excludes_only_executable_hpy_runtime_fixtures(self):
+        patterns = [
+            re.compile(line)
+            for line in GRAAL_EXCLUSIONS.read_text(encoding="utf8").splitlines()
+            if line and not line.startswith("#")
+        ]
+
+        def is_excluded(test_name):
+            return any(pattern.search(test_name) for pattern in patterns)
+
+        for fixture in (
+            "ahpy.bootstrap_answer",
+            "ahpy.bootstrap_types",
+            "ahpy.fault_injection",
+        ):
+            self.assertTrue(is_excluded(fixture), fixture)
+        for compile_only_fixture in (
+            "ahpy.benchmark_generated",
+            "ahpy.retry_case",
+        ):
+            self.assertFalse(is_excluded(compile_only_fixture),
+                             compile_only_fixture)
+
     def test_runtime_check_is_written_to_a_script(self):
         with tempfile.TemporaryDirectory() as temp:
             directory = Path(temp)

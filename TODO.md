@@ -1411,6 +1411,12 @@ emulated.
 
 ### U2 - M8 evidence without false claims
 
+- [ ] Keep every mandatory workflow green on the current aHPy branch HEAD,
+      including the upstream Cython C/C++ and non-CPython regression matrix.
+      Run `29689246389` is green except for GraalPy executing three
+      Universal-only aHPy runtime fixtures through the classic C-API backend;
+      the focused exclusion keeps compile-only aHPy fixtures covered and
+      awaits replacement hosted evidence.
 - [x] Record first green hosted runs for every declared Linux/macOS/Windows
       compiler job. Push run `29685285138` is green at commit `02d9f8cdd` for
       Linux x64 GCC/Clang, Linux ARM64 GCC, macOS Intel/ARM64 Clang, Windows x64
@@ -1456,6 +1462,9 @@ emulated.
 
 ### U5 - M9 / M10 / M11 release readiness
 
+- [ ] Keep README status, support/validation matrices, audit evidence,
+      `AGENTTODO.md`, and draft PR metadata synchronized to the same published
+      HEAD after each hosted fix; do not advertise stale or mixed-run evidence.
 - [ ] Satisfy M9 performance budgets with hosted history and separate
       interpreter/HPy overhead accounting.
 - [ ] Complete the four M10 pilots and publish dashboard/porting guidance.

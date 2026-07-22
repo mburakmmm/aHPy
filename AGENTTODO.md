@@ -6,22 +6,39 @@ checklist. An agent must update both files when implementation status changes.
 
 ## 1. Snapshot and source of truth
 
-- Snapshot date: 2026-07-16 (Cursor continuation audited and reconciled).
+- Snapshot date: 2026-07-22 (Cursor/Codex continuation and hosted evidence
+  audited and reconciled).
 - Workspace: `/Users/melihburakmemis/Documents/aHPy`.
 - Branch: `codex/ahpy-bootstrap`.
-- Cython base/HEAD: `b99cb0e3b5425e11414cadd24168a6cc850e8000`.
+- Upstream Cython baseline: `b99cb0e3b5425e11414cadd24168a6cc850e8000`.
+- Last fully green dedicated-aHPy reference:
+  `b8dc12f674c30f60588f5231fb8217c315cd0215`; always obtain the live branch
+  HEAD with `git rev-parse HEAD` before reporting or changing evidence.
 - Stable local environment: `.venv-hpy09`, CPython 3.11.15, HPy 0.9.0.
 - Additional local coverage interpreter: `python3`, CPython 3.14.6.
-- The verified aHPy implementation is committed through `02d9f8cdd`; preserve
+- The full dedicated aHPy/coverage/sanitizer set is verified through
+  `b8dc12f67`; preserve
   later user/agent work and do not reset, clean, overwrite, or discard it.
 - `.DS_Store` and
   `docs/examples/userguide/wrapping_CPlusPlus/rect_with_attributes.cpp` are
   user-owned/unrelated. Leave them untouched.
 - `origin` is `https://github.com/mburakmmm/aHPy.git`; upstream Cython baseline
-  `b99cb0e3b` is published as `main`, and `codex/ahpy-bootstrap` is pushed.
-  The first hosted aHPy workflow is run `29490045367`; it is still in progress,
-  so do not claim a hosted green before every required job and artifact is
-  reviewed.
+  `b99cb0e3b` is published as `main`, `codex/ahpy-bootstrap` is pushed, and
+  draft PR [#2](https://github.com/mburakmmm/aHPy/pull/2) carries the aHPy
+  integration.
+- At branch HEAD, dedicated aHPy run
+  [29689246328](https://github.com/mburakmmm/aHPy/actions/runs/29689246328),
+  coverage run
+  [29689246359](https://github.com/mburakmmm/aHPy/actions/runs/29689246359),
+  and sanitizer run
+  [29689246387](https://github.com/mburakmmm/aHPy/actions/runs/29689246387)
+  are green. General Cython run
+  [29689246389](https://github.com/mburakmmm/aHPy/actions/runs/29689246389)
+  is red only in its classic-C-API GraalPy job: that job accidentally executes
+  Universal-only aHPy runtime fixtures and reaches GraalPy 25.1.3's missing
+  `PyUnicode_DecodeUnicodeEscape`. A focused fixture-isolation fix has local
+  evidence but still requires replacement hosted confirmation. Do not call the
+  complete mandatory matrix green until that confirmation lands.
 - User mandate (2026-07-15): complete **HPy 0.9 max Universal coverage** and the
   **full M2–M11 roadmap** (options 1+3). Work the ordered queues below; never
   mark a HPy-0.9 API gap as supported; never claim hosted lanes without green
@@ -83,7 +100,7 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 127 tests pass (one expected Valgrind availability skip
+- Quality-tool suite: 128 tests pass (one expected Valgrind availability skip
   on macOS).
 - Focused coverage (post–hosted-platform CI regressions, Python 3.11):
   482 tests
@@ -232,11 +249,37 @@ in run `29685285138`.)**
 Section 8 items 1–9 plus the stable-release definition in `TODO.md`. Tag no
 stable release until every declared support-tier gate is green.
 
-## 4. Immediate queue — finish M8 without false claims
+## 4. Immediate queue — production-readiness closure order
 
 Work on these in order unless an earlier dependency is externally blocked.
-After A1, prefer Phase U1 local semantic work while A2/A3 remain externally
-blocked.
+This list is the operational priority view; the detailed acceptance criteria
+remain in the phase and milestone sections below and in `TODO.md`.
+
+1. Restore a fully green mandatory current-head CI matrix. Land the focused
+   GraalPy/classic-backend fixture isolation without weakening the dedicated
+   Universal HPy suite or the CPython C/C++ matrix; record the replacement run.
+2. Reconcile release-facing evidence after that run: root README validation
+   wording, this snapshot, validation/support matrices, audit links, and draft
+   PR #2's HEAD/run/file references must all describe the same commit.
+3. Finish M8 evidence: classify the pinned PyPy/GraalPy same-binary blockers,
+   execute both moving nightlies, review/promote Linux Valgrind/LSan with its
+   positive control, and add the Windows native-memory equivalent.
+4. Complete the still-supported M2–M6 semantic and advanced families one gated
+   family at a time. Keep every HPy 0.9 public-API gap explicitly rejected.
+5. Finish public-alpha packaging: publication rehearsal/release, standardized
+   Universal tags only when available, reproducible native wheels, and
+   cross-interpreter install/import evidence.
+6. Complete M10's four real-world pilots, compatibility dashboard, porting
+   guide, and the shared conformance corpus for the author's language runtime.
+7. Complete M11 upstream/rebase, security, provenance, release-candidate, and
+   stable-release gates. Do not merge the draft PR or tag a stable release
+   without explicit user authorization and every declared release gate green.
+
+Current item: **1**. Local tests prove that only `bootstrap_answer`,
+`bootstrap_types`, and `fault_injection` are excluded from GraalPy's generic
+classic backend run; compile-only `benchmark_generated` and `retry_case`
+remain in that run, and the dedicated Universal workflow remains authoritative
+for the three executable fixtures.
 
 ### A1. Resolve the parallel fault-gate transient — completed
 
