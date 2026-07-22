@@ -147,8 +147,20 @@ zero definitely lost bytes and zero errors, and the reviewed suppression file
 contains no active entries. Artifact digest is
 `sha256:296535447ec22e70dcdf0cf3046c92ebffc191bcd673e002203aeb90f729a4a2`.
 The job is therefore no longer `continue-on-error`; Windows native-memory
-tooling remains open. Required job 88897432278 in successful manual run
-29912162645 revalidated the promoted gate at commit `d0026d83b`.
+hosted evidence remains open. Required job 88897432278 in successful manual
+run 29912162645 revalidated the promoted gate at commit `d0026d83b`.
+
+The Windows counterpart is now declared separately on `windows-2025` for
+schedule/manual runs. It enables Application Verifier Basics and GFlags full
+page heap for a unique native overrun control and a uniquely copied Python
+executable. The control must fail with an AppVerifier XML error; each of the
+five real generated-corpus processes must prove `verifier.dll` injection and
+produce an XML log with no error severity. Preflight discovery, settings
+queries, per-process output, XML, raw logs, counts, and cleanup results are
+uploaded unconditionally. The job remains `continue-on-error` until its first
+hosted artifact is reviewed, so it is not yet a release gate or support
+evidence. It diagnoses native heap corruption, not leaks; HPy Debug and the
+Linux Valgrind job keep their separate leak contracts.
 
 `Tools/ahpy/test_quality_gates.py` compiles the same source twice in independent
 directories and compares the emitted bytes. This gate found and fixed an

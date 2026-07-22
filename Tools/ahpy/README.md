@@ -55,6 +55,18 @@ five clean generated-runtime logs, and zero active suppressions; the
 schedule/manual job is now required. HPy Debug Mode remains the mandatory
 handle-leak gate as well.
 
+`run_appverifier_hpy.py` is the independent Windows heap-corruption diagnostic.
+On schedule/manual runs it discovers the 64-bit SDK tools fail closed, applies
+Application Verifier Basics and GFlags full page heap to unique target images,
+and requires an out-of-bounds native positive control to produce an XML error.
+It then runs all five generated-corpus processes through a uniquely copied
+Python executable; a startup probe must find `verifier.dll` in every process,
+and every exported runtime XML log must contain no error severity. Preflight,
+queries, stdout/stderr, XML, raw AppVerifier logs, process counts, and cleanup
+results are uploaded. This is not a native leak gate; HPy Debug and Linux
+Valgrind retain their separate leak responsibilities. The Windows job remains
+allowed-failure until its first hosted artifact is reviewed.
+
 `doctor.py` is the repository's `ahpy doctor` equivalent. It probes the exact
 interpreter path without resolving a virtual-environment symlink, validates the
 machine-readable stable/development HPy pins, checks the public `hpy.h` header,

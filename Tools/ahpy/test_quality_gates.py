@@ -227,6 +227,9 @@ class QualityGateTest(unittest.TestCase):
             "native-memory-valgrind:",
             "run_lsan_hpy.py",
             "ahpy-valgrind-${{ github.run_id }}-${{ github.run_attempt }}",
+            "native-memory-windows:",
+            "run_appverifier_hpy.py",
+            "ahpy-appverifier-${{ github.run_id }}-${{ github.run_attempt }}",
             "requirements-hpy-dev.txt",
             "pypy3.11-v7.3.23",
             "graalpy-25.1.3",
@@ -437,7 +440,7 @@ class QualityGateTest(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" /
                     "ahpy-universal.yml").read_text(encoding="utf8")
         job = workflow.split("  native-memory-valgrind:\n", 1)[1].split(
-            "  build-portability-artifact:\n", 1)[0]
+            "  native-memory-windows:\n", 1)[0]
         self.assertNotIn("continue-on-error: true", job)
         self.assertIn("native memory gate (Linux Valgrind definite leaks)", job)
         self.assertIn("github.event_name == 'schedule'", job)
@@ -447,6 +450,20 @@ class QualityGateTest(unittest.TestCase):
         self.assertNotIn("--positive-control-only", job)
         self.assertIn("if: always()", job)
         self.assertIn("valgrind-evidence", job)
+
+    def test_windows_native_memory_lane_is_fail_closed_but_experimental(self):
+        workflow = (ROOT / ".github" / "workflows" /
+                    "ahpy-universal.yml").read_text(encoding="utf8")
+        job = workflow.split("  native-memory-windows:\n", 1)[1].split(
+            "  build-portability-artifact:\n", 1)[0]
+        self.assertIn("continue-on-error: true", job)
+        self.assertIn("windows-2025", job)
+        self.assertIn("github.event_name == 'schedule'", job)
+        self.assertIn("github.event_name == 'workflow_dispatch'", job)
+        self.assertIn("run_appverifier_hpy.py", job)
+        self.assertIn("appverifier-evidence", job)
+        self.assertIn("if: always()", job)
+        self.assertNotIn("positive-control-only", job)
 
 
 if __name__ == "__main__":

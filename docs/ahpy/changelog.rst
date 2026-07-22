@@ -66,6 +66,9 @@ Bootstrap
 * Recorded the first bounded green HPy-master nightly, completed both 103-job
   current-head Cython matrices and both coverage jobs, and proved the isolated
   Windows shared-utility pass removes the reproduced ``LNK1158`` contention.
+* Declared an experimental Windows Application Verifier and full-page-heap
+  diagnostic with fail-closed tool discovery, native overrun positive control,
+  per-process verifier-injection proof, XML/raw evidence, and settings cleanup.
 * Added ADR-backed HPy 0.9 generator gap diagnostics for top-level ``yield``,
   ``yield from``, real generator expressions, and lambdas, preventing fallback
   to CPython coroutine/code-object machinery.

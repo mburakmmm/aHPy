@@ -232,8 +232,8 @@ A1 is done. Proceed when unblocked:
   Windows environment exists.
   **(Linux is promoted: manual run `29906185775`, job `88878105102`, detected
   the 64-byte positive control, recorded five clean real-corpus logs, and used
-  no active suppression. Its schedule/manual job is now required. Windows
-  remains open.)**
+  no active suppression. Its schedule/manual job is now required. The Windows
+  job is declared with AppVerifier/GFlags and remains hosted-pending.)**
 - A6 package reproducibility — after Phase U3 Universal packaging formats.
 
 ### Phase U3 — M6 advanced families (one gated family at a time)
@@ -297,6 +297,13 @@ run `29912142526` attempt 2 and PR run `29912145346` each passed all 103 jobs,
 coverage run `29912145042` passed both jobs, and the Windows C/C++ logs show the
 isolated `tag:shared_utility` pass completing both affected trees without
 `LNK1158`. The next actionable item is the Windows native-memory equivalent.
+That equivalent is now declared as an allowed-failure schedule/manual job:
+`run_appverifier_hpy.py` discovers 64-bit AppVerifier/GFlags fail closed,
+targets a unique copied Python image, requires `verifier.dll` injection in all
+five real runtime processes, proves a native heap overrun is detected, rejects
+AppVerifier XML errors from the corpus, uploads raw evidence, and removes both
+settings in `finally`. The immediate next action is a manual hosted run and
+artifact review; do not promote the job before that evidence exists.
 
 ### A1. Resolve the parallel fault-gate transient — completed
 

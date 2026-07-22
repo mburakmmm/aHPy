@@ -1174,6 +1174,13 @@ until its full existing Cython test subset and new HPy-specific tests pass.
           the job only after its uploaded logs prove the clean corpus.
   - [ ] Add Windows Application Verifier or an equivalent reviewed memory
         diagnostic.
+    - [x] Declare a schedule/manual `windows-2025` AppVerifier Basics plus
+          GFlags full-page-heap job. Require a native heap-overrun positive
+          control, verifier injection in all five generated-corpus processes,
+          clean XML error parsing, raw logs, and unconditional settings cleanup.
+    - [ ] Record the first hosted run, inspect tool discovery and every uploaded
+          log, repair any runner/tool mismatch, then remove `continue-on-error`
+          only after the positive control and real corpus are both proven.
 - [x] Audit generated source plus undefined binary imports on Unix and Windows;
       fail closed when no supported symbol reader exists.
 - [x] Add byte-for-byte deterministic Universal source generation from two
@@ -1456,12 +1463,16 @@ emulated.
         expected full commit and the `-O0` generated runtime finished in 19
         seconds. It remains an allowed-failure early warning.
 - [ ] Add reviewed Linux LSan/Valgrind and Windows Application Verifier lanes
-      with positive leak controls.
+      with independent positive native-memory controls.
   - [x] Promote the Linux job after manual run `29906185775`, job
         `88878105102`, detected the 64-byte positive control, produced five
         clean real-corpus logs, and confirmed zero active suppressions.
-  - [ ] Add and review the Windows native-memory lane with an independent
-        positive control.
+  - [x] Declare the Windows AppVerifier/GFlags diagnostic as an allowed-failure
+        schedule/manual job with fail-closed tool discovery, a native overrun
+        positive control, five verified generated-runtime processes, XML/raw
+        evidence, and settings cleanup.
+  - [ ] Review the first hosted Windows artifact and promote the diagnostic only
+        after AppVerifier injection and full-page-heap detection are proven.
 - [ ] Apply reproducibility gates to future aHPy sdist and Universal wheel
       formats after U4 packaging exists.
 
