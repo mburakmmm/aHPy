@@ -61,7 +61,11 @@ Bootstrap
   of C-typed and deferred closure forms.
 * Declared an allowed-failure Linux Valgrind lane whose versioned suppressions
   must preserve a definite-leak positive control before all five real
-  generated-corpus runtime processes can pass; hosted review remains pending.
+  generated-corpus runtime processes can pass; promoted it after reviewed
+  hosted evidence showed five clean logs and zero active suppressions.
+* Recorded the first bounded green HPy-master nightly, completed both 103-job
+  current-head Cython matrices and both coverage jobs, and proved the isolated
+  Windows shared-utility pass removes the reproduced ``LNK1158`` contention.
 * Added ADR-backed HPy 0.9 generator gap diagnostics for top-level ``yield``,
   ``yield from``, real generator expressions, and lambdas, preventing fallback
   to CPython coroutine/code-object machinery.

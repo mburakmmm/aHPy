@@ -1111,22 +1111,22 @@ until its full existing Cython test subset and new HPy-specific tests pass.
 
 ## M8 - Continuous integration and quality engineering
 
-- [ ] Linux x86-64 and ARM64 lanes.
+- [x] Linux x86-64 and ARM64 lanes.
   - [x] Declare explicit `ubuntu-24.04` x86-64 GCC/Clang and
         `ubuntu-24.04-arm` GCC jobs without a moving runner alias.
-  - [ ] Record the first green hosted run for every declared Linux job before
+  - [x] Record the first green hosted run for every declared Linux job before
         claiming platform support.
-- [ ] macOS Intel and Apple Silicon lanes.
+- [x] macOS Intel and Apple Silicon lanes.
   - [x] Declare explicit `macos-15-intel` and ARM64 `macos-15` Apple Clang
         jobs.
-  - [ ] Record the first green hosted run for both macOS architectures.
-- [ ] Windows x64 lane.
+  - [x] Record the first green hosted run for both macOS architectures.
+- [x] Windows x64 lane.
   - [x] Declare the explicit `windows-2025` MSVC job and make the binary import
         audit fail closed through `dumpbin`, `llvm-nm`, or `objdump`.
-  - [ ] Record the first green hosted Windows/MSVC run.
-- [ ] GCC, Clang, and MSVC coverage.
+  - [x] Record the first green hosted Windows/MSVC run.
+- [x] GCC, Clang, and MSVC coverage.
   - [x] Put all three compiler families in the dedicated stable matrix.
-  - [ ] Promote coverage to supported only after every hosted job is green.
+  - [x] Promote coverage to supported only after every hosted job is green.
 - [ ] Supported CPython, PyPy, and GraalPy versions.
   - [x] Validate the initial CPython 3.11 release and development-revision
         environments locally.
@@ -1164,13 +1164,13 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         matching dynamic sanitizer runtime before Python imports the module;
         use a native-architecture ASan-linked `Py_BytesMain` launcher because
         signed Python executables may discard `DYLD_INSERT_LIBRARIES`.
-  - [ ] Add a separately validated LSan/Valgrind lane with versioned
+  - [x] Add a separately validated LSan/Valgrind lane with versioned
         suppressions for the uninstrumented host interpreter; do not treat
         unrelated interpreter allocations as backend leaks.
     - [x] Declare a schedule/manual allowed-failure Linux Valgrind job that
           proves the positive control survives suppressions and enforces all
           five generated-corpus runtime processes with definite-leak failures.
-    - [ ] Record the first hosted green, review every suppression, and promote
+    - [x] Record the first hosted green, review every suppression, and promote
           the job only after its uploaded logs prove the clean corpus.
   - [ ] Add Windows Application Verifier or an equivalent reviewed memory
         diagnostic.
@@ -1411,7 +1411,7 @@ emulated.
 
 ### U2 - M8 evidence without false claims
 
-- [ ] Keep every mandatory workflow green on the current aHPy branch HEAD,
+- [x] Keep every mandatory workflow green on the current aHPy branch HEAD,
       including the upstream Cython C/C++ and non-CPython regression matrix.
       Run `29900694989` verifies that the focused GraalPy exclusion moved past
       the former Universal-fixture import failure while compile-only aHPy
@@ -1422,7 +1422,12 @@ emulated.
       `29905498043` showed `shared_utility_module` overlapping its internal
       `build_ext -j3` with that outer pool. Both `shared_utility` trees are now
       isolated from the four-worker pass while retaining their internal
-      parallel build; replacement hosted evidence remains required.
+      parallel build. At commit `d0026d83b`, push run `29912142526` attempt 2
+      and PR run `29912145346` each completed all 103 jobs successfully;
+      coverage run `29912145042` completed both jobs successfully. The early
+      Windows C/C++ jobs executed the isolated one-tree pass and both
+      `memoryview_shared_utility` and `shared_utility_module` passed without
+      `LNK1158`.
 - [x] Record first green hosted runs for every declared Linux/macOS/Windows
       compiler job. Push run `29685285138` is green at commit `02d9f8cdd` for
       Linux x64 GCC/Clang, Linux ARM64 GCC, macOS Intel/ARM64 Clang, Windows x64
@@ -1435,7 +1440,7 @@ emulated.
       its first bridge import and GraalPy has no HPy bridge/native `.hpy0`
       import hook. Neither target is supported.
 - [x] Finish local nightly contract tests and support-claim wording guards:
-      manifest status sets, stable-vs-nightly separation, hosted-pending
+      manifest status sets, stable-vs-nightly separation, evidence-state
       wording, ASan `detect_leaks=0`, job contracts, and exact revision reports.
 - [ ] Record first green hosted executions of both moving nightly jobs; retain
       allowed-failure early-warning status and do not alter stable support.
@@ -1443,8 +1448,13 @@ emulated.
       0.9's own `-Werror` build before aHPy runs, while HPy `master` passed VCS
       provenance at the already pinned `b57a33c1...` commit but omitted the
       pinned lane's `-O0` profile and hung in the optimized generated build for
-      over 90 minutes. Both runtime steps now use `-O0` and a 30-minute timeout;
-      a bounded first green for each lane remains open.
+      over 90 minutes. Both runtime steps now use `-O0` and a 30-minute timeout.
+  - [ ] CPython `3.15-dev` with HPy 0.9 remains externally red at the HPy build
+        boundary and has no green execution.
+  - [x] CPython 3.11 with HPy `master` completed its first bounded green in
+        manual run `29912162645`, job `88897432348`; provenance resolved the
+        expected full commit and the `-O0` generated runtime finished in 19
+        seconds. It remains an allowed-failure early warning.
 - [ ] Add reviewed Linux LSan/Valgrind and Windows Application Verifier lanes
       with positive leak controls.
   - [x] Promote the Linux job after manual run `29906185775`, job

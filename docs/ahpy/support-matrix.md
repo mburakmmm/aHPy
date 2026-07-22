@@ -85,7 +85,10 @@ run 29906185775 records CPython 3.15.0-beta.4 failing while building HPy 0.9
 before aHPy executes and HPy master resolving to the pinned
 `b57a33c1cec766a1cc3e89f6fd1e2eff73ba9381` commit before an unbounded
 optimized build hung. Both runtime steps now use the validated `-O0` semantic
-profile, are bounded to 30 minutes, and still need first-green evidence.
+profile and are bounded to 30 minutes. Manual run 29912162645, job 88897432348,
+then recorded the first bounded green HPy-master execution on CPython 3.11; the
+generated runtime completed in 19 seconds. The CPython 3.15/HPy 0.9 lane still
+fails in HPy's own build before aHPy executes. Neither result changes support.
 
 The baseline Cython revision is
 `b99cb0e3b5425e11414cadd24168a6cc850e8000` from 2026-07-13.

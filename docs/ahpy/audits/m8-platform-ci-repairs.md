@@ -134,6 +134,21 @@ one of those three links again received `LNK1158`. Windows therefore excludes
 the two `tag:shared_utility` trees from the four-worker pass and executes them
 in a separate one-tree pass. Their internal `-j3` behavior remains tested,
 but no unrelated outer build competes for `rc.exe`. A quality contract locks
-the separation, Windows limit, and GraalPy limit. Replacement hosted evidence
-for this stronger fix remains required before closing the current-head
-mandatory-matrix item.
+the separation, Windows limit, and GraalPy limit.
+
+Replacement hosted evidence for the stronger fix is now complete. At commit
+`d0026d83b3880663c1aff6c69accbac93556f13c`, push run
+[29912142526](https://github.com/mburakmmm/aHPy/actions/runs/29912142526)
+(attempt 2) and PR run
+[29912145346](https://github.com/mburakmmm/aHPy/actions/runs/29912145346)
+each passed all 103 jobs, including the final `ci-success` aggregators.
+Coverage run
+[29912145042](https://github.com/mburakmmm/aHPy/actions/runs/29912145042)
+passed both coverage jobs. The PR early Windows C job
+[88897719146](https://github.com/mburakmmm/aHPy/actions/runs/29912145346/job/88897719146)
+and C++ job
+[88897719306](https://github.com/mburakmmm/aHPy/actions/runs/29912145346/job/88897719306)
+excluded `tag:shared_utility` from the outer four-worker pass, then ran the tag
+at outer `-j1`; both `memoryview_shared_utility` and
+`shared_utility_module` completed successfully with their internal parallel
+builds and no `LNK1158`.

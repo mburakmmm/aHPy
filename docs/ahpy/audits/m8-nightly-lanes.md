@@ -2,7 +2,7 @@
 
 Date: 2026-07-22
 Cython base: `b99cb0e3b5425e11414cadd24168a6cc850e8000`
-Status: first hosted executions reviewed; both moving lanes remain early warnings
+Status: HPy-master first green reviewed; both moving lanes remain early warnings
 
 ## Separation contract
 
@@ -56,10 +56,21 @@ executed both lanes at commit
   `ahpy-nightly-hpy-29906185775-1` has digest
   `sha256:5c62384c52697ea75406e3e5029860b876acce039799cd8ff72df4e5b78deef9`.
 
-The first green hosted execution of each moving lane remains open. The next
-manual or scheduled run must record the resolved HPy commit and distinguish a
-bounded timeout from a semantic or build failure before any result is
-promoted.
+Manual run
+[29912162645](https://github.com/mburakmmm/aHPy/actions/runs/29912162645),
+job
+[88897432348](https://github.com/mburakmmm/aHPy/actions/runs/29912162645/job/88897432348),
+provided the first bounded green HPy-master execution at commit
+`d0026d83b3880663c1aff6c69accbac93556f13c`. The provenance report again
+resolved HPy `0.9.1.dev100+gb57a33c1c` to the full upstream commit
+`b57a33c1cec766a1cc3e89f6fd1e2eff73ba9381`; with `CFLAGS=-O0`, the generated
+runtime completed in 19 seconds and the job finished in 40 seconds. The lane
+remains an allowed-failure early warning and does not promote HPy `master`.
+
+The CPython `3.15-dev`/HPy 0.9 lane still has no green execution: its reviewed
+failure occurs while HPy builds, before aHPy runs. A future green must retain
+the exact provenance and timeout evidence before it can close the remaining
+nightly checkbox; it still cannot change stable support by itself.
 
 ## Historical workflow bootstrap
 

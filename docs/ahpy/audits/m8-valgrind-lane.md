@@ -60,3 +60,11 @@ longer `continue-on-error`; a future definite leak or broken positive control
 fails that workflow. It remains schedule/manual-only rather than part of every
 PR run. Windows Application Verifier or a reviewed equivalent with the same
 positive-control principle remains a separate open task.
+
+Required job
+[88897432278](https://github.com/mburakmmm/aHPy/actions/runs/29912162645/job/88897432278)
+in manual run
+[29912162645](https://github.com/mburakmmm/aHPy/actions/runs/29912162645)
+revalidated the promoted gate at commit
+`d0026d83b3880663c1aff6c69accbac93556f13c`; the overall workflow completed
+successfully.

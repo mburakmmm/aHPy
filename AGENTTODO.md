@@ -224,8 +224,10 @@ A1 is done. Proceed when unblocked:
   are local-green. Manual run `29906185775` records HPy 0.9 failing to build on
   CPython 3.15.0-beta.4 before aHPy and HPy master resolving to the pinned
   `b57a33c1...` commit before its missing `-O0` profile caused an optimized
-  build hang; both runtime steps now use `-O0` plus a 30-minute bound, and
-  first-green evidence remains open.)**
+  build hang. Both runtime steps now use `-O0` plus a 30-minute bound. Manual
+  run `29912162645`, job `88897432348`, is the first bounded green HPy-master
+  execution (19-second runtime); the CPython 3.15/HPy 0.9 lane remains
+  externally red.)**
 - A5 Linux LSan/Valgrind positive-control lane; Windows AppVerifier when a
   Windows environment exists.
   **(Linux is promoted: manual run `29906185775`, job `88878105102`, detected
@@ -281,7 +283,7 @@ remain in the phase and milestone sections below and in `TODO.md`.
    stable-release gates. Do not merge the draft PR or tag a stable release
    without explicit user authorization and every declared release gate green.
 
-Current item: **1**. Local tests prove that only `bootstrap_answer`,
+Current item: **3**. Local tests prove that only `bootstrap_answer`,
 `bootstrap_types`, and `fault_injection` are excluded from GraalPy's generic
 classic backend run; compile-only `benchmark_generated` and `retry_case`
 remain in that run, and the dedicated Universal workflow remains authoritative
@@ -290,7 +292,11 @@ for the three executable fixtures. Two broad runs reproduced Windows/MSVC
 parallel `shared_utility_module` build under the four-worker cap. Windows now
 runs ordinary tests at four workers and the `shared_utility` tag in an isolated
 one-tree pass, preserving each selected test's own `build_ext -j3`; GraalPy
-stays at two workers. A clean replacement hosted matrix is still required.
+stays at two workers. Commit `d0026d83b` has clean replacement evidence: push
+run `29912142526` attempt 2 and PR run `29912145346` each passed all 103 jobs,
+coverage run `29912145042` passed both jobs, and the Windows C/C++ logs show the
+isolated `tag:shared_utility` pass completing both affected trees without
+`LNK1158`. The next actionable item is the Windows native-memory equivalent.
 
 ### A1. Resolve the parallel fault-gate transient — completed
 

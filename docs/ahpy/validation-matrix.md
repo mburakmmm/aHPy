@@ -74,7 +74,10 @@ its `-Werror` rejected `_POSIX_C_SOURCE` redefinition between Python 3.15's
 provenance on CPython 3.11, but unlike the green pinned lane it omitted
 `CFLAGS=-O0`; its optimized generated-corpus build ran unbounded for more than
 90 minutes. Both runtime steps now use the validated `-O0` semantic profile
-and a 30-minute timeout, and require a bounded rerun.
+and a 30-minute timeout. The bounded rerun in manual run 29912162645, job
+88897432348, subsequently completed the HPy-master runtime in 19 seconds with
+exact full-commit provenance. CPython 3.15 with HPy 0.9 remains red before aHPy
+executes.
 Neither result is support evidence; both jobs remain allowed-failure early
 warnings with unconditional evidence upload.
 
@@ -144,7 +147,8 @@ zero definitely lost bytes and zero errors, and the reviewed suppression file
 contains no active entries. Artifact digest is
 `sha256:296535447ec22e70dcdf0cf3046c92ebffc191bcd673e002203aeb90f729a4a2`.
 The job is therefore no longer `continue-on-error`; Windows native-memory
-tooling remains open.
+tooling remains open. Required job 88897432278 in successful manual run
+29912162645 revalidated the promoted gate at commit `d0026d83b`.
 
 `Tools/ahpy/test_quality_gates.py` compiles the same source twice in independent
 directories and compares the emitted bytes. This gate found and fixed an

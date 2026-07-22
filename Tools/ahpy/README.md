@@ -50,8 +50,10 @@ instrumented-extension/uninstrumented-interpreter process. The independent
 schedule/manual Linux `run_lsan_hpy.py` lane runs a mandatory C leak positive
 control and then all five generated-corpus normal/Trace/Debug runtime processes
 under Valgrind, failing on definite leaks through the versioned suppression
-file. It remains allowed-failure and hosted-pending until its first reviewed
-green run; HPy Debug Mode remains the mandatory handle-leak gate meanwhile.
+file. Manual run `29906185775`, job `88878105102`, proved the positive control,
+five clean generated-runtime logs, and zero active suppressions; the
+schedule/manual job is now required. HPy Debug Mode remains the mandatory
+handle-leak gate as well.
 
 `doctor.py` is the repository's `ahpy doctor` equivalent. It probes the exact
 interpreter path without resolving a virtual-environment symlink, validates the
