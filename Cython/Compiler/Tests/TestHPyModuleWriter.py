@@ -2843,6 +2843,8 @@ class UniversalHPyModuleWriterTest(TestCase):
         cases = (
             ("empty", ""),
             ("doc-only", "'''documentation only'''\n"),
+            ("pass-only", "pass\n"),
+            ("doc-and-pass", "'''documentation only'''\npass\n"),
             ("assignment-only", "VALUE = 47\nNAME = 'sabit'\n"),
         )
         for label, source in cases:

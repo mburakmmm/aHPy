@@ -332,10 +332,10 @@ earlier phase's exit gate.
 - [x] Emit through the HPy build lane that defines `HPY_ABI_UNIVERSAL`, and
       compile with HPy's `forbid_python_h` include guard.
 - [x] Emit `HPy_MODINIT` and an `HPyModuleDef`.
-- [x] Generate valid empty, doc-only, and assignment-only modules through
-      `HPy_mod_exec` without requiring a synthetic function or extension type;
-      build/import a real constant-only Universal module in normal, Trace, and
-      Debug modes.
+- [x] Generate valid empty, doc-only, pass-only, and assignment-only modules
+      through `HPy_mod_exec` without requiring a synthetic function or
+      extension type; build/import a real constant-only Universal module in
+      normal, Trace, and Debug modes.
 - [x] Preserve module and module-function docstrings in `HPyModuleDef` and
       `HPyDef_METH`; encode UTF-8/multiline/control-bearing content with safe C
       literals and reject NUL-bearing docs that the ABI cannot represent.

@@ -32,7 +32,7 @@ Bootstrap
   normal/Trace/Debug introspection and explicit diagnostics for NUL-bearing
   definition docs.
 * Removed the artificial callable/type requirement: empty, documentation-only,
-  and assignment-only modules now emit a valid `HPy_mod_exec`; a real
+  pass-only, and assignment-only modules now emit a valid `HPy_mod_exec`; a real
   constant-only Universal module passes normal, Trace, and Debug imports.
 * Based aHPy development on current Cython ``master`` at commit
   ``b99cb0e3b5425e11414cadd24168a6cc850e8000``.

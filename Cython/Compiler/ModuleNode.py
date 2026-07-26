@@ -927,6 +927,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 and type(stat.rhs) is ExprNodes.PyCFunctionNode
             ):
                 continue
+            if type(stat) is Nodes.PassStatNode:
+                continue
             if (
                 type(stat) is Nodes.SingleAssignmentNode
                 and type(stat.lhs) is ExprNodes.NameNode

@@ -55,9 +55,9 @@ fields; the packaged fixture introspects each value in normal, Trace, and Debug
 modes, and every NUL-bearing definition-doc family receives a source diagnostic.
 
 The bootstrap no longer requires a public callable or extension type. Empty,
-documentation-only, and assignment-only sources produce a valid definition
-array containing `HPy_mod_exec`; the real `constants_only` fixture preserves
-its module doc and two globals in normal, Trace, and Debug modes.
+documentation-only, pass-only, and assignment-only sources produce a valid
+definition array containing `HPy_mod_exec`; the real `constants_only` fixture
+preserves its module doc and two globals in normal, Trace, and Debug modes.
 
 `HPy_GetItem` and UTF-8-name `HPy_GetAttr_s` reads are also enabled over the
 implemented expression subset. Their owned operands are closed before a null

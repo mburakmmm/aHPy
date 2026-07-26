@@ -1553,8 +1553,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:950",
-      "line": 950,
+      "id": "Cython/Compiler/ModuleNode.py:952",
+      "line": 952,
       "message_template": "pure Universal HPy metaclass customization is not implemented: HPy 0.9 type publication uses HPyType_FromSpec with a fixed meta-layout; user-defined metaclasses require a separately validated type-creation and lifecycle contract",
       "migration_action": {
         "id": "unsupported-source-node",
@@ -1563,8 +1563,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:959",
-      "line": 959,
+      "id": "Cython/Compiler/ModuleNode.py:961",
+      "line": 961,
       "message_template": "module-level %s is not implemented by the bootstrap Universal HPy emitter",
       "migration_action": {
         "id": "unsupported-source-node",
@@ -1573,8 +1573,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:965",
-      "line": 965,
+      "id": "Cython/Compiler/ModuleNode.py:967",
+      "line": 967,
       "message_template": "module-level %s is not implemented by the bootstrap Universal HPy emitter",
       "migration_action": {
         "id": "unsupported-source-node",
@@ -1583,8 +1583,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:987",
-      "line": 987,
+      "id": "Cython/Compiler/ModuleNode.py:989",
+      "line": 989,
       "message_template": "pure HPy inheritance currently requires one generated pure HPy base declared earlier in the same module",
       "migration_action": {
         "id": "unsupported-universal-construct",
