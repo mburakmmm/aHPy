@@ -2145,7 +2145,7 @@ class RuntimeAPITest(TestCase):
         with TemporaryDirectory() as temp_dir:
             source = Path(temp_dir) / "unsupported.pyx"
             output = Path(temp_dir) / "unsupported.c"
-            source.write_text("value = 1\n", encoding="utf8")
+            source.write_text("print(1)\n", encoding="utf8")
             diagnostics = io.StringIO()
             with redirect_stderr(diagnostics):
                 result = Main.compile(
@@ -2159,9 +2159,9 @@ class RuntimeAPITest(TestCase):
             self.assertEqual(result.num_errors, 1)
             self.assertFalse(output.exists())
             message = diagnostics.getvalue()
-            self.assertIn("unsupported.pyx:1:0", message)
+            self.assertIn("unsupported.pyx:1:5", message)
             self.assertIn(
-                "require at least one supported def", message)
+                "module-level ExprStatNode is not implemented", message)
 
     def test_unknown_and_reserved_backends_are_rejected(self):
         for backend in ("not-a-runtime", HPY_HYBRID_BACKEND):

@@ -1339,10 +1339,6 @@ class UniversalHPyEmitterContractTest(TestCase):
                 "module-name components must be C identifiers",
             ),
             (
-                module(([], [], [], [])),
-                "require at least one supported def",
-            ),
-            (
                 module(([safe_method], [], [duplicate_class], [])),
                 "function/type names collide",
             ),
@@ -2843,6 +2839,21 @@ class UniversalHPyModuleWriterTest(TestCase):
         )
         self.assertIn("unicode_4465c49f65724b7574757375", generated)
 
+    def test_assignment_only_and_empty_modules_use_exec_definition(self):
+        cases = (
+            ("empty", ""),
+            ("doc-only", "'''documentation only'''\n"),
+            ("assignment-only", "VALUE = 47\nNAME = 'sabit'\n"),
+        )
+        for label, source in cases:
+            with self.subTest(label=label):
+                result, generated, diagnostics = self.compile_source(source)
+                self.assertEqual(result.num_errors, 0, diagnostics)
+                self.assertNotIn("HPyDef_METH(", generated)
+                self.assertIn("HPyDef_SLOT(__pyx_hpy_mod_exec", generated)
+                self.assertIn("&__pyx_hpy_mod_exec,", generated)
+                self.assertIn("HPy_MODINIT(bootstrap_case,", generated)
+
     def test_hpy_early_builtin_filter_does_not_steal_base_handlers(self):
         base = Optimize.EarlyReplaceBuiltinCalls
         hpy = Optimize.HPyEarlyReplaceSequenceBuiltins
@@ -4101,8 +4112,8 @@ class UniversalHPyModuleWriterTest(TestCase):
             ),
             (
                 "module-statement",
-                "value = 1\n",
-                "require at least one supported def",
+                "print(1)\n",
+                "module-level ExprStatNode is not implemented",
             ),
         )
         for label, source, expected in cases:
@@ -6488,11 +6499,12 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertIn("HPy_DelItem(ctx,", generated)
         self.assertIn("HPy_InPlaceAdd(ctx,", generated)
 
-    def test_empty_module_is_rejected(self):
+    def test_empty_module_is_supported(self):
         result, generated, diagnostics = self.compile_source("# empty\n")
-        self.assertEqual(result.num_errors, 1)
-        self.assertFalse(generated)
-        self.assertIn("require at least one supported def", diagnostics)
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn("HPyDef_SLOT(__pyx_hpy_mod_exec", generated)
+        self.assertIn("HPy_MODINIT(bootstrap_case,", generated)
+        self.assertNotIn("HPyDef_METH(", generated)
 
     def test_cpython_cimport_is_rejected_with_universal_guidance(self):
         result, generated, diagnostics = self.compile_source(

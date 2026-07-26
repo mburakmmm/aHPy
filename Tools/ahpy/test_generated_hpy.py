@@ -20,6 +20,8 @@ TYPE_SOURCE = ROOT / "tests" / "ahpy" / "bootstrap_types.pyx"
 TYPE_MODULE_NAME = "bootstrap_types"
 QUALIFIED_SOURCE = ROOT / "tests" / "ahpy" / "qualified_module.pyx"
 QUALIFIED_MODULE_NAME = "ahpy_package.qualified_module"
+CONSTANT_SOURCE = ROOT / "tests" / "ahpy" / "constants_only.pyx"
+CONSTANT_MODULE_NAME = "constants_only"
 
 
 def run(command, **kwargs):
@@ -285,6 +287,25 @@ def build_and_run(python, runtime_prefix=()):
             ),
         )
 
+        constant_generated = temp / (CONSTANT_MODULE_NAME + ".c")
+        run([
+            python,
+            "-m", "cython",
+            "--runtime-backend=hpy-universal",
+            "-3",
+            "-o", str(constant_generated),
+            str(CONSTANT_SOURCE),
+        ], cwd=ROOT, env=environment)
+        verify_source_boundary(
+            constant_generated,
+            required=(
+                "#include <hpy.h>",
+                "HPyDef_SLOT",
+                "HPy_mod_exec",
+                "HPy_MODINIT(constants_only,",
+            ),
+        )
+
         setup = temp / "setup.py"
         setup.write_text(
             "from setuptools import Extension, setup\n"
@@ -295,7 +316,8 @@ def build_and_run(python, runtime_prefix=()):
             "['retry_case.c']), Extension('bootstrap_types', "
             "['bootstrap_types.c']), Extension("
             "'ahpy_package.qualified_module', "
-            "['qualified_module.c'])])\n",
+            "['qualified_module.c']), Extension('constants_only', "
+            "['constants_only.c'])])\n",
             encoding="utf8",
         )
         build_root = temp / "build"
@@ -319,13 +341,20 @@ def build_and_run(python, runtime_prefix=()):
         qualified_binary = require_universal_binary(
             build_root, QUALIFIED_MODULE_NAME)
         verify_binary_boundary(qualified_binary)
+        constant_binary = require_universal_binary(
+            build_root, CONSTANT_MODULE_NAME)
+        verify_binary_boundary(constant_binary)
 
         retry_dependency = temp / "ahpy_retry_dependency.py"
         retry_dependency.write_text("# VALUE is added after the failed import.\n")
 
         semantic_check = (
             "import importlib, sys, gc, operator, warnings, ctypes; "
-            "import bootstrap_answer, bootstrap_types; "
+            "import bootstrap_answer, bootstrap_types, constants_only; "
+            "assert constants_only.__doc__ == "
+            "'constant-only module documentation'; "
+            "assert constants_only.VALUE == 47; "
+            "assert constants_only.NAME == 'sabit'; "
             "from ahpy_package import qualified_module; "
             "assert qualified_module.__doc__ == "
             "'qualified \"module\" documentation\\nikinci satır'; "

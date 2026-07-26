@@ -5056,12 +5056,6 @@ class UniversalHPyModuleWriter:
 
         methods, module_stats, extension_types, external_c_blocks = (
             self.module_node.hpy_bootstrap_contents(self))
-        if not methods and not extension_types:
-            self.unsupported(
-                self.module_node,
-                "bootstrap Universal HPy modules require at least one "
-                "supported def or cdef class",
-            )
 
         defaultable_methods = list(methods)
         for extension_type in extension_types:
@@ -5451,7 +5445,8 @@ class UniversalHPyModuleWriter:
             "",
             "static HPyModuleDef %s = {" % module_cname,
             "    .doc = %s," % self._doc_cname(
-                self.module_node, self.module_node.doc, "module"),
+                self.module_node, getattr(self.module_node, "doc", None),
+                "module"),
             "    .size = 0,",
             "    .legacy_methods = NULL,",
             "    .defines = %s," % definitions_cname,
