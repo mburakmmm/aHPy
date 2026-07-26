@@ -476,17 +476,32 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         )
                         block_is_supported = False
                         continue
-                    if (
-                        function_type.exception_value is not None
-                        or function_type.exception_check
-                    ):
+                    errno_sentinel = None
+                    if function_type.exception_check:
                         diagnostics.unsupported(
                             declaration,
-                            "external C functions with Cython/Python exception "
-                            "contracts are not available in Universal HPy mode",
+                            "external C exception checks require Python "
+                            "exception state; Universal HPy supports only "
+                            "noexcept or an exact except -1 errno sentinel "
+                            "contract",
                         )
                         block_is_supported = False
                         continue
+                    if function_type.exception_value is not None:
+                        exception_value = function_type.exception_value
+                        if (
+                            not storage_kind.startswith("signed-")
+                            or exception_value.python_value != -1
+                        ):
+                            diagnostics.unsupported(
+                                declaration,
+                                "Universal HPy external C errno contracts "
+                                "require a signed integer result and exact "
+                                "except -1; other sentinels remain unsupported",
+                            )
+                            block_is_supported = False
+                            continue
+                        errno_sentinel = "-1"
                     if not re.match(
                         r"^[A-Za-z_][A-Za-z0-9_]*$", str(entry.cname)
                     ):
@@ -498,12 +513,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         block_is_supported = False
                         continue
                     validated_entries.append(
-                        (entry, storage_kind, argument_kinds))
+                        (entry, storage_kind, argument_kinds, errno_sentinel))
                 if block_is_supported:
-                    for entry, storage_kind, argument_kinds in validated_entries:
+                    for (
+                        entry,
+                        storage_kind,
+                        argument_kinds,
+                        errno_sentinel,
+                    ) in validated_entries:
                         entry.ahpy_universal_external_c_scalar_kind = storage_kind
                         entry.ahpy_universal_external_c_argument_kinds = (
                             argument_kinds)
+                        if errno_sentinel is not None:
+                            entry.ahpy_universal_external_c_errno_sentinel = (
+                                errno_sentinel)
                     external_c_blocks.append(stat)
                 continue
             if type(stat) is Nodes.CEnumDefNode:

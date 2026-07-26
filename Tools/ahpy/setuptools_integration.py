@@ -36,6 +36,7 @@ def _runtime_program(debug):
         )
         suffix = "detector.stop()\n"
     return (
+        "import errno\n"
         "import ahpy_setuptools_example as module\n" +
         prefix +
         "assert module.answer() == 42\n"
@@ -103,6 +104,30 @@ def _runtime_program(debug):
         "assert target.value == target_base + 3\n"
         "assert mapping.item == target_base + 6\n"
         "assert mapping.slice_item == target_base + 10\n"
+        "errno_base = module.external_nogil_calls()\n"
+        "assert module.external_errno_held(2) == errno_base + 2\n"
+        "assert module.external_errno_released(3) == errno_base + 5\n"
+        "assert module.external_errno_discarded(4) == errno_base + 9\n"
+        "for failing_call in (\n"
+        "    module.external_errno_held,\n"
+        "    module.external_errno_released,\n"
+        "    module.external_errno_discarded,\n"
+        "):\n"
+        "    try:\n"
+        "        failing_call(-1)\n"
+        "    except OSError as error:\n"
+        "        assert error.errno == errno.EDOM\n"
+        "    else:\n"
+        "        raise AssertionError('missing external C errno failure')\n"
+        "assert module.external_nogil_calls() == errno_base + 9\n"
+        "try:\n"
+        "    module.external_missing_errno()\n"
+        "except RuntimeError as error:\n"
+        "    assert str(error) == (\n"
+        "        \"external C function 'ahpy_external_missing_errno' returned \"\n"
+        "        \"its -1 error sentinel without setting errno\")\n"
+        "else:\n"
+        "    raise AssertionError('missing unset-errno contract failure')\n"
         "byte_calls = module.external_byte_calls()\n"
         "try:\n"
         "    module.external_byte(128)\n"
@@ -151,6 +176,7 @@ def build_and_run(python):
                 "HPyLong_FromUnsignedLongLong",
                 "HPyThreadState", "HPy_LeavePythonExecution",
                 "HPy_ReenterPythonExecution", "ahpy_external_nogil_advance",
+                "#include <errno.h>", "HPyErr_SetFromErrno",
             ),
         )
         binary = require_universal_binary(build_root, MODULE_NAME)
@@ -161,6 +187,11 @@ def build_and_run(python):
         run([
             python, "-c", _runtime_program(False),
         ], cwd=temp, env=runtime_environment)
+        trace_environment = runtime_environment.copy()
+        trace_environment["HPY"] = "trace"
+        run([
+            python, "-c", _runtime_program(False),
+        ], cwd=temp, env=trace_environment)
         debug_environment = runtime_environment.copy()
         debug_environment["HPY"] = "debug"
         run([

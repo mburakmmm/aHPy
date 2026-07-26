@@ -19,12 +19,19 @@ class SetuptoolsIntegrationDefinitionTest(unittest.TestCase):
         self.assertIn("def external_nogil_targets(obj, mapping, /)", SOURCE)
         self.assertIn("nogil_stored_result = 0", SOURCE)
         self.assertIn("mapping[1:2] = ahpy_external_nogil_advance(4)", SOURCE)
+        self.assertIn(
+            "ahpy_external_errno_advance(long long amount) except -1 nogil",
+            SOURCE,
+        )
+        self.assertIn("ahpy_external_missing_errno() except -1 nogil", SOURCE)
         self.assertIn("ahpy_external_nogil_probe_calls()", SOURCE)
         self.assertIn("ahpy_external_nogil_probe(void)", EXTERNAL_SOURCE)
         self.assertIn(
             "ahpy_external_nogil_advance(long long amount)",
             EXTERNAL_SOURCE,
         )
+        self.assertIn("errno = EDOM", EXTERNAL_SOURCE)
+        self.assertIn("ahpy_external_missing_errno(void)", EXTERNAL_SOURCE)
         self.assertIn("ahpy_external.c", SETUP)
         self.assertNotIn("Python.h", EXTERNAL_HEADER + EXTERNAL_SOURCE)
         compile(SETUP, "<ahpy-setuptools-setup>", "exec")

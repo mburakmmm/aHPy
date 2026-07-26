@@ -4806,6 +4806,98 @@ class UniversalHPyModuleWriterTest(TestCase):
             diagnostics,
         )
 
+    def test_external_c_errno_sentinel_checks_after_native_calls(self):
+        result, generated, diagnostics = self.compile_source(
+            "cdef extern from \"worker.h\":\n"
+            "    long fail(long value) except -1 nogil\n\n"
+            "def held(value, /):\n"
+            "    return fail(value)\n\n"
+            "def released(value, /):\n"
+            "    with nogil:\n"
+            "        result = fail(value)\n"
+            "    return result\n\n"
+            "def discarded():\n"
+            "    with nogil:\n"
+            "        fail(1)\n"
+            "    return 1\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn("#include <errno.h>", generated)
+
+        held_reset = generated.index("errno = 0;")
+        held_call = generated.index("= fail(", held_reset)
+        held_save = generated.index("= errno;", held_call)
+        held_check = generated.index("== ((long)-1)", held_save)
+        held_os_error = generated.index(
+            "HPyErr_SetFromErrno(ctx, ctx->h_OSError)", held_check)
+        held_runtime_error = generated.index(
+            "returned its -1 error sentinel without setting errno", held_check)
+        held_box = generated.index("HPyLong_FromLongLong(ctx,", held_runtime_error)
+        self.assertLess(held_reset, held_call)
+        self.assertLess(held_call, held_save)
+        self.assertLess(held_save, held_check)
+        self.assertLess(held_check, held_os_error)
+        self.assertLess(held_os_error, held_runtime_error)
+        self.assertLess(held_runtime_error, held_box)
+
+        released_leave = generated.index(
+            "HPy_LeavePythonExecution(ctx)", held_box)
+        released_reset = generated.index("errno = 0;", released_leave)
+        released_call = generated.index("= fail(", released_reset)
+        released_save = generated.index("= errno;", released_call)
+        released_reentry = generated.index(
+            "HPy_ReenterPythonExecution(ctx,", released_save)
+        released_check = generated.index("== ((long)-1)", released_reentry)
+        released_os_error = generated.index(
+            "HPyErr_SetFromErrno(ctx, ctx->h_OSError)", released_check)
+        released_box = generated.index(
+            "HPyLong_FromLongLong(ctx,", released_os_error)
+        self.assertLess(released_leave, released_reset)
+        self.assertLess(released_reset, released_call)
+        self.assertLess(released_call, released_save)
+        self.assertLess(released_save, released_reentry)
+        self.assertLess(released_reentry, released_check)
+        self.assertLess(released_check, released_os_error)
+        self.assertLess(released_os_error, released_box)
+
+        discarded_leave = generated.index(
+            "HPy_LeavePythonExecution(ctx)", released_box)
+        discarded_call = generated.index("= fail(((long)1));", discarded_leave)
+        discarded_reentry = generated.index(
+            "HPy_ReenterPythonExecution(ctx,", discarded_call)
+        discarded_check = generated.index("== ((long)-1)", discarded_reentry)
+        self.assertLess(discarded_leave, discarded_call)
+        self.assertLess(discarded_call, discarded_reentry)
+        self.assertLess(discarded_reentry, discarded_check)
+
+    def test_external_c_errno_contract_rejects_ambiguous_forms(self):
+        sources = (
+            (
+                "checked",
+                "cdef extern from \"worker.h\":\n"
+                "    int fail() except? -1 nogil\n",
+                "exception checks require Python exception state",
+            ),
+            (
+                "other-sentinel",
+                "cdef extern from \"worker.h\":\n"
+                "    int fail() except 0 nogil\n",
+                "require a signed integer result and exact except -1",
+            ),
+            (
+                "unsigned",
+                "cdef extern from \"worker.h\":\n"
+                "    unsigned int fail() except -1 nogil\n",
+                "require a signed integer result and exact except -1",
+            ),
+        )
+        for feature, source, expected in sources:
+            with self.subTest(feature=feature):
+                result, generated, diagnostics = self.compile_source(source)
+                self.assertEqual(result.num_errors, 1)
+                self.assertFalse(generated)
+                self.assertIn(expected, diagnostics)
+
     def test_empty_nogil_transition_is_fail_closed(self):
         result, generated, diagnostics = self.compile_source(
             "def run():\n"

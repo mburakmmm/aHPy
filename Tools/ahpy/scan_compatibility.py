@@ -74,8 +74,9 @@ ACTION_RULES = (
             "inside with nogil", "with nogil blocks",
             "with nogil may call", "HPy execution-state transition",
         ),
-        "Keep the native interval scalar-preconverted, noexcept, and "
-        "independent of Python/HPy state as documented by ADR 0010, or move "
+        "Keep the native interval scalar-preconverted, noexcept (or use the "
+        "exact signed except -1 errno contract), and independent of Python/HPy "
+        "state as documented by ADR 0010, or move "
         "the operation outside with nogil until its transition subgate is "
         "implemented.",
     ),

@@ -812,6 +812,11 @@ class RuntimeAPI(Protocol):
     ) -> str:
         ...
 
+    def error_set_from_errno(
+        self, exception_cname: str, context_cname: str = "",
+    ) -> str:
+        ...
+
     def error_set_object(
         self, exception_cname: str, value_cname: str, context_cname: str = "",
     ) -> str:
@@ -1772,6 +1777,9 @@ class CPythonRuntimeAPI(_RuntimeAPIBase):
     def error_set_string(self, exception_cname, message_cname, context_cname=""):
         return "PyErr_SetString(%s, %s)" % (exception_cname, message_cname)
 
+    def error_set_from_errno(self, exception_cname, context_cname=""):
+        return "PyErr_SetFromErrno(%s)" % exception_cname
+
     def error_set_object(self, exception_cname, value_cname, context_cname=""):
         return "PyErr_SetObject(%s, %s)" % (exception_cname, value_cname)
 
@@ -2695,6 +2703,11 @@ class _HPyRuntimeAPIBase(_RuntimeAPIBase):
         context_cname = self._require_context(context_cname)
         return "HPyErr_SetString(%s, %s, %s)" % (
             context_cname, exception_cname, message_cname)
+
+    def error_set_from_errno(self, exception_cname, context_cname=""):
+        context_cname = self._require_context(context_cname)
+        return "HPyErr_SetFromErrno(%s, %s)" % (
+            context_cname, exception_cname)
 
     def error_set_object(self, exception_cname, value_cname, context_cname=""):
         context_cname = self._require_context(context_cname)

@@ -509,10 +509,12 @@ Implement one independently gated family at a time:
    machinery; implementation remains open.)**
 6. `nogil`, Python-state transitions, exception reacquisition, `prange`,
    OpenMP, synchronization, and free-threading.
-   **(ADR 0010 and a runtime-tested first slice now permit only non-empty
-   blocks of discarded, argumentless calls to validated external C functions
-   declared `noexcept nogil`; emission uses public HPy leave/re-enter APIs and
-   a local `HPyThreadState`. Typed arguments/results, nested `with gil`, native
+   **(ADR 0010 and runtime-tested slices now permit non-empty blocks of
+   discarded or retained scalar calls to validated external C functions
+   declared `noexcept nogil` or exact signed `except -1 nogil`; emission
+   preconverts arguments, supports local/global/attribute/item/slice targets,
+   snapshots errno before public-HPy re-entry, and validates held/released/
+   discarded error paths. Compound targets, nested `with gil`, other native
    failures, and callbacks remain open. ADR 0011 now defines the neutral
    parallel plan and native-only worker path; `prange`/`parallel()` fail closed
    because HPy 0.9 has no public arbitrary-worker attach/error transport.

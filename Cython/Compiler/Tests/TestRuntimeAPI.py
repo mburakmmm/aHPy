@@ -1332,6 +1332,10 @@ class RuntimeAPITest(TestCase):
             'PyErr_SetString(PyExc_TypeError, "bad")',
         )
         self.assertEqual(
+            runtime_api.error_set_from_errno("PyExc_OSError"),
+            "PyErr_SetFromErrno(PyExc_OSError)",
+        )
+        self.assertEqual(
             runtime_api.error_set_object("PyExc_ValueError", "value"),
             "PyErr_SetObject(PyExc_ValueError, value)",
         )
@@ -1398,6 +1402,10 @@ class RuntimeAPITest(TestCase):
         self.assertEqual(
             runtime_api.error_set_string("ctx->h_TypeError", '"bad"', "ctx"),
             'HPyErr_SetString(ctx, ctx->h_TypeError, "bad")',
+        )
+        self.assertEqual(
+            runtime_api.error_set_from_errno("ctx->h_OSError", "ctx"),
+            "HPyErr_SetFromErrno(ctx, ctx->h_OSError)",
         )
         self.assertEqual(runtime_api.error_clear("ctx"), "HPyErr_Clear(ctx)")
         self.assertEqual(

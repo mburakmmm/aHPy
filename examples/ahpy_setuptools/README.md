@@ -23,13 +23,18 @@ HPY=debug PYTHONPATH=. ../../.venv-hpy09/bin/python -c \
 The build must create an `.hpy0` binary and an HPy loader stub. It must not
 silently produce a CPython extension. `Tools/ahpy/setuptools_integration.py`
 copies and builds these exact files in an isolated temporary directory, audits
-the generated source and undefined symbols, and runs normal/Debug semantics.
+the generated source and undefined symbols, and runs normal/Trace/Debug
+semantics.
 
 The enabled external-C seam accepts a concrete, injection-safe header and
 ordinary C boolean/integer/floating scalar parameters and results. HPy argument
 conversion is source ordered and narrowing is checked. `Python.h`, inline
 verbatim C, external typedefs, pointers, aggregates, variables, variadics,
-optional parameters, and Python exception clauses are intentionally rejected.
+optional parameters, and Python-inspecting exception clauses are intentionally
+rejected. The sole exception clause is the exact signed-integer `except -1`
+errno contract;
+`except?`, `except *`, unsigned/non-`-1` sentinels, and C++ exception clauses
+remain rejected.
 See `docs/ahpy/external-c.md` for the full contract.
 
 The example's `external_nogil_probe()` and argument-bearing
@@ -45,6 +50,13 @@ leave and writes retained results to global/attribute/item/slice targets only af
 re-entry, including a custom slice target. This does not enable
 compound/destructuring result targets, native
 failure protocols, callbacks, `prange`, or general `nogil`.
+
+`external_errno_held()`, `external_errno_released()`,
+`external_errno_discarded()`, and `external_missing_errno()` are the native
+error oracles. The first three prove exact signed `except -1` success and
+`EDOM`→`OSError` behavior while held or after re-entry, including discarded
+results and unchanged native state on failure; the last proves a sentinel
+without errno becomes the documented `RuntimeError`.
 
 This is the maintained setuptools/cythonize example, not yet the clean isolated
 PEP 517 distribution path. The latter remains gated until the aHPy build

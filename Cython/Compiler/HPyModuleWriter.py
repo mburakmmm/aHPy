@@ -533,11 +533,79 @@ class UniversalHPyFunctionWriter:
                     argument_kind, argument_cname))
         call_expression = "%s(%s)" % (
             function_cname, ", ".join(native_arguments))
-        result_cname = self._box_external_c_scalar_result(
-            storage_kind, call_expression)
+        errno_sentinel = getattr(
+            entry, "ahpy_universal_external_c_errno_sentinel", None)
+        if errno_sentinel is None:
+            result_cname = self._box_external_c_scalar_result(
+                storage_kind, call_expression)
+        else:
+            native_result_cname = "__pyx_hpy_external_result_%d" % (
+                self._next_native_field)
+            self._next_native_field += 1
+            saved_errno_cname = "__pyx_hpy_external_errno_%d" % (
+                self._next_status)
+            self._next_status += 1
+            self.putln("%s %s;" % (
+                self._external_c_scalar_c_type(storage_kind),
+                native_result_cname,
+            ))
+            self.putln("int %s;" % saved_errno_cname)
+            self.putln("errno = 0;")
+            self.putln("%s = %s;" % (
+                native_result_cname, call_expression))
+            self.putln("%s = errno;" % saved_errno_cname)
+            self._emit_external_c_errno_failure(
+                entry,
+                storage_kind,
+                native_result_cname,
+                saved_errno_cname,
+            )
+            result_cname = self._box_external_c_scalar_result(
+                storage_kind, native_result_cname)
         for argument_cname in reversed(argument_handles):
             self.close_owned_handle(argument_cname)
         return result_cname
+
+    def _emit_external_c_errno_failure(
+        self,
+        entry,
+        storage_kind,
+        native_result_cname,
+        saved_errno_cname,
+    ):
+        errno_sentinel = entry.ahpy_universal_external_c_errno_sentinel
+        sentinel_expression = "((%s)%s)" % (
+            self._external_c_scalar_c_type(storage_kind),
+            errno_sentinel,
+        )
+        self.putln("if (%s == %s) {" % (
+            native_result_cname, sentinel_expression))
+        self.indent()
+        self.putln("if (%s != 0) {" % saved_errno_cname)
+        self.indent()
+        self.putln("errno = %s;" % saved_errno_cname)
+        self.putln("(void)%s;" % self.runtime_api.error_set_from_errno(
+            self.runtime_api.builtin_exception(
+                "OSError", context_cname=self.context_cname),
+            context_cname=self.context_cname,
+        ))
+        self.dedent()
+        self.putln("} else {")
+        self.indent()
+        message = UniversalHPyModuleWriter._c_string(
+            "external C function '%s' returned its -1 error sentinel "
+            "without setting errno" % entry.name)
+        self.putln("%s;" % self.runtime_api.error_set_string(
+            self.runtime_api.builtin_exception(
+                "RuntimeError", context_cname=self.context_cname),
+            message,
+            context_cname=self.context_cname,
+        ))
+        self.dedent()
+        self.putln("}")
+        self._emit_failure_exit()
+        self.dedent()
+        self.putln("}")
 
     def _box_external_c_scalar_result(self, storage_kind, native_expression):
         if storage_kind == "bint":
@@ -791,11 +859,14 @@ class UniversalHPyFunctionWriter:
             if (
                 function_type.exception_value is not None
                 or function_type.exception_check
-            ):
+            ) and getattr(
+                entry, "ahpy_universal_external_c_errno_sentinel", None
+            ) is None:
                 self.unsupported(
                     expression,
-                    "external C calls inside with nogil must be noexcept; "
-                    "Python exception inspection requires active execution state",
+                    "external C calls inside with nogil must be noexcept or use "
+                    "the exact signed except -1 errno contract; Python exception "
+                    "inspection requires active execution state",
                 )
             function_cname = str(entry.cname)
             if not self.is_c_identifier(function_cname):
@@ -835,8 +906,10 @@ class UniversalHPyFunctionWriter:
                 self.close_owned_handle(argument_cname)
             call_expression = "%s(%s)" % (
                 function_cname, ", ".join(native_arguments))
+            errno_sentinel = getattr(
+                entry, "ahpy_universal_external_c_errno_sentinel", None)
             native_result_cname = None
-            if result_target is not None:
+            if result_target is not None or errno_sentinel is not None:
                 native_result_cname = "__pyx_hpy_nogil_result_%d" % (
                     self._next_native_field)
                 self._next_native_field += 1
@@ -848,6 +921,12 @@ class UniversalHPyFunctionWriter:
                         )),
                     native_result_cname,
                 ))
+            saved_errno_cname = None
+            if errno_sentinel is not None:
+                saved_errno_cname = "__pyx_hpy_nogil_errno_%d" % (
+                    self._next_status)
+                self._next_status += 1
+                self.putln("int %s;" % saved_errno_cname)
             thread_state_cname = "__pyx_hpy_thread_state_%d" % (
                 self._next_thread_state)
             self._next_thread_state += 1
@@ -859,15 +938,27 @@ class UniversalHPyFunctionWriter:
                 self.runtime_api.leave_python_execution(
                     context_cname=self.context_cname),
             ))
+            if errno_sentinel is not None:
+                self.putln("errno = 0;")
             if native_result_cname is None:
                 self.putln("(void)%s;" % call_expression)
             else:
                 self.putln("%s = %s;" % (
                     native_result_cname, call_expression))
+            if saved_errno_cname is not None:
+                self.putln("%s = errno;" % saved_errno_cname)
             self.putln("%s;" % self.runtime_api.reenter_python_execution(
                 thread_state_cname, context_cname=self.context_cname))
             self.dedent()
             self.putln("}")
+            if errno_sentinel is not None:
+                self._emit_external_c_errno_failure(
+                    entry,
+                    getattr(
+                        entry, "ahpy_universal_external_c_scalar_kind"),
+                    native_result_cname,
+                    saved_errno_cname,
+                )
             if result_target is not None:
                 result_cname = self._box_external_c_scalar_result(
                     getattr(
@@ -5550,6 +5641,7 @@ class UniversalHPyModuleWriter:
             "/* aHPy Universal HPy bootstrap backend. */",
             "#include <hpy.h>",
             "#include <stddef.h>",
+            "#include <errno.h>",
             "#include <limits.h>",
             "#include <math.h>",
             "#include <stdio.h>",

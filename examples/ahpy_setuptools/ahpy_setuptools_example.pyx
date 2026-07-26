@@ -14,6 +14,8 @@ cdef extern from "ahpy_external.h":
     long long ahpy_external_nogil_probe() noexcept nogil
     long long ahpy_external_nogil_advance(long long amount) noexcept nogil
     long long ahpy_external_nogil_probe_calls()
+    long long ahpy_external_errno_advance(long long amount) except -1 nogil
+    long long ahpy_external_missing_errno() except -1 nogil
 
 
 nogil_stored_result = 0
@@ -94,6 +96,28 @@ def external_nogil_targets(obj, mapping, /):
         mapping[1:2],
         ahpy_external_nogil_probe_calls(),
     )
+
+
+def external_errno_held(amount, /):
+    return ahpy_external_errno_advance(amount)
+
+
+def external_errno_released(amount, /):
+    with nogil:
+        result = ahpy_external_errno_advance(amount)
+    return result
+
+
+def external_errno_discarded(amount, /):
+    with nogil:
+        ahpy_external_errno_advance(amount)
+    return ahpy_external_nogil_probe_calls()
+
+
+def external_missing_errno():
+    with nogil:
+        result = ahpy_external_missing_errno()
+    return result
 
 
 cdef class Box:

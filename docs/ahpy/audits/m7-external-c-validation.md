@@ -2,8 +2,8 @@
 
 Date: 2026-07-15  
 Cython base: `b99cb0e3b5425e11414cadd24168a6cc850e8000`  
-Status: constrained scalar interface enabled; pointer/aggregate/error-protocol
-surface remains gated
+Status: constrained scalar interface plus exact errno protocol enabled;
+pointer/aggregate/other-error-protocol surface remains gated
 
 ## Accepted invariant
 
@@ -19,6 +19,10 @@ then performs exactly one native call. The result is converted through
 `HPyLong_FromLongLong`, `HPyLong_FromUnsignedLongLong`, `HPyFloat_FromDouble`,
 or a duplicated boolean context constant. Any failure closes all live argument
 handles and preserves the active exception.
+An exact signed-integer `except -1` declaration additionally selects the native
+errno protocol. Generated code zeros errno before the call, captures it
+immediately afterward, and raises `OSError` through the runtime API; a missing
+errno becomes a deterministic `RuntimeError`.
 
 ## Negative boundary
 
@@ -28,10 +32,12 @@ Focused compiler tests reject:
   `Python.h`;
 - typedefs, variables, pointer results, Python-owned `Py_ssize_t`, variadic
   signatures, and any non-scalar parameter/result;
-- Cython/Python exception contracts and non-identifier function names.
+- Python-inspecting exception contracts (`except?`, `except *`), non-`-1` or
+  unsigned sentinels, and non-identifier function names.
 
 External typedef width, aggregate layout, pointer ownership, callback context,
-native status/`errno`, C++, and `nogil` execution are not inferred. A rejection
+native status protocols beyond exact signed `except -1`/errno, C++, and broader
+`nogil` execution are not inferred. A rejection
 produces a source-positioned aHPy diagnostic and no C file; there is no ABI
 fallback.
 
@@ -45,7 +51,9 @@ translation unit. `Tools/ahpy/setuptools_integration.py` proves:
 - left-to-right `__index__` side effects;
 - exact lower-bound `signed char` behavior;
 - overflow before native entry, checked with a private C call counter;
-- normal and HPy Debug execution with `LeakDetector`;
+- exact errno success/failure for held, released, and discarded calls, including
+  `EDOM`→`OSError`, unchanged native state, and missing-errno `RuntimeError`;
+- normal, HPy Trace, and HPy Debug execution with Debug `LeakDetector`;
 - generated-source and undefined-binary-symbol Universal audits;
 - `.hpy0` build, current host-tagged wheel content, empty-target pip install,
   and post-install execution.

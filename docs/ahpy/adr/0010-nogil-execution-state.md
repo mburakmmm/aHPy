@@ -1,6 +1,6 @@
 # ADR 0010: Universal HPy execution-state transitions
 
-- Status: accepted; scalar-argument/result external-C slice implemented
+- Status: accepted; scalar-argument/result/errno external-C slice implemented
 - Date: 2026-07-16
 
 ## Context
@@ -13,16 +13,18 @@ Python/HPy operation, handle access, callback, or Python exception inspection
 occurs while execution is left.
 
 The existing external-C lane already validates concrete, injection-safe
-headers, plain C identifiers, direct scalar signatures, and the absence of a
-Cython/Python exception contract. It therefore supplies a bounded first
-consumer of the HPy transition API without introducing CPython emulation.
+headers, plain C identifiers, direct scalar signatures, and either no exception
+contract or the exact signed-integer `except -1` errno contract defined below.
+It therefore supplies a bounded first consumer of the HPy transition API
+without introducing CPython emulation.
 
 ## Decision
 
 1. The Universal `with nogil` lane accepts a non-empty sequence of zero- or
    scalar-argument calls to validated external C functions declared `noexcept
-   nogil`. Calls may be discarded or assign one supported scalar result to a
-   Python local/global, attribute, item, or slice target.
+   nogil` or with the exact signed-integer `except -1 nogil` errno contract.
+   Calls may be discarded or assign one supported scalar result to a Python
+   local/global, attribute, item, or slice target.
 2. For each call, the emitter completes its argument preparation, stores
    `HPy_LeavePythonExecution(ctx)` in a local `HPyThreadState`, performs only
    that admitted native call, and invokes
@@ -46,7 +48,16 @@ consumer of the HPy transition API without introducing CPython emulation.
    validated target. Python attribute/item argument expressions are evaluated
    and converted before leaving execution; Python attribute/item/slice result
    targets are evaluated and written only after re-entry.
-5. Python exception contracts, nested `with gil`, conditional/runtime
+5. For an admitted `except -1` function, the emitter sets `errno` to zero
+   immediately before the native call and snapshots it immediately after the
+   result, before any re-entry operation. After re-entry, a `-1` result restores
+   the snapshot and calls public `HPyErr_SetFromErrno` with `OSError`; a zero
+   snapshot raises a deterministic `RuntimeError` naming the broken native
+   function. This applies to held-execution, retained-result, and discarded
+   calls. `except?`, `except *`, unsigned returns, and non-`-1` sentinels remain
+   rejected because they either require Python exception inspection or define a
+   different native ABI contract.
+6. Other Python exception contracts, nested `with gil`, conditional/runtime
    transitions, C callbacks, pointers/buffers, C++/RAII, `prange`, OpenMP, and
    free-threading are independent gates. Re-entry cleanup must be modeled for
    every future native failure or structured-control-flow path before that path
@@ -59,19 +70,22 @@ probes, calls them while Python execution is left, and checks their counter
 across repeated calls. A raising `__index__` argument proves conversion failure
 occurs before native entry, while an observing `__index__` proves a preceding
 native statement completes before the next statement's conversion. The exact
-generated `.hpy0` passes normal and HPy Debug execution, source-boundary
+generated `.hpy0` passes normal, HPy Trace, and HPy Debug execution, source-boundary
 checks, and undefined-binary-import audits.
 Focused compiler tests prove per-statement leave/call/re-entry,
 conversion/close/leave/call/re-entry, and native-result/re-entry/HPy-box
 ordering, including attribute/item arguments before leave and local/global,
 attribute, item, and slice result writes after re-entry. Expanded arguments,
 compound/destructuring result targets, and empty blocks are rejected without
-producing C.
+producing C. The linked errno oracle proves held/released/discarded success,
+`EDOM` conversion to `OSError`, unchanged native state on failure, and the
+unset-errno `RuntimeError` path in normal/Trace/Debug and installed-wheel
+execution.
 
 ## Remaining order
 
-1. Design native status/`errno` failure protocols and independently evaluate
-   compound/destructuring result targets.
+1. Independently evaluate compound/destructuring result targets and any native
+   failure protocol beyond the exact `except -1` errno lane.
 2. Model nested transition state and exception reacquisition without CPython
    exception triples.
 3. Design `prange`/OpenMP worker context ownership, cancellation, reduction,

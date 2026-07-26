@@ -12,5 +12,7 @@ double ahpy_external_scale(double value, double factor);
 long long ahpy_external_nogil_probe(void);
 long long ahpy_external_nogil_advance(long long amount);
 long long ahpy_external_nogil_probe_calls(void);
+long long ahpy_external_errno_advance(long long amount);
+long long ahpy_external_missing_errno(void);
 
 #endif
