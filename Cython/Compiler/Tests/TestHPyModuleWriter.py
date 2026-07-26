@@ -1332,8 +1332,8 @@ class UniversalHPyEmitterContractTest(TestCase):
         )
         cases = (
             (
-                module(([], [], [], []), name="invalid.module"),
-                "simple C identifier",
+                module(([], [], [], []), name="invalid-module"),
+                "module-name components must be C identifiers",
             ),
             (
                 module(([], [], [], [])),
@@ -2762,7 +2762,7 @@ class UniversalHPyEmitterContractTest(TestCase):
 
 
 class UniversalHPyModuleWriterTest(TestCase):
-    def compile_source(self, source_text):
+    def compile_source(self, source_text, module_name=None):
         temp_dir = TemporaryDirectory()
         self.addCleanup(temp_dir.cleanup)
         source = Path(temp_dir.name) / "bootstrap_case.pyx"
@@ -2777,9 +2777,30 @@ class UniversalHPyModuleWriterTest(TestCase):
                     language_level=3,
                     runtime_backend=HPY_UNIVERSAL_BACKEND,
                 ),
+                full_module_name=module_name,
             )
         generated = output.read_text(encoding="utf8") if output.exists() else ""
         return result, generated, diagnostics.getvalue()
+
+    def test_qualified_module_name_uses_leaf_init_symbol(self):
+        result, generated, diagnostics = self.compile_source(
+            "def answer():\n"
+            "    return 42\n\n"
+            "cdef class QualifiedBox:\n"
+            "    def answer(self):\n"
+            "        return 42\n",
+            module_name="ahpy_package.qualified_module",
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn(
+            "HPy_MODINIT(qualified_module, __pyx_hpy_module)",
+            generated,
+        )
+        self.assertNotIn("HPy_MODINIT(ahpy_package.", generated)
+        self.assertIn(
+            '.name = "ahpy_package.qualified_module.QualifiedBox"',
+            generated,
+        )
 
     def test_hpy_early_builtin_filter_does_not_steal_base_handlers(self):
         base = Optimize.EarlyReplaceBuiltinCalls

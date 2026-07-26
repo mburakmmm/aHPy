@@ -332,6 +332,10 @@ earlier phase's exit gate.
 - [x] Emit through the HPy build lane that defines `HPY_ABI_UNIVERSAL`, and
       compile with HPy's `forbid_python_h` include guard.
 - [x] Emit `HPy_MODINIT` and an `HPyModuleDef`.
+- [x] Support qualified package-module names: retain the full dotted name for
+      runtime type/metadata identity and use only the final identifier in the
+      `HPy_MODINIT` export symbol; import the built package module in normal,
+      Trace, and Debug modes.
 - [x] Emit `HPy_mod_exec` initialization where runtime setup is required.
 - [ ] Generate HPy module-level method definitions and all declared signatures.
   - [x] Generate strict argument-free `HPyFunc_NOARGS` definitions.
@@ -346,9 +350,9 @@ earlier phase's exit gate.
       layout.
 - [x] Select the bootstrap emitter through a typed code-generation-kind
       contract, independently of handle-ownership policy.
-- [x] Reject module names, module statements, function signatures, decorators,
-      bodies, and return expressions outside the bootstrap subset at their
-      source positions.
+- [x] Reject invalid module-name components, unsupported module statements,
+      function signatures, decorators, bodies, and return expressions outside
+      the bootstrap subset at their source positions.
 
 ### Core Python semantics
 
@@ -484,8 +488,8 @@ earlier phase's exit gate.
         rebind-after-delete, conditional deletion, and Debug Mode cleanup.
   - [x] Support function-scope `locals()` / zero-arg `vars()` via
         `FuncLocalsExprNode` with null-slot exclusion, `HPy_Dup` failure
-        propagation, and normal/Debug generated-oracle coverage; keep
-        module-scope `locals()`/`globals()` rejected.
+        propagation, and normal/Debug generated-oracle coverage; module-scope
+        `locals()`/`globals()` use the owned module dictionary.
   - [x] Evaluate reads before module initialization at runtime instead of
         rejecting them at compile time; keep relative/star imports rejected.
   - [x] Add the remaining constant caches for `None`, booleans, integers, and
@@ -1251,7 +1255,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
       generated/native/subprocess behavior in its dedicated runtime gates.
   - [x] Reach 100% executable Python-line coverage for `HPyModuleWriter.py`,
         `HandleModel.py`, and `RuntimeAPI.py` on CPython 3.11 and 3.14; trace
-        560 tests and lock CI floors at backend 100%, frontend seam 45%, and
+        561 tests and lock CI floors at backend 100%, frontend seam 45%, and
         quality tools 41% without conflating native/generated-C gates.
 - [x] Add benchmark history and regression thresholds.
   - [x] Compare generated Universal HPy with an equivalent handwritten

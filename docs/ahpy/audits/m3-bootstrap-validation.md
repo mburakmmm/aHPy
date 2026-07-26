@@ -8,7 +8,7 @@ Status: strict bootstrap subset passes; M3 remains in progress
 
 The `hpy-universal` backend now completes Cython parsing, semantic analysis,
 and optimisation before selecting a dedicated Universal bootstrap emitter
-through `RuntimeCodeGenerationKind`. The emitter accepts simple module names
+through `RuntimeCodeGenerationKind`. The original emitter accepted simple module names
 and undecorated module `def` functions with required untyped ordinary,
 multiple, and positional-only arguments. Function bodies may use linear local
 assignment/reassignment, discarded expressions, `pass`, final returns, and a
@@ -29,6 +29,15 @@ owned context-constant duplication, `HPyLong_FromLongLong`,
 `Set`; intermediate allocation failure cancels all live nested builders in
 reverse order. Unsupported AST forms raise a source-positioned compiler error
 and never enter CPython codegen.
+
+## Qualified module-name follow-up
+
+The backend now accepts dotted package-module names whose individual
+components are C identifiers. It preserves the full name for runtime type and
+metadata identity while passing only the final component to `HPy_MODINIT`, as
+required by the Universal loader's exported `HPyInit_<leaf>` symbols. A real
+`ahpy_package.qualified_module` build passes binary-boundary checks and imports
+with the exact `__name__` in normal, HPy Trace, and HPy Debug modes.
 
 `HPy_GetItem` and UTF-8-name `HPy_GetAttr_s` reads are also enabled over the
 implemented expression subset. Their owned operands are closed before a null

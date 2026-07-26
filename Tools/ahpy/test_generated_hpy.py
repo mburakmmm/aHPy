@@ -18,6 +18,8 @@ RETRY_MODULE_NAME = "retry_case"
 RETRY_SOURCE = ROOT / "tests" / "ahpy" / "retry_case.pyx"
 TYPE_SOURCE = ROOT / "tests" / "ahpy" / "bootstrap_types.pyx"
 TYPE_MODULE_NAME = "bootstrap_types"
+QUALIFIED_SOURCE = ROOT / "tests" / "ahpy" / "qualified_module.pyx"
+QUALIFIED_MODULE_NAME = "ahpy_package.qualified_module"
 
 
 def run(command, **kwargs):
@@ -264,6 +266,25 @@ def build_and_run(python, runtime_prefix=()):
             ),
         )
 
+        qualified_generated = temp / "qualified_module.c"
+        run([
+            python,
+            "-m", "cython",
+            "--runtime-backend=hpy-universal",
+            "--module-name", QUALIFIED_MODULE_NAME,
+            "-3",
+            "-o", str(qualified_generated),
+            str(QUALIFIED_SOURCE),
+        ], cwd=ROOT, env=environment)
+        verify_source_boundary(
+            qualified_generated,
+            required=(
+                "#include <hpy.h>",
+                "HPyDef_METH",
+                "HPy_MODINIT(qualified_module,",
+            ),
+        )
+
         setup = temp / "setup.py"
         setup.write_text(
             "from setuptools import Extension, setup\n"
@@ -272,7 +293,9 @@ def build_and_run(python, runtime_prefix=()):
             "hpy_ext_modules=[Extension('bootstrap_answer', "
             "['bootstrap_answer.c']), Extension('retry_case', "
             "['retry_case.c']), Extension('bootstrap_types', "
-            "['bootstrap_types.c'])])\n",
+            "['bootstrap_types.c']), Extension("
+            "'ahpy_package.qualified_module', "
+            "['qualified_module.c'])])\n",
             encoding="utf8",
         )
         build_root = temp / "build"
@@ -293,6 +316,9 @@ def build_and_run(python, runtime_prefix=()):
         verify_binary_boundary(retry_binary)
         type_binary = require_universal_binary(build_root, TYPE_MODULE_NAME)
         verify_binary_boundary(type_binary)
+        qualified_binary = require_universal_binary(
+            build_root, QUALIFIED_MODULE_NAME)
+        verify_binary_boundary(qualified_binary)
 
         retry_dependency = temp / "ahpy_retry_dependency.py"
         retry_dependency.write_text("# VALUE is added after the failed import.\n")
@@ -300,6 +326,13 @@ def build_and_run(python, runtime_prefix=()):
         semantic_check = (
             "import importlib, sys, gc, operator, warnings, ctypes; "
             "import bootstrap_answer, bootstrap_types; "
+            "from ahpy_package import qualified_module; "
+            "assert qualified_module.answer() == 42; "
+            "assert qualified_module.__name__ == 'ahpy_package.qualified_module'; "
+            "qualified_box = qualified_module.QualifiedBox(); "
+            "assert qualified_box.answer() == 42; "
+            "assert qualified_module.QualifiedBox.__module__ == "
+            "'ahpy_package.qualified_module'; "
             "marker_instance = bootstrap_types.make_marker(); "
             "assert type(marker_instance) is bootstrap_types.Marker; "
             "assert bootstrap_types.marker_type() is bootstrap_types.Marker; "

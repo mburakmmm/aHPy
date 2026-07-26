@@ -5038,12 +5038,13 @@ class UniversalHPyModuleWriter:
 
     def render(self):
         module_name = str(self.module_node.full_module_name)
-        if not _C_IDENTIFIER.match(module_name):
+        module_name_parts = module_name.split(".")
+        if not all(_C_IDENTIFIER.match(part) for part in module_name_parts):
             self.unsupported(
                 self.module_node,
-                "bootstrap Universal HPy modules currently require a simple "
-                "C identifier as their module name",
+                "Universal HPy module-name components must be C identifiers",
             )
+        module_init_name = module_name_parts[-1]
 
         methods, module_stats, extension_types, external_c_blocks = (
             self.module_node.hpy_bootstrap_contents(self))
@@ -5451,7 +5452,7 @@ class UniversalHPyModuleWriter:
             "    .globals = NULL,",
             "};",
             "",
-            "HPy_MODINIT(%s, %s)" % (module_name, module_cname),
+            "HPy_MODINIT(%s, %s)" % (module_init_name, module_cname),
             "",
         ])
         return "\n".join(lines)
