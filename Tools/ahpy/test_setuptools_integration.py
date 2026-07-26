@@ -10,7 +10,17 @@ class SetuptoolsIntegrationDefinitionTest(unittest.TestCase):
         self.assertIn("cdef class Box", SOURCE)
         self.assertIn('cdef extern from "ahpy_external.h"', SOURCE)
         self.assertIn("ahpy_external_nogil_probe() noexcept nogil", SOURCE)
+        self.assertIn(
+            "ahpy_external_nogil_advance(long long amount) noexcept nogil",
+            SOURCE,
+        )
+        self.assertIn("def external_nogil_ordered(amount, /)", SOURCE)
+        self.assertIn("ahpy_external_nogil_probe_calls()", SOURCE)
         self.assertIn("ahpy_external_nogil_probe(void)", EXTERNAL_SOURCE)
+        self.assertIn(
+            "ahpy_external_nogil_advance(long long amount)",
+            EXTERNAL_SOURCE,
+        )
         self.assertIn("ahpy_external.c", SETUP)
         self.assertNotIn("Python.h", EXTERNAL_HEADER + EXTERNAL_SOURCE)
         compile(SETUP, "<ahpy-setuptools-setup>", "exec")

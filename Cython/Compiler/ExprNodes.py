@@ -15886,6 +15886,16 @@ class CoerceFromPyTypeNode(CoercionNode):
             self.generate_gotref(code)
 
     def nogil_check(self, env):
+        from .RuntimeAPI import RuntimeCodeGenerationKind
+        if (
+            env.context.runtime_api.code_generation_kind()
+            is RuntimeCodeGenerationKind.HPY_UNIVERSAL_BOOTSTRAP
+        ):
+            # The strict HPy writer admits this node only as an argument to a
+            # validated external-C call and performs the checked conversion
+            # before HPy_LeavePythonExecution.  Every other nogil shape still
+            # fails closed in the dedicated writer.
+            return
         error(self.pos, "Coercion from Python not allowed without the GIL")
 
 

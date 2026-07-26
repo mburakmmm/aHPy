@@ -1017,14 +1017,17 @@ until its full existing Cython test subset and new HPy-specific tests pass.
 - [ ] `nogil`, enter/leave Python execution, and exception reacquisition.
   - [x] Record ADR 0010's public-HPy transition, no-handle interval, native
         library contract, re-entry, and staged typed-conversion requirements.
-  - [x] Support non-empty `with nogil` blocks containing only discarded,
-        argumentless calls to validated external C functions declared
-        `noexcept nogil`, using `HPy_LeavePythonExecution` and
-        `HPy_ReenterPythonExecution` with a local `HPyThreadState`.
+  - [x] Support non-empty `with nogil` blocks containing only discarded calls
+        to validated external C functions declared `noexcept nogil`, using
+        `HPy_LeavePythonExecution` and `HPy_ReenterPythonExecution` with a
+        local `HPyThreadState`; checked scalar arguments are evaluated,
+        converted, and released before leaving execution.
   - [x] Validate the linked native probe in normal/Debug runtime execution and
         reject argument-bearing or empty blocks without generated C.
-  - [ ] Preconvert typed scalar arguments before leaving execution, retain
-        native results, re-enter, and only then perform HPy result conversion.
+  - [x] Preconvert supported scalar arguments before leaving execution and
+        prove conversion failures cannot enter the native interval.
+  - [ ] Retain used native results, re-enter, and only then perform HPy result
+        conversion.
   - [ ] Design nested `with gil`, native failure/exception reacquisition,
         callbacks, and every structured early-exit cleanup path.
 - [ ] `prange`, OpenMP, synchronization, and free-threading interactions.

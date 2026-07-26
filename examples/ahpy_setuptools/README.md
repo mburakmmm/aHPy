@@ -32,10 +32,14 @@ verbatim C, external typedefs, pointers, aggregates, variables, variadics,
 optional parameters, and Python exception clauses are intentionally rejected.
 See `docs/ahpy/external-c.md` for the full contract.
 
-The example's `external_nogil_probe()` is the ADR 0010 transition oracle. Its
-discarded, argumentless native call is declared `noexcept nogil`; generated
-code leaves and re-enters Python execution with public HPy 0.9 APIs. This does
-not enable typed arguments/results, callbacks, `prange`, or general `nogil`.
+The example's `external_nogil_probe()` and argument-bearing
+`external_nogil_advance()` and `external_nogil_ordered()` are the ADR 0010
+transition oracles. Their discarded native calls are declared `noexcept
+nogil`; generated code converts and checks each scalar argument before its
+call's leave/re-enter interval using public HPy 0.9 APIs. The ordered probe
+also proves a later Python conversion remains after the preceding native call.
+This does not enable used native results, callbacks, `prange`, or general
+`nogil`.
 
 This is the maintained setuptools/cythonize example, not yet the clean isolated
 PEP 517 distribution path. The latter remains gated until the aHPy build

@@ -12,6 +12,7 @@ cdef extern from "ahpy_external.h":
     int ahpy_external_byte_calls()
     double ahpy_external_scale(double value, double factor)
     long long ahpy_external_nogil_probe() noexcept nogil
+    long long ahpy_external_nogil_advance(long long amount) noexcept nogil
     long long ahpy_external_nogil_probe_calls()
 
 
@@ -50,6 +51,23 @@ def external_scale(value, factor):
 def external_nogil_probe():
     with nogil:
         ahpy_external_nogil_probe()
+    return ahpy_external_nogil_probe_calls()
+
+
+def external_nogil_advance(amount, /):
+    with nogil:
+        ahpy_external_nogil_advance(amount)
+    return ahpy_external_nogil_probe_calls()
+
+
+def external_nogil_calls():
+    return ahpy_external_nogil_probe_calls()
+
+
+def external_nogil_ordered(amount, /):
+    with nogil:
+        ahpy_external_nogil_probe()
+        ahpy_external_nogil_advance(amount)
     return ahpy_external_nogil_probe_calls()
 
 

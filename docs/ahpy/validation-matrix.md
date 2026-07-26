@@ -278,16 +278,23 @@ specialization.
 
 ADR 0010 defines the no-handle execution-state interval. A focused positive
 input emits a local `HPyThreadState`, leaves through
-`HPy_LeavePythonExecution`, calls an argumentless validated external C symbol,
-and re-enters through `HPy_ReenterPythonExecution` before the next HPy
-operation. Focused negative inputs reject argument-bearing calls and empty
-blocks with no generated C.
+`HPy_LeavePythonExecution`, calls validated external C symbols with zero or
+more scalar arguments, and re-enters through `HPy_ReenterPythonExecution`
+before the next HPy operation. Non-literal arguments are source-ordered,
+checked, and closed before the leave; conversion failures therefore never
+enter the native interval. Each statement receives its own interval so a
+later argument's Python conversion cannot move ahead of an earlier native
+call. Focused negative inputs reject expanded arguments and empty blocks with
+no generated C.
 
-The setuptools integration example links a `noexcept nogil` native probe and
-checks its counter across repeated calls. The exact `.hpy0` passes normal and
-HPy Debug execution plus generated-source and undefined-import audits. This
-gate does not cover typed arguments/results, Python exception reacquisition,
-callbacks, nested `with gil`, `prange`/OpenMP, or free-threading.
+The setuptools integration example links argumentless and scalar-argument
+`noexcept nogil` native probes, checks their counter across repeated calls, and
+proves a raising `__index__` conversion leaves the counter unchanged. The exact
+oracle also observes that an earlier native statement completes before a later
+argument's `__index__` conversion. The `.hpy0` passes normal and HPy Debug
+execution plus generated-source and undefined-import audits. This gate does
+not cover used native results, Python exception reacquisition, callbacks,
+nested `with gil`, `prange`/OpenMP, or free-threading.
 
 ## Parallel/OpenMP fail-closed gate
 

@@ -111,6 +111,10 @@ Bootstrap
   diagnostics for fused ``def``/``cpdef`` without changing CPython dispatch.
 * Added the first public-HPy execution-state slice for discarded argumentless
   ``noexcept nogil`` external-C calls, with real normal/Debug execution.
+* Extended that slice to scalar-argument calls: all HPy evaluation, checked
+  narrowing, error propagation, and temporary closure finish before
+  ``HPy_LeavePythonExecution``; the linked normal/Debug oracle proves successful
+  native mutation and conversion failure without native entry.
 * Added a neutral parallel-worker design and HPy 0.9-specific fail-closed
   diagnostics before ``prange``/OpenMP can reach CPython thread-state code.
 * Added a schema-versioned, non-setuptools direct Universal build API/CLI with

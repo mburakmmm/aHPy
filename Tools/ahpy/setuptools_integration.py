@@ -59,6 +59,24 @@ def _runtime_program(debug):
         "nogil_calls = module.external_nogil_probe()\n"
         "assert nogil_calls >= 1\n"
         "assert module.external_nogil_probe() == nogil_calls + 1\n"
+        "nogil_calls = module.external_nogil_advance(3)\n"
+        "assert nogil_calls >= 4\n"
+        "class BadIndex:\n"
+        "    def __index__(self):\n"
+        "        raise RuntimeError('nogil conversion failed')\n"
+        "try:\n"
+        "    module.external_nogil_advance(BadIndex())\n"
+        "except RuntimeError as error:\n"
+        "    assert str(error) == 'nogil conversion failed'\n"
+        "else:\n"
+        "    raise AssertionError('missing pre-nogil conversion error')\n"
+        "assert module.external_nogil_probe() == nogil_calls + 1\n"
+        "ordered_base = module.external_nogil_calls()\n"
+        "class OrderedIndex:\n"
+        "    def __index__(self):\n"
+        "        assert module.external_nogil_calls() == ordered_base + 1\n"
+        "        return 3\n"
+        "assert module.external_nogil_ordered(OrderedIndex()) == ordered_base + 4\n"
         "byte_calls = module.external_byte_calls()\n"
         "try:\n"
         "    module.external_byte(128)\n"
@@ -106,7 +124,7 @@ def build_and_run(python):
                 "HPy_MODINIT", '#include "ahpy_external.h"',
                 "HPyLong_FromUnsignedLongLong",
                 "HPyThreadState", "HPy_LeavePythonExecution",
-                "HPy_ReenterPythonExecution",
+                "HPy_ReenterPythonExecution", "ahpy_external_nogil_advance",
             ),
         )
         binary = require_universal_binary(build_root, MODULE_NAME)

@@ -2163,6 +2163,30 @@ class RuntimeAPITest(TestCase):
             self.assertIn(
                 "module-level ExprStatNode is not implemented", message)
 
+            source.write_text(
+                "cdef extern from \"worker.h\":\n"
+                "    long tick(long value) noexcept nogil\n\n"
+                "def run(value):\n"
+                "    with nogil:\n"
+                "        tick(value)\n",
+                encoding="utf8",
+            )
+            diagnostics = io.StringIO()
+            with redirect_stderr(diagnostics):
+                result = Main.compile(
+                    str(source),
+                    Options.CompilationOptions(
+                        output_file=str(output),
+                        language_level=3,
+                        runtime_backend=CPYTHON_BACKEND,
+                    ),
+                )
+            self.assertGreaterEqual(result.num_errors, 1)
+            self.assertIn(
+                "Coercion from Python not allowed without the GIL",
+                diagnostics.getvalue(),
+            )
+
     def test_unknown_and_reserved_backends_are_rejected(self):
         for backend in ("not-a-runtime", HPY_HYBRID_BACKEND):
             with self.assertRaises(RuntimeBackendOptionError):

@@ -53,14 +53,17 @@ binary portable across operating systems or CPU architectures.
 - C++ names, overloads, methods, templates, or exception translation.
 
 ADR 0010 enables one narrow `nogil` contract: a non-empty `with nogil` block
-may contain only discarded, argumentless calls to validated functions declared
-`noexcept nogil`. The native implementation must not call Python/HPy, access
-handles or Python-owned state, invoke Python callbacks, throw across the C
-boundary, or escape with `longjmp`. The emitter leaves and re-enters Python
-execution through public HPy APIs around that interval. Typed arguments,
-retained results, native status-code/`errno`, pointer/buffer lifetime, and
-callback contracts still need explicit designs. Unsupported forms fail at
-their source position; the backend never changes ABI mode as a fallback.
+may contain only discarded calls to validated functions declared `noexcept
+nogil`. Portable literals become native constants; other supported scalar
+arguments are evaluated in source order, checked through public HPy conversion
+APIs, and have their temporary handles closed before execution is left. The
+native implementation must not call Python/HPy, access handles or Python-owned
+state, invoke Python callbacks, throw across the C boundary, or escape with
+`longjmp`. The emitter leaves and re-enters Python execution through public HPy
+APIs around that handle-free interval. Retained results, native
+status-code/`errno`, pointer/buffer lifetime, and callback contracts still need
+explicit designs. Unsupported forms fail at their source position; the backend
+never changes ABI mode as a fallback.
 
 ## Executable reference
 
@@ -69,5 +72,7 @@ files. `Tools/ahpy/setuptools_integration.py` builds and links them as a
 Universal `.hpy0`, audits generated source and undefined binary symbols, runs
 normal and HPy Debug semantics with leak detection, verifies narrowing failure,
 builds the current host-tagged wheel, installs it into an empty target, and
-runs it again. The example also executes the ADR 0010 native counter probe in
-normal and Debug modes and audits the HPy execution-state spellings.
+runs it again. The example also executes ADR 0010 argumentless and
+argument-bearing native counter probes in normal and Debug modes, proves a
+failing `__index__` conversion never enters the native interval, and audits the
+HPy execution-state spellings.

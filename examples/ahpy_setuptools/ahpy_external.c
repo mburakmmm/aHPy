@@ -50,6 +50,12 @@ long long ahpy_external_nogil_probe(void)
     return ahpy_external_nogil_probe_call_count;
 }
 
+long long ahpy_external_nogil_advance(long long amount)
+{
+    ahpy_external_nogil_probe_call_count += amount;
+    return ahpy_external_nogil_probe_call_count;
+}
+
 long long ahpy_external_nogil_probe_calls(void)
 {
     return ahpy_external_nogil_probe_call_count;

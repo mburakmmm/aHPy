@@ -686,15 +686,15 @@ class UniversalHPyFunctionWriter:
                 "HPy execution-state transition must be unconditional",
             )
 
-        calls = []
+        emitted_calls = 0
         for statement in self.stats(gil_node.body):
             if isinstance(statement, Nodes.ParallelStatNode):
                 self.reject_parallel_construct(statement)
             if type(statement) is not Nodes.ExprStatNode:
                 self.unsupported(
                     statement,
-                    "the initial with nogil lane permits only discarded "
-                    "calls to validated argumentless external C functions",
+                    "the with nogil lane permits only discarded calls to "
+                    "validated external C functions",
                 )
             expression = statement.expr
             while isinstance(
@@ -709,8 +709,8 @@ class UniversalHPyFunctionWriter:
             if not isinstance(expression, ExprNodes.SimpleCallNode):
                 self.unsupported(
                     statement,
-                    "the initial with nogil lane permits only discarded "
-                    "calls to validated argumentless external C functions",
+                    "the with nogil lane permits only discarded calls to "
+                    "validated external C functions",
                 )
             if expression.self is not None or expression.coerced_self is not None:
                 self.unsupported(
@@ -718,11 +718,11 @@ class UniversalHPyFunctionWriter:
                     "external C method calls are not implemented inside "
                     "with nogil",
                 )
-            if expression.args is None or expression.args:
+            if expression.args is None:
                 self.unsupported(
                     expression,
-                    "external C calls inside with nogil must be argumentless "
-                    "in the initial Universal HPy lane",
+                    "expanded external C call arguments are not implemented "
+                    "inside with nogil",
                 )
             entry = getattr(expression.function, "entry", None)
             function_type = getattr(entry, "type", None)
@@ -754,31 +754,62 @@ class UniversalHPyFunctionWriter:
                     expression,
                     "external C function names must be plain C identifiers",
                 )
-            calls.append(function_cname)
+            argument_kinds = getattr(
+                entry, "ahpy_universal_external_c_argument_kinds", None)
+            if (
+                argument_kinds is None
+                or len(argument_kinds) != len(expression.args)
+            ):
+                raise AssertionError(
+                    "validated external C signature changed inside with nogil")
+            native_arguments = []
+            for argument, argument_kind in zip(
+                    expression.args, argument_kinds):
+                while isinstance(
+                    argument,
+                    (
+                        ExprNodes.CoerceFromPyTypeNode,
+                        ExprNodes.CoerceToTempNode,
+                    ),
+                ):
+                    argument = argument.arg
+                literal_argument = self._render_external_c_scalar_literal(
+                    argument, argument_kind)
+                if literal_argument is not None:
+                    native_arguments.append(literal_argument)
+                    continue
+                argument_cname = self.materialize_owned_handle(
+                    argument.generate_hpy_bootstrap_owned_result(self))
+                self.put_error_return_if_null(argument_cname)
+                native_arguments.append(self._convert_native_scalar_handle(
+                    argument_kind, argument_cname))
+                self.close_owned_handle(argument_cname)
+            call_expression = "%s(%s)" % (
+                function_cname, ", ".join(native_arguments))
+            thread_state_cname = "__pyx_hpy_thread_state_%d" % (
+                self._next_thread_state)
+            self._next_thread_state += 1
+            self.putln("{")
+            self.indent()
+            self.putln("%s %s = %s;" % (
+                self.runtime_api.execution_state_type_cname(),
+                thread_state_cname,
+                self.runtime_api.leave_python_execution(
+                    context_cname=self.context_cname),
+            ))
+            self.putln("(void)%s;" % call_expression)
+            self.putln("%s;" % self.runtime_api.reenter_python_execution(
+                thread_state_cname, context_cname=self.context_cname))
+            self.dedent()
+            self.putln("}")
+            emitted_calls += 1
 
-        if not calls:
+        if not emitted_calls:
             self.unsupported(
                 gil_node,
                 "empty with nogil blocks are not part of the initial "
                 "Universal HPy execution-state slice",
             )
-
-        thread_state_cname = "__pyx_hpy_thread_state_%d" % self._next_thread_state
-        self._next_thread_state += 1
-        self.putln("{")
-        self.indent()
-        self.putln("%s %s = %s;" % (
-            self.runtime_api.execution_state_type_cname(),
-            thread_state_cname,
-            self.runtime_api.leave_python_execution(
-                context_cname=self.context_cname),
-        ))
-        for function_cname in calls:
-            self.putln("(void)%s();" % function_cname)
-        self.putln("%s;" % self.runtime_api.reenter_python_execution(
-            thread_state_cname, context_cname=self.context_cname))
-        self.dedent()
-        self.putln("}")
 
     def reject_parallel_construct(self, node):
         self.unsupported(

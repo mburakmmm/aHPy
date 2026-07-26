@@ -598,6 +598,8 @@ class UniversalHPyEmitterContractTest(TestCase):
             function_type=None,
             cname="tick",
             receiver=None,
+            args=(),
+            argument_kinds=(),
         ):
             if function_type is None:
                 function_type = SimpleNamespace(
@@ -607,13 +609,14 @@ class UniversalHPyEmitterContractTest(TestCase):
                 )
             entry = SimpleNamespace(
                 ahpy_universal_external_c_scalar_kind=storage_kind,
+                ahpy_universal_external_c_argument_kinds=argument_kinds,
                 type=function_type,
                 cname=cname,
             )
             node = ExprNodes.SimpleCallNode(
                 None,
                 function=SimpleNamespace(entry=entry),
-                args=[],
+                args=None if args is None else list(args),
             )
             node.self = receiver
             node.coerced_self = None
@@ -650,6 +653,12 @@ class UniversalHPyEmitterContractTest(TestCase):
                     Nodes.ExprStatNode(
                         None, expr=expression(receiver=object())),)),
                 "method calls are not implemented",
+            ),
+            (
+                block(statements=(
+                    Nodes.ExprStatNode(
+                        None, expr=expression(args=None)),)),
+                "expanded external C call arguments",
             ),
             (
                 block(statements=(
@@ -693,6 +702,38 @@ class UniversalHPyEmitterContractTest(TestCase):
                 with self.assertRaisesRegex(CompileError, message):
                     writer.generate_nogil_external_c_block(node)
                 writer.assert_function_exit()
+
+        converted_call = expression(
+            args=(_OwnedNoneExpression(),),
+            argument_kinds=("signed-long",),
+        )
+        writer = UniversalHPyFunctionWriter(runtime_api)
+        writer.generate_nogil_external_c_block(block(statements=(
+            Nodes.ExprStatNode(None, expr=converted_call),)))
+        writer.assert_function_exit()
+        generated = "\n".join(writer.lines)
+        conversion = generated.index("HPyLong_AsLong(ctx,")
+        close = generated.index("HPy_Close(ctx,", conversion)
+        leave = generated.index("HPy_LeavePythonExecution(ctx)")
+        native_call = generated.index("(void)tick(", leave)
+        reenter = generated.index("HPy_ReenterPythonExecution(ctx,", native_call)
+        self.assertLess(conversion, close)
+        self.assertLess(close, leave)
+        self.assertLess(leave, native_call)
+        self.assertLess(native_call, reenter)
+
+        mismatched_call = expression(
+            args=(ExprNodes.IntNode(None, value="1"),),
+            argument_kinds=(),
+        )
+        with self.assertRaisesRegex(
+            AssertionError,
+            "validated external C signature changed inside with nogil",
+        ):
+            UniversalHPyFunctionWriter(
+                runtime_api).generate_nogil_external_c_block(
+                    block(statements=(
+                        Nodes.ExprStatNode(None, expr=mismatched_call),)))
 
     def test_duplicate_named_value_covers_missing_name_contracts(self):
         runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
@@ -2733,6 +2774,7 @@ class UniversalHPyEmitterContractTest(TestCase):
         )
         entry = SimpleNamespace(
             ahpy_universal_external_c_scalar_kind="signed-int",
+            ahpy_universal_external_c_argument_kinds=(),
             type=function_type,
             cname="tick",
         )
@@ -4547,21 +4589,36 @@ class UniversalHPyModuleWriterTest(TestCase):
         )
         self.assertNotIn("PyThreadState *", generated)
 
-    def test_nogil_external_c_arguments_are_fail_closed(self):
+    def test_nogil_external_c_arguments_are_preconverted_before_leave(self):
         result, generated, diagnostics = self.compile_source(
             "cdef extern from \"worker.h\":\n"
             "    long tick(long value) noexcept nogil\n\n"
-            "def run():\n"
+            "def run(value, /):\n"
             "    with nogil:\n"
             "        tick(1)\n"
+            "        tick(value)\n"
             "    return 1\n"
         )
-        self.assertEqual(result.num_errors, 1)
-        self.assertFalse(generated)
-        self.assertIn(
-            "external C calls inside with nogil must be argumentless",
-            diagnostics,
-        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        first_leave = generated.index("HPy_LeavePythonExecution(ctx)")
+        literal_call = generated.index("(void)tick(((long)1));", first_leave)
+        first_reenter = generated.index(
+            "HPy_ReenterPythonExecution(ctx,", literal_call)
+        conversion = generated.index("HPyLong_AsLong(ctx,", first_reenter)
+        close = generated.index("HPy_Close(ctx,", conversion)
+        second_leave = generated.index(
+            "HPy_LeavePythonExecution(ctx)", close)
+        converted_call = generated.index(
+            "(void)tick((long)__pyx_hpy_native_long_", second_leave)
+        second_reenter = generated.index(
+            "HPy_ReenterPythonExecution(ctx,", converted_call)
+        self.assertLess(first_leave, literal_call)
+        self.assertLess(literal_call, first_reenter)
+        self.assertLess(first_reenter, conversion)
+        self.assertLess(conversion, close)
+        self.assertLess(close, second_leave)
+        self.assertLess(second_leave, converted_call)
+        self.assertLess(converted_call, second_reenter)
 
     def test_empty_nogil_transition_is_fail_closed(self):
         result, generated, diagnostics = self.compile_source(
