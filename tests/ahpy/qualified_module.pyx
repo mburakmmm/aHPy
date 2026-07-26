@@ -23,6 +23,8 @@ cdef class QualifiedBox:
         return 44
 
     property başlık:
+        """birinci "satır" \ yolu
+        ikinci satır"""
         def __get__(self):
             return 46
 

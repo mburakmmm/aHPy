@@ -2810,14 +2810,14 @@ class UniversalHPyModuleWriterTest(TestCase):
             '.name = "ahpy_package.qualified_module.QualifiedBox"',
             generated,
         )
-        self.assertIn('"selam_ç"', generated)
-        self.assertIn('"değer"', generated)
+        self.assertIn('"selam_\\303\\247"', generated)
+        self.assertIn('"de\\304\\237er"', generated)
         self.assertIn("unicode_73656c616d5fc3a7", generated)
         self.assertIn("unicode_6465c49f6572", generated)
-        self.assertIn('"başlık"', generated)
+        self.assertIn('"ba\\305\\237l\\304\\261k"', generated)
         self.assertIn("unicode_6261c59f6cc4b16b", generated)
         self.assertIn(
-            '.name = "ahpy_package.qualified_module.DeğerKutusu"',
+            '.name = "ahpy_package.qualified_module.De\\304\\237erKutusu"',
             generated,
         )
         self.assertIn("unicode_4465c49f65724b7574757375", generated)
@@ -5615,7 +5615,8 @@ class UniversalHPyModuleWriterTest(TestCase):
             "cdef class PropertyBox:\n"
             "    cdef object value\n\n"
             "    property managed:\n"
-            "        '''managed documentation'''\n"
+            "        '''managed \"documentation\" \\\\ path\n"
+            "        ikinci satır\\tson'''\n"
             "        def __get__(self):\n"
             "            return self.value\n"
             "        def __set__(self, value):\n"
@@ -5631,7 +5632,11 @@ class UniversalHPyModuleWriterTest(TestCase):
         )
         self.assertEqual(result.num_errors, 0, diagnostics)
         self.assertIn("HPyDef_GETSET(", generated)
-        self.assertIn('.doc = "managed documentation"', generated)
+        self.assertIn(
+            '.doc = "managed \\"documentation\\" \\\\ path\\n'
+            '        ikinci sat\\304\\261r\\tson"',
+            generated,
+        )
         self.assertIn("HPyDef_GET(", generated)
         self.assertIn("HPyDef_SET(", generated)
         self.assertIn("static HPy __pyx_hpy_type_0_PropertyBox_property_0_managed_get(", generated)
@@ -5641,6 +5646,19 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertNotIn('"__get__", HPyFunc_', generated)
         self.assertNotIn('"__set__", HPyFunc_', generated)
         self.assertNotIn('"__del__", HPyFunc_', generated)
+
+        result, _, diagnostics = self.compile_source(
+            "cdef class NulDoc:\n"
+            "    property value:\n"
+            "        '''before\\x00after'''\n"
+            "        def __get__(self):\n"
+            "            return None\n"
+        )
+        self.assertEqual(result.num_errors, 1)
+        self.assertIn(
+            "property docstrings containing NUL are not representable",
+            diagnostics,
+        )
 
     def test_hash_uses_hash_slot_and_integer_validation(self):
         result, generated, diagnostics = self.compile_source(

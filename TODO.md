@@ -681,7 +681,9 @@ earlier phase's exit gate.
           inheritance, and normal/Debug Mode cleanup.
   - [x] Generate user-written extension-type `property` blocks with exact
         Universal `HPyDef_GET`, `HPyDef_SET`, or `HPyDef_GETSET` definitions;
-        preserve docstrings, dispatch null-value deletion separately from
+        preserve UTF-8, multiline, quoted, backslash/control-bearing docstrings
+        with safe C literals, reject NUL-bearing docs that HPy's C-string field
+        cannot represent, dispatch null-value deletion separately from
         assignment, retain borrowed receiver/value handles, and validate
         getter-only, setter-only, full get/set/delete, body errors, inherited
         descriptors, three subinterpreters, and normal/Debug Mode cleanup.

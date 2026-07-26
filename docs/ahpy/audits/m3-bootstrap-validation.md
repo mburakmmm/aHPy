@@ -45,6 +45,10 @@ follow the same rule for generated type/helper symbols while their HPy type
 spec name and module attribute retain the original spelling. The executable
 fixture also covers a Unicode property, closure capture/inner function,
 argument, and public `HPyField` descriptor in all three runtime modes.
+Property documentation containing Unicode, line breaks, quotes, backslashes,
+and controls is encoded through Cython's UTF-8-aware C-literal machinery and
+round-trips in all three modes. NUL-bearing property docs are rejected because
+HPy's definition field is a NUL-terminated C string.
 
 `HPy_GetItem` and UTF-8-name `HPy_GetAttr_s` reads are also enabled over the
 implemented expression subset. Their owned operands are closed before a null

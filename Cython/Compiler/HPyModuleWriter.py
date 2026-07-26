@@ -26,6 +26,7 @@ from .RuntimeAPI import (
     RuntimeMethodSignature,
     RuntimeSequenceKind,
 )
+from .StringEncoding import EncodedString
 from ..Utils import GENERATED_BY_MARKER
 
 
@@ -6269,6 +6270,12 @@ class UniversalHPyModuleWriter:
                     macro = "HPyDef_SET"
                 doc_argument = ""
                 if property_node.doc is not None:
+                    if "\x00" in str(property_node.doc):
+                        self.unsupported(
+                            property_node,
+                            "property docstrings containing NUL are not "
+                            "representable by the HPy definition API",
+                        )
                     doc_argument = ", .doc = %s" % self._c_string(
                         str(property_node.doc))
                 lines.append("%s(%s, %s%s)" % (
@@ -7801,7 +7808,7 @@ class UniversalHPyModuleWriter:
 
     @staticmethod
     def _c_string(value):
-        return '"%s"' % value.replace("\\", "\\\\").replace('"', '\\"')
+        return EncodedString(value).as_c_string_literal()
 
     @staticmethod
     def unsupported(node, message):

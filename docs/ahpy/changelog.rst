@@ -23,6 +23,10 @@ Bootstrap
   type/module identity while encoding private generated C type/helper symbols;
   Unicode properties, closure captures, arguments, and public fields are
   exercised in the real package fixture.
+* Made generated C strings use Cython's UTF-8-aware literal encoder; multiline
+  property documentation containing quotes, backslashes, controls, and Unicode
+  now compiles and round-trips, while unrepresentable NUL-bearing HPy
+  definition docs receive an explicit diagnostic.
 * Based aHPy development on current Cython ``master`` at commit
   ``b99cb0e3b5425e11414cadd24168a6cc850e8000``.
 * Added the implementation roadmap, Universal ABI boundary, backend

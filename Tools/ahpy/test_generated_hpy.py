@@ -336,6 +336,8 @@ def build_and_run(python, runtime_prefix=()):
             "assert qualified_box.answer() == 42; "
             "assert qualified_box.değer() == 44; "
             "assert qualified_box.başlık == 46; "
+            "assert qualified_module.QualifiedBox.başlık.__doc__ == "
+            "'birinci \"satır\" \\\\ yolu\\n        ikinci satır'; "
             "unicode_box = qualified_module.DeğerKutusu(qualified_box); "
             "assert unicode_box.answer() == 45; "
             "assert unicode_box.içerik is qualified_box; "
