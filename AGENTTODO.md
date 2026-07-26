@@ -95,7 +95,7 @@ and the first performance regression gate.
 
 Last verified local gates:
 
-- Focused compiler suite: 418 tests pass (includes U1 closable surface and
+- Focused compiler suite: 419 tests pass (includes U1 closable surface and
   closure-registry regressions:
   `dir()`/`globals()`/`__dict__`, reject-duplicates keywords, imag constant
   cache, richer terminal try, sequence-safe inlined genexps, slot early
@@ -104,7 +104,7 @@ Last verified local gates:
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
 - Quality-tool suite: 143 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-07-26): 561 tests traced on both interpreters.
+- Focused coverage (2026-07-26): 562 tests traced on both interpreters.
   - CPython 3.11: backend 100.00%, frontend_seam 45.45%, quality_tools 41.60%.
   - CPython 3.14.6: backend 100.00%, frontend_seam 45.62%, quality_tools
     41.56%.

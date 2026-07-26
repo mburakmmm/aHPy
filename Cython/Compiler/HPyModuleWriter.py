@@ -32,6 +32,13 @@ from ..Utils import GENERATED_BY_MARKER
 _C_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
+def _c_identifier_fragment(value):
+    """Preserve ASCII identifiers and encode other Python identifiers for C."""
+    if _C_IDENTIFIER.match(value):
+        return value
+    return "unicode_%s" % value.encode("utf8").hex()
+
+
 def _resolve_extension_field_storage_type(field_type):
     while isinstance(field_type, PyrexTypes.CTypedefType):
         if field_type.typedef_is_external:
@@ -5200,7 +5207,8 @@ class UniversalHPyModuleWriter:
         method_lines = []
         definitions = []
         for index, method in enumerate(methods):
-            definition_cname = "__pyx_hpy_def_%d_%s" % (index, method.name)
+            definition_cname = "__pyx_hpy_def_%d_%s" % (
+                index, _c_identifier_fragment(method.name))
             definition = RuntimeMethodDefinition(
                 signature=method.hpy_bootstrap_signature(self),
                 definition_cname=definition_cname,
@@ -6436,7 +6444,8 @@ class UniversalHPyModuleWriter:
                         method, definition_cname)
                     continue
                 definition_cname = "__pyx_hpy_type_%d_%s_method_%d_%s" % (
-                    type_index, class_name, method_index, method.name)
+                    type_index, class_name, method_index,
+                    _c_identifier_fragment(method.name))
                 definition = RuntimeMethodDefinition(
                     signature=method.hpy_bootstrap_signature(
                         self, receiver_argument=method.args[0]),

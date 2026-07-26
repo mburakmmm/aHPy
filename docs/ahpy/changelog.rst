@@ -8,7 +8,7 @@ Bootstrap
 ~~~~~~~~~
 
 * Reached 100% executable Python-line coverage for the Universal backend on
-  CPython 3.11 and 3.14, expanded the focused run to 561 tests, and raised CI
+  CPython 3.11 and 3.14, expanded the focused run to 562 tests, and raised CI
   floors to 100% backend, 45% frontend seam, and 41% quality tools. Coverage
   schema 2 now reports missing lines/ranges and forces measured imports through
   source files so stale native extensions cannot mask gaps.
@@ -16,6 +16,9 @@ Bootstrap
   full identity while `HPy_MODINIT` exports the leaf-name symbols required by
   the Universal loader; a real packaged `.hpy0` passes normal, Trace, and Debug
   imports.
+* Preserved valid Unicode Python function and extension-method names while
+  deterministically encoding only their private generated C-symbol fragments;
+  real Unicode calls pass normal, Trace, and Debug modes.
 * Based aHPy development on current Cython ``master`` at commit
   ``b99cb0e3b5425e11414cadd24168a6cc850e8000``.
 * Added the implementation roadmap, Universal ABI boundary, backend

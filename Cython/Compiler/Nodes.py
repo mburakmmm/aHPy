@@ -3285,9 +3285,6 @@ class DefNode(FuncDefNode):
             code.unsupported(self, "decorated def functions are not implemented")
         if self.return_type_annotation is not None:
             code.unsupported(self, "return annotations are not implemented")
-        if not code.is_c_identifier(self.name):
-            code.unsupported(self, "function name is not a C identifier")
-
         body = code.stats(self.body)
         if not body or not self._hpy_bootstrap_statement_terminates(body[-1]):
             code.unsupported(

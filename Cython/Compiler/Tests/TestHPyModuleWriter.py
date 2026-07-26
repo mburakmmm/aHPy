@@ -17,6 +17,7 @@ from ..HPyModuleWriter import (
     _HPyNameRegistry,
     UniversalHPyFunctionWriter,
     UniversalHPyModuleWriter,
+    _c_identifier_fragment,
     _external_c_scalar_kind,
     _extension_field_storage,
     _resolve_extension_field_storage_type,
@@ -68,6 +69,13 @@ class _CorruptLoopStackStatement:
 
 
 class UniversalHPyEmitterContractTest(TestCase):
+    def test_python_identifier_c_fragments_preserve_ascii_and_encode_unicode(self):
+        self.assertEqual(_c_identifier_fragment("answer"), "answer")
+        self.assertEqual(
+            _c_identifier_fragment("değer"),
+            "unicode_6465c49f6572",
+        )
+
     def test_field_storage_helpers_reject_nonportable_types(self):
         external = PyrexTypes.create_typedef_type(
             "external_int", PyrexTypes.c_int_type, "external_int_t",
@@ -2786,9 +2794,13 @@ class UniversalHPyModuleWriterTest(TestCase):
         result, generated, diagnostics = self.compile_source(
             "def answer():\n"
             "    return 42\n\n"
+            "def selam_ç():\n"
+            "    return 43\n\n"
             "cdef class QualifiedBox:\n"
             "    def answer(self):\n"
-            "        return 42\n",
+            "        return 42\n\n"
+            "    def değer(self):\n"
+            "        return 44\n",
             module_name="ahpy_package.qualified_module",
         )
         self.assertEqual(result.num_errors, 0, diagnostics)
@@ -2801,6 +2813,10 @@ class UniversalHPyModuleWriterTest(TestCase):
             '.name = "ahpy_package.qualified_module.QualifiedBox"',
             generated,
         )
+        self.assertIn('"selam_ç"', generated)
+        self.assertIn('"değer"', generated)
+        self.assertIn("unicode_73656c616d5fc3a7", generated)
+        self.assertIn("unicode_6465c49f6572", generated)
 
     def test_hpy_early_builtin_filter_does_not_steal_base_handlers(self):
         base = Optimize.EarlyReplaceBuiltinCalls

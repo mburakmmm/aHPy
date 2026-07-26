@@ -7,7 +7,7 @@ aHPy bootstrap backend:
 ```
 
 They are compiler rejections at a source position, not invitations to emit a
-CPython or Hybrid module. The current backend has 195 explicit rejection call
+CPython or Hybrid module. The current backend has 194 explicit rejection call
 sites. Their complete machine-readable inventory is
 `docs/ahpy/audits/diagnostics-catalog.json`.
 

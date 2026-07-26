@@ -339,6 +339,10 @@ earlier phase's exit gate.
 - [x] Emit `HPy_mod_exec` initialization where runtime setup is required.
 - [ ] Generate HPy module-level method definitions and all declared signatures.
   - [x] Generate strict argument-free `HPyFunc_NOARGS` definitions.
+  - [x] Preserve valid Unicode Python function/method names at the HPy boundary
+        while encoding only their private generated C-symbol fragments; cover
+        module functions and extension methods in normal, Trace, and Debug
+        modes.
   - [x] Generate `HPyFunc_O` for exactly one untyped positional-only argument;
         model the incoming handle as borrowed and duplicate it for owned
         returns/container temporaries.
@@ -1255,7 +1259,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
       generated/native/subprocess behavior in its dedicated runtime gates.
   - [x] Reach 100% executable Python-line coverage for `HPyModuleWriter.py`,
         `HandleModel.py`, and `RuntimeAPI.py` on CPython 3.11 and 3.14; trace
-        561 tests and lock CI floors at backend 100%, frontend seam 45%, and
+        562 tests and lock CI floors at backend 100%, frontend seam 45%, and
         quality tools 41% without conflating native/generated-C gates.
 - [x] Add benchmark history and regression thresholds.
   - [x] Compare generated Universal HPy with an equivalent handwritten

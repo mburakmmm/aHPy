@@ -37,7 +37,10 @@ components are C identifiers. It preserves the full name for runtime type and
 metadata identity while passing only the final component to `HPy_MODINIT`, as
 required by the Universal loader's exported `HPyInit_<leaf>` symbols. A real
 `ahpy_package.qualified_module` build passes binary-boundary checks and imports
-with the exact `__name__` in normal, HPy Trace, and HPy Debug modes.
+with the exact `__name__` in normal, HPy Trace, and HPy Debug modes. The same
+fixture exports and calls valid Unicode module-function and extension-method
+names; their Python spellings stay intact while only indexed private C-symbol
+fragments use deterministic UTF-8 hex encoding.
 
 `HPy_GetItem` and UTF-8-name `HPy_GetAttr_s` reads are also enabled over the
 implemented expression subset. Their owned operands are closed before a null
