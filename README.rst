@@ -89,9 +89,12 @@ Validation snapshot
 
 The current local M9 snapshot records:
 
-* 355 focused compiler tests and 139 quality-tool tests (two expected
+* 417 focused compiler tests and 143 quality-tool tests (two expected
   platform skips);
-* 482 focused coverage tests on CPython 3.11 and 3.14;
+* 560 focused coverage tests on CPython 3.11 and 3.14;
+* 100% executable Python-line coverage for the three Universal backend
+  implementation modules on both interpreters, with separate 45% frontend-seam
+  and 41% quality-tool floors;
 * normal, HPy Trace, and HPy Debug execution;
 * 128 isolated allocation/API fault selectors;
 * nine generated-versus-handwritten Universal HPy performance budgets;
@@ -103,7 +106,10 @@ executions are recorded as allowed-failure early warnings: their selected
 runtimes currently fail before aHPy's Universal module semantics can run, so
 neither interpreter is a support claim.  See
 `the validation matrix <docs/ahpy/validation-matrix.md>`_ and
-`M9 performance audits <docs/ahpy/audits/m9-abi-performance-baseline.md>`_.
+`the focused-coverage audit
+<docs/ahpy/audits/m8-focused-backend-coverage.md>`_; performance evidence
+remains in the
+`M9 ABI audit <docs/ahpy/audits/m9-abi-performance-baseline.md>`_.
 
 The schedule/manual Linux Valgrind definite-leak job is a required native
 memory gate.  A separate Windows Application Verifier and GFlags full-page-

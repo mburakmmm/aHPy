@@ -6,7 +6,7 @@ checklist. An agent must update both files when implementation status changes.
 
 ## 1. Snapshot and source of truth
 
-- Snapshot date: 2026-07-22 (Cursor/Codex continuation and hosted evidence
+- Snapshot date: 2026-07-26 (Cursor/Codex continuation and local coverage
   audited and reconciled).
 - Workspace: `/Users/melihburakmemis/Documents/aHPy`.
 - Branch: `codex/ahpy-bootstrap`.
@@ -95,22 +95,23 @@ and the first performance regression gate.
 
 Last verified local gates:
 
-- Focused compiler suite: 355 tests pass (includes U1 closable surface and
+- Focused compiler suite: 417 tests pass (includes U1 closable surface and
   closure-registry regressions:
   `dir()`/`globals()`/`__dict__`, reject-duplicates keywords, imag constant
   cache, richer terminal try, sequence-safe inlined genexps, slot early
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 129 tests pass (one expected Valgrind availability skip
-  on macOS).
-- Focused coverage (post–hosted-platform CI regressions, Python 3.11):
-  482 tests
-  traced.
-  - backend 74.04%, frontend_seam 28.78%, quality_tools 37.63%.
-  - CI floors remain 71%, 25%, and 35%; do not lower them to hide new code.
-  - Python 3.14.6: backend 73.21%, frontend seam 28.65%, quality tools
-    37.73%; current dual-interpreter floors remain satisfied.
+- Quality-tool suite: 143 tests pass (two expected platform/tool availability
+  skips on macOS).
+- Focused coverage (2026-07-26): 560 tests traced on both interpreters.
+  - CPython 3.11: backend 100.00%, frontend_seam 45.44%, quality_tools 41.60%.
+  - CPython 3.14.6: backend 100.00%, frontend_seam 45.61%, quality_tools
+    41.56%.
+  - CI floors are 100%, 45%, and 41%; do not lower them to hide new code.
+  - Full backend coverage means executable Python lines in
+    `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
+    generated-C behavior remains governed by its dedicated gates.
 - Fault injection: 128 isolated normal/Debug cases pass sequentially.
 - Bounded parallel HPy stress: five full rounds, 640 fault selectors, twenty
   child gates, no timeout or `SystemError`; recursive descendant cleanup is
@@ -650,9 +651,9 @@ git diff --check
     Cython.Compiler.Tests.TestCode
 .venv-hpy09/bin/python -m unittest discover -s Tools/ahpy -p 'test_*.py'
 .venv-hpy09/bin/python Tools/ahpy/report_coverage.py \
-    --fail-under backend=71 \
-    --fail-under frontend_seam=25 \
-    --fail-under quality_tools=35
+    --fail-under backend=100 \
+    --fail-under frontend_seam=45 \
+    --fail-under quality_tools=41
 
 .venv-hpy09/bin/python Tools/ahpy/test_generated_hpy.py \
     --python .venv-hpy09/bin/python

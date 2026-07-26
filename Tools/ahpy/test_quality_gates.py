@@ -451,6 +451,13 @@ class QualityGateTest(unittest.TestCase):
         self.assertIn("if: always()", job)
         self.assertIn("valgrind-evidence", job)
 
+    def test_focused_coverage_floors_preserve_complete_backend_coverage(self):
+        workflow = (ROOT / ".github" / "workflows" /
+                    "ahpy-universal.yml").read_text(encoding="utf8")
+        self.assertIn("--fail-under backend=100", workflow)
+        self.assertIn("--fail-under frontend_seam=45", workflow)
+        self.assertIn("--fail-under quality_tools=41", workflow)
+
     def test_windows_native_memory_lane_is_fail_closed_but_experimental(self):
         workflow = (ROOT / ".github" / "workflows" /
                     "ahpy-universal.yml").read_text(encoding="utf8")

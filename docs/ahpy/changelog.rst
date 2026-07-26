@@ -7,6 +7,11 @@ Unreleased
 Bootstrap
 ~~~~~~~~~
 
+* Reached 100% executable Python-line coverage for the Universal backend on
+  CPython 3.11 and 3.14, expanded the focused run to 560 tests, and raised CI
+  floors to 100% backend, 45% frontend seam, and 41% quality tools. Coverage
+  schema 2 now reports missing lines/ranges and forces measured imports through
+  source files so stale native extensions cannot mask gaps.
 * Based aHPy development on current Cython ``master`` at commit
   ``b99cb0e3b5425e11414cadd24168a6cc850e8000``.
 * Added the implementation roadmap, Universal ABI boundary, backend

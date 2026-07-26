@@ -2,10 +2,2763 @@ from contextlib import redirect_stderr
 import io
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from unittest import TestCase
 
-from .. import Main, Optimize, Options
-from ..RuntimeAPI import HPY_UNIVERSAL_BACKEND
+from .. import ExprNodes, Main, Nodes, Optimize, Options, PyrexTypes, UtilNodes
+from ..Errors import CompileError
+from ..HPyModuleWriter import (
+    _ClosureCapture,
+    _ClosureEnvSpec,
+    _ClosureFnSpec,
+    _ClosureRegistry,
+    _HPyConstantRegistry,
+    _HPyDefaultRegistry,
+    _HPyNameRegistry,
+    UniversalHPyFunctionWriter,
+    UniversalHPyModuleWriter,
+    _external_c_scalar_kind,
+    _extension_field_storage,
+    _resolve_extension_field_storage_type,
+    _supports_extension_field_storage,
+)
+from ..RuntimeAPI import (
+    HPY_UNIVERSAL_BACKEND,
+    RuntimeContextConstant,
+    RuntimeInPlaceOperation,
+    RuntimeMethodSignature,
+    RuntimeSequenceKind,
+    create_runtime_api,
+)
+
+
+class _OwnedNoneExpression:
+    is_starred = False
+    pos = None
+    constant_result = None
+
+    @staticmethod
+    def generate_hpy_bootstrap_owned_result(writer):
+        return writer.runtime_api.duplicate_reference(
+            writer.runtime_api.context_constant(
+                RuntimeContextConstant.NONE,
+                context_cname=writer.context_cname,
+            ),
+            context_cname=writer.context_cname,
+        )
+
+
+class _OwnedKeywordNames(_OwnedNoneExpression):
+    def __init__(self, args, mult_factor=None):
+        self.args = list(args)
+        self.mult_factor = mult_factor
+
+
+class _EmitLineStatement:
+    def __init__(self, line):
+        self.line = line
+
+    def generate_hpy_bootstrap_execution_code(self, writer):
+        writer.putln(self.line)
+
+
+class _CorruptLoopStackStatement:
+    def generate_hpy_bootstrap_execution_code(self, writer):
+        writer._loop_stack.append("corrupt")
+
+
+class UniversalHPyEmitterContractTest(TestCase):
+    def test_field_storage_helpers_reject_nonportable_types(self):
+        external = PyrexTypes.create_typedef_type(
+            "external_int", PyrexTypes.c_int_type, "external_int_t",
+            is_external=1,
+        )
+        self.assertIsNone(_resolve_extension_field_storage_type(external))
+        self.assertIsNone(_external_c_scalar_kind(external))
+        self.assertFalse(
+            _supports_extension_field_storage(PyrexTypes.c_void_type))
+        self.assertIsNone(_external_c_scalar_kind(PyrexTypes.c_void_type))
+        self.assertIsNone(
+            _external_c_scalar_kind(PyrexTypes.c_py_ssize_t_type))
+        with self.assertRaisesRegex(
+            AssertionError, "unvalidated pure HPy extension field"
+        ):
+            _extension_field_storage(PyrexTypes.c_void_type, "field")
+
+    def test_closure_registry_layouts_are_identity_stable(self):
+        entry = SimpleNamespace(name="captured")
+        outer = object()
+        inner_def = object()
+        inner_node = object()
+        capture = _ClosureCapture(
+            "captured", entry, "__pyx_hpy_capture_captured")
+        env_spec = _ClosureEnvSpec(2, outer, (capture,))
+        fn_spec = _ClosureFnSpec(
+            3, inner_def, inner_node, env_spec)
+        registry = _ClosureRegistry((env_spec,), (fn_spec,))
+
+        expected = (
+            env_spec.struct_cname,
+            "__pyx_hpy_capture_captured",
+            "object",
+        )
+        env_layout = registry.field_layout_for_env(env_spec)
+        self.assertEqual(env_layout[id(entry)], expected)
+        self.assertEqual(env_layout[("field", "captured")], expected)
+        self.assertEqual(
+            registry.field_layout_for_fn_env_field(fn_spec),
+            {
+                ("field", fn_spec.env_field_cname): (
+                    fn_spec.struct_cname,
+                    fn_spec.env_field_cname,
+                    "object",
+                ),
+            },
+        )
+        self.assertIs(registry.env_by_outer[id(outer)], env_spec)
+        self.assertIs(registry.fn_by_inner_def[id(inner_def)], fn_spec)
+        self.assertIs(registry.fn_by_inner_node[id(inner_node)], fn_spec)
+
+    def test_name_constant_and_default_registries_cover_edge_contracts(self):
+        names = _HPyNameRegistry()
+        module_cname = names.require_module_global("value")
+        self.assertEqual(names.require_module_global("value"), module_cname)
+        with self.assertRaisesRegex(ValueError, "both module and builtin"):
+            names.require_builtin("value")
+        builtin_cname = names.require_builtin("len")
+        self.assertEqual(
+            list(names.entries("builtin")), [("len", builtin_cname)])
+
+        constants = _HPyConstantRegistry()
+        invalid_integer = ExprNodes.IntNode(None, value="not-an-integer")
+        self.assertIsNone(constants.constant_key(invalid_integer))
+        self.assertIsNone(constants.register_node(invalid_integer))
+        supported = ExprNodes.NoneNode(None)
+        attribute = constants.register_node(supported)
+        self.assertEqual(constants.attribute_for_node(supported), attribute)
+        cloned = ExprNodes.NoneNode(None)
+        self.assertEqual(constants.attribute_for_node(cloned), attribute)
+        self.assertEqual(list(constants.entries()), [(attribute, supported)])
+
+        defaults = _HPyDefaultRegistry()
+        no_default = SimpleNamespace(default=None)
+        self.assertIsNone(defaults.register_argument(no_default))
+        argument = SimpleNamespace(default=ExprNodes.IntNode(None, value="1"))
+        explicit = ExprNodes.IntNode(None, value="2")
+        default_attribute = defaults.register_argument(argument, explicit)
+        self.assertEqual(
+            defaults.attribute_for_argument(argument), default_attribute)
+        self.assertEqual(
+            defaults.argument_id_for_attribute(default_attribute),
+            id(argument),
+        )
+        self.assertEqual(
+            list(defaults.entries()), [(default_attribute, explicit)])
+
+    def test_supported_default_classifier_covers_nested_dicts_and_rejections(self):
+        key = ExprNodes.UnicodeNode(None, value="key")
+        value = ExprNodes.ListNode(
+            None, args=[ExprNodes.IntNode(None, value="1")])
+        item = ExprNodes.DictItemNode(None, key=key, value=value)
+        mapping = ExprNodes.DictNode(None, key_value_pairs=[item])
+        self.assertTrue(UniversalHPyModuleWriter._is_supported_default(mapping))
+        mapping.reject_duplicates = True
+        self.assertFalse(UniversalHPyModuleWriter._is_supported_default(mapping))
+        self.assertFalse(
+            UniversalHPyModuleWriter._is_supported_default(
+                ExprNodes.NameNode(None, name="dynamic")))
+
+    def test_function_writer_internal_state_guards_are_fail_closed(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        writer = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(AssertionError, "below zero"):
+            writer.dedent()
+
+        writer.bind_borrowed_argument("value", "arg")
+        with self.assertRaisesRegex(AssertionError, "already bound"):
+            writer.bind_borrowed_argument("value", "other")
+
+        writer.bind_extension_runtime_owners("self")
+        with self.assertRaisesRegex(AssertionError, "receiver changed"):
+            writer.bind_extension_runtime_owners("other")
+        unavailable = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(AssertionError, "owners are unavailable"):
+            unavailable.ensure_extension_runtime_owners()
+
+        writer._push_failure_scope("fail")
+        with self.assertRaisesRegex(AssertionError, "nested"):
+            writer._push_failure_scope("nested")
+        with self.assertRaisesRegex(AssertionError, "changed"):
+            writer._pop_failure_scope("wrong")
+        with self.assertRaisesRegex(AssertionError, "stack is empty"):
+            writer._pop_failure_scope("missing")
+
+        writer._failure_scopes.append({"label": "live"})
+        with self.assertRaisesRegex(AssertionError, "remain live"):
+            writer.assert_function_exit()
+        writer._failure_scopes.clear()
+        writer.assert_function_exit()
+
+    def test_starred_sequence_generator_covers_all_segment_shapes(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        writer = UniversalHPyFunctionWriter(runtime_api)
+        plain = _OwnedNoneExpression()
+        starred = SimpleNamespace(is_starred=True, target=_OwnedNoneExpression())
+        result_cname = writer.generate_starred_sequence(
+            RuntimeSequenceKind.LIST,
+            (plain, starred, plain),
+            factor=_OwnedNoneExpression(),
+        )
+        writer.close_owned_handle(result_cname)
+        writer.assert_function_exit()
+        output = "\n".join(writer.lines)
+        self.assertIn("HPyListBuilder_New", output)
+        self.assertIn("HPy_Call(ctx, ctx->h_ListType", output)
+        self.assertGreaterEqual(output.count("HPy_Add(ctx,"), 2)
+        self.assertIn("HPy_Multiply(ctx,", output)
+
+        empty_writer = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(AssertionError, "requires arguments"):
+            empty_writer.generate_starred_sequence(
+                RuntimeSequenceKind.TUPLE, ())
+        empty_writer.assert_function_exit()
+
+    def test_direct_inplace_emitters_balance_local_attribute_and_item_ownership(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        writer = UniversalHPyFunctionWriter(runtime_api)
+        writer.bind_borrowed_argument("left", "left_arg")
+        writer.inplace_local(
+            SimpleNamespace(pos=None),
+            "left",
+            RuntimeInPlaceOperation.ADD,
+            _OwnedNoneExpression(),
+        )
+        writer.delete_local(SimpleNamespace(pos=None), "left")
+
+        writer.inplace_attribute(
+            _OwnedNoneExpression(),
+            '"value"',
+            RuntimeInPlaceOperation.MULTIPLY,
+            _OwnedNoneExpression(),
+        )
+        writer.inplace_item(
+            _OwnedNoneExpression(),
+            _OwnedNoneExpression(),
+            RuntimeInPlaceOperation.SUBTRACT,
+            _OwnedNoneExpression(),
+        )
+        writer._close_remaining_owned_handles()
+        writer.assert_function_exit()
+        output = "\n".join(writer.lines)
+        self.assertIn("HPy_InPlaceAdd(ctx,", output)
+        self.assertIn("HPy_GetAttr_s(ctx,", output)
+        self.assertIn("HPy_SetAttr_s(ctx,", output)
+        self.assertIn("HPy_GetItem(ctx,", output)
+        self.assertIn("HPy_SetItem(ctx,", output)
+
+    def test_owned_assignment_targets_cover_local_global_attribute_and_item(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        names = _HPyNameRegistry()
+        names.require_module_global("global_value")
+        writer = UniversalHPyFunctionWriter(
+            runtime_api,
+            name_registry=names,
+            module_cname="m",
+            rollback_module_publications=True,
+        )
+
+        local_target = ExprNodes.NameNode(None, name="local")
+        local_target.entry = None
+        value_cname = writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        writer.assign_target_from_owned_cname(local_target, value_cname)
+        writer.delete_local(local_target, "local")
+
+        global_target = ExprNodes.NameNode(None, name="global_value")
+        global_target.entry = SimpleNamespace(is_pyglobal=True)
+        value_cname = writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        writer.assign_target_from_owned_cname(global_target, value_cname)
+
+        attribute_target = ExprNodes.AttributeNode(
+            None, obj=_OwnedNoneExpression(), attribute="value")
+        attribute_target.entry = None
+        value_cname = writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        writer.assign_target_from_owned_cname(attribute_target, value_cname)
+
+        item_target = ExprNodes.IndexNode(
+            None, base=_OwnedNoneExpression(), index=_OwnedNoneExpression())
+        value_cname = writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        writer.assign_target_from_owned_cname(item_target, value_cname)
+
+        writer._close_remaining_owned_handles()
+        writer.assert_function_exit()
+        output = "\n".join(writer.lines)
+        self.assertIn('HPy_SetAttr_s(ctx, m, "global_value"', output)
+        self.assertIn("HPy_SetAttr_s(ctx,", output)
+        self.assertIn("HPy_SetItem(ctx,", output)
+
+    def test_native_scalar_conversion_contract_covers_every_storage_family(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        writer = UniversalHPyFunctionWriter(runtime_api)
+        storage_kinds = (
+            "bint", "py-ssize",
+            "char", "signed-char", "signed-short", "signed-int", "signed-long",
+            "signed-long-long",
+            "unsigned-char", "unsigned-short", "unsigned-int",
+            "unsigned-long", "unsigned-long-long",
+            "float", "double", "long-double",
+        )
+        for storage_kind in storage_kinds:
+            with self.subTest(storage_kind=storage_kind):
+                value_cname = writer.allocate_owned_handle(
+                    "HPy_Dup(ctx, ctx->h_None)")
+                native_value = writer._convert_native_scalar_handle(
+                    storage_kind, value_cname)
+                self.assertTrue(native_value)
+                writer.close_owned_handle(value_cname)
+
+        invalid_cname = writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        with self.assertRaisesRegex(AssertionError, "unknown native"):
+            writer._convert_native_scalar_handle(
+                "unsupported", invalid_cname)
+        writer.close_owned_handle(invalid_cname)
+        writer.assert_function_exit()
+        output = "\n".join(writer.lines)
+        self.assertIn("HPyLong_AsLongLong(ctx,", output)
+        self.assertIn("HPyLong_AsUnsignedLongLong(ctx,", output)
+        self.assertIn("HPyFloat_AsDouble(ctx,", output)
+        self.assertIn("value too large to convert", output)
+
+    def test_extension_field_inplace_paths_cover_object_native_and_python_results(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        def emit(storage_kind, operation):
+            entry = SimpleNamespace(name="field")
+            writer = UniversalHPyFunctionWriter(
+                runtime_api,
+                extension_field_layout={
+                    id(entry): ("ExampleObject", "field", storage_kind),
+                },
+            )
+            field_node = SimpleNamespace(
+                entry=entry, obj=_OwnedNoneExpression(), pos=None)
+            writer.inplace_extension_field(
+                field_node, operation, _OwnedNoneExpression())
+            writer._close_remaining_owned_handles()
+            writer.assert_function_exit()
+            return "\n".join(writer.lines)
+
+        native_output = emit(
+            "signed-int", RuntimeInPlaceOperation.ADD)
+        self.assertIn("->field +=", native_output)
+        self.assertIn("HPyLong_AsLong(ctx,", native_output)
+
+        python_result_output = emit(
+            "signed-int", RuntimeInPlaceOperation.TRUE_DIVIDE)
+        self.assertIn("HPy_InPlaceTrueDivide(ctx,", python_result_output)
+        self.assertIn("->field =", python_result_output)
+
+        object_output = emit(
+            "object", RuntimeInPlaceOperation.MULTIPLY)
+        self.assertIn("HPyField_Load(ctx,", object_output)
+        self.assertIn("HPy_InPlaceMultiply(ctx,", object_output)
+        self.assertIn("HPyField_Store(ctx,", object_output)
+
+        guard_cases = (
+            (
+                "bint",
+                RuntimeInPlaceOperation.TRUE_DIVIDE,
+                "bint extension-field",
+            ),
+            (
+                "signed-int",
+                RuntimeInPlaceOperation.MATRIX_MULTIPLY,
+                "native C extension fields currently support",
+            ),
+        )
+        for storage_kind, operation, message in guard_cases:
+            with self.subTest(message=message):
+                entry = SimpleNamespace(name="field")
+                writer = UniversalHPyFunctionWriter(
+                    runtime_api,
+                    extension_field_layout={
+                        id(entry): ("ExampleObject", "field", storage_kind),
+                    },
+                )
+                with self.assertRaisesRegex(CompileError, message):
+                    writer.inplace_extension_field(
+                        SimpleNamespace(
+                            entry=entry,
+                            obj=_OwnedNoneExpression(),
+                            pos=None,
+                        ),
+                        operation,
+                        _OwnedNoneExpression(),
+                    )
+                writer._close_remaining_owned_handles()
+                writer.assert_function_exit()
+
+        invalid_entry = SimpleNamespace(name="field")
+        invalid_writer = UniversalHPyFunctionWriter(
+            runtime_api,
+            extension_field_layout={
+                id(invalid_entry): (
+                    "ExampleObject", "field", "unsupported"),
+            },
+        )
+        with self.assertRaisesRegex(
+            AssertionError, "unknown extension field storage kind"
+        ):
+            invalid_writer.load_extension_field(SimpleNamespace(
+                entry=invalid_entry,
+                obj=_OwnedNoneExpression(),
+                pos=None,
+            ))
+        invalid_writer._close_remaining_owned_handles()
+        invalid_writer.assert_function_exit()
+
+    def test_keyword_duplicate_guard_covers_static_and_dynamic_names(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        unique_writer = UniversalHPyFunctionWriter(runtime_api)
+        unique_writer._guard_keyword_name_duplicates(SimpleNamespace(args=[
+            ExprNodes.UnicodeNode(None, value="left"),
+            ExprNodes.UnicodeNode(None, value="right"),
+        ]))
+        unique_writer.assert_function_exit()
+        self.assertEqual(unique_writer.lines, [])
+
+        duplicate_writer = UniversalHPyFunctionWriter(runtime_api)
+        duplicate_writer._guard_keyword_name_duplicates(SimpleNamespace(args=[
+            ExprNodes.UnicodeNode(None, value="value"),
+            ExprNodes.UnicodeNode(None, value="value"),
+        ]))
+        duplicate_writer.assert_function_exit()
+        self.assertIn(
+            "got multiple values for keyword argument",
+            "\n".join(duplicate_writer.lines),
+        )
+
+        dynamic_writer = UniversalHPyFunctionWriter(runtime_api)
+        dynamic_writer._guard_keyword_name_duplicates(SimpleNamespace(args=[
+            _OwnedNoneExpression(),
+            _OwnedNoneExpression(),
+        ]))
+        dynamic_writer.assert_function_exit()
+        dynamic_output = "\n".join(dynamic_writer.lines)
+        self.assertIn("HPyDict_New(ctx)", dynamic_output)
+        self.assertIn("HPy_Contains(ctx,", dynamic_output)
+        self.assertIn("HPy_SetItem(ctx,", dynamic_output)
+
+    def test_external_scalar_literal_helpers_cover_portability_boundaries(self):
+        literal_value = UniversalHPyFunctionWriter._external_c_scalar_literal_value
+        render = UniversalHPyFunctionWriter._render_external_c_scalar_literal
+
+        self.assertEqual(literal_value(ExprNodes.BoolNode(None, value=True)), True)
+        self.assertEqual(literal_value(ExprNodes.CharNode(None, value="A")), 65)
+        self.assertIsNone(
+            literal_value(ExprNodes.IntNode(None, value="not-an-integer")))
+        self.assertIsNone(
+            literal_value(ExprNodes.FloatNode(None, value="not-a-float")))
+        self.assertIsNone(literal_value(_OwnedNoneExpression()))
+
+        positive = ExprNodes.UnaryPlusNode(
+            None, operand=ExprNodes.IntNode(None, value="7"))
+        negative = ExprNodes.UnaryMinusNode(
+            None, operand=ExprNodes.IntNode(None, value="7"))
+        invalid_unary = ExprNodes.UnaryMinusNode(
+            None, operand=ExprNodes.IntNode(None, value="invalid"))
+        self.assertEqual(literal_value(positive), 7)
+        self.assertEqual(literal_value(negative), -7)
+        self.assertIsNone(literal_value(invalid_unary))
+
+        self.assertEqual(
+            render(ExprNodes.BoolNode(None, value=False), "bint"), "0")
+        self.assertEqual(
+            render(ExprNodes.CharNode(None, value="A"), "char"),
+            "((char)65)",
+        )
+        self.assertEqual(
+            render(ExprNodes.IntNode(None, value="-128"), "signed-char"),
+            "((signed char)-128)",
+        )
+        self.assertEqual(
+            render(ExprNodes.IntNode(None, value="255"), "unsigned-char"),
+            "((unsigned char)255ULL)",
+        )
+        self.assertIsNone(
+            render(ExprNodes.IntNode(None, value="-1"), "unsigned-int"))
+        self.assertIsNone(
+            render(ExprNodes.IntNode(None, value="1"), "unsupported"))
+        self.assertIsNone(
+            render(ExprNodes.FloatNode(None, value="1e10000"), "double"))
+        self.assertIsNone(
+            render(
+                ExprNodes.IntNode(None, value="1" + "0" * 4000),
+                "double",
+            ))
+        self.assertIsNone(
+            render(ExprNodes.FloatNode(None, value="1.25"), "signed-int"))
+        self.assertEqual(
+            render(ExprNodes.BoolNode(None, value=True), "float"),
+            "((float)1.0)",
+        )
+
+    def test_external_scalar_call_guards_and_ssize_result_are_exercised(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        def call_node(
+            storage_kind="py-ssize",
+            *,
+            cname="external_size",
+            args=(),
+            argument_kinds=(),
+            receiver=None,
+            coerced_receiver=None,
+        ):
+            entry = SimpleNamespace(
+                cname=cname,
+                ahpy_universal_external_c_scalar_kind=storage_kind,
+                ahpy_universal_external_c_argument_kinds=argument_kinds,
+            )
+            return SimpleNamespace(
+                self=receiver,
+                coerced_self=coerced_receiver,
+                args=args,
+                function=SimpleNamespace(entry=entry),
+                pos=None,
+            )
+
+        writer = UniversalHPyFunctionWriter(runtime_api)
+        result_cname = writer.generate_external_c_scalar_call(call_node())
+        writer.close_owned_handle(result_cname)
+        writer.assert_function_exit()
+        self.assertIn(
+            "HPyLong_FromSsize_t(ctx, external_size())",
+            "\n".join(writer.lines),
+        )
+
+        guard_cases = (
+            (
+                call_node(receiver=object()),
+                "receiver injection",
+            ),
+            (
+                call_node(args=None),
+                "expanded external C call arguments",
+            ),
+            (
+                call_node(storage_kind=None),
+                "validated by a concrete",
+            ),
+            (
+                call_node(cname="not-a-c-identifier"),
+                "plain C identifiers",
+            ),
+        )
+        for node, message in guard_cases:
+            with self.subTest(message=message):
+                guarded_writer = UniversalHPyFunctionWriter(runtime_api)
+                with self.assertRaisesRegex(CompileError, message):
+                    guarded_writer.generate_external_c_scalar_call(node)
+                guarded_writer.assert_function_exit()
+
+        with self.assertRaisesRegex(
+            AssertionError, "validated external C signature changed"
+        ):
+            UniversalHPyFunctionWriter(
+                runtime_api).generate_external_c_scalar_call(
+                    call_node(args=(_OwnedNoneExpression(),)))
+
+        with self.assertRaisesRegex(
+            AssertionError, "unknown validated external C scalar kind"
+        ):
+            UniversalHPyFunctionWriter(
+                runtime_api).generate_external_c_scalar_call(
+                    call_node(storage_kind="unsupported"))
+
+    def test_nogil_external_block_guards_cover_each_fail_closed_contract(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        def expression(
+            *,
+            storage_kind="signed-int",
+            function_type=None,
+            cname="tick",
+            receiver=None,
+        ):
+            if function_type is None:
+                function_type = SimpleNamespace(
+                    nogil=True,
+                    exception_value=None,
+                    exception_check=False,
+                )
+            entry = SimpleNamespace(
+                ahpy_universal_external_c_scalar_kind=storage_kind,
+                type=function_type,
+                cname=cname,
+            )
+            node = ExprNodes.SimpleCallNode(
+                None,
+                function=SimpleNamespace(entry=entry),
+                args=[],
+            )
+            node.self = receiver
+            node.coerced_self = None
+            return node
+
+        def block(*, state="nogil", condition=None, statements=()):
+            body = Nodes.StatListNode(None, stats=list(statements))
+            return SimpleNamespace(
+                state=state,
+                condition=condition,
+                body=body,
+                pos=None,
+            )
+
+        valid_type = SimpleNamespace(
+            nogil=True,
+            exception_value=None,
+            exception_check=False,
+        )
+        invalid_cases = (
+            (block(state="gil"), "with gil blocks"),
+            (block(condition=object()), "conditional with nogil"),
+            (
+                block(statements=(SimpleNamespace(pos=None),)),
+                "permits only discarded calls",
+            ),
+            (
+                block(statements=(
+                    Nodes.ExprStatNode(None, expr=_OwnedNoneExpression()),)),
+                "permits only discarded calls",
+            ),
+            (
+                block(statements=(
+                    Nodes.ExprStatNode(
+                        None, expr=expression(receiver=object())),)),
+                "method calls are not implemented",
+            ),
+            (
+                block(statements=(
+                    Nodes.ExprStatNode(
+                        None, expr=expression(storage_kind=None)),)),
+                "validated by a concrete",
+            ),
+            (
+                block(statements=(
+                    Nodes.ExprStatNode(
+                        None, expr=expression(function_type=SimpleNamespace(
+                            nogil=False,
+                            exception_value=None,
+                            exception_check=False,
+                        ))),)),
+                "must be declared nogil",
+            ),
+            (
+                block(statements=(
+                    Nodes.ExprStatNode(
+                        None, expr=expression(function_type=SimpleNamespace(
+                            nogil=True,
+                            exception_value="-1",
+                            exception_check=False,
+                        ))),)),
+                "must be noexcept",
+            ),
+            (
+                block(statements=(
+                    Nodes.ExprStatNode(
+                        None, expr=expression(
+                            function_type=valid_type,
+                            cname="not-a-c-identifier",
+                        )),)),
+                "plain C identifiers",
+            ),
+        )
+        for node, message in invalid_cases:
+            with self.subTest(message=message):
+                writer = UniversalHPyFunctionWriter(runtime_api)
+                with self.assertRaisesRegex(CompileError, message):
+                    writer.generate_nogil_external_c_block(node)
+                writer.assert_function_exit()
+
+    def test_duplicate_named_value_covers_missing_name_contracts(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        writer = UniversalHPyFunctionWriter(runtime_api)
+        self.assertEqual(
+            writer.duplicate_named_value(
+                SimpleNamespace(pos=None, allow_null=True), "missing"),
+            "HPy_NULL",
+        )
+        with self.assertRaisesRegex(
+            CompileError, "has no initialized local HPy value"
+        ):
+            writer.duplicate_named_value(
+                SimpleNamespace(pos=None), "unregistered")
+        writer.assert_function_exit()
+
+        invalid_entry = SimpleNamespace(
+            is_builtin=False,
+            scope=SimpleNamespace(is_builtin_scope=False),
+            is_cclass_var_entry=False,
+            is_pyglobal=False,
+        )
+        registry_writer = UniversalHPyFunctionWriter(
+            runtime_api, name_registry=_HPyNameRegistry())
+        with self.assertRaisesRegex(
+            CompileError, "has no initialized local HPy value"
+        ):
+            registry_writer.duplicate_named_value(
+                SimpleNamespace(pos=None, entry=invalid_entry), "invalid")
+        registry_writer.assert_function_exit()
+
+    def test_assert_without_literal_message_uses_public_error_operations(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        no_message_writer = UniversalHPyFunctionWriter(runtime_api)
+        no_message_writer.generate_assert_statement(
+            _OwnedNoneExpression(),
+            SimpleNamespace(exc_value=None),
+        )
+        no_message_writer.assert_function_exit()
+        no_message_output = "\n".join(no_message_writer.lines)
+        self.assertIn(
+            "HPyErr_SetObject(ctx, ctx->h_AssertionError, ctx->h_None)",
+            no_message_output,
+        )
+
+        dynamic_writer = UniversalHPyFunctionWriter(runtime_api)
+        dynamic_writer.generate_assert_statement(
+            _OwnedNoneExpression(),
+            SimpleNamespace(exc_value=_OwnedNoneExpression()),
+        )
+        dynamic_writer.assert_function_exit()
+        dynamic_output = "\n".join(dynamic_writer.lines)
+        self.assertIn("HPyErr_SetObject(ctx, ctx->h_AssertionError", dynamic_output)
+
+    def test_ssize_result_reference_contract_and_loop_cleanup_are_balanced(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        writer = UniversalHPyFunctionWriter(runtime_api)
+        pos = (
+            SimpleNamespace(
+                get_error_description=lambda: "test",
+                get_lines=lambda: [],
+            ),
+            1,
+            0,
+        )
+
+        bound_ref = UtilNodes.ResultRefNode(pos=pos)
+        writer._c_temporary_values[id(bound_ref)] = "bound_ssize"
+        self.assertEqual(
+            writer._materialize_ssize_expression(bound_ref), "bound_ssize")
+
+        fallback_ref = UtilNodes.ResultRefNode(pos=pos)
+        fallback_ref.result_code = "fallback_ssize"
+        self.assertEqual(
+            writer._materialize_ssize_expression(fallback_ref),
+            "fallback_ssize",
+        )
+
+        missing_ref = UtilNodes.ResultRefNode(pos=pos)
+        missing_ref.result_code = None
+        with self.assertRaisesRegex(
+            CompileError, "C loop bound temporary is not bound"
+        ):
+            writer._materialize_ssize_expression(missing_ref)
+
+        with self.assertRaisesRegex(
+            AssertionError, "loop lifetime stack is empty"
+        ):
+            writer._emit_loop_body_cleanup()
+
+        snapshot = writer._snapshot_lifetime_state()
+        writer._loop_lifetime_stack.append(snapshot)
+        writer.allocate_owned_handle("HPy_Dup(ctx, ctx->h_None)")
+        builder = runtime_api.sequence_builder(RuntimeSequenceKind.TUPLE)
+        writer.allocate_sequence_builder(builder, 1)
+        writer._emit_loop_body_cleanup()
+        writer._loop_lifetime_stack.pop()
+        writer.assert_function_exit()
+        output = "\n".join(writer.lines)
+        self.assertIn("HPyTupleBuilder_Cancel(ctx,", output)
+        self.assertIn("HPy_Close(ctx,", output)
+
+    def test_sequence_unpacking_covers_fixed_starred_and_rejected_shapes(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        def name(value):
+            node = ExprNodes.NameNode(None, name=value)
+            node.entry = None
+            return node
+
+        fixed_writer = UniversalHPyFunctionWriter(runtime_api)
+        fixed_sequence = fixed_writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        fixed_writer._unpack_owned_sequence_into(
+            ExprNodes.TupleNode(
+                None,
+                args=[name("left"), name("right")],
+                mult_factor=None,
+            ),
+            fixed_sequence,
+        )
+        fixed_writer._close_remaining_owned_handles()
+        fixed_writer.assert_function_exit()
+        fixed_output = "\n".join(fixed_writer.lines)
+        self.assertIn("not enough values to unpack", fixed_output)
+        self.assertIn("too many values to unpack", fixed_output)
+
+        starred_writer = UniversalHPyFunctionWriter(runtime_api)
+        starred_sequence = starred_writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        starred_writer._unpack_owned_sequence_into(
+            ExprNodes.ListNode(
+                None,
+                args=[
+                    name("head"),
+                    ExprNodes.StarredUnpackingNode(
+                        None, target=name("middle")),
+                    name("tail"),
+                ],
+                mult_factor=None,
+            ),
+            starred_sequence,
+        )
+        starred_writer._close_remaining_owned_handles()
+        starred_writer.assert_function_exit()
+        starred_output = "\n".join(starred_writer.lines)
+        self.assertIn("HPyListBuilder_New(ctx,", starred_output)
+        self.assertIn("__pyx_hpy_unpack_rest_index_", starred_output)
+        self.assertIn("__pyx_hpy_unpack_len_", starred_output)
+
+        invalid_shapes = (
+            (
+                SimpleNamespace(pos=None),
+                "requires a list or tuple target",
+            ),
+            (
+                ExprNodes.TupleNode(
+                    None, args=[], mult_factor=object()),
+                "multiplied sequence unpacking targets",
+            ),
+            (
+                ExprNodes.TupleNode(
+                    None,
+                    args=[
+                        ExprNodes.StarredUnpackingNode(
+                            None, target=name("first")),
+                        ExprNodes.StarredUnpackingNode(
+                            None, target=name("second")),
+                    ],
+                    mult_factor=None,
+                ),
+                "multiple starred unpack targets",
+            ),
+        )
+        for target, message in invalid_shapes:
+            with self.subTest(message=message):
+                writer = UniversalHPyFunctionWriter(runtime_api)
+                sequence_cname = writer.allocate_owned_handle(
+                    "HPy_Dup(ctx, ctx->h_None)")
+                with self.assertRaisesRegex(CompileError, message):
+                    writer._unpack_owned_sequence_into(target, sequence_cname)
+                writer.close_owned_handle(sequence_cname)
+                writer.assert_function_exit()
+
+    def test_for_from_loop_covers_offset_step_and_else_generation(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        writer = UniversalHPyFunctionWriter(runtime_api)
+        target_cname = writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        writer._local_values["index"] = target_cname
+        writer.generate_for_from_loop(
+            ExprNodes.IntNode(None, value="0"),
+            "<",
+            "<=",
+            ExprNodes.IntNode(None, value="8"),
+            ExprNodes.IntNode(None, value="2"),
+            "index",
+            [_EmitLineStatement("body_marker();")],
+            [_EmitLineStatement("else_marker();")],
+        )
+        writer.close_owned_handle(target_cname, null_safe=True)
+        writer.assert_function_exit()
+        output = "\n".join(writer.lines)
+        self.assertIn("(__pyx_hpy_ssize_bound_0+1)", output)
+        self.assertIn("+=__pyx_hpy_ssize_bound_", output)
+        self.assertIn("body_marker();", output)
+        self.assertIn("else_marker();", output)
+
+    def test_owned_assignment_rejects_extension_fields_and_unknown_targets(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        entry = SimpleNamespace(name="field")
+        writer = UniversalHPyFunctionWriter(
+            runtime_api,
+            extension_field_layout={
+                id(entry): ("ExampleObject", "field", "object"),
+            },
+        )
+        target = ExprNodes.AttributeNode(
+            None, obj=_OwnedNoneExpression(), attribute="field")
+        target.entry = entry
+        value_cname = writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        with self.assertRaisesRegex(
+            CompileError, "extension-field unpack targets"
+        ):
+            writer.assign_target_from_owned_cname(target, value_cname)
+        writer.close_owned_handle(value_cname)
+
+        value_cname = writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        with self.assertRaisesRegex(
+            CompileError, "assignment target SimpleNamespace"
+        ):
+            writer.assign_target_from_owned_cname(
+                SimpleNamespace(pos=None), value_cname)
+        writer.close_owned_handle(value_cname)
+        writer.assert_function_exit()
+
+        slice_writer = UniversalHPyFunctionWriter(runtime_api)
+        slice_target = ExprNodes.SliceIndexNode(
+            None,
+            base=_OwnedNoneExpression(),
+            start=None,
+            stop=None,
+            slice=_OwnedNoneExpression(),
+        )
+        value_cname = slice_writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        slice_writer.assign_target_from_owned_cname(slice_target, value_cname)
+        slice_writer.assert_function_exit()
+        self.assertIn("HPy_SetItem(ctx,", "\n".join(slice_writer.lines))
+
+    def test_method_call_keyword_contract_covers_guards_and_array_path(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        def receiver(writer):
+            return writer.allocate_owned_handle(
+                "HPy_Dup(ctx, ctx->h_None)")
+
+        keyword_names = _OwnedKeywordNames([_OwnedNoneExpression()])
+        guard_cases = (
+            (
+                dict(keyword_names=keyword_names, keyword_values=None),
+                AssertionError,
+                "keyword names require keyword values",
+            ),
+            (
+                dict(keyword_names=None, keyword_values=[_OwnedNoneExpression()]),
+                AssertionError,
+                "keyword values require keyword names",
+            ),
+            (
+                dict(
+                    keyword_names=_OwnedKeywordNames(
+                        [_OwnedNoneExpression()], mult_factor=object()),
+                    keyword_values=[_OwnedNoneExpression()],
+                ),
+                CompileError,
+                "expanded keyword names",
+            ),
+            (
+                dict(
+                    keyword_names=keyword_names,
+                    keyword_values=[],
+                ),
+                AssertionError,
+                "keyword name/value count mismatch",
+            ),
+        )
+        for kwargs, error_type, message in guard_cases:
+            with self.subTest(message=message):
+                writer = UniversalHPyFunctionWriter(runtime_api)
+                receiver_cname = receiver(writer)
+                with self.assertRaisesRegex(error_type, message):
+                    writer.generate_method_call_on_cname(
+                        receiver_cname, "method", (), **kwargs)
+                writer._close_remaining_owned_handles()
+                writer.assert_function_exit()
+
+        writer = UniversalHPyFunctionWriter(runtime_api)
+        result_cname = writer.generate_method_call_on_cname(
+            receiver(writer),
+            "method",
+            (_OwnedNoneExpression(),),
+            keyword_names=keyword_names,
+            keyword_values=[_OwnedNoneExpression()],
+        )
+        writer.close_owned_handle(result_cname)
+        writer.assert_function_exit()
+        output = "\n".join(writer.lines)
+        self.assertIn("HPy_CallMethod(ctx,", output)
+        self.assertIn("__pyx_hpy_call_args_", output)
+        self.assertIn("HPyDict_New(ctx)", output)
+
+    def test_keyword_call_attribute_fast_path_and_guards_are_exercised(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        keyword_names = _OwnedKeywordNames([_OwnedNoneExpression()])
+
+        writer = UniversalHPyFunctionWriter(runtime_api)
+        function = ExprNodes.AttributeNode(
+            None, obj=_OwnedNoneExpression(), attribute="method")
+        function.entry = None
+        result_cname = writer.generate_keyword_call(
+            function,
+            (),
+            keyword_names,
+            [_OwnedNoneExpression()],
+        )
+        writer.close_owned_handle(result_cname)
+        writer.assert_function_exit()
+        self.assertIn("HPy_CallMethod(ctx,", "\n".join(writer.lines))
+
+        expanded_writer = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(CompileError, "expanded keyword names"):
+            expanded_writer.generate_keyword_call(
+                _OwnedNoneExpression(),
+                (),
+                _OwnedKeywordNames([], mult_factor=object()),
+                [],
+            )
+        expanded_writer.assert_function_exit()
+
+        mismatch_writer = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(
+            AssertionError, "keyword name/value count mismatch"
+        ):
+            mismatch_writer.generate_keyword_call(
+                _OwnedNoneExpression(),
+                (),
+                keyword_names,
+                [],
+            )
+        mismatch_writer.assert_function_exit()
+
+    def test_comprehension_contract_covers_rejections_and_nested_restoration(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        list_type = SimpleNamespace(
+            is_pyset_type=False,
+            is_pydict_type=False,
+            is_pylist_type=True,
+        )
+        set_type = SimpleNamespace(
+            is_pyset_type=True,
+            is_pydict_type=False,
+            is_pylist_type=False,
+        )
+        unknown_type = SimpleNamespace(
+            is_pyset_type=False,
+            is_pydict_type=False,
+            is_pylist_type=False,
+        )
+
+        loop = Nodes.ForInStatNode(None)
+        loop.generate_hpy_bootstrap_execution_code = (
+            lambda writer: writer.putln("comprehension_loop();"))
+
+        invalid_nodes = (
+            (
+                SimpleNamespace(
+                    is_async=True,
+                    loop=loop,
+                    type=list_type,
+                    pos=None,
+                ),
+                "async comprehensions",
+            ),
+            (
+                SimpleNamespace(
+                    is_async=False,
+                    loop=SimpleNamespace(),
+                    type=list_type,
+                    pos=None,
+                ),
+                "only for-in/for-from",
+            ),
+            (
+                SimpleNamespace(
+                    is_async=False,
+                    loop=loop,
+                    type=set_type,
+                    pos=None,
+                ),
+                "set comprehensions remain blocked",
+            ),
+            (
+                SimpleNamespace(
+                    is_async=False,
+                    loop=loop,
+                    type=unknown_type,
+                    pos=None,
+                ),
+                "comprehension type",
+            ),
+        )
+        for node, message in invalid_nodes:
+            with self.subTest(message=message):
+                writer = UniversalHPyFunctionWriter(runtime_api)
+                with self.assertRaisesRegex(CompileError, message):
+                    writer.generate_comprehension(node)
+                writer.assert_function_exit()
+
+        nested_node = SimpleNamespace(
+            is_async=False,
+            loop=loop,
+            type=SimpleNamespace(
+                is_pyset_type=False,
+                is_pydict_type=True,
+                is_pylist_type=False,
+            ),
+            pos=None,
+        )
+        writer = UniversalHPyFunctionWriter(runtime_api)
+        writer._comprehension_targets[id(nested_node)] = "outer_container"
+        result_cname = writer.generate_comprehension(nested_node)
+        self.assertEqual(
+            writer._comprehension_targets[id(nested_node)],
+            "outer_container",
+        )
+        writer.close_owned_handle(result_cname)
+        writer.assert_function_exit()
+        self.assertIn("comprehension_loop();", "\n".join(writer.lines))
+
+        with self.assertRaisesRegex(
+            CompileError, "comprehension target container is not bound"
+        ):
+            UniversalHPyFunctionWriter(
+                runtime_api).comprehension_target_cname(
+                    SimpleNamespace(pos=None))
+
+    def test_walrus_assignment_covers_global_stable_and_replacement_paths(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        invalid_writer = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(
+            CompileError, "walrus targets must be simple names"
+        ):
+            invalid_writer.generate_walrus(SimpleNamespace(
+                lhs=SimpleNamespace(),
+                rhs=_OwnedNoneExpression(),
+                pos=None,
+            ))
+        invalid_writer.assert_function_exit()
+
+        global_writer = UniversalHPyFunctionWriter(
+            runtime_api,
+            name_registry=_HPyNameRegistry(),
+            module_cname="m",
+            rollback_module_publications=True,
+        )
+        global_lhs = ExprNodes.NameNode(None, name="published")
+        global_lhs.entry = SimpleNamespace(is_pyglobal=True)
+        result_cname = global_writer.generate_walrus(SimpleNamespace(
+            lhs=global_lhs,
+            rhs=_OwnedNoneExpression(),
+            pos=None,
+        ))
+        global_writer.close_owned_handle(result_cname)
+        global_writer.assert_function_exit()
+        self.assertIn(
+            'HPy_SetAttr_s(ctx, m, "published"',
+            "\n".join(global_writer.lines),
+        )
+
+        stable_writer = UniversalHPyFunctionWriter(runtime_api)
+        stable_lhs = ExprNodes.NameNode(None, name="stable")
+        stable_lhs.entry = None
+        slot_cname = stable_writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        stable_writer._local_values["stable"] = slot_cname
+        stable_writer._stable_local_slots.add("stable")
+        result_cname = stable_writer.generate_walrus(SimpleNamespace(
+            lhs=stable_lhs,
+            rhs=_OwnedNoneExpression(),
+            pos=None,
+        ))
+        stable_writer.close_owned_handle(result_cname)
+        stable_writer.close_owned_handle(slot_cname, null_safe=True)
+        stable_writer.assert_function_exit()
+
+        replacement_writer = UniversalHPyFunctionWriter(runtime_api)
+        replacement_lhs = ExprNodes.NameNode(None, name="value")
+        replacement_lhs.entry = None
+        previous_cname = replacement_writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        replacement_writer._local_values["value"] = previous_cname
+        result_cname = replacement_writer.generate_walrus(SimpleNamespace(
+            lhs=replacement_lhs,
+            rhs=_OwnedNoneExpression(),
+            pos=None,
+        ))
+        replacement_writer.close_owned_handle(result_cname)
+        replacement_writer._close_remaining_owned_handles()
+        replacement_writer.assert_function_exit()
+
+    def test_joined_string_empty_and_none_check_formatting_paths(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        empty_writer = UniversalHPyFunctionWriter(runtime_api)
+        empty_cname = empty_writer.generate_joined_string(())
+        empty_writer.close_owned_handle(empty_cname)
+        empty_writer.assert_function_exit()
+        self.assertIn(
+            'HPyUnicode_FromString(ctx, "")',
+            "\n".join(empty_writer.lines),
+        )
+
+        joined_writer = UniversalHPyFunctionWriter(runtime_api)
+        clone = ExprNodes.CloneNode(_OwnedNoneExpression())
+        joined_cname = joined_writer.generate_joined_string(
+            (clone, _OwnedNoneExpression()))
+        joined_writer.close_owned_handle(joined_cname)
+        joined_writer.assert_function_exit()
+        self.assertIn("HPy_Add(ctx,", "\n".join(joined_writer.lines))
+
+        formatted_writer = UniversalHPyFunctionWriter(runtime_api)
+        value_cname = formatted_writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        formatted_writer.generate_none_check(
+            value_cname,
+            "PyExc_TypeError",
+            "argument %s may not be None",
+            ("value",),
+        )
+        formatted_writer.close_owned_handle(value_cname)
+        formatted_writer.assert_function_exit()
+        self.assertIn(
+            "argument value may not be None",
+            "\n".join(formatted_writer.lines),
+        )
+
+        invalid_writer = UniversalHPyFunctionWriter(runtime_api)
+        value_cname = invalid_writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        with self.assertRaisesRegex(
+            CompileError, "formatted None-check diagnostics"
+        ):
+            invalid_writer.generate_none_check(
+                value_cname,
+                "PyExc_TypeError",
+                "argument %d may not be None",
+                ("not-an-integer",),
+            )
+        invalid_writer.close_owned_handle(value_cname)
+        invalid_writer.assert_function_exit()
+
+    def test_module_render_preflight_guards_are_source_position_safe(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        with self.assertRaisesRegex(CompileError, "positionless"):
+            UniversalHPyModuleWriter.unsupported(
+                None, "positionless rejection")
+
+        def module(contents, name="module"):
+            node = SimpleNamespace(full_module_name=name, pos=None)
+            node.hpy_bootstrap_contents = lambda writer: contents
+            return node
+
+        safe_method = SimpleNamespace(name="function", args=[], pos=None)
+        reserved_method = SimpleNamespace(
+            name="__pyx_hpy_const_reserved",
+            args=[],
+            pos=None,
+        )
+        empty_body = Nodes.StatListNode(None, stats=[])
+        invalid_class = SimpleNamespace(
+            class_name="invalid-class",
+            body=empty_body,
+            pos=None,
+        )
+        duplicate_class = SimpleNamespace(
+            class_name="function",
+            body=empty_body,
+            pos=None,
+        )
+        reserved_class = SimpleNamespace(
+            class_name="ReservedClass",
+            body=empty_body,
+            entry=SimpleNamespace(type=SimpleNamespace(scope=SimpleNamespace(
+                var_entries=[
+                    SimpleNamespace(name="__pyx_hpy_slot_owner_reserved"),
+                ],
+            ))),
+            pos=None,
+        )
+        source = SimpleNamespace()
+        reserved_type_method = Nodes.DefNode(
+            (source, 1, 0),
+            name="__pyx_hpy_slot_owner_reserved",
+            args=[SimpleNamespace(
+                default=None,
+                pos_only=False,
+                kw_only=False,
+            )],
+            body=Nodes.StatListNode(None, stats=[]),
+        )
+        reserved_type_method.hpy_bootstrap_signature = (
+            lambda writer, receiver_argument=None:
+                RuntimeMethodSignature.NOARGS)
+        reserved_method_class = SimpleNamespace(
+            class_name="ReservedMethods",
+            body=Nodes.StatListNode(None, stats=[reserved_type_method]),
+            entry=SimpleNamespace(type=SimpleNamespace(scope=SimpleNamespace(
+                var_entries=[],
+            ))),
+            pos=None,
+        )
+        reserved_assignment = Nodes.SingleAssignmentNode(
+            None,
+            lhs=SimpleNamespace(name="__pyx_hpy_default_reserved"),
+            rhs=_OwnedNoneExpression(),
+        )
+        star_import = SimpleNamespace(
+            items=[("*", SimpleNamespace(name="ignored"))],
+            pos=None,
+        )
+        reserved_import = SimpleNamespace(
+            items=[
+                (
+                    "value",
+                    SimpleNamespace(name="__pyx_hpy_slot_owner_reserved"),
+                ),
+            ],
+            pos=None,
+        )
+        cases = (
+            (
+                module(([], [], [], []), name="invalid.module"),
+                "simple C identifier",
+            ),
+            (
+                module(([], [], [], [])),
+                "require at least one supported def",
+            ),
+            (
+                module(([safe_method], [], [duplicate_class], [])),
+                "function/type names collide",
+            ),
+            (
+                module(([safe_method], [], [invalid_class], [])),
+                "class names must be C identifiers",
+            ),
+            (
+                module(([], [], [reserved_class], [])),
+                "type members use reserved runtime cache names",
+            ),
+            (
+                module(([], [], [reserved_method_class], [])),
+                "type members use reserved runtime cache names",
+            ),
+            (
+                module(([reserved_method], [], [], [])),
+                "function name uses a reserved",
+            ),
+            (
+                module(([safe_method], [reserved_assignment], [], [])),
+                "module name uses a reserved",
+            ),
+            (
+                module(([safe_method], [star_import], [], [])),
+                "star imports are not implemented",
+            ),
+            (
+                module(([safe_method], [reserved_import], [], [])),
+                "import target uses a reserved",
+            ),
+        )
+        for module_node, message in cases:
+            with self.subTest(message=message):
+                with self.assertRaisesRegex(CompileError, message):
+                    UniversalHPyModuleWriter(
+                        module_node, runtime_api).render()
+
+    def test_native_field_assignment_guards_reject_unsafe_inplace_forms(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        def wrapped_inplace(operator):
+            inplace = SimpleNamespace(
+                inplace=True,
+                operator=operator,
+                operand2=_OwnedNoneExpression(),
+                pos=None,
+            )
+            wrapper = ExprNodes.CoerceFromPyTypeNode.__new__(
+                ExprNodes.CoerceFromPyTypeNode)
+            wrapper.arg = inplace
+            return wrapper
+
+        cases = (
+            ("bint", "+", "bint extension-field"),
+            ("signed-int", "/", "native C extension fields currently support"),
+        )
+        for storage_kind, operator, message in cases:
+            with self.subTest(message=message):
+                writer = UniversalHPyFunctionWriter(runtime_api)
+                owner_cname = writer.allocate_owned_handle(
+                    "HPy_Dup(ctx, ctx->h_None)")
+                with self.assertRaisesRegex(CompileError, message):
+                    writer._assign_native_extension_field(
+                        owner_cname,
+                        "owner->field",
+                        storage_kind,
+                        wrapped_inplace(operator),
+                    )
+                writer.close_owned_handle(owner_cname)
+                writer.assert_function_exit()
+
+    def test_integer_temporary_comparison_and_global_inplace_edges(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        temporary_writer = UniversalHPyFunctionWriter(runtime_api)
+        node = SimpleNamespace()
+        temporary_writer._c_temporary_values[id(node)] = "bound_integer"
+        self.assertEqual(
+            temporary_writer.unbind_integer_temporary(node),
+            "bound_integer",
+        )
+        with self.assertRaisesRegex(
+            AssertionError, "C temporary is not bound"
+        ):
+            temporary_writer.unbind_integer_temporary(node)
+        temporary_writer.assert_function_exit()
+
+        comparison_writer = UniversalHPyFunctionWriter(runtime_api)
+        for operator in ("is_not", "not_in"):
+            with self.subTest(operator=operator):
+                result_cname = comparison_writer.allocate_owned_handle(
+                    "HPy_NULL")
+                left_cname = comparison_writer.allocate_owned_handle(
+                    "HPy_Dup(ctx, ctx->h_None)")
+                right_cname = comparison_writer.allocate_owned_handle(
+                    "HPy_Dup(ctx, ctx->h_None)")
+                comparison_writer._assign_comparison_result(
+                    SimpleNamespace(pos=None),
+                    result_cname,
+                    operator,
+                    left_cname,
+                    right_cname,
+                )
+                comparison_writer.close_owned_handle(right_cname)
+                comparison_writer.close_owned_handle(left_cname)
+                comparison_writer.close_owned_handle(result_cname)
+
+        result_cname = comparison_writer.allocate_owned_handle("HPy_NULL")
+        left_cname = comparison_writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        right_cname = comparison_writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        with self.assertRaisesRegex(
+            CompileError, "comparison operator unsupported"
+        ):
+            comparison_writer._assign_comparison_result(
+                SimpleNamespace(pos=None),
+                result_cname,
+                "unsupported",
+                left_cname,
+                right_cname,
+            )
+        comparison_writer.close_owned_handle(right_cname)
+        comparison_writer.close_owned_handle(left_cname)
+        comparison_writer.close_owned_handle(result_cname)
+        comparison_writer.assert_function_exit()
+        output = "\n".join(comparison_writer.lines)
+        self.assertIn("!(HPy_Is(ctx,", output)
+        self.assertIn("!__pyx_hpy_contains_", output)
+
+        names = _HPyNameRegistry()
+        names.require_module_global("value")
+        global_writer = UniversalHPyFunctionWriter(
+            runtime_api,
+            name_registry=names,
+            module_cname="m",
+            rollback_module_publications=True,
+        )
+        global_writer.inplace_function_global(
+            SimpleNamespace(pos=None),
+            "value",
+            RuntimeInPlaceOperation.ADD,
+            _OwnedNoneExpression(),
+        )
+        global_writer.assert_function_exit()
+        global_output = "\n".join(global_writer.lines)
+        self.assertIn("HPy_InPlaceAdd(ctx,", global_output)
+        self.assertIn('HPy_SetAttr_s(ctx, m, "value"', global_output)
+
+    def test_module_publication_failure_guards_reject_invalid_contexts(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        disabled_writer = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(
+            AssertionError, "publication rollback is not enabled"
+        ):
+            disabled_writer._emit_module_failure_exit_preserving_memory()
+        with self.assertRaisesRegex(
+            AssertionError, "publication rollback is not enabled"
+        ):
+            disabled_writer.put_module_publication_error_if_negative("status")
+        disabled_writer.assert_function_exit()
+
+        scoped_writer = UniversalHPyFunctionWriter(
+            runtime_api, rollback_module_publications=True)
+        scoped_writer._failure_scopes.append({"label": "scope"})
+        with self.assertRaisesRegex(
+            AssertionError, "cannot occur inside failure scopes"
+        ):
+            scoped_writer._emit_module_failure_exit_preserving_memory()
+        with self.assertRaisesRegex(
+            AssertionError, "cannot occur inside failure scopes"
+        ):
+            scoped_writer.put_module_publication_error_if_negative("status")
+        scoped_writer._failure_scopes.clear()
+        scoped_writer.assert_function_exit()
+
+    def test_nested_definition_discovery_and_validation_guards_are_complete(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        module_writer = UniversalHPyModuleWriter(
+            SimpleNamespace(pos=None), runtime_api)
+
+        plain_outer = SimpleNamespace(
+            body=Nodes.StatListNode(
+                None, stats=[SimpleNamespace(pos=None)]))
+        self.assertEqual(list(module_writer._iter_nested_defs(plain_outer)), [])
+
+        missing_function = Nodes.DefNode(
+            None,
+            name="inner",
+            args=[],
+            body=Nodes.StatListNode(None, stats=[]),
+        )
+        missing_function.py_cfunc_node = None
+        with self.assertRaisesRegex(
+            CompileError, "requires InnerFunction closure synthesis"
+        ):
+            list(module_writer._iter_nested_defs(SimpleNamespace(
+                body=Nodes.StatListNode(None, stats=[missing_function]))))
+
+        missing_def_node = ExprNodes.InnerFunctionNode(None)
+        missing_def_node.def_node = None
+        assignment = Nodes.SingleAssignmentNode(
+            None,
+            lhs=SimpleNamespace(name="inner"),
+            rhs=missing_def_node,
+        )
+        with self.assertRaisesRegex(
+            CompileError, "requires InnerFunction closure synthesis"
+        ):
+            list(module_writer._iter_nested_defs(SimpleNamespace(
+                body=Nodes.StatListNode(None, stats=[assignment]))))
+
+        inner_node = ExprNodes.InnerFunctionNode(None)
+        wrapped = ExprNodes.SimpleCallNode(
+            None,
+            function=SimpleNamespace(),
+            args=[inner_node],
+        )
+        self.assertIs(module_writer._inner_function_from_expr(wrapped), inner_node)
+        self.assertIsNone(module_writer._inner_function_from_expr(
+            ExprNodes.SimpleCallNode(
+                None, function=SimpleNamespace(), args=[])))
+
+        self.assertFalse(module_writer._nested_def_contains_yield(
+            SimpleNamespace(body=None)))
+        self.assertTrue(module_writer._nested_def_contains_yield(
+            SimpleNamespace(body=ExprNodes.YieldExprNode(None))))
+        self.assertTrue(module_writer._nested_def_contains_yield(
+            SimpleNamespace(body=Nodes.GeneratorDefNode(
+                None,
+                args=[],
+                body=Nodes.StatListNode(None, stats=[]),
+            ))))
+
+        with self.assertRaisesRegex(
+            CompileError, "requires InnerFunction closure synthesis"
+        ):
+            module_writer._validate_nested_closure(
+                plain_outer,
+                SimpleNamespace(pos=None),
+                SimpleNamespace(),
+            )
+
+        def inner_definition(needs_closure):
+            return SimpleNamespace(
+                decorators=[],
+                is_staticmethod=False,
+                is_classmethod=False,
+                is_generator=False,
+                body=Nodes.StatListNode(None, stats=[]),
+                needs_closure=needs_closure,
+                star_arg=None,
+                starstar_arg=None,
+                args=[],
+                pos=None,
+            )
+
+        decorated_def = inner_definition(
+            Nodes.FuncDefNode.NeedsClosure.NO_CLOSURE)
+        decorated_node = ExprNodes.InnerFunctionNode(None)
+        decorated_node.def_node = decorated_def
+        decorated_call = ExprNodes.SimpleCallNode(
+            None,
+            function=SimpleNamespace(),
+            args=[decorated_node],
+        )
+        decorated_outer = SimpleNamespace(body=Nodes.StatListNode(
+            None,
+            stats=[Nodes.SingleAssignmentNode(
+                None,
+                lhs=SimpleNamespace(name="inner"),
+                rhs=decorated_call,
+            )],
+        ))
+        with self.assertRaisesRegex(
+            CompileError, "decorated nested def functions"
+        ):
+            module_writer._validate_nested_closure(
+                decorated_outer, decorated_def, decorated_node)
+
+        full_def = inner_definition(
+            Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE)
+        full_node = ExprNodes.InnerFunctionNode(None)
+        full_node.def_node = full_def
+        with self.assertRaisesRegex(
+            CompileError, "nested nested def closures"
+        ):
+            module_writer._validate_nested_closure(
+                plain_outer, full_def, full_node)
+
+    def test_extension_slot_preflight_guards_cover_all_slot_families(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        module_writer = UniversalHPyModuleWriter(
+            SimpleNamespace(pos=None), runtime_api)
+        renderers = (
+            module_writer._render_extension_call_slot,
+            module_writer._render_extension_value_slot,
+            module_writer._render_extension_length_slot,
+            module_writer._render_extension_binary_value_slot,
+            module_writer._render_extension_ternary_value_slot,
+            module_writer._render_extension_hash_slot,
+            module_writer._render_extension_bool_slot,
+            module_writer._render_extension_contains_slot,
+        )
+
+        for renderer in renderers:
+            with self.subTest(renderer=renderer.__name__, guard="annotation"):
+                annotated = SimpleNamespace(
+                    return_type_annotation=object(),
+                    body=Nodes.StatListNode(None, stats=[]),
+                    name="__slot__",
+                    pos=None,
+                )
+                with self.assertRaisesRegex(
+                    CompileError, "return annotations"
+                ):
+                    renderer(annotated, "slot_definition", {})
+
+            with self.subTest(renderer=renderer.__name__, guard="termination"):
+                unterminated = SimpleNamespace(
+                    return_type_annotation=None,
+                    body=Nodes.StatListNode(None, stats=[]),
+                    name="__slot__",
+                    pos=None,
+                )
+                with self.assertRaisesRegex(
+                    CompileError, "body must end with"
+                ):
+                    renderer(unterminated, "slot_definition", {})
+
+    def test_extension_property_and_status_special_cases_are_emitted(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        module_writer = UniversalHPyModuleWriter(
+            SimpleNamespace(pos=None), runtime_api)
+
+        getter = SimpleNamespace(
+            body=Nodes.StatListNode(None, stats=[]),
+            pos=None,
+        )
+        with self.assertRaisesRegex(
+            CompileError, "property getter body must end with"
+        ):
+            module_writer._render_extension_property(
+                SimpleNamespace(pos=None),
+                {"__get__": getter},
+                "property_definition",
+                {},
+            )
+
+        module_writer._render_extension_status_helper = (
+            lambda *args, **kwargs: [])
+        deleter_only = module_writer._render_extension_property(
+            SimpleNamespace(pos=None),
+            {"__del__": object()},
+            "property_definition",
+            {},
+        )
+        self.assertIn(
+            "__set__",
+            "\n".join(deleter_only),
+        )
+
+        annotated = SimpleNamespace(
+            return_type_annotation=object(),
+            body=Nodes.StatListNode(None, stats=[]),
+            name="__set__",
+            pos=None,
+        )
+        with self.assertRaisesRegex(CompileError, "return annotations"):
+            UniversalHPyModuleWriter(
+                SimpleNamespace(pos=None),
+                runtime_api,
+            )._render_extension_status_helper(
+                annotated, "status_helper", ("self",), {})
+
+        bad_return = Nodes.ReturnStatNode(
+            None, value=ExprNodes.IntNode(None, value="1"))
+        invalid_method = SimpleNamespace(
+            return_type_annotation=None,
+            body=Nodes.StatListNode(None, stats=[bad_return]),
+            name="__set__",
+            pos=None,
+        )
+        fresh_writer = UniversalHPyModuleWriter(
+            SimpleNamespace(pos=None), runtime_api)
+        with self.assertRaisesRegex(CompileError, "may only return None"):
+            fresh_writer._render_extension_status_helper(
+                invalid_method, "status_helper", ("self",), {})
+        with self.assertRaisesRegex(CompileError, "may only return None"):
+            fresh_writer._render_extension_finalize_slot(
+                invalid_method, "finalize_slot", {})
+        with self.assertRaisesRegex(CompileError, "may only return None"):
+            fresh_writer._render_extension_initializer(
+                invalid_method, "initializer_slot", {})
+
+    def test_reflected_only_numeric_slot_emits_right_precedence_branch(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        module_writer = UniversalHPyModuleWriter(
+            SimpleNamespace(pos=None), runtime_api)
+        module_writer._render_extension_binary_value_slot = (
+            lambda *args, **kwargs: [])
+        output = module_writer._render_extension_numeric_binary_slot(
+            {"__radd__": object()},
+            "numeric_add",
+            "__pyx_hpy_slot_owner_add",
+            "__add__",
+            "__radd__",
+            {},
+        )
+        rendered = "\n".join(output)
+        self.assertIn("if (left_matches && right_matches)", rendered)
+        self.assertIn("right_matches = 0;", rendered)
+
+    def test_inlined_generator_contract_covers_guards_containers_and_defaults(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        list_type = SimpleNamespace(
+            is_pyset_type=False,
+            is_pydict_type=False,
+            is_pylist_type=True,
+        )
+        set_type = SimpleNamespace(
+            is_pyset_type=True,
+            is_pydict_type=False,
+            is_pylist_type=False,
+        )
+        loop = Nodes.ForInStatNode(None)
+        loop.generate_hpy_bootstrap_execution_code = (
+            lambda writer: writer.putln("inlined_loop();"))
+
+        def node(orig, *, selected_loop=loop, result_type=None, target=None):
+            return SimpleNamespace(
+                orig_func=orig,
+                type=result_type,
+                gen=SimpleNamespace(
+                    loop=selected_loop,
+                    def_node=None,
+                    call_parameters=(),
+                ),
+                target=target,
+                pos=None,
+            )
+
+        invalid_nodes = (
+            (
+                node("set", result_type=set_type),
+                "set inlined generators remain blocked",
+            ),
+            (
+                node("list", selected_loop=None, result_type=list_type),
+                "has no loop body",
+            ),
+            (
+                node(
+                    "list",
+                    selected_loop=SimpleNamespace(),
+                    result_type=list_type,
+                ),
+                "only sequence-index/range",
+            ),
+            (
+                node("unknown", result_type=None),
+                "inlined generator expression 'unknown'",
+            ),
+        )
+        for invalid, message in invalid_nodes:
+            with self.subTest(message=message):
+                writer = UniversalHPyFunctionWriter(runtime_api)
+                with self.assertRaisesRegex(CompileError, message):
+                    writer.generate_inlined_generator_expression(invalid)
+                writer.assert_function_exit()
+
+        arity_node = node("list", result_type=list_type)
+        arity_node.gen.def_node = SimpleNamespace(args=[
+            SimpleNamespace(entry=SimpleNamespace(name="iterator")),
+        ])
+        arity_node.gen.call_parameters = (
+            _OwnedNoneExpression(),
+            _OwnedNoneExpression(),
+        )
+        arity_writer = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(CompileError, "parameter arity mismatch"):
+            arity_writer.generate_inlined_generator_expression(arity_node)
+        arity_writer.assert_function_exit()
+
+        for orig in ("any", "all", "dict", "list", "sorted"):
+            with self.subTest(orig=orig):
+                target = object()
+                generated_node = node(
+                    orig,
+                    result_type=list_type if orig in ("list", "sorted") else None,
+                    target=target,
+                )
+                writer = UniversalHPyFunctionWriter(runtime_api)
+                if orig == "sorted":
+                    writer._comprehension_targets[id(target)] = "outer"
+                result_cname = writer.generate_inlined_generator_expression(
+                    generated_node)
+                if orig == "sorted":
+                    self.assertEqual(
+                        writer._comprehension_targets[id(target)], "outer")
+                writer.close_owned_handle(result_cname)
+                writer.assert_function_exit()
+                output = "\n".join(writer.lines)
+                self.assertIn("inlined_loop();", output)
+                if orig == "dict":
+                    self.assertIn("HPyDict_New(ctx)", output)
+                elif orig == "sorted":
+                    self.assertIn("HPy_CallMethod(ctx,", output)
+
+    def test_terminal_try_except_guards_cover_every_invalid_shape(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        return_statement = Nodes.ReturnStatNode(
+            None, value=_OwnedNoneExpression())
+        terminating_body = Nodes.StatListNode(
+            None, stats=[return_statement])
+
+        def clause(*, pattern=None, body=None, target=None, excinfo_target=None):
+            return SimpleNamespace(
+                pattern=pattern,
+                body=terminating_body if body is None else body,
+                target=target,
+                excinfo_target=excinfo_target,
+                pos=None,
+            )
+
+        def try_node(*, body=terminating_body, clauses=(), else_clause=None):
+            return SimpleNamespace(
+                body=body,
+                except_clauses=list(clauses),
+                else_clause=else_clause,
+                pos=None,
+            )
+
+        scoped_writer = UniversalHPyFunctionWriter(runtime_api)
+        scoped_writer._failure_scopes.append({"label": "outer"})
+        with self.assertRaisesRegex(CompileError, "nested try/except"):
+            scoped_writer.generate_terminal_try_except(
+                try_node(clauses=[clause()]))
+        scoped_writer._failure_scopes.clear()
+        scoped_writer.assert_function_exit()
+
+        invalid_cases = (
+            (
+                try_node(
+                    clauses=[clause()],
+                    else_clause=SimpleNamespace(pos=None),
+                ),
+                CompileError,
+                "else clauses",
+            ),
+            (
+                try_node(
+                    body=Nodes.StatListNode(
+                        None, stats=[Nodes.TryExceptStatNode(None)]),
+                    clauses=[clause()],
+                ),
+                CompileError,
+                "nested try/except",
+            ),
+            (
+                try_node(
+                    body=Nodes.StatListNode(
+                        None, stats=[Nodes.PassStatNode(None)]),
+                    clauses=[clause()],
+                ),
+                CompileError,
+                "requires a terminating return or raise",
+            ),
+            (
+                try_node(
+                    body=Nodes.StatListNode(
+                        None,
+                        stats=[
+                            SimpleNamespace(pos=None),
+                            return_statement,
+                        ],
+                    ),
+                    clauses=[clause()],
+                ),
+                CompileError,
+                "try-body statements before",
+            ),
+            (
+                try_node(clauses=[clause(target=SimpleNamespace())]),
+                CompileError,
+                "except targets require",
+            ),
+            (
+                try_node(clauses=[clause(body=Nodes.StatListNode(
+                    None, stats=[Nodes.PassStatNode(None)]))]),
+                CompileError,
+                "must contain exactly one return",
+            ),
+            (
+                try_node(clauses=[]),
+                AssertionError,
+                "has no clauses",
+            ),
+        )
+        for invalid, error_type, message in invalid_cases:
+            with self.subTest(message=message):
+                writer = UniversalHPyFunctionWriter(runtime_api)
+                with self.assertRaisesRegex(error_type, message):
+                    writer.generate_terminal_try_except(invalid)
+                writer.assert_function_exit()
+
+        invalid_pattern = ExprNodes.NameNode(None, name="CustomError")
+        invalid_pattern.entry = None
+        writer = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(
+            CompileError, "requires direct builtin exception names"
+        ):
+            writer.generate_terminal_try_except(try_node(
+                clauses=[clause(pattern=[invalid_pattern])]))
+        writer.assert_function_exit()
+
+        unavailable_pattern = ExprNodes.NameNode(
+            None, name="DefinitelyUnavailableError")
+        unavailable_pattern.entry = SimpleNamespace(is_builtin=True)
+        writer = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(
+            CompileError, "is unavailable in HPy"
+        ):
+            writer.generate_terminal_try_except(try_node(
+                clauses=[clause(pattern=[unavailable_pattern])]))
+        writer.assert_function_exit()
+
+        builtin_pattern = ExprNodes.NameNode(None, name="TypeError")
+        builtin_pattern.entry = SimpleNamespace(is_builtin=True)
+        writer = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(
+            AssertionError, "default exception clause is not last"
+        ):
+            writer.generate_terminal_try_except(try_node(clauses=[
+                clause(),
+                clause(pattern=[builtin_pattern]),
+            ]))
+        writer.assert_function_exit()
+
+    def test_inner_materialization_and_miscellaneous_writer_guards(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        inner_node = SimpleNamespace(pos=None)
+
+        writer = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(
+            CompileError, "without a closure registry"
+        ):
+            writer.materialize_inner_function(inner_node)
+        writer.assert_function_exit()
+
+        writer = UniversalHPyFunctionWriter(
+            runtime_api, closure_registry=_ClosureRegistry((), ()))
+        with self.assertRaisesRegex(
+            CompileError, "not registered in the closure plan"
+        ):
+            writer.materialize_inner_function(inner_node)
+        writer.assert_function_exit()
+
+        env_spec = _ClosureEnvSpec(0, object(), ())
+        fn_spec = _ClosureFnSpec(
+            0, object(), inner_node, env_spec)
+        writer = UniversalHPyFunctionWriter(
+            runtime_api,
+            closure_registry=_ClosureRegistry((env_spec,), (fn_spec,)),
+        )
+        with self.assertRaisesRegex(
+            CompileError, "requires an active closure env"
+        ):
+            writer.materialize_inner_function(inner_node)
+        writer.assert_function_exit()
+
+        formatted_writer = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(
+            CompileError, "f-string conversion !x"
+        ):
+            formatted_writer.generate_formatted_value(
+                _OwnedNoneExpression(), "x", None)
+        formatted_writer._close_remaining_owned_handles()
+        formatted_writer.assert_function_exit()
+
+        rollback_writer = UniversalHPyFunctionWriter(
+            runtime_api, rollback_module_publications=True)
+        value_cname = rollback_writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        rollback_writer.put_error_return_if_null_with_exception(value_cname)
+        rollback_writer.close_owned_handle(value_cname)
+        rollback_writer.assert_function_exit()
+        self.assertIn(
+            "HPyErr_ExceptionMatches(ctx, ctx->h_MemoryError)",
+            "\n".join(rollback_writer.lines),
+        )
+
+        default_writer = UniversalHPyFunctionWriter(
+            runtime_api, module_cname="m", default_registry=None)
+        with self.assertRaisesRegex(
+            AssertionError, "require interpreter-owned storage"
+        ):
+            default_writer._materialize_defaulted_arguments(
+                "function", (), ())
+        default_writer.assert_function_exit()
+
+    def test_module_import_emitters_cover_relative_and_dotted_paths(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        module_writer = UniversalHPyModuleWriter(
+            SimpleNamespace(pos=None), runtime_api)
+
+        def import_node(module_name, *, level=0, is_import_as_name=False):
+            return ExprNodes.ImportNode(
+                None,
+                module_name=SimpleNamespace(value=module_name),
+                level=level,
+                is_import_as_name=is_import_as_name,
+            )
+
+        relative_writer = UniversalHPyFunctionWriter(
+            runtime_api,
+            name_registry=module_writer.name_registry,
+            module_cname="m",
+            rollback_module_publications=True,
+        )
+        with self.assertRaisesRegex(CompileError, "relative imports"):
+            module_writer._emit_module_assignment(
+                SimpleNamespace(
+                    lhs=SimpleNamespace(name="pkg"),
+                    rhs=import_node("pkg", level=1),
+                    pos=None,
+                ),
+                relative_writer,
+            )
+        relative_writer.assert_function_exit()
+
+        dotted_writer = UniversalHPyFunctionWriter(
+            runtime_api,
+            name_registry=module_writer.name_registry,
+            module_cname="m",
+            rollback_module_publications=True,
+        )
+        module_writer._emit_module_assignment(
+            SimpleNamespace(
+                lhs=SimpleNamespace(name="pkg"),
+                rhs=import_node("pkg.submodule"),
+                pos=None,
+            ),
+            dotted_writer,
+        )
+        dotted_writer.assert_function_exit()
+        dotted_output = "\n".join(dotted_writer.lines)
+        self.assertGreaterEqual(dotted_output.count(
+            'HPyImport_ImportModule(ctx, "pkg'), 2)
+
+        from_writer = UniversalHPyFunctionWriter(
+            runtime_api,
+            name_registry=module_writer.name_registry,
+            module_cname="m",
+            rollback_module_publications=True,
+        )
+        with self.assertRaisesRegex(CompileError, "relative imports"):
+            module_writer._emit_from_import(
+                SimpleNamespace(
+                    module=import_node("pkg", level=1),
+                    items=[],
+                    pos=None,
+                ),
+                from_writer,
+            )
+        from_writer.assert_function_exit()
+
+        statement = SimpleNamespace()
+        self.assertEqual(
+            UniversalHPyModuleWriter._stats(statement), [statement])
+        stat_list = Nodes.StatListNode(None, stats=[statement])
+        self.assertEqual(
+            UniversalHPyModuleWriter._stats(stat_list), [statement])
+
+    def test_remaining_function_writer_edge_contracts_are_fail_closed(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        owner_writer = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(
+            CompileError, "requires the current module/type owner"
+        ):
+            owner_writer.ensure_extension_runtime_owners(
+                SimpleNamespace(pos=None))
+        owner_writer.assert_function_exit()
+
+        temporary_writer = UniversalHPyFunctionWriter(runtime_api)
+        node = SimpleNamespace(pos=None)
+        temporary_writer.bind_temporary_value(node, "borrowed")
+        with self.assertRaisesRegex(
+            AssertionError, "temporary is already bound"
+        ):
+            temporary_writer.bind_temporary_value(node, "other")
+        self.assertEqual(
+            temporary_writer.unbind_temporary_value(node), "borrowed")
+        with self.assertRaisesRegex(
+            AssertionError, "temporary is not bound"
+        ):
+            temporary_writer.unbind_temporary_value(node)
+        with self.assertRaisesRegex(
+            CompileError, "temporary HPy value is not bound"
+        ):
+            temporary_writer.duplicate_temporary_value(node)
+
+        integer_node = SimpleNamespace(pos=None, result_code=None)
+        temporary_writer._c_temporary_values[id(integer_node)] = "bound"
+        with self.assertRaisesRegex(
+            AssertionError, "C temporary is already bound"
+        ):
+            temporary_writer.bind_integer_temporary(
+                integer_node, ExprNodes.IntNode(None, value="1"))
+        temporary_writer.assert_function_exit()
+
+        self.assertIsNone(
+            temporary_writer._closure_capture_for_name("missing"))
+        capture_entry = SimpleNamespace()
+        capture = _ClosureCapture("captured", capture_entry, "field")
+        env_spec = _ClosureEnvSpec(0, object(), (capture,))
+        closure_writer = UniversalHPyFunctionWriter(
+            runtime_api, closure_env_spec=env_spec)
+        closure_node = SimpleNamespace(
+            entry=SimpleNamespace(
+                from_closure=True,
+                in_closure=False,
+                outer_entry=capture_entry,
+            ),
+            pos=None,
+        )
+        self.assertIsNone(
+            closure_writer._duplicate_closure_capture(
+                closure_node, "captured"))
+        closure_writer._closure_env_owner_cname = "owner"
+        unmatched_node = SimpleNamespace(
+            entry=SimpleNamespace(
+                from_closure=True,
+                in_closure=False,
+                outer_entry=SimpleNamespace(),
+            ),
+            pos=None,
+        )
+        self.assertIsNone(
+            closure_writer._duplicate_closure_capture(
+                unmatched_node, "missing"))
+        value_cname = closure_writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        with self.assertRaisesRegex(AssertionError, "unknown closure capture"):
+            closure_writer._store_closure_capture("missing", value_cname)
+        closure_writer.close_owned_handle(value_cname)
+        closure_writer.assert_function_exit()
+
+        local_writer = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(
+            CompileError, "has no initialized local HPy value"
+        ):
+            local_writer.inplace_local(
+                SimpleNamespace(pos=None),
+                "missing",
+                RuntimeInPlaceOperation.ADD,
+                _OwnedNoneExpression(),
+            )
+        owned_cname = local_writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        local_writer._local_values["owned"] = owned_cname
+        local_writer.inplace_local(
+            SimpleNamespace(pos=None),
+            "owned",
+            RuntimeInPlaceOperation.ADD,
+            _OwnedNoneExpression(),
+        )
+        local_writer._close_remaining_owned_handles()
+        local_writer.delete_local(SimpleNamespace(pos=None), "missing")
+        local_writer.assert_function_exit()
+
+        registry_guard = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(
+            AssertionError, "requires a name registry"
+        ):
+            registry_guard.store_module_global(
+                SimpleNamespace(pos=None),
+                "value",
+                _OwnedNoneExpression(),
+                "m",
+            )
+        registry_guard.assert_function_exit()
+
+        raise_writer = UniversalHPyFunctionWriter(runtime_api)
+        raise_writer.raise_builtin_object(
+            "ValueError", _OwnedNoneExpression())
+        raise_writer.assert_function_exit()
+
+        sequence_writer = UniversalHPyFunctionWriter(runtime_api)
+        starred_result = sequence_writer.generate_starred_sequence(
+            RuntimeSequenceKind.TUPLE, (_OwnedNoneExpression(),))
+        sequence_writer.close_owned_handle(starred_result)
+        with self.assertRaisesRegex(
+            AssertionError, "merged sequence generation requires arguments"
+        ):
+            sequence_writer.generate_merged_sequence(
+                RuntimeSequenceKind.LIST, ())
+        source_cname = sequence_writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        normalized = sequence_writer.normalize_sequence_handle(
+            RuntimeSequenceKind.TUPLE, source_cname)
+        sequence_writer.close_owned_handle(normalized)
+        sequence_writer._guard_keyword_name_duplicates(None)
+        with self.assertRaisesRegex(
+            AssertionError, "unexpected boolean operator"
+        ):
+            sequence_writer.generate_boolean_short_circuit(
+                "xor", _OwnedNoneExpression(), _OwnedNoneExpression())
+        sequence_writer.assert_function_exit()
+
+        bytes_name = ExprNodes.BytesNode(
+            None,
+            value=SimpleNamespace(byteencode=lambda: b"name"),
+        )
+        self.assertEqual(
+            UniversalHPyFunctionWriter._keyword_name_literal(bytes_name),
+            b"name",
+        )
+        wrapped_name = ExprNodes.CoerceToTempNode.__new__(
+            ExprNodes.CoerceToTempNode)
+        wrapped_name.arg = ExprNodes.UnicodeNode(None, value="name")
+        self.assertEqual(
+            UniversalHPyFunctionWriter._keyword_name_literal(wrapped_name),
+            "name",
+        )
+
+        loop_guard_writer = UniversalHPyFunctionWriter(runtime_api)
+        with self.assertRaisesRegex(CompileError, "break statement"):
+            loop_guard_writer.generate_loop_break(SimpleNamespace(pos=None))
+        with self.assertRaisesRegex(CompileError, "continue statement"):
+            loop_guard_writer.generate_loop_continue(SimpleNamespace(pos=None))
+        loop_guard_writer.assert_function_exit()
+
+        native_writer = UniversalHPyFunctionWriter(
+            runtime_api, native_return_kind="unknown")
+        native_cname = native_writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        with self.assertRaisesRegex(
+            AssertionError, "unknown native_return_kind"
+        ):
+            native_writer._return_native_from_owned_handle(native_cname)
+        native_writer.close_owned_handle(native_cname)
+        native_writer.assert_function_exit()
+
+    def test_remaining_sequence_wrapper_and_loop_invariants_are_exercised(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        assignment_writer = UniversalHPyFunctionWriter(runtime_api)
+        value_cname = assignment_writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        assignment_writer.assign_target_from_owned_cname(
+            ExprNodes.TupleNode(None, args=[], mult_factor=None),
+            value_cname,
+        )
+        assignment_writer.assert_function_exit()
+
+        wrapped = ExprNodes.CoerceToTempNode.__new__(
+            ExprNodes.CoerceToTempNode)
+        wrapped.arg = ExprNodes.IntNode(None, value="3")
+        ssize_writer = UniversalHPyFunctionWriter(runtime_api)
+        self.assertTrue(
+            ssize_writer._materialize_ssize_expression(wrapped).startswith(
+                "__pyx_hpy_ssize_bound_"))
+        ssize_writer.assert_function_exit()
+
+        sequence_writer = UniversalHPyFunctionWriter(runtime_api)
+        for kind in (RuntimeSequenceKind.LIST, RuntimeSequenceKind.TUPLE):
+            source_cname = sequence_writer.allocate_owned_handle(
+                "HPy_Dup(ctx, ctx->h_None)")
+            normalized = sequence_writer.normalize_sequence_handle(
+                kind, source_cname)
+            sequence_writer.close_owned_handle(normalized)
+        sequence_writer.assert_function_exit()
+
+        early_writer = UniversalHPyFunctionWriter(runtime_api)
+        calls = []
+        early_writer.generate_returning_if = (
+            lambda clauses, else_body: calls.append((clauses, else_body)))
+        condition = object()
+        body = object()
+        early_writer.generate_early_return_if(
+            SimpleNamespace(), condition, body)
+        self.assertEqual(calls, [(((condition, body),), None)])
+
+        fallback_loop = Nodes.ForInStatNode(None)
+        fallback_loop.generate_hpy_bootstrap_execution_code = (
+            lambda writer: writer.putln("fallback_loop();"))
+        fallback_node = SimpleNamespace(
+            orig_func="list",
+            type=SimpleNamespace(
+                is_pyset_type=False,
+                is_pydict_type=False,
+                is_pylist_type=True,
+            ),
+            gen=SimpleNamespace(
+                loop=None,
+                def_node=SimpleNamespace(
+                    args=[],
+                    gbody=SimpleNamespace(body=fallback_loop),
+                ),
+                call_parameters=(),
+            ),
+            target=None,
+            pos=None,
+        )
+        fallback_writer = UniversalHPyFunctionWriter(runtime_api)
+        result_cname = fallback_writer.generate_inlined_generator_expression(
+            fallback_node)
+        fallback_writer.close_owned_handle(result_cname)
+        fallback_writer.assert_function_exit()
+        self.assertIn("fallback_loop();", "\n".join(fallback_writer.lines))
+
+        wrapped_pattern = ExprNodes.CoerceToTempNode.__new__(
+            ExprNodes.CoerceToTempNode)
+        pattern = ExprNodes.NameNode(None, name="TypeError")
+        wrapped_pattern.arg = pattern
+        self.assertIs(
+            UniversalHPyFunctionWriter._unwrap_exception_pattern(
+                wrapped_pattern),
+            pattern,
+        )
+
+        cleanup_writer = UniversalHPyFunctionWriter(runtime_api)
+        builder = runtime_api.sequence_builder(RuntimeSequenceKind.TUPLE)
+        cleanup_writer.allocate_sequence_builder(builder, 1)
+        snapshot = cleanup_writer._snapshot_lifetime_state()
+        cleanup_writer._loop_lifetime_stack.append(snapshot)
+        cleanup_writer._emit_loop_body_cleanup()
+        cleanup_writer._loop_lifetime_stack.pop()
+        first_builder = cleanup_writer._builder_order[0]
+        cleanup_writer._builder_temps.use(first_builder)
+        cleanup_writer._builder_temps.cancel(first_builder)
+        cleanup_writer._builder_temps.release(first_builder)
+        cleanup_writer._builder_order.remove(first_builder)
+        del cleanup_writer._builder_contracts[first_builder]
+        snapshot = cleanup_writer._snapshot_lifetime_state()
+        second_builder = cleanup_writer.allocate_sequence_builder(builder, 1)
+        cleanup_writer._builder_temps.use(second_builder)
+        cleanup_writer._builder_temps.cancel(second_builder)
+        cleanup_writer._builder_temps.release(second_builder)
+        cleanup_writer._loop_lifetime_stack.append(snapshot)
+        cleanup_writer._emit_loop_body_cleanup()
+        cleanup_writer._loop_lifetime_stack.pop()
+        cleanup_writer.assert_function_exit()
+
+        corrupt_cases = (
+            "while",
+            "sequence",
+            "for-from",
+        )
+        for kind in corrupt_cases:
+            with self.subTest(kind=kind):
+                writer = UniversalHPyFunctionWriter(runtime_api)
+                if kind == "while":
+                    invoke = lambda: writer.generate_while_loop(
+                        None, [_CorruptLoopStackStatement()], None)
+                elif kind == "sequence":
+                    slot_cname = writer.allocate_owned_handle(
+                        "HPy_Dup(ctx, ctx->h_None)")
+                    writer._local_values["item"] = slot_cname
+                    invoke = lambda: writer.generate_sequence_for_loop(
+                        _OwnedNoneExpression(),
+                        "item",
+                        [_CorruptLoopStackStatement()],
+                        None,
+                    )
+                else:
+                    slot_cname = writer.allocate_owned_handle(
+                        "HPy_Dup(ctx, ctx->h_None)")
+                    writer._local_values["item"] = slot_cname
+                    invoke = lambda: writer.generate_for_from_loop(
+                        ExprNodes.IntNode(None, value="0"),
+                        "<=",
+                        "<",
+                        ExprNodes.IntNode(None, value="1"),
+                        None,
+                        "item",
+                        [_CorruptLoopStackStatement()],
+                        None,
+                    )
+                with self.assertRaisesRegex(
+                    AssertionError, "loop stack changed"
+                ):
+                    invoke()
+
+    def test_closure_and_extension_helper_edge_paths_are_rendered(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        module_writer = UniversalHPyModuleWriter(
+            SimpleNamespace(pos=None), runtime_api)
+
+        inner_node = ExprNodes.InnerFunctionNode(None)
+        inner_def = SimpleNamespace(
+            body=Nodes.StatListNode(
+                None, stats=[Nodes.ReturnStatNode(
+                    None, value=_OwnedNoneExpression())]),
+            name="inner",
+            args=[],
+            pos=None,
+        )
+        inner_def._hpy_bootstrap_statement_terminates = lambda stat: True
+        env_spec = _ClosureEnvSpec(0, object(), ())
+        fn_spec = _ClosureFnSpec(0, inner_def, inner_node, env_spec)
+        registry = _ClosureRegistry((env_spec,), (fn_spec,))
+
+        inner_def.hpy_bootstrap_signature = (
+            lambda writer: RuntimeMethodSignature.VARARGS_KEYWORDS)
+        call_lines = module_writer._render_closure_fn_call_impl(
+            fn_spec, registry)
+        self.assertIn(
+            "static HPy __pyx_hpy_closure_fn_0_tp_call_impl",
+            "\n".join(call_lines),
+        )
+
+        inner_def.hpy_bootstrap_signature = lambda writer: object()
+        with self.assertRaisesRegex(
+            CompileError, "unsupported nested def signature"
+        ):
+            module_writer._render_closure_fn_call_impl(fn_spec, registry)
+
+        empty_def = SimpleNamespace(
+            body=Nodes.StatListNode(None, stats=[]),
+            name="empty",
+            args=[],
+            pos=None,
+        )
+        empty_def._hpy_bootstrap_statement_terminates = lambda stat: False
+        empty_spec = _ClosureFnSpec(1, empty_def, inner_node, env_spec)
+        with self.assertRaisesRegex(
+            CompileError, "body must end with a return"
+        ):
+            module_writer._render_closure_fn_call_impl(empty_spec, registry)
+
+        duplicate_env = _ClosureEnvSpec(0, object(), ())
+        declaration_lines, _ = module_writer._render_closure_declarations(
+            _ClosureRegistry((env_spec, duplicate_env), ()), "module")
+        self.assertTrue(declaration_lines)
+
+        capture_entry = SimpleNamespace(
+            name="captured",
+            cname="captured",
+            type=SimpleNamespace(is_pyobject=True),
+        )
+        closure_entry_one = SimpleNamespace(
+            from_closure=True, outer_entry=capture_entry)
+        closure_entry_two = SimpleNamespace(
+            from_closure=True, outer_entry=capture_entry)
+        scope = SimpleNamespace(entries={
+            "first": closure_entry_one,
+            "second": closure_entry_two,
+        })
+        captures = module_writer._collect_captures(SimpleNamespace(
+            local_scope=SimpleNamespace(
+                iter_local_scopes=lambda: [scope]),
+            pos=None,
+        ))
+        self.assertEqual(len(captures), 1)
+
+        with self.assertRaisesRegex(
+            AssertionError, "unknown custom extension field storage"
+        ):
+            module_writer._render_extension_custom_field_definition(
+                "field_definition",
+                "field",
+                "Object",
+                "field",
+                "unsupported",
+                False,
+            )
+
+        default_registry = _HPyDefaultRegistry()
+        argument = SimpleNamespace(
+            default=ExprNodes.IntNode(None, value="5"))
+        attribute = default_registry.register_argument(argument)
+        self.assertIs(
+            list(default_registry.entries())[0][1],
+            argument.default,
+        )
+        self.assertEqual(
+            default_registry.attribute_for_argument(argument), attribute)
+
+    def test_extension_helper_success_variants_and_property_shapes(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        module_writer = UniversalHPyModuleWriter(
+            SimpleNamespace(pos=None), runtime_api)
+
+        argument = SimpleNamespace(entry=SimpleNamespace(name="self"))
+        none_return = Nodes.ReturnStatNode(
+            None, value=ExprNodes.NoneNode(None))
+        method = SimpleNamespace(
+            return_type_annotation=None,
+            body=Nodes.StatListNode(None, stats=[none_return]),
+            name="__del__",
+            args=[argument],
+            pos=None,
+        )
+        finalize = module_writer._render_extension_finalize_slot(
+            method, "finalize_slot", {})
+        self.assertIn("return;", "\n".join(finalize))
+
+        annotated_finalize = SimpleNamespace(
+            return_type_annotation=object(),
+            body=Nodes.StatListNode(None, stats=[]),
+            name="__del__",
+            args=[argument],
+            pos=None,
+        )
+        with self.assertRaisesRegex(CompileError, "return annotations"):
+            module_writer._render_extension_finalize_slot(
+                annotated_finalize, "finalize_slot", {})
+
+        status_method = SimpleNamespace(
+            return_type_annotation=None,
+            body=Nodes.StatListNode(None, stats=[none_return]),
+            name="__delete__",
+            args=[argument],
+            pos=None,
+        )
+        status = module_writer._render_extension_status_helper(
+            status_method, "delete_helper", ("self",), {})
+        self.assertIn("return 0;", "\n".join(status))
+
+        init_method = SimpleNamespace(
+            body=Nodes.StatListNode(None, stats=[none_return]),
+            name="__cinit__",
+            args=[argument],
+            pos=None,
+        )
+        initializer = module_writer._render_extension_initializer(
+            init_method, "initializer_slot", {})
+        rendered_initializer = "\n".join(initializer)
+        self.assertIn("(void)args;", rendered_initializer)
+        self.assertIn("return 0;", rendered_initializer)
+
+        plain_body = SimpleNamespace()
+        extension_type = SimpleNamespace(body=plain_body)
+        self.assertEqual(
+            UniversalHPyModuleWriter._extension_type_methods(extension_type),
+            [],
+        )
+
+        scope = SimpleNamespace(var_entries=[])
+        property_node = Nodes.PropertyNode(
+            None,
+            name="property",
+            body=plain_body,
+        )
+        extension_type = SimpleNamespace(
+            body=property_node,
+            entry=SimpleNamespace(type=SimpleNamespace(scope=scope)),
+        )
+        properties = UniversalHPyModuleWriter._extension_type_properties(
+            extension_type)
+        self.assertEqual(properties, [(property_node, {})])
+
+    def test_nested_definition_success_assignment_and_directive_unwrap(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        module_writer = UniversalHPyModuleWriter(
+            SimpleNamespace(pos=None), runtime_api)
+        inner_def = SimpleNamespace(pos=None)
+        inner_node = ExprNodes.InnerFunctionNode(None)
+        inner_node.def_node = inner_def
+        assignment = Nodes.SingleAssignmentNode(
+            None,
+            lhs=SimpleNamespace(name="inner"),
+            rhs=inner_node,
+        )
+        outer = SimpleNamespace(
+            body=Nodes.StatListNode(None, stats=[assignment]))
+        self.assertEqual(
+            list(module_writer._iter_nested_defs(outer)),
+            [(inner_def, inner_node)],
+        )
+
+        def_node = Nodes.DefNode(
+            None,
+            name="inner",
+            args=[],
+            body=Nodes.StatListNode(None, stats=[]),
+        )
+        directive = Nodes.CompilerDirectivesNode(
+            None, body=def_node, directives={})
+        self.assertIs(
+            module_writer._unwrap_nested_def_stat(directive),
+            def_node,
+        )
+
+    def test_inherited_field_layout_is_reused_by_extension_declarations(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        module_writer = UniversalHPyModuleWriter(
+            SimpleNamespace(pos=None), runtime_api)
+
+        base_field = SimpleNamespace(
+            name="value",
+            cname="value",
+            type=PyrexTypes.c_int_type,
+            visibility="private",
+            is_inherited=False,
+        )
+        base_scope = SimpleNamespace(
+            var_entries=[base_field],
+            lookup_here=lambda name: base_field if name == "value" else None,
+        )
+        base_type = SimpleNamespace(
+            scope=base_scope,
+            is_final_type=False,
+        )
+        base_extension = SimpleNamespace(
+            class_name="Base",
+            body=Nodes.StatListNode(None, stats=[]),
+            entry=SimpleNamespace(type=base_type),
+            base_type=None,
+        )
+
+        inherited_field = SimpleNamespace(
+            name="value",
+            cname="value",
+            type=PyrexTypes.c_int_type,
+            visibility="private",
+            is_inherited=True,
+        )
+        derived_scope = SimpleNamespace(
+            var_entries=[inherited_field],
+            lookup_here=lambda name: inherited_field,
+        )
+        derived_type = SimpleNamespace(
+            scope=derived_scope,
+            is_final_type=False,
+        )
+        derived_extension = SimpleNamespace(
+            class_name="Derived",
+            body=Nodes.StatListNode(None, stats=[]),
+            entry=SimpleNamespace(type=derived_type),
+            base_type=base_type,
+        )
+
+        declarations = module_writer._render_extension_type_declarations(
+            [base_extension, derived_extension], "module")
+        lines, *_, field_layouts = declarations
+        self.assertIn(
+            "__pyx_hpy_type_Base_object __pyx_hpy_base;",
+            "\n".join(lines),
+        )
+        self.assertEqual(
+            field_layouts[id(derived_extension)][id(inherited_field)],
+            field_layouts[id(base_extension)][id(base_field)],
+        )
+
+    def test_recursive_comparison_closure_env_and_nogil_wrappers(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        comparison_writer = UniversalHPyFunctionWriter(runtime_api)
+        result_cname = comparison_writer.allocate_owned_handle("HPy_NULL")
+        current_cname = comparison_writer.allocate_owned_handle(
+            "HPy_Dup(ctx, ctx->h_None)")
+        tail = SimpleNamespace(
+            operand2=_OwnedNoneExpression(),
+            operator="==",
+            cascade=None,
+            pos=None,
+        )
+        head = SimpleNamespace(
+            operand2=_OwnedNoneExpression(),
+            operator="==",
+            cascade=tail,
+            pos=None,
+        )
+        comparison_writer._generate_cascaded_comparison_tail(
+            result_cname, current_cname, head)
+        comparison_writer.close_owned_handle(current_cname, null_safe=True)
+        comparison_writer.close_owned_handle(result_cname, null_safe=True)
+        comparison_writer.assert_function_exit()
+
+        capture = _ClosureCapture(
+            "missing",
+            SimpleNamespace(),
+            "__pyx_hpy_capture_missing",
+        )
+        env_spec = _ClosureEnvSpec(0, object(), (capture,))
+        closure_writer = UniversalHPyFunctionWriter(
+            runtime_api,
+            module_cname="m",
+            closure_registry=_ClosureRegistry((env_spec,), ()),
+        )
+        closure_writer.allocate_closure_env_and_store_captures(
+            env_spec.outer_def)
+        closure_writer._close_remaining_owned_handles()
+        closure_writer.assert_function_exit()
+
+        function_type = SimpleNamespace(
+            nogil=True,
+            exception_value=None,
+            exception_check=False,
+        )
+        entry = SimpleNamespace(
+            ahpy_universal_external_c_scalar_kind="signed-int",
+            type=function_type,
+            cname="tick",
+        )
+        call = ExprNodes.SimpleCallNode(
+            None,
+            function=SimpleNamespace(entry=entry),
+            args=[],
+        )
+        wrapped_call = ExprNodes.CoerceToTempNode.__new__(
+            ExprNodes.CoerceToTempNode)
+        wrapped_call.arg = call
+        statement = Nodes.ExprStatNode(None, expr=wrapped_call)
+        nogil_writer = UniversalHPyFunctionWriter(runtime_api)
+        nogil_writer.generate_nogil_external_c_block(SimpleNamespace(
+            state="nogil",
+            condition=None,
+            body=Nodes.StatListNode(None, stats=[statement]),
+            pos=None,
+        ))
+        nogil_writer.assert_function_exit()
+        self.assertIn("(void)tick();", "\n".join(nogil_writer.lines))
 
 
 class UniversalHPyModuleWriterTest(TestCase):
@@ -1629,6 +4382,16 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertIn("HPyFloat_FromDouble(ctx, ahpy_ratio())", generated)
         self.assertIn("ahpy_ready() ? ctx->h_True : ctx->h_False", generated)
         self.assertNotIn("Python.h", generated)
+
+    def test_system_style_external_header_is_emitted_with_angle_brackets(self):
+        result, generated, diagnostics = self.compile_source(
+            "cdef extern from \"<math.h>\":\n"
+            "    double fabs(double value)\n\n"
+            "def absolute(value):\n"
+            "    return fabs(value)\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn("#include <math.h>", generated)
 
     def test_external_c_scalar_arguments_use_checked_hpy_conversions(self):
         result, generated, diagnostics = self.compile_source(

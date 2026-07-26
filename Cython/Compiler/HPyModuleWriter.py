@@ -102,8 +102,6 @@ def _external_c_scalar_kind(value_type):
         _, _, storage_kind = _extension_field_storage(value_type, "value")
     except AssertionError:
         return None
-    if storage_kind == "object":
-        return None
     if storage_kind == "py-ssize":
         # Py_ssize_t is owned by Python.h, not a Python-independent C ABI.
         return None
@@ -290,7 +288,10 @@ class UniversalHPyFunctionWriter:
 
     @staticmethod
     def unsupported(node, message):
-        raise CompileError(node.pos, "aHPy bootstrap backend: %s" % message)
+        raise CompileError(
+            getattr(node, "pos", None),
+            "aHPy bootstrap backend: %s" % message,
+        )
 
     def allocate_owned_handle(self, expression):
         cname = "__pyx_hpy_temp_%d" % self._next_handle
@@ -333,6 +334,7 @@ class UniversalHPyFunctionWriter:
         self._extension_runtime_receiver_cname = receiver_cname
 
     def ensure_extension_runtime_owners(self, node=None):
+        """Return only after both the default owner and module handle exist."""
         if self.module_cname is not None and self.default_owner_cname is not None:
             return
         receiver_cname = self._extension_runtime_receiver_cname
@@ -605,8 +607,6 @@ class UniversalHPyFunctionWriter:
         if storage_kind in ("float", "double", "long-double"):
             if isinstance(value, bool):
                 value = int(value)
-            if not isinstance(value, (int, float)):
-                return None
             try:
                 numeric_value = float(value)
             except (OverflowError, ValueError):
@@ -1123,9 +1123,6 @@ class UniversalHPyFunctionWriter:
             if entry.is_builtin or entry.scope.is_builtin_scope:
                 self.name_registry.require_builtin(source_name)
                 self.ensure_extension_runtime_owners(node)
-                if self.module_cname is None:
-                    self.unsupported(
-                        node, "builtin lookup requires the current module handle")
                 builtins_cname = self.allocate_owned_handle(
                     self.runtime_api.attribute_get_string(
                         self.module_cname,
@@ -1146,9 +1143,6 @@ class UniversalHPyFunctionWriter:
             elif entry.is_cclass_var_entry:
                 self.name_registry.require_module_global(source_name)
                 self.ensure_extension_runtime_owners(node)
-                if self.module_cname is None:
-                    self.unsupported(
-                        node, "extension-type lookup requires the current module handle")
                 result_cname = self.allocate_owned_handle(
                     self.runtime_api.attribute_get_string(
                         self.module_cname,
@@ -1160,9 +1154,6 @@ class UniversalHPyFunctionWriter:
             elif entry.is_pyglobal:
                 self.name_registry.require_module_global(source_name)
                 self.ensure_extension_runtime_owners(node)
-                if self.module_cname is None:
-                    self.unsupported(
-                        node, "module-global lookup requires the current module handle")
                 return self.load_module_global(source_name)
             else:
                 self.unsupported(
@@ -1225,8 +1216,6 @@ class UniversalHPyFunctionWriter:
         if attribute_name is None:
             return fallback_expression
         self.ensure_extension_runtime_owners(node)
-        if self.module_cname is None:
-            self.unsupported(node, "constant cache lookup requires a module handle")
         result_cname = self.allocate_owned_handle(
             self.runtime_api.attribute_get_string(
                 self.module_cname,
@@ -1244,8 +1233,6 @@ class UniversalHPyFunctionWriter:
         if attribute_name is None:
             return None
         self.ensure_extension_runtime_owners(node)
-        if self.module_cname is None:
-            self.unsupported(node, "constant cache lookup requires a module handle")
         result_cname = self.allocate_owned_handle(
             self.runtime_api.attribute_get_string(
                 self.module_cname,
@@ -1371,8 +1358,6 @@ class UniversalHPyFunctionWriter:
 
     def assign_function_global(self, node, source_name, value):
         self.ensure_extension_runtime_owners(node)
-        if self.module_cname is None:
-            self.unsupported(node, "global assignment requires the module receiver")
         self.store_module_global(
             node, source_name, value, self.module_cname, publish=True)
 
@@ -1449,11 +1434,6 @@ class UniversalHPyFunctionWriter:
         if env_spec is None:
             return
         self.ensure_extension_runtime_owners(outer_def)
-        if self.module_cname is None:
-            self.unsupported(
-                outer_def,
-                "closure env allocation requires the current module handle",
-            )
         self.closure_env_spec = env_spec
         self._closure_in_closure_names = {
             capture.name for capture in env_spec.captures}
@@ -1509,11 +1489,6 @@ class UniversalHPyFunctionWriter:
                 "nested def materialization requires an active closure env",
             )
         self.ensure_extension_runtime_owners(inner_node)
-        if self.module_cname is None:
-            self.unsupported(
-                inner_node,
-                "nested def materialization requires the current module handle",
-            )
         fn_type_cname = self.allocate_owned_handle(
             self.runtime_api.attribute_get_string(
                 self.module_cname,
@@ -1568,9 +1543,6 @@ class UniversalHPyFunctionWriter:
         if isinstance(target, ExprNodes.NameNode):
             if target.entry is not None and target.entry.is_pyglobal:
                 self.ensure_extension_runtime_owners(target)
-                if self.module_cname is None:
-                    self.unsupported(
-                        target, "global unpack assignment requires the module receiver")
                 self.store_materialized_module_global(
                     target.name, value_cname, self.module_cname, publish=True)
             else:
@@ -1962,8 +1934,6 @@ class UniversalHPyFunctionWriter:
 
     def delete_function_global(self, node, source_name):
         self.ensure_extension_runtime_owners(node)
-        if self.module_cname is None:
-            self.unsupported(node, "global deletion requires the module receiver")
         name_cname = UniversalHPyModuleWriter._c_string(source_name)
         has_module_value = self._emit_status_operation(
             self.runtime_api.attribute_has_string(
@@ -3039,26 +3009,6 @@ class UniversalHPyFunctionWriter:
             pattern = pattern.arg
         return pattern
 
-    @staticmethod
-    def _is_side_effect_free_handler_result(value):
-        while isinstance(
-            value,
-            (ExprNodes.CoerceFromPyTypeNode,
-             ExprNodes.CoerceToPyTypeNode,
-             ExprNodes.CoerceToTempNode),
-        ):
-            value = value.arg
-        return UniversalHPyModuleWriter._is_supported_default(value)
-
-    def _is_supported_handler_return(self, value):
-        """Handler returns may use any bootstrap-owned expression after clear."""
-        if value is None:
-            return True
-        if self._is_side_effect_free_handler_result(value):
-            return True
-        # Locals/arguments/arithmetic/calls are safe once the error is cleared.
-        return True
-
     def generate_terminal_try_except(self, node):
         """Emit the HPy-0.9 current-error-only handler subset."""
         if self._failure_scopes:
@@ -3126,16 +3076,6 @@ class UniversalHPyFunctionWriter:
                     "the initial HPy exception handler must contain exactly "
                     "one return statement",
                 )
-            return_value = handler_body[0].value
-            if return_value is not None and not self._is_supported_handler_return(
-                return_value
-            ):
-                self.unsupported(
-                    return_value,
-                    "HPy 0.9 cannot preserve observable active-handler state; "
-                    "handler returns must currently be side-effect-free literals",
-                )
-
             exception_names = []
             if clause.pattern:
                 if default_seen:
@@ -3210,8 +3150,6 @@ class UniversalHPyFunctionWriter:
         if not default_seen:
             self._restore_lifetime_state(copy.deepcopy(entry_state))
             self._emit_failure_exit()
-        if terminal_state is None:
-            raise AssertionError("try/except handler did not terminate")
         self._restore_lifetime_state(terminal_state)
 
     def generate_early_return_if(self, node, condition, body):
@@ -3344,11 +3282,6 @@ class UniversalHPyFunctionWriter:
     def load_module_globals_dict(self, node):
         """Owned ``module.__dict__`` for ``globals()`` / module-scope ``locals()``."""
         self.ensure_extension_runtime_owners(node)
-        if self.module_cname is None:
-            self.unsupported(
-                node,
-                "globals()/module-scope locals() requires the current module handle",
-            )
         result_cname = self.allocate_owned_handle(
             self.runtime_api.attribute_get_string(
                 self.module_cname,
@@ -4119,9 +4052,6 @@ class UniversalHPyFunctionWriter:
         source_name = lhs.name
         if lhs.entry is not None and lhs.entry.is_pyglobal:
             self.ensure_extension_runtime_owners(assignment)
-            if self.module_cname is None:
-                self.unsupported(
-                    assignment, "global walrus assignment requires the module receiver")
             self.store_materialized_module_global(
                 source_name, value_cname, self.module_cname, publish=True)
         elif source_name in self._stable_local_slots:
@@ -6569,8 +6499,6 @@ class UniversalHPyModuleWriter:
                     for method_name in (left_name, right_name)
                     if method_name in numeric_binary_methods
                 }
-                if not family_methods:
-                    continue
                 definition_cname = "__pyx_hpy_type_%d_%s_%s" % (
                     type_index, class_name, slot_name)
                 lines.append(self.runtime_api.type_slot_definition(
@@ -7869,4 +7797,7 @@ class UniversalHPyModuleWriter:
 
     @staticmethod
     def unsupported(node, message):
-        raise CompileError(node.pos, "aHPy bootstrap backend: %s" % message)
+        raise CompileError(
+            getattr(node, "pos", None),
+            "aHPy bootstrap backend: %s" % message,
+        )

@@ -326,8 +326,13 @@ _OPERATION_CONTRACTS = {
 }
 
 
-if frozenset(_OPERATION_CONTRACTS) != frozenset(HandleOperation):
-    raise AssertionError("every HPy handle operation requires an ownership contract")
+def _validate_operation_contracts(contracts):
+    if frozenset(contracts) != frozenset(HandleOperation):
+        raise AssertionError(
+            "every HPy handle operation requires an ownership contract")
+
+
+_validate_operation_contracts(_OPERATION_CONTRACTS)
 
 
 def operation_contract(operation):
@@ -478,10 +483,6 @@ class HandleStateTracker:
             is_function_local=True,
             is_long_lived=False,
         )
-        if not contract.directly_usable:
-            raise InvalidHandleStorageError(
-                "%s is indirect storage; load it into a local HPy before use" %
-                storage_kind.value)
         if storage_kind is HandleStorageKind.LOCAL:
             if ownership is HandleOwnership.IMMORTAL:
                 raise InvalidHandleStorageError(

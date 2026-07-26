@@ -30,6 +30,9 @@ from ..RuntimeAPI import (
     RuntimeNameLookup,
     RuntimeNameLookupKind,
     RuntimeOperationGroup,
+    RuntimePrimitiveConversion,
+    RuntimeSequenceBuilder,
+    RuntimeSequenceFromArray,
     RuntimeSequenceKind,
     RuntimeTypeSpecificationKind,
     RuntimeUnaryOperation,
@@ -754,6 +757,42 @@ class RuntimeAPITest(TestCase):
             self.assertIsNone(runtime_api.require_capability(capability))
         self.assertIsNone(runtime_api.ensure_compilation_ready())
 
+    def test_cpython_hpy_argument_tracker_operations_fail_explicitly(self):
+        runtime_api = create_runtime_api(CPYTHON_BACKEND)
+        operations = (
+            (
+                RuntimeCapability.MODULE_DEFINITIONS,
+                runtime_api.argument_tracker_type_cname,
+                (),
+            ),
+            (
+                RuntimeCapability.MODULE_DEFINITIONS,
+                runtime_api.parse_keyword_arguments,
+                (
+                    "tracker", "args", "nargs", "kwnames", '"O:f"',
+                    "keywords", ("value",),
+                ),
+            ),
+            (
+                RuntimeCapability.TYPE_DEFINITIONS,
+                runtime_api.parse_keyword_dictionary,
+                (
+                    "tracker", "args", "nargs", "kwargs", '"O:f"',
+                    "keywords", ("value",),
+                ),
+            ),
+            (
+                RuntimeCapability.OBJECT_LIFETIME,
+                runtime_api.close_argument_tracker,
+                ("tracker",),
+            ),
+        )
+        for capability, operation, arguments in operations:
+            with self.subTest(operation=operation.__name__):
+                with self.assertRaises(RuntimeCapabilityError) as raised:
+                    operation(*arguments)
+                self.assertIs(raised.exception.capability, capability)
+
     def test_cpython_untyped_reference_operations_preserve_spelling(self):
         runtime_api = create_runtime_api(CPYTHON_BACKEND)
         self.assertEqual(runtime_api.duplicate_reference("value"), "Py_INCREF(value);")
@@ -772,6 +811,147 @@ class RuntimeAPITest(TestCase):
             runtime_api.error_occurred(use_utility_code=True),
             "__Pyx_PyErr_Occurred()",
         )
+
+    def test_cpython_object_and_mutation_operations_preserve_spelling(self):
+        runtime_api = create_runtime_api(CPYTHON_BACKEND)
+        expected_calls = (
+            (runtime_api.length, ("value",), "PyObject_Length(value)"),
+            (
+                runtime_api.item_get_index,
+                ("value", "index"),
+                "PySequence_GetItem(value, index)",
+            ),
+            (
+                runtime_api.unicode_as_utf8_and_size,
+                ("value", "size"),
+                "PyUnicode_AsUTF8AndSize(value, &size)",
+            ),
+            (runtime_api.truth_test, ("value",), "PyObject_IsTrue(value)"),
+            (runtime_api.object_str, ("value",), "PyObject_Str(value)"),
+            (runtime_api.object_repr, ("value",), "PyObject_Repr(value)"),
+            (runtime_api.object_ascii, ("value",), "PyObject_ASCII(value)"),
+            (
+                runtime_api.contains,
+                ("container", "key"),
+                "PySequence_Contains(container, key)",
+            ),
+            (
+                runtime_api.item_set,
+                ("receiver", "key", "value"),
+                "PyObject_SetItem(receiver, key, value)",
+            ),
+            (
+                runtime_api.item_delete,
+                ("receiver", "key"),
+                "PyObject_DelItem(receiver, key)",
+            ),
+            (
+                runtime_api.attribute_set_string,
+                ("receiver", '"name"', "value"),
+                'PyObject_SetAttrString(receiver, "name", value)',
+            ),
+            (
+                runtime_api.attribute_delete_string,
+                ("receiver", '"name"'),
+                'PyObject_DelAttrString(receiver, "name")',
+            ),
+        )
+        for operation, arguments, expected in expected_calls:
+            with self.subTest(operation=operation.__name__):
+                self.assertEqual(operation(*arguments), expected)
+
+    def test_cpython_operator_contract_covers_every_enum(self):
+        runtime_api = create_runtime_api(CPYTHON_BACKEND)
+        binary_functions = {
+            RuntimeBinaryOperation.ADD: "PyNumber_Add",
+            RuntimeBinaryOperation.SUBTRACT: "PyNumber_Subtract",
+            RuntimeBinaryOperation.MULTIPLY: "PyNumber_Multiply",
+            RuntimeBinaryOperation.MATRIX_MULTIPLY: "PyNumber_MatrixMultiply",
+            RuntimeBinaryOperation.TRUE_DIVIDE: "PyNumber_TrueDivide",
+            RuntimeBinaryOperation.FLOOR_DIVIDE: "PyNumber_FloorDivide",
+            RuntimeBinaryOperation.REMAINDER: "PyNumber_Remainder",
+            RuntimeBinaryOperation.LEFT_SHIFT: "PyNumber_Lshift",
+            RuntimeBinaryOperation.RIGHT_SHIFT: "PyNumber_Rshift",
+            RuntimeBinaryOperation.BITWISE_AND: "PyNumber_And",
+            RuntimeBinaryOperation.BITWISE_XOR: "PyNumber_Xor",
+            RuntimeBinaryOperation.BITWISE_OR: "PyNumber_Or",
+        }
+        for operation in RuntimeBinaryOperation:
+            with self.subTest(binary=operation):
+                expected = (
+                    "PyNumber_Power(left, right, Py_None)"
+                    if operation is RuntimeBinaryOperation.POWER
+                    else "%s(left, right)" % binary_functions[operation]
+                )
+                self.assertEqual(
+                    runtime_api.binary_operation(operation, "left", "right"),
+                    expected,
+                )
+
+        unary_functions = {
+            RuntimeUnaryOperation.POSITIVE: "PyNumber_Positive",
+            RuntimeUnaryOperation.NEGATIVE: "PyNumber_Negative",
+            RuntimeUnaryOperation.INVERT: "PyNumber_Invert",
+        }
+        for operation, function in unary_functions.items():
+            with self.subTest(unary=operation):
+                self.assertEqual(
+                    runtime_api.unary_operation(operation, "operand"),
+                    "%s(operand)" % function,
+                )
+
+        inplace_functions = {
+            RuntimeInPlaceOperation.ADD: "PyNumber_InPlaceAdd",
+            RuntimeInPlaceOperation.SUBTRACT: "PyNumber_InPlaceSubtract",
+            RuntimeInPlaceOperation.MULTIPLY: "PyNumber_InPlaceMultiply",
+            RuntimeInPlaceOperation.MATRIX_MULTIPLY:
+                "PyNumber_InPlaceMatrixMultiply",
+            RuntimeInPlaceOperation.TRUE_DIVIDE: "PyNumber_InPlaceTrueDivide",
+            RuntimeInPlaceOperation.FLOOR_DIVIDE: "PyNumber_InPlaceFloorDivide",
+            RuntimeInPlaceOperation.REMAINDER: "PyNumber_InPlaceRemainder",
+            RuntimeInPlaceOperation.LEFT_SHIFT: "PyNumber_InPlaceLshift",
+            RuntimeInPlaceOperation.RIGHT_SHIFT: "PyNumber_InPlaceRshift",
+            RuntimeInPlaceOperation.BITWISE_AND: "PyNumber_InPlaceAnd",
+            RuntimeInPlaceOperation.BITWISE_XOR: "PyNumber_InPlaceXor",
+            RuntimeInPlaceOperation.BITWISE_OR: "PyNumber_InPlaceOr",
+        }
+        for operation in RuntimeInPlaceOperation:
+            with self.subTest(inplace=operation):
+                expected = (
+                    "PyNumber_InPlacePower(left, right, Py_None)"
+                    if operation is RuntimeInPlaceOperation.POWER
+                    else "%s(left, right)" % inplace_functions[operation]
+                )
+                self.assertEqual(
+                    runtime_api.inplace_operation(operation, "left", "right"),
+                    expected,
+                )
+
+        comparison_operators = {
+            RuntimeComparisonOperation.LESS_THAN: "Py_LT",
+            RuntimeComparisonOperation.LESS_EQUAL: "Py_LE",
+            RuntimeComparisonOperation.EQUAL: "Py_EQ",
+            RuntimeComparisonOperation.NOT_EQUAL: "Py_NE",
+            RuntimeComparisonOperation.GREATER_THAN: "Py_GT",
+            RuntimeComparisonOperation.GREATER_EQUAL: "Py_GE",
+        }
+        for operation, operator in comparison_operators.items():
+            with self.subTest(comparison=operation):
+                self.assertEqual(
+                    runtime_api.rich_compare(operation, "left", "right"),
+                    "PyObject_RichCompare(left, right, %s)" % operator,
+                )
+
+        invalid_calls = (
+            (runtime_api.binary_operation, ("invalid", "left", "right")),
+            (runtime_api.unary_operation, ("invalid", "operand")),
+            (runtime_api.inplace_operation, ("invalid", "left", "right")),
+            (runtime_api.rich_compare, ("invalid", "left", "right")),
+        )
+        for operation, arguments in invalid_calls:
+            with self.subTest(invalid=operation.__name__):
+                with self.assertRaisesRegex(TypeError, "expected Runtime"):
+                    operation(*arguments)
 
     def test_cpython_call_operations_preserve_spelling(self):
         runtime_api = create_runtime_api(CPYTHON_BACKEND)
@@ -795,6 +975,15 @@ class RuntimeAPITest(TestCase):
         self.assertEqual(
             runtime_api.call_method_no_args("obj", "name"),
             "__Pyx_PyObject_CallMethod0(obj, name)",
+        )
+        self.assertEqual(
+            runtime_api.call_positional_array("func", "args", "nargs"),
+            "__Pyx_PyObject_FastCall(func, args, nargs)",
+        )
+        self.assertEqual(
+            runtime_api.call_array_with_keyword_names(
+                "func", "args", "nargs", "kwnames"),
+            "__Pyx_Object_VectorcallKwds(func, args, nargs, kwnames)",
         )
 
     def test_cpython_array_call_layouts_preserve_spelling(self):
@@ -949,6 +1138,52 @@ class RuntimeAPITest(TestCase):
         with self.assertRaises(RuntimeCapabilityError):
             hpy.sequence_pack(RuntimeSequenceKind.LIST, [], "ctx")
 
+    def test_sequence_contracts_reject_foreign_or_malformed_values(self):
+        cpython = create_runtime_api(CPYTHON_BACKEND)
+        hpy = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        with self.assertRaisesRegex(TypeError, "RuntimeSequenceKind"):
+            cpython.sequence_builder("list")
+        with self.assertRaisesRegex(TypeError, "RuntimeSequenceKind"):
+            hpy.sequence_builder("list")
+        with self.assertRaisesRegex(TypeError, "RuntimeSequenceKind"):
+            cpython.sequence_pack("tuple", [])
+        with self.assertRaises(RuntimeCapabilityError):
+            cpython.sequence_pack(RuntimeSequenceKind.LIST, [])
+
+        for runtime_api, context in ((cpython, ""), (hpy, "ctx")):
+            valid_builder = runtime_api.sequence_builder(
+                RuntimeSequenceKind.TUPLE)
+            foreign_builder = RuntimeSequenceBuilder(
+                kind=valid_builder.kind,
+                builder_type_cname="foreign_builder",
+                result_type_cname=valid_builder.result_type_cname,
+                uses_separate_builder=valid_builder.uses_separate_builder,
+                set_item_steals_reference=valid_builder.set_item_steals_reference,
+                creation_reports_error=valid_builder.creation_reports_error,
+                supports_from_array=valid_builder.supports_from_array,
+            )
+            with self.subTest(runtime=runtime_api.name, malformed="type"):
+                with self.assertRaisesRegex(TypeError, "RuntimeSequenceBuilder"):
+                    runtime_api.sequence_builder_new(
+                        "not-a-builder", "1", context)
+            with self.subTest(runtime=runtime_api.name, malformed="foreign"):
+                with self.assertRaisesRegex(ValueError, "different runtime"):
+                    runtime_api.sequence_builder_new(
+                        foreign_builder, "1", context)
+
+            valid_operation = runtime_api.select_sequence_from_array(
+                RuntimeSequenceKind.TUPLE)
+            foreign_operation = RuntimeSequenceFromArray(
+                kind=valid_operation.kind,
+                function_cname="Foreign_FromArray",
+                utility_code_name=valid_operation.utility_code_name,
+                utility_code_file=valid_operation.utility_code_file,
+            )
+            with self.subTest(runtime=runtime_api.name, malformed="array"):
+                with self.assertRaisesRegex(ValueError, "different runtime"):
+                    runtime_api.sequence_from_array(
+                        foreign_operation, "items", "1", context)
+
     def test_dict_construction_contracts_preserve_cpython_and_model_hpy(self):
         cpython = create_runtime_api(CPYTHON_BACKEND)
         self.assertEqual(cpython.dict_new(), "PyDict_New()")
@@ -997,6 +1232,74 @@ class RuntimeAPITest(TestCase):
             self.assertEqual(conversion.function_cname, "conversion_helper")
             self.assertIs(conversion.type_, type_)
 
+    def test_cpython_conversion_and_reference_delegation_is_complete(self):
+        class RecordingType:
+            def __init__(self):
+                self.calls = []
+
+            def __getattr__(self, name):
+                def record(*args, **kwargs):
+                    self.calls.append((name, args, kwargs))
+                    return name
+                return record
+
+            def _cpython_to_py_call_code(self, *args):
+                self.calls.append(("to_python", args, {}))
+                return "to-python-result"
+
+            def _cpython_from_py_call_code(self, *args):
+                self.calls.append(("from_python", args, {}))
+                return "from-python-result"
+
+        runtime_api = create_runtime_api(CPYTHON_BACKEND)
+        type_ = RecordingType()
+        delegations = (
+            (runtime_api.check_for_null_code, (type_, "value")),
+            (runtime_api.incref_code, (type_, "value")),
+            (runtime_api.xincref_code, (type_, "value")),
+            (runtime_api.decref_code, (type_, "value")),
+            (runtime_api.xdecref_code, (type_, "value")),
+            (runtime_api.decref_clear_code, (type_, "value")),
+            (runtime_api.xdecref_clear_code, (type_, "value")),
+            (runtime_api.decref_set_code, (type_, "value", "rhs")),
+            (runtime_api.xdecref_set_code, (type_, "value", "rhs")),
+        )
+        for operation, arguments in delegations:
+            with self.subTest(operation=operation.__name__):
+                self.assertTrue(operation(*arguments))
+
+        to_python = RuntimePrimitiveConversion(
+            RuntimeConversionDirection.TO_PYTHON,
+            RuntimeConversionKind.CUSTOM,
+            "custom_t",
+            "to_python",
+            type_,
+        )
+        from_python = RuntimePrimitiveConversion(
+            RuntimeConversionDirection.FROM_PYTHON,
+            RuntimeConversionKind.CUSTOM,
+            "custom_t",
+            "from_python",
+            type_,
+        )
+        self.assertEqual(
+            runtime_api.to_python_conversion(
+                to_python, "source", "result", "result_type", "helper"),
+            "to-python-result",
+        )
+        self.assertEqual(
+            runtime_api.from_python_conversion(
+                from_python, "source", "result", ("source", 1, 0),
+                "code", "helper", "error", "none"),
+            "from-python-result",
+        )
+        with self.assertRaisesRegex(ValueError, "to-Python"):
+            runtime_api.to_python_conversion(
+                from_python, "source", "result", "result_type")
+        with self.assertRaisesRegex(ValueError, "from-Python"):
+            runtime_api.from_python_conversion(
+                to_python, "source", "result", None, "code")
+
     def test_hpy_conversion_contract_fails_explicitly_until_ownership_model(self):
         hpy = create_runtime_api(HPY_UNIVERSAL_BACKEND)
         conversion = PyrexTypes.c_double_type.runtime_conversion(
@@ -1008,6 +1311,15 @@ class RuntimeAPITest(TestCase):
                 "result",
                 PyrexTypes.py_object_type,
             )
+        self.assertEqual(
+            raised.exception.capability,
+            RuntimeCapability.VALUE_CONVERSIONS,
+        )
+        from_conversion = PyrexTypes.c_double_type.runtime_conversion(
+            RuntimeConversionDirection.FROM_PYTHON, "PyFloat_AsDouble")
+        with self.assertRaises(RuntimeCapabilityError) as raised:
+            hpy.from_python_conversion(
+                from_conversion, "value", "result", None, "code")
         self.assertEqual(
             raised.exception.capability,
             RuntimeCapability.VALUE_CONVERSIONS,
@@ -1455,6 +1767,8 @@ class RuntimeAPITest(TestCase):
             'HPyDef_METH(method_def, "method", HPyFunc_KEYWORDS)',
         )
         self.assertEqual(
+            runtime_api.method_definition_prefix("method_def"), "")
+        self.assertEqual(
             runtime_api.method_table_declaration("methods"),
             "static HPyDef *methods[] = {",
         )
@@ -1555,6 +1869,11 @@ class RuntimeAPITest(TestCase):
     def test_type_slot_contract_preserves_or_rejects_semantics(self):
         cpython = create_runtime_api(CPYTHON_BACKEND)
         self.assertEqual(
+            cpython.type_slot_definition(
+                "tp_repr", "repr_def", "repr_impl"),
+            "",
+        )
+        self.assertEqual(
             cpython.type_slot_table_entry(
                 "tp_repr", "repr_def", "repr_impl"),
             "{Py_tp_repr, (void *)repr_impl},",
@@ -1579,6 +1898,8 @@ class RuntimeAPITest(TestCase):
             cpython.type_from_spec("Example"),
             "PyType_FromSpec(&Example)",
         )
+        with self.assertRaisesRegex(ValueError, "type slot"):
+            cpython.type_slot_table_entry("", "definition", "implementation")
 
         hpy = create_runtime_api(HPY_UNIVERSAL_BACKEND)
         self.assertEqual(
@@ -1611,6 +1932,126 @@ class RuntimeAPITest(TestCase):
             raised.exception.capability,
             RuntimeCapability.TYPE_DEFINITIONS,
         )
+
+    def test_runtime_contract_validation_errors_are_fail_closed(self):
+        cpython = create_runtime_api(CPYTHON_BACKEND)
+        hpy = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        for runtime_api, context in ((cpython, ""), (hpy, "ctx")):
+            with self.subTest(runtime=runtime_api.name, validation="constant"):
+                with self.assertRaisesRegex(TypeError, "RuntimeContextConstant"):
+                    runtime_api.context_constant("invalid", context)
+            with self.subTest(runtime=runtime_api.name, validation="exception"):
+                with self.assertRaisesRegex(ValueError, "builtin exception"):
+                    runtime_api.builtin_exception("MissingException", context)
+            with self.subTest(runtime=runtime_api.name, validation="method"):
+                with self.assertRaisesRegex(TypeError, "RuntimeMethodDefinition"):
+                    runtime_api.method_definition_declaration(object())
+            with self.subTest(runtime=runtime_api.name, validation="module-slot"):
+                with self.assertRaisesRegex(ValueError, "slot name"):
+                    runtime_api.module_slot_definition("", "implementation")
+            with self.subTest(runtime=runtime_api.name, validation="forward"):
+                with self.assertRaisesRegex(ValueError, "linkage"):
+                    runtime_api.module_definition_forward_declaration(
+                        "moduledef", "private")
+            with self.subTest(runtime=runtime_api.name, validation="definition"):
+                with self.assertRaisesRegex(ValueError, "linkage"):
+                    runtime_api.module_definition_declaration(
+                        "moduledef", "extern")
+            with self.subTest(runtime=runtime_api.name, validation="type-slot"):
+                with self.assertRaisesRegex(ValueError, "type slot"):
+                    runtime_api.type_slot_definition("", "definition", "impl")
+
+        self.assertEqual(
+            cpython.identity_test("left", "right"), "(left == right)")
+        with self.assertRaises(RuntimeCapabilityError):
+            cpython.call_method_array("name", "args", "1")
+        with self.assertRaises(RuntimeCapabilityError):
+            cpython.type_from_spec("spec", "params")
+
+        invalid_signature = RuntimeMethodDefinition(
+            signature="invalid",
+            definition_cname="invalid_def",
+            python_name_cname='"invalid"',
+            implementation_cname="invalid_def_impl",
+            doc_cname="0",
+        )
+        for runtime_api, context in ((cpython, ""), (hpy, "ctx")):
+            with self.subTest(runtime=runtime_api.name, validation="signature"):
+                with self.assertRaisesRegex(ValueError, "supported"):
+                    runtime_api.method_implementation_declaration(
+                        invalid_signature, context)
+
+        with self.assertRaises(RuntimeCapabilityError):
+            hpy.type_slot_definition(
+                "nb_add", "add_def", "wrong_implementation")
+        with self.assertRaisesRegex(
+            RuntimeBackendOptionError, "runtime_backend must be"
+        ):
+            create_runtime_api(42)
+
+        error = RuntimeCapabilityError(
+            "example", "custom-capability", "missing", "rewrite")
+        self.assertEqual(error.capability, "custom-capability")
+        self.assertIn("custom-capability", str(error))
+
+    def test_exception_and_lookup_edge_contracts_are_explicit(self):
+        cpython = create_runtime_api(CPYTHON_BACKEND)
+        hpy = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        with self.assertRaisesRegex(ValueError, "current exception type"):
+            cpython.current_exception_type(use_utility_code=False)
+        with self.assertRaisesRegex(ValueError, "two-pattern"):
+            cpython.exception_matches(
+                "first", second_pattern_cname="second")
+        with self.assertRaisesRegex(ValueError, "builtin lookup"):
+            cpython.name_lookup(
+                RuntimeNameLookup(RuntimeNameLookupKind.BUILTIN),
+                "result", "name", "namespace")
+        with self.assertRaisesRegex(ValueError, "unsupported runtime"):
+            cpython.name_lookup(
+                RuntimeNameLookup("invalid"), "result", "name")
+
+        self.assertEqual(
+            hpy.error_format(
+                "ctx->h_TypeError", '"bad %s"', ("name",), "ctx"),
+            'HPyErr_Format(ctx, ctx->h_TypeError, "bad %s", name)',
+        )
+        with self.assertRaisesRegex(TypeError, "RuntimeNameLookup"):
+            hpy.name_lookup("invalid", "result", "name", context_cname="ctx")
+
+        unsupported_exception_operations = (
+            (hpy.current_exception_type, ()),
+            (hpy.fetch_exception, ()),
+            (hpy.restore_exception, ()),
+            (hpy.raise_exception, ()),
+            (hpy.reraise_exception, ()),
+            (hpy.get_exception, ((),)),
+            (hpy.save_exception, ((),)),
+            (hpy.reset_exception, ((),)),
+            (hpy.swap_exception, ((),)),
+        )
+        for operation, arguments in unsupported_exception_operations:
+            with self.subTest(operation=operation.__name__):
+                with self.assertRaises(RuntimeCapabilityError) as raised:
+                    operation(*arguments)
+                self.assertIs(
+                    raised.exception.capability,
+                    RuntimeCapability.EXCEPTION_STATE,
+                )
+
+    def test_hpy_invalid_numeric_operation_kinds_are_rejected(self):
+        hpy = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        invalid_calls = (
+            (hpy.binary_operation, ("invalid", "left", "right", "ctx")),
+            (hpy.unary_operation, ("invalid", "operand", "ctx")),
+            (hpy.inplace_operation, ("invalid", "left", "right", "ctx")),
+            (hpy.rich_compare, ("invalid", "left", "right", "ctx")),
+        )
+        for operation, arguments in invalid_calls:
+            with self.subTest(operation=operation.__name__):
+                with self.assertRaisesRegex(TypeError, "expected Runtime"):
+                    operation(*arguments)
 
     def test_capability_error_is_actionable(self):
         runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)

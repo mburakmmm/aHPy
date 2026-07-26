@@ -93,15 +93,17 @@ layers. The committed schema-versioned JSON records source ownership, message
 templates, and scanner migration actions; the tool's `--check` mode and the
 unit suite prevent it from becoming stale.
 
-`report_coverage.py` uses Python's line-event tracer and code-object line
-tables, so the focused coverage gate needs no third-party package. It reports
-the Universal backend, touched Cython frontend seam, and aHPy quality tools
-separately, while also running ownership-model, Runtime API, emitter,
-compiler-seam, and quality-tool test families independently. The CI command
-enforces conservative floors of 71%, 25%, and 35% respectively. Generated C,
-native execution, and child-process coverage deliberately remain the
-responsibility of the real HPy, fault-injection, sanitizer, and C/C++ oracle
-gates rather than being misreported as Python line coverage.
+`report_coverage.py` uses Python's line-event tracer, code-object line tables,
+and a source-first import finder, so the focused coverage gate needs no
+third-party package and cannot accidentally trace a stale compiled extension.
+It reports the Universal backend, touched Cython frontend seam, and aHPy
+quality tools separately, while also running ownership-model, Runtime API,
+emitter, compiler-seam, and quality-tool test families independently. Schema 2
+JSON and Markdown output include exact missing lines and compact missing
+ranges. The CI command enforces floors of 100%, 45%, and 41% respectively.
+Generated C, native execution, and child-process coverage deliberately remain
+the responsibility of the real HPy, fault-injection, sanitizer, and C/C++
+oracle gates rather than being misreported as Python line coverage.
 
 `setuptools_integration.py` copies the maintained
 `examples/ahpy_setuptools` sources to a temporary build, calls

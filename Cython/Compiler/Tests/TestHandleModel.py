@@ -15,6 +15,7 @@ from ..RuntimeAPI import (
     create_runtime_api,
 )
 from ..HandleModel import (
+    _validate_operation_contracts,
     HandleArgumentEffect,
     HandleCleanupPlan,
     HandleBuilderManager,
@@ -22,6 +23,7 @@ from ..HandleModel import (
     HandleExitKind,
     HandleModelError,
     HandleOperation,
+    HandleOperationContract,
     HandleOwnership,
     HandleState,
     HandleStateTracker,
@@ -68,6 +70,54 @@ class HandleOperationContractTest(TestCase):
         contracts = [operation_contract(operation) for operation in HandleOperation]
         self.assertEqual(
             {contract.operation for contract in contracts}, set(HandleOperation))
+        with self.assertRaisesRegex(AssertionError, "every HPy handle"):
+            _validate_operation_contracts({})
+        with self.assertRaisesRegex(TypeError, "HandleOperation"):
+            operation_contract("call")
+
+    def test_contract_shape_validation_is_fail_closed(self):
+        valid = {
+            "operation": HandleOperation.CALL,
+            "handle_arguments": (),
+        }
+        invalid_cases = (
+            ({"operation": "call"}, TypeError, "HandleOperation"),
+            (
+                {"argument_effect": "borrow"},
+                TypeError,
+                "HandleArgumentEffect",
+            ),
+            (
+                {"result_ownership": HandleOwnership.OWNED},
+                ValueError,
+                "specified together",
+            ),
+            (
+                {
+                    "result_ownership": "owned",
+                    "result_storage": HandleStorageKind.LOCAL,
+                },
+                TypeError,
+                "HandleOwnership",
+            ),
+            (
+                {
+                    "result_ownership": HandleOwnership.OWNED,
+                    "result_storage": "local",
+                },
+                TypeError,
+                "HandleStorageKind",
+            ),
+            (
+                {"produces_builder": True, "consumes_builder": True},
+                ValueError,
+                "both produce and consume",
+            ),
+        )
+        for overrides, error_type, message in invalid_cases:
+            with self.subTest(overrides=overrides):
+                with self.assertRaisesRegex(error_type, message):
+                    HandleOperationContract(**{**valid, **overrides})
 
     def test_hpy_results_are_owned_local_handles(self):
         result_operations = {
@@ -166,6 +216,18 @@ class ContextPropagationModelTest(TestCase):
         ):
             model.persist_context("helper", "a global variable")
 
+    def test_context_registry_validation_is_explicit(self):
+        model = ContextPropagationModel()
+        with self.assertRaisesRegex(TypeError, "RuntimeFunctionKind"):
+            model.declare_function("bad", "python")
+        model.declare_function("helper", RuntimeFunctionKind.PURE_C)
+        with self.assertRaisesRegex(HandleModelError, "already declared"):
+            model.declare_function("helper", RuntimeFunctionKind.PURE_C)
+        with self.assertRaisesRegex(HandleModelError, "unknown runtime"):
+            model.function("missing")
+        with self.assertRaisesRegex(HandleModelError, "no HPyContext"):
+            model.persist_context("helper", "storage")
+
     def test_function_state_binds_context_from_runtime_contract(self):
         funcstate = _function_state("context")
         hpy = create_runtime_api(HPY_UNIVERSAL_BACKEND)
@@ -206,8 +268,90 @@ class ContextPropagationModelTest(TestCase):
                 is_long_lived=True,
             )
 
+    def test_storage_kind_and_duration_validation_is_explicit(self):
+        with self.assertRaisesRegex(TypeError, "HandleStorageKind"):
+            storage_contract("local")
+        with self.assertRaisesRegex(
+            InvalidHandleStorageError, "declared long-lived"
+        ):
+            validate_storage_declaration(
+                HandleStorageKind.GLOBAL,
+                "HPyGlobal",
+                is_long_lived=False,
+            )
+
 
 class HandleStateTrackerTest(TestCase):
+    def test_registry_and_value_shape_validation_is_explicit(self):
+        state = HandleStateTracker()
+        state.declare_storage("slot", HandleStorageKind.LOCAL)
+        with self.assertRaisesRegex(HandleModelError, "already declared"):
+            state.declare_value(
+                "slot", HandleStorageKind.LOCAL, HandleOwnership.OWNED)
+        with self.assertRaisesRegex(TypeError, "HandleOwnership"):
+            state.declare_value("bad", HandleStorageKind.LOCAL, "owned")
+        with self.assertRaisesRegex(
+            InvalidHandleStorageError, "context constants"
+        ):
+            state.declare_value(
+                "immortal", HandleStorageKind.LOCAL, HandleOwnership.IMMORTAL)
+        with self.assertRaisesRegex(
+            InvalidHandleStorageError, "immortal ownership"
+        ):
+            state.declare_value(
+                "constant", HandleStorageKind.CONTEXT_CONSTANT,
+                HandleOwnership.BORROWED_ARGUMENT)
+        with self.assertRaisesRegex(HandleModelError, "unknown local handle"):
+            state.value("missing")
+        with self.assertRaisesRegex(HandleModelError, "unknown indirect"):
+            state.storage("missing")
+
+    def test_operation_and_storage_validation_paths_are_explicit(self):
+        state = HandleStateTracker()
+        state.declare_value(
+            "value", HandleStorageKind.LOCAL, HandleOwnership.OWNED)
+        with self.assertRaisesRegex(HandleModelError, "exactly one"):
+            state.apply_operation(HandleOperation.CLOSE, ())
+
+        state.declare_storage("local_storage", HandleStorageKind.LOCAL)
+        with self.assertRaisesRegex(
+            InvalidHandleStorageError, "owned-load operation"
+        ):
+            state.load_storage("local_storage", "loaded")
+        with self.assertRaisesRegex(
+            InvalidHandleStorageError, "long-lived store"
+        ):
+            state.store_storage("local_storage", "value")
+        with self.assertRaisesRegex(TypeError, "HandleExitKind"):
+            state.cleanup_plan("return")
+        with self.assertRaisesRegex(TypeError, "HandleCleanupPlan"):
+            state.apply_cleanup_plan("plan")
+        state.close("value")
+
+    def test_merge_rejects_invalid_branch_shapes(self):
+        with self.assertRaisesRegex(HandleModelError, "at least one"):
+            HandleStateTracker.merge()
+        with self.assertRaisesRegex(TypeError, "HandleStateTracker"):
+            HandleStateTracker.merge(HandleStateTracker(), object())
+
+        first = HandleStateTracker()
+        second = HandleStateTracker()
+        second.declare_storage("slot", HandleStorageKind.GLOBAL)
+        with self.assertRaisesRegex(
+            InvalidHandleTransitionError, "storage differs"
+        ):
+            HandleStateTracker.merge(first, second)
+
+        first = HandleStateTracker()
+        second = HandleStateTracker()
+        first.declare_value(
+            "value", HandleStorageKind.LOCAL, HandleOwnership.OWNED)
+        with self.assertRaisesRegex(
+            InvalidHandleTransitionError, "values differ"
+        ):
+            HandleStateTracker.merge(first, second)
+        first.close("value")
+
     def test_operation_contract_creates_owned_result_without_consuming_inputs(self):
         state = HandleStateTracker()
         state.declare_value(
@@ -467,6 +611,15 @@ class HandleStateTrackerTest(TestCase):
 
 
 class HandleTemporaryManagerTest(TestCase):
+    def test_duplicate_and_unknown_temporary_names_are_rejected(self):
+        temps = HandleTemporaryManager()
+        temps.allocate("temp", HandleOwnership.BORROWED_ARGUMENT)
+        with self.assertRaisesRegex(HandleModelError, "already allocated"):
+            temps.allocate("temp", HandleOwnership.OWNED)
+        with self.assertRaisesRegex(HandleModelError, "not allocated"):
+            temps.binding("missing")
+        temps.release("temp")
+
     def test_live_owned_temporary_cannot_be_released(self):
         temps = HandleTemporaryManager()
         temps.allocate("temp", HandleOwnership.OWNED)
@@ -545,6 +698,18 @@ class HandleBuilderManagerTest(TestCase):
         ):
             builders.release("builder")
 
+    def test_duplicate_and_unknown_builder_names_are_rejected(self):
+        builders = HandleBuilderManager()
+        builders.allocate("builder")
+        self.assertTrue(builders.is_active("builder"))
+        with self.assertRaisesRegex(HandleModelError, "already allocated"):
+            builders.allocate("builder")
+        with self.assertRaisesRegex(HandleModelError, "not allocated"):
+            builders.binding("missing")
+        builders.cancel("builder")
+        builders.release("builder")
+        self.assertFalse(builders.is_active("builder"))
+
     def test_build_and_cancel_are_distinct_terminal_states(self):
         builders = HandleBuilderManager()
         built = builders.allocate("builder")
@@ -610,6 +775,20 @@ class HandleTrackerManagerTest(TestCase):
             InvalidHandleTransitionError, "close it first",
         ):
             trackers.release("tracker")
+
+    def test_duplicate_unknown_and_closed_tracker_uses_are_rejected(self):
+        trackers = HandleTrackerManager()
+        trackers.allocate("tracker")
+        with self.assertRaisesRegex(HandleModelError, "already allocated"):
+            trackers.allocate("tracker")
+        with self.assertRaisesRegex(HandleModelError, "not allocated"):
+            trackers.binding("missing")
+        trackers.close("tracker")
+        with self.assertRaisesRegex(
+            InvalidHandleTransitionError, "cannot use closed"
+        ):
+            trackers.use("tracker")
+        trackers.release("tracker")
 
     def test_tracker_close_is_a_terminal_state(self):
         trackers = HandleTrackerManager()
