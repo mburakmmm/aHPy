@@ -33,13 +33,14 @@ optional parameters, and Python exception clauses are intentionally rejected.
 See `docs/ahpy/external-c.md` for the full contract.
 
 The example's `external_nogil_probe()` and argument-bearing
-`external_nogil_advance()` and `external_nogil_ordered()` are the ADR 0010
-transition oracles. Their discarded native calls are declared `noexcept
-nogil`; generated code converts and checks each scalar argument before its
-call's leave/re-enter interval using public HPy 0.9 APIs. The ordered probe
-also proves a later Python conversion remains after the preceding native call.
-This does not enable used native results, callbacks, `prange`, or general
-`nogil`.
+`external_nogil_advance()`, `external_nogil_ordered()`, and
+`external_nogil_result()` are the ADR 0010 transition oracles. Their native
+calls are declared `noexcept nogil`; generated code converts and checks each
+scalar argument before its call's leave/re-enter interval using public HPy 0.9
+APIs. The ordered probe proves a later Python conversion remains after the
+preceding native call, while the result probe boxes its retained scalar only
+after re-entry. This does not enable arbitrary result targets, native failure
+protocols, callbacks, `prange`, or general `nogil`.
 
 This is the maintained setuptools/cythonize example, not yet the clean isolated
 PEP 517 distribution path. The latter remains gated until the aHPy build

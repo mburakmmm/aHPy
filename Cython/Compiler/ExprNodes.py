@@ -821,6 +821,14 @@ class ExprNode(Node):
 
     def gil_assignment_check(self, env):
         if env.nogil and self.type.is_pyobject:
+            from .RuntimeAPI import RuntimeCodeGenerationKind
+            if (
+                env.context.runtime_api.code_generation_kind()
+                is RuntimeCodeGenerationKind.HPY_UNIVERSAL_BOOTSTRAP
+            ):
+                # The Universal writer admits only narrowly validated nogil
+                # assignments whose native result is boxed after re-entry.
+                return
             error(self.pos, "Assignment of Python object not allowed without gil")
 
     def check_const(self):
@@ -15702,6 +15710,18 @@ class CoerceToPyTypeNode(CoercionNode):
             self.target_type = type
 
     gil_message = "Converting to Python object"
+
+    def nogil_check(self, env):
+        from .RuntimeAPI import RuntimeCodeGenerationKind
+        if (
+            env.context.runtime_api.code_generation_kind()
+            is RuntimeCodeGenerationKind.HPY_UNIVERSAL_BOOTSTRAP
+        ):
+            # The strict Universal nogil writer admits this conversion only
+            # for a validated external-C result, retains the native value
+            # while execution is left, and boxes it only after re-entry.
+            return
+        super().nogil_check(env)
 
     def generate_hpy_bootstrap_owned_result(self, code):
         if (

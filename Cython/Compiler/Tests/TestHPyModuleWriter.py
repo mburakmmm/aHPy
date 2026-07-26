@@ -4620,6 +4620,51 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertLess(second_leave, converted_call)
         self.assertLess(converted_call, second_reenter)
 
+    def test_nogil_external_c_result_is_boxed_only_after_reentry(self):
+        result, generated, diagnostics = self.compile_source(
+            "cdef extern from \"worker.h\":\n"
+            "    long tick(long value) noexcept nogil\n\n"
+            "def run(value, /):\n"
+            "    with nogil:\n"
+            "        result = tick(value)\n"
+            "    return result\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        conversion = generated.index("HPyLong_AsLong(ctx,")
+        close = generated.index("HPy_Close(ctx,", conversion)
+        native_declaration = generated.index(
+            "long __pyx_hpy_nogil_result_", close)
+        leave = generated.index(
+            "HPy_LeavePythonExecution(ctx)", native_declaration)
+        native_call = generated.index(
+            "= tick((long)__pyx_hpy_native_long_", leave)
+        reenter = generated.index(
+            "HPy_ReenterPythonExecution(ctx,", native_call)
+        box = generated.index("HPyLong_FromLongLong(ctx,", reenter)
+        self.assertLess(conversion, close)
+        self.assertLess(close, native_declaration)
+        self.assertLess(native_declaration, leave)
+        self.assertLess(leave, native_call)
+        self.assertLess(native_call, reenter)
+        self.assertLess(reenter, box)
+
+        result, generated, diagnostics = self.compile_source(
+            "cdef extern from \"worker.h\":\n"
+            "    long tick(long value) noexcept nogil\n\n"
+            "result = 0\n\n"
+            "def run():\n"
+            "    global result\n"
+            "    with nogil:\n"
+            "        result = tick(1)\n"
+            "    return result\n"
+        )
+        self.assertEqual(result.num_errors, 1)
+        self.assertFalse(generated)
+        self.assertIn(
+            "used with nogil results require a Python local name",
+            diagnostics,
+        )
+
     def test_empty_nogil_transition_is_fail_closed(self):
         result, generated, diagnostics = self.compile_source(
             "def run():\n"

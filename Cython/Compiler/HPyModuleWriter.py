@@ -533,10 +533,17 @@ class UniversalHPyFunctionWriter:
                     argument_kind, argument_cname))
         call_expression = "%s(%s)" % (
             function_cname, ", ".join(native_arguments))
+        result_cname = self._box_external_c_scalar_result(
+            storage_kind, call_expression)
+        for argument_cname in reversed(argument_handles):
+            self.close_owned_handle(argument_cname)
+        return result_cname
+
+    def _box_external_c_scalar_result(self, storage_kind, native_expression):
         if storage_kind == "bint":
             expression = self.runtime_api.duplicate_reference(
                 "%s ? %s : %s" % (
-                    call_expression,
+                    native_expression,
                     self.runtime_api.context_constant(
                         RuntimeContextConstant.TRUE,
                         context_cname=self.context_cname,
@@ -550,24 +557,42 @@ class UniversalHPyFunctionWriter:
             )
         elif storage_kind == "py-ssize":
             expression = self.runtime_api.ssize_integer_from_cvalue(
-                call_expression, context_cname=self.context_cname)
+                native_expression, context_cname=self.context_cname)
         elif storage_kind.startswith("signed-") or storage_kind == "char":
             expression = self.runtime_api.signed_integer_from_cvalue(
-                call_expression, context_cname=self.context_cname)
+                native_expression, context_cname=self.context_cname)
         elif storage_kind.startswith("unsigned-"):
             expression = self.runtime_api.unsigned_integer_from_cvalue(
-                call_expression, context_cname=self.context_cname)
+                native_expression, context_cname=self.context_cname)
         elif storage_kind in ("float", "double", "long-double"):
             expression = self.runtime_api.floating_from_cvalue(
-                call_expression, context_cname=self.context_cname)
+                native_expression, context_cname=self.context_cname)
         else:
             raise AssertionError(
                 "unknown validated external C scalar kind %r" % storage_kind)
         result_cname = self.allocate_owned_handle(expression)
         self.put_error_return_if_null(result_cname)
-        for argument_cname in reversed(argument_handles):
-            self.close_owned_handle(argument_cname)
         return result_cname
+
+    @staticmethod
+    def _external_c_scalar_c_type(storage_kind):
+        return {
+            "bint": "char",
+            "char": "char",
+            "signed-char": "signed char",
+            "unsigned-char": "unsigned char",
+            "signed-short": "short",
+            "unsigned-short": "unsigned short",
+            "signed-int": "int",
+            "unsigned-int": "unsigned int",
+            "signed-long": "long",
+            "unsigned-long": "unsigned long",
+            "signed-long-long": "long long",
+            "unsigned-long-long": "unsigned long long",
+            "float": "float",
+            "double": "double",
+            "long-double": "long double",
+        }[storage_kind]
 
     @staticmethod
     def _external_c_scalar_literal_value(node):
@@ -690,13 +715,31 @@ class UniversalHPyFunctionWriter:
         for statement in self.stats(gil_node.body):
             if isinstance(statement, Nodes.ParallelStatNode):
                 self.reject_parallel_construct(statement)
-            if type(statement) is not Nodes.ExprStatNode:
+            result_target = None
+            if type(statement) is Nodes.ExprStatNode:
+                expression = statement.expr
+            elif type(statement) is Nodes.SingleAssignmentNode:
+                if (
+                    not isinstance(statement.lhs, ExprNodes.NameNode)
+                    or not statement.lhs.type.is_pyobject
+                    or (
+                        statement.lhs.entry is not None
+                        and statement.lhs.entry.is_pyglobal
+                    )
+                ):
+                    self.unsupported(
+                        statement.lhs,
+                        "used with nogil results require a Python local name",
+                    )
+                result_target = statement.lhs
+                expression = statement.rhs
+            else:
                 self.unsupported(
                     statement,
-                    "the with nogil lane permits only discarded calls to "
-                    "validated external C functions",
+                    "the with nogil lane permits only discarded calls or "
+                    "simple local assignments from validated external C "
+                    "functions",
                 )
-            expression = statement.expr
             while isinstance(
                 expression,
                 (
@@ -709,8 +752,9 @@ class UniversalHPyFunctionWriter:
             if not isinstance(expression, ExprNodes.SimpleCallNode):
                 self.unsupported(
                     statement,
-                    "the with nogil lane permits only discarded calls to "
-                    "validated external C functions",
+                    "the with nogil lane permits only discarded calls or "
+                    "simple local assignments from validated external C "
+                    "functions",
                 )
             if expression.self is not None or expression.coerced_self is not None:
                 self.unsupported(
@@ -786,6 +830,19 @@ class UniversalHPyFunctionWriter:
                 self.close_owned_handle(argument_cname)
             call_expression = "%s(%s)" % (
                 function_cname, ", ".join(native_arguments))
+            native_result_cname = None
+            if result_target is not None:
+                native_result_cname = "__pyx_hpy_nogil_result_%d" % (
+                    self._next_native_field)
+                self._next_native_field += 1
+                self.putln("%s %s;" % (
+                    self._external_c_scalar_c_type(
+                        getattr(
+                            entry,
+                            "ahpy_universal_external_c_scalar_kind",
+                        )),
+                    native_result_cname,
+                ))
             thread_state_cname = "__pyx_hpy_thread_state_%d" % (
                 self._next_thread_state)
             self._next_thread_state += 1
@@ -797,11 +854,23 @@ class UniversalHPyFunctionWriter:
                 self.runtime_api.leave_python_execution(
                     context_cname=self.context_cname),
             ))
-            self.putln("(void)%s;" % call_expression)
+            if native_result_cname is None:
+                self.putln("(void)%s;" % call_expression)
+            else:
+                self.putln("%s = %s;" % (
+                    native_result_cname, call_expression))
             self.putln("%s;" % self.runtime_api.reenter_python_execution(
                 thread_state_cname, context_cname=self.context_cname))
             self.dedent()
             self.putln("}")
+            if result_target is not None:
+                result_cname = self._box_external_c_scalar_result(
+                    getattr(
+                        entry, "ahpy_universal_external_c_scalar_kind"),
+                    native_result_cname,
+                )
+                self.assign_target_from_owned_cname(
+                    result_target, result_cname)
             emitted_calls += 1
 
         if not emitted_calls:

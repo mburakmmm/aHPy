@@ -71,6 +71,12 @@ def external_nogil_ordered(amount, /):
     return ahpy_external_nogil_probe_calls()
 
 
+def external_nogil_result(amount, /):
+    with nogil:
+        result = ahpy_external_nogil_advance(amount)
+    return result
+
+
 cdef class Box:
     cdef public object value
 

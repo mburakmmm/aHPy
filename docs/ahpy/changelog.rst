@@ -8,7 +8,7 @@ Bootstrap
 ~~~~~~~~~
 
 * Reached 100% executable Python-line coverage for the Universal backend on
-  CPython 3.11 and 3.14, expanded the focused run to 563 tests, and raised CI
+  CPython 3.11 and 3.14, expanded the focused run to 564 tests, and raised CI
   floors to 100% backend, 45% frontend seam, and 41% quality tools. Coverage
   schema 2 now reports missing lines/ranges and forces measured imports through
   source files so stale native extensions cannot mask gaps.
@@ -115,6 +115,9 @@ Bootstrap
   narrowing, error propagation, and temporary closure finish before
   ``HPy_LeavePythonExecution``; the linked normal/Debug oracle proves successful
   native mutation and conversion failure without native entry.
+* Added used scalar results for that slice: native values survive the
+  handle-free interval, are boxed only after re-entry, and may be moved into a
+  simple Python local; global and compound targets remain fail-closed.
 * Added a neutral parallel-worker design and HPy 0.9-specific fail-closed
   diagnostics before ``prange``/OpenMP can reach CPython thread-state code.
 * Added a schema-versioned, non-setuptools direct Universal build API/CLI with

@@ -2168,7 +2168,8 @@ class RuntimeAPITest(TestCase):
                 "    long tick(long value) noexcept nogil\n\n"
                 "def run(value):\n"
                 "    with nogil:\n"
-                "        tick(value)\n",
+                "        tick(value)\n"
+                "        result = tick(value)\n",
                 encoding="utf8",
             )
             diagnostics = io.StringIO()

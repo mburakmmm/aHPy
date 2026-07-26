@@ -1,6 +1,6 @@
 # ADR 0010: Universal HPy execution-state transitions
 
-- Status: accepted; discarded scalar-argument external-C slice implemented
+- Status: accepted; scalar-argument/result external-C slice implemented
 - Date: 2026-07-16
 
 ## Context
@@ -19,9 +19,10 @@ consumer of the HPy transition API without introducing CPython emulation.
 
 ## Decision
 
-1. The Universal `with nogil` lane accepts a non-empty sequence of discarded
-   zero- or scalar-argument calls to validated external C functions declared
-   `noexcept nogil`.
+1. The Universal `with nogil` lane accepts a non-empty sequence of zero- or
+   scalar-argument calls to validated external C functions declared `noexcept
+   nogil`. Calls may be discarded or assign one supported scalar result to a
+   simple Python local.
 2. For each call, the emitter completes its argument preparation, stores
    `HPy_LeavePythonExecution(ctx)` in a local `HPyThreadState`, performs only
    that admitted native call, and invokes
@@ -40,8 +41,9 @@ consumer of the HPy transition API without introducing CPython emulation.
    argument completes source-ordered Python-to-native conversion and error
    checking before execution is left, and its temporary HPy handle is closed
    before the transition. Only native values remain live in the interval.
-   Used return values remain rejected until the native result is retained and
-   converted to an HPy value only after re-entry.
+   A used scalar return is retained in a native temporary during the interval,
+   converted to an owned HPy value only after re-entry, and then moved into its
+   local slot.
 5. Python exception contracts, nested `with gil`, conditional/runtime
    transitions, C callbacks, pointers/buffers, C++/RAII, `prange`, OpenMP, and
    free-threading are independent gates. Re-entry cleanup must be modeled for
@@ -57,13 +59,15 @@ occurs before native entry, while an observing `__index__` proves a preceding
 native statement completes before the next statement's conversion. The exact
 generated `.hpy0` passes normal and HPy Debug execution, source-boundary
 checks, and undefined-binary-import audits.
-Focused compiler tests prove per-statement leave/call/re-entry and
-conversion/close/leave/call/re-entry ordering, and reject expanded arguments
-and empty blocks without producing C.
+Focused compiler tests prove per-statement leave/call/re-entry,
+conversion/close/leave/call/re-entry, and native-result/re-entry/HPy-box
+ordering; expanded arguments, non-local result targets, and empty blocks are
+rejected without producing C.
 
 ## Remaining order
 
-1. Retain used native results, re-enter, and only then box results.
+1. Extend retained results beyond simple local assignment and design native
+   status/`errno` failure protocols.
 2. Model nested transition state and exception reacquisition without CPython
    exception triples.
 3. Design `prange`/OpenMP worker context ownership, cancellation, reduction,
