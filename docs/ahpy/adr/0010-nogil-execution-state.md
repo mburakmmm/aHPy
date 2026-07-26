@@ -22,7 +22,7 @@ consumer of the HPy transition API without introducing CPython emulation.
 1. The Universal `with nogil` lane accepts a non-empty sequence of zero- or
    scalar-argument calls to validated external C functions declared `noexcept
    nogil`. Calls may be discarded or assign one supported scalar result to a
-   simple Python local.
+   Python local/global, attribute, or item target.
 2. For each call, the emitter completes its argument preparation, stores
    `HPy_LeavePythonExecution(ctx)` in a local `HPyThreadState`, performs only
    that admitted native call, and invokes
@@ -43,7 +43,9 @@ consumer of the HPy transition API without introducing CPython emulation.
    before the transition. Only native values remain live in the interval.
    A used scalar return is retained in a native temporary during the interval,
    converted to an owned HPy value only after re-entry, and then moved into its
-   local slot.
+   validated target. Python attribute/item argument expressions are evaluated
+   and converted before leaving execution; Python attribute/item result targets
+   are evaluated and written only after re-entry.
 5. Python exception contracts, nested `with gil`, conditional/runtime
    transitions, C callbacks, pointers/buffers, C++/RAII, `prange`, OpenMP, and
    free-threading are independent gates. Re-entry cleanup must be modeled for
@@ -61,13 +63,15 @@ generated `.hpy0` passes normal and HPy Debug execution, source-boundary
 checks, and undefined-binary-import audits.
 Focused compiler tests prove per-statement leave/call/re-entry,
 conversion/close/leave/call/re-entry, and native-result/re-entry/HPy-box
-ordering; expanded arguments, non-local result targets, and empty blocks are
-rejected without producing C.
+ordering, including attribute/item arguments before leave and local/global,
+attribute, and item result writes after re-entry. Expanded arguments,
+compound/destructuring result targets, and empty blocks are rejected without
+producing C.
 
 ## Remaining order
 
-1. Extend retained results beyond simple local assignment and design native
-   status/`errno` failure protocols.
+1. Design native status/`errno` failure protocols and independently evaluate
+   compound/destructuring result targets.
 2. Model nested transition state and exception reacquisition without CPython
    exception triples.
 3. Design `prange`/OpenMP worker context ownership, cancellation, reduction,

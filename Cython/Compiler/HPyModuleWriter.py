@@ -720,16 +720,20 @@ class UniversalHPyFunctionWriter:
                 expression = statement.expr
             elif type(statement) is Nodes.SingleAssignmentNode:
                 if (
-                    not isinstance(statement.lhs, ExprNodes.NameNode)
-                    or not statement.lhs.type.is_pyobject
-                    or (
-                        statement.lhs.entry is not None
-                        and statement.lhs.entry.is_pyglobal
+                    not isinstance(
+                        statement.lhs,
+                        (
+                            ExprNodes.NameNode,
+                            ExprNodes.AttributeNode,
+                            ExprNodes.IndexNode,
+                        ),
                     )
+                    or not statement.lhs.type.is_pyobject
                 ):
                     self.unsupported(
                         statement.lhs,
-                        "used with nogil results require a Python local name",
+                        "used with nogil results require a Python name, "
+                        "attribute, or item target",
                     )
                 result_target = statement.lhs
                 expression = statement.rhs
@@ -737,8 +741,8 @@ class UniversalHPyFunctionWriter:
                 self.unsupported(
                     statement,
                     "the with nogil lane permits only discarded calls or "
-                    "simple local assignments from validated external C "
-                    "functions",
+                    "assignments to supported Python targets from validated "
+                    "external C functions",
                 )
             while isinstance(
                 expression,
@@ -753,8 +757,8 @@ class UniversalHPyFunctionWriter:
                 self.unsupported(
                     statement,
                     "the with nogil lane permits only discarded calls or "
-                    "simple local assignments from validated external C "
-                    "functions",
+                    "assignments to supported Python targets from validated "
+                    "external C functions",
                 )
             if expression.self is not None or expression.coerced_self is not None:
                 self.unsupported(

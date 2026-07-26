@@ -662,6 +662,15 @@ class UniversalHPyEmitterContractTest(TestCase):
             ),
             (
                 block(statements=(
+                    Nodes.SingleAssignmentNode(
+                        None,
+                        lhs=ExprNodes.TupleNode(None, args=[]),
+                        rhs=expression(),
+                    ),)),
+                "require a Python name, attribute, or item target",
+            ),
+            (
+                block(statements=(
                     Nodes.ExprStatNode(
                         None, expr=expression(storage_kind=None)),)),
                 "validated by a concrete",
@@ -4719,20 +4728,69 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertLess(native_call, reenter)
         self.assertLess(reenter, box)
 
+    def test_nogil_external_c_results_assign_supported_targets_after_reentry(self):
         result, generated, diagnostics = self.compile_source(
             "cdef extern from \"worker.h\":\n"
             "    long tick(long value) noexcept nogil\n\n"
-            "result = 0\n\n"
-            "def run():\n"
-            "    global result\n"
+            "stored = 0\n\n"
+            "def run(obj, mapping, /):\n"
+            "    global stored\n"
             "    with nogil:\n"
-            "        result = tick(1)\n"
-            "    return result\n"
+            "        stored = tick(obj.amount)\n"
+            "        obj.value = tick(mapping[0])\n"
+            "        mapping[0] = tick(3)\n"
+            "    return stored, obj.value, mapping[0]\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        first_argument = generated.index(
+            'HPy_GetAttr_s(ctx, args[0], "amount")'
+        )
+        first_call = generated.index("= tick(", first_argument)
+        first_leave = generated.rindex(
+            "HPy_LeavePythonExecution(ctx)", first_argument, first_call
+        )
+        first_reentry = generated.index(
+            "HPy_ReenterPythonExecution(ctx,", first_call)
+        global_store = generated.index(
+            'HPy_SetAttr_s(ctx, self, "stored"', first_reentry)
+        second_argument = generated.index("HPy_GetItem(ctx,", global_store)
+        second_call = generated.index("= tick(", second_argument)
+        second_leave = generated.rindex(
+            "HPy_LeavePythonExecution(ctx)", second_argument, second_call
+        )
+        second_reentry = generated.index(
+            "HPy_ReenterPythonExecution(ctx,", second_call)
+        attribute_store = generated.index(
+            'HPy_SetAttr_s(ctx,', second_reentry)
+        third_call = generated.index("= tick(((long)3));", attribute_store)
+        third_reentry = generated.index(
+            "HPy_ReenterPythonExecution(ctx,", third_call)
+        item_store = generated.index("HPy_SetItem(ctx,", third_reentry)
+        self.assertLess(first_argument, first_leave)
+        self.assertLess(first_leave, first_call)
+        self.assertLess(first_call, first_reentry)
+        self.assertLess(first_reentry, global_store)
+        self.assertLess(global_store, second_call)
+        self.assertLess(second_argument, second_leave)
+        self.assertLess(second_leave, second_call)
+        self.assertLess(second_call, second_reentry)
+        self.assertLess(second_reentry, attribute_store)
+        self.assertLess(attribute_store, third_call)
+        self.assertLess(third_call, third_reentry)
+        self.assertLess(third_reentry, item_store)
+
+        result, generated, diagnostics = self.compile_source(
+            "cdef extern from \"worker.h\":\n"
+            "    long tick() noexcept nogil\n\n"
+            "def run():\n"
+            "    with nogil:\n"
+            "        left, right = tick()\n"
+            "    return left, right\n"
         )
         self.assertEqual(result.num_errors, 1)
         self.assertFalse(generated)
         self.assertIn(
-            "used with nogil results require a Python local name",
+            "Constructing Python tuple not allowed without gil",
             diagnostics,
         )
 

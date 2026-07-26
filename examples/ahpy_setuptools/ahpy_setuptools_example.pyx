@@ -16,6 +16,9 @@ cdef extern from "ahpy_external.h":
     long long ahpy_external_nogil_probe_calls()
 
 
+nogil_stored_result = 0
+
+
 def external_signed_answer():
     return ahpy_external_signed_answer()
 
@@ -75,6 +78,20 @@ def external_nogil_result(amount, /):
     with nogil:
         result = ahpy_external_nogil_advance(amount)
     return result
+
+
+def external_nogil_targets(obj, mapping, /):
+    global nogil_stored_result
+    with nogil:
+        nogil_stored_result = ahpy_external_nogil_advance(obj.amount)
+        obj.value = ahpy_external_nogil_advance(mapping[0])
+        mapping[0] = ahpy_external_nogil_advance(3)
+    return (
+        nogil_stored_result,
+        obj.value,
+        mapping[0],
+        ahpy_external_nogil_probe_calls(),
+    )
 
 
 cdef class Box:

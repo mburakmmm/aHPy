@@ -7,12 +7,17 @@ Unreleased
 Bootstrap
 ~~~~~~~~~
 
+* Extended the strict Universal HPy ``noexcept nogil`` external-C lane so
+  retained scalar results may be assigned after re-entry to Python
+  local/global, attribute, and item targets; attribute/item arguments are
+  evaluated and checked before leaving execution, with compiler ordering and
+  linked normal/Debug/wheel oracles.
 * Extended current-error-only terminal ``try``/``except`` handlers from one
   return to multi-statement assignments, expressions, deletions, supported
   control flow, and a terminal return or explicit raise, with normal/Trace/Debug
   cleanup and translated-error execution.
 * Reached 100% executable Python-line coverage for the Universal backend on
-  CPython 3.11 and 3.14, expanded the focused run to 565 tests, and raised CI
+  CPython 3.11 and 3.14, expanded the focused run to 566 tests, and raised CI
   floors to 100% backend, 45% frontend seam, and 41% quality tools. Coverage
   schema 2 now reports missing lines/ranges and forces measured imports through
   source files so stale native extensions cannot mask gaps.

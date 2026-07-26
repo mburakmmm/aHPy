@@ -1021,7 +1021,8 @@ until its full existing Cython test subset and new HPy-specific tests pass.
   - [x] Record ADR 0010's public-HPy transition, no-handle interval, native
         library contract, re-entry, and staged typed-conversion requirements.
   - [x] Support non-empty `with nogil` blocks containing discarded calls or
-        simple-local assignments from validated external C functions declared
+        Python name/attribute/item assignments from validated external C
+        functions declared
         `noexcept nogil`, using `HPy_LeavePythonExecution` and
         `HPy_ReenterPythonExecution` with a local `HPyThreadState`; checked
         scalar arguments are evaluated, converted, and released before leaving
@@ -1031,9 +1032,11 @@ until its full existing Cython test subset and new HPy-specific tests pass.
   - [x] Preconvert supported scalar arguments before leaving execution and
         prove conversion failures cannot enter the native interval.
   - [x] Retain supported scalar native results, re-enter, and only then perform
-        HPy result conversion into a simple Python local.
-  - [ ] Extend retained results beyond simple local assignment and design
-        native status/`errno` failure protocols.
+        HPy result conversion and assignment to a Python local/global,
+        attribute, or item target; evaluate Python attribute/item arguments
+        before leaving execution.
+  - [ ] Design native status/`errno` failure protocols and independently gate
+        compound/destructuring result targets.
   - [ ] Design nested `with gil`, native failure/exception reacquisition,
         callbacks, and every structured early-exit cleanup path.
 - [ ] `prange`, OpenMP, synchronization, and free-threading interactions.
@@ -1283,7 +1286,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
       generated/native/subprocess behavior in its dedicated runtime gates.
   - [x] Reach 100% executable Python-line coverage for `HPyModuleWriter.py`,
         `HandleModel.py`, and `RuntimeAPI.py` on CPython 3.11 and 3.14; trace
-        565 tests and lock CI floors at backend 100%, frontend seam 45%, and
+        566 tests and lock CI floors at backend 100%, frontend seam 45%, and
         quality tools 41% without conflating native/generated-C gates.
 - [x] Add benchmark history and regression thresholds.
   - [x] Compare generated Universal HPy with an equivalent handwritten

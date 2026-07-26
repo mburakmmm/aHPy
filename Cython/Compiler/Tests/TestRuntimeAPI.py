@@ -2169,7 +2169,11 @@ class RuntimeAPITest(TestCase):
                 "def run(value):\n"
                 "    with nogil:\n"
                 "        tick(value)\n"
-                "        result = tick(value)\n",
+                "        result = tick(value)\n\n"
+                "def targets(obj):\n"
+                "    with nogil:\n"
+                "        obj.value = tick(1)\n"
+                "        obj[0] = tick(1)\n",
                 encoding="utf8",
             )
             diagnostics = io.StringIO()
@@ -2185,6 +2189,14 @@ class RuntimeAPITest(TestCase):
             self.assertGreaterEqual(result.num_errors, 1)
             self.assertIn(
                 "Coercion from Python not allowed without the GIL",
+                diagnostics.getvalue(),
+            )
+            self.assertIn(
+                "Accessing Python attribute not allowed without gil",
+                diagnostics.getvalue(),
+            )
+            self.assertIn(
+                "Indexing Python object not allowed without gil",
                 diagnostics.getvalue(),
             )
 

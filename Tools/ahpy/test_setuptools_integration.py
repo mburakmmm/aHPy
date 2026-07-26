@@ -16,6 +16,8 @@ class SetuptoolsIntegrationDefinitionTest(unittest.TestCase):
         )
         self.assertIn("def external_nogil_ordered(amount, /)", SOURCE)
         self.assertIn("def external_nogil_result(amount, /)", SOURCE)
+        self.assertIn("def external_nogil_targets(obj, mapping, /)", SOURCE)
+        self.assertIn("nogil_stored_result = 0", SOURCE)
         self.assertIn("ahpy_external_nogil_probe_calls()", SOURCE)
         self.assertIn("ahpy_external_nogil_probe(void)", EXTERNAL_SOURCE)
         self.assertIn(

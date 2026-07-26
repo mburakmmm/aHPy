@@ -4989,6 +4989,17 @@ class IndexNode(_IndexingBaseNode):
 
     gil_message = "Indexing Python object"
 
+    def nogil_check(self, env):
+        from .RuntimeAPI import RuntimeCodeGenerationKind
+        if (
+            env.context.runtime_api.code_generation_kind()
+            is RuntimeCodeGenerationKind.HPY_UNIVERSAL_BOOTSTRAP
+        ):
+            # A strict Universal nogil call may evaluate an index before
+            # leaving execution or use it as a result target after re-entry.
+            return
+        super().nogil_check(env)
+
     def calculate_result_code(self):
         base_type = self.base.type
         if base_type.is_pylist_type or base_type.is_pytuple_type or base_type.is_pybytearray_type:
@@ -8599,6 +8610,15 @@ class AttributeNode(ExprNode):
 
     def nogil_check(self, env):
         if self.is_py_attr:
+            from .RuntimeAPI import RuntimeCodeGenerationKind
+            if (
+                env.context.runtime_api.code_generation_kind()
+                is RuntimeCodeGenerationKind.HPY_UNIVERSAL_BOOTSTRAP
+            ):
+                # The strict writer evaluates argument attributes before
+                # leaving execution and result-target attributes after
+                # re-entry.
+                return
             self.gil_error()
 
     gil_message = "Accessing Python attribute"
