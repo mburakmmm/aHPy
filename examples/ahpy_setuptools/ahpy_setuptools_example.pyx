@@ -86,10 +86,12 @@ def external_nogil_targets(obj, mapping, /):
         nogil_stored_result = ahpy_external_nogil_advance(obj.amount)
         obj.value = ahpy_external_nogil_advance(mapping[0])
         mapping[0] = ahpy_external_nogil_advance(3)
+        mapping[1:2] = ahpy_external_nogil_advance(4)
     return (
         nogil_stored_result,
         obj.value,
         mapping[0],
+        mapping[1:2],
         ahpy_external_nogil_probe_calls(),
     )
 

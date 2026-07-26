@@ -1021,7 +1021,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
   - [x] Record ADR 0010's public-HPy transition, no-handle interval, native
         library contract, re-entry, and staged typed-conversion requirements.
   - [x] Support non-empty `with nogil` blocks containing discarded calls or
-        Python name/attribute/item assignments from validated external C
+        Python name/attribute/item/slice assignments from validated external C
         functions declared
         `noexcept nogil`, using `HPy_LeavePythonExecution` and
         `HPy_ReenterPythonExecution` with a local `HPyThreadState`; checked
@@ -1033,8 +1033,8 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         prove conversion failures cannot enter the native interval.
   - [x] Retain supported scalar native results, re-enter, and only then perform
         HPy result conversion and assignment to a Python local/global,
-        attribute, or item target; evaluate Python attribute/item arguments
-        before leaving execution.
+        attribute, item, or slice target; evaluate Python attribute/item
+        arguments before leaving execution.
   - [ ] Design native status/`errno` failure protocols and independently gate
         compound/destructuring result targets.
   - [ ] Design nested `with gil`, native failure/exception reacquisition,

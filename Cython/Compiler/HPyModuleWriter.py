@@ -726,6 +726,7 @@ class UniversalHPyFunctionWriter:
                             ExprNodes.NameNode,
                             ExprNodes.AttributeNode,
                             ExprNodes.IndexNode,
+                            ExprNodes.SliceIndexNode,
                         ),
                     )
                     or not statement.lhs.type.is_pyobject
@@ -733,7 +734,7 @@ class UniversalHPyFunctionWriter:
                     self.unsupported(
                         statement.lhs,
                         "used with nogil results require a Python name, "
-                        "attribute, or item target",
+                        "attribute, item, or slice target",
                     )
                 result_target = statement.lhs
                 expression = statement.rhs

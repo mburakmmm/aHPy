@@ -667,7 +667,7 @@ class UniversalHPyEmitterContractTest(TestCase):
                         lhs=ExprNodes.TupleNode(None, args=[]),
                         rhs=expression(),
                     ),)),
-                "require a Python name, attribute, or item target",
+                "require a Python name, attribute, item, or slice target",
             ),
             (
                 block(statements=(
@@ -4739,7 +4739,8 @@ class UniversalHPyModuleWriterTest(TestCase):
             "        stored = tick(obj.amount)\n"
             "        obj.value = tick(mapping[0])\n"
             "        mapping[0] = tick(3)\n"
-            "    return stored, obj.value, mapping[0]\n"
+            "        mapping[1:2] = tick(4)\n"
+            "    return stored, obj.value, mapping[0], mapping[1:2]\n"
         )
         self.assertEqual(result.num_errors, 0, diagnostics)
         first_argument = generated.index(
@@ -4766,6 +4767,13 @@ class UniversalHPyModuleWriterTest(TestCase):
         third_reentry = generated.index(
             "HPy_ReenterPythonExecution(ctx,", third_call)
         item_store = generated.index("HPy_SetItem(ctx,", third_reentry)
+        fourth_call = generated.index("= tick(((long)4));", item_store)
+        fourth_reentry = generated.index(
+            "HPy_ReenterPythonExecution(ctx,", fourth_call)
+        slice_key = generated.index(
+            "HPy_Call(ctx, ctx->h_SliceType", fourth_reentry
+        )
+        slice_store = generated.index("HPy_SetItem(ctx,", item_store + 1)
         self.assertLess(first_argument, first_leave)
         self.assertLess(first_leave, first_call)
         self.assertLess(first_call, first_reentry)
@@ -4778,6 +4786,10 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertLess(attribute_store, third_call)
         self.assertLess(third_call, third_reentry)
         self.assertLess(third_reentry, item_store)
+        self.assertLess(item_store, fourth_call)
+        self.assertLess(fourth_call, fourth_reentry)
+        self.assertLess(fourth_reentry, slice_key)
+        self.assertLess(slice_key, slice_store)
 
         result, generated, diagnostics = self.compile_source(
             "cdef extern from \"worker.h\":\n"

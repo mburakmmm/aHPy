@@ -6060,6 +6060,14 @@ class SliceIndexNode(ExprNode):
 
     def nogil_check(self, env):
         self.nogil = env.nogil
+        from .RuntimeAPI import RuntimeCodeGenerationKind
+        if (
+            env.context.runtime_api.code_generation_kind()
+            is RuntimeCodeGenerationKind.HPY_UNIVERSAL_BOOTSTRAP
+        ):
+            # The strict Universal writer materializes a result-target slice
+            # only after Python execution has been re-entered.
+            return
         return super().nogil_check(env)
 
     gil_message = "Slicing Python object"
@@ -6373,6 +6381,15 @@ class SliceNode(ExprNode):
             self.is_literal = True
             self.is_temp = False
         return self
+
+    def nogil_check(self, env):
+        from .RuntimeAPI import RuntimeCodeGenerationKind
+        if (
+            env.context.runtime_api.code_generation_kind()
+            is RuntimeCodeGenerationKind.HPY_UNIVERSAL_BOOTSTRAP
+        ):
+            return
+        super().nogil_check(env)
 
     gil_message = "Constructing Python slice object"
 

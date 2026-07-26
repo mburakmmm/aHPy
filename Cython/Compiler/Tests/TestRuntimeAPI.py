@@ -2173,7 +2173,8 @@ class RuntimeAPITest(TestCase):
                 "def targets(obj):\n"
                 "    with nogil:\n"
                 "        obj.value = tick(1)\n"
-                "        obj[0] = tick(1)\n",
+                "        obj[0] = tick(1)\n"
+                "        obj[1:2] = tick(1)\n",
                 encoding="utf8",
             )
             diagnostics = io.StringIO()
@@ -2197,6 +2198,14 @@ class RuntimeAPITest(TestCase):
             )
             self.assertIn(
                 "Indexing Python object not allowed without gil",
+                diagnostics.getvalue(),
+            )
+            self.assertIn(
+                "Slicing Python object not allowed without gil",
+                diagnostics.getvalue(),
+            )
+            self.assertIn(
+                "Constructing Python slice object not allowed without gil",
                 diagnostics.getvalue(),
             )
 

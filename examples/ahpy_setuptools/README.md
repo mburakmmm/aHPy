@@ -41,8 +41,9 @@ scalar argument before its call's leave/re-enter interval using public HPy 0.9
 APIs. The ordered probe proves a later Python conversion remains after the
 preceding native call, while the result probe boxes its retained scalar only
 after re-entry. The target probe evaluates attribute/item arguments before
-leave and writes retained results to global/attribute/item targets only after
-re-entry. This does not enable compound/destructuring result targets, native
+leave and writes retained results to global/attribute/item/slice targets only after
+re-entry, including a custom slice target. This does not enable
+compound/destructuring result targets, native
 failure protocols, callbacks, `prange`, or general `nogil`.
 
 This is the maintained setuptools/cythonize example, not yet the clean isolated

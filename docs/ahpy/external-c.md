@@ -53,7 +53,7 @@ binary portable across operating systems or CPU architectures.
 - C++ names, overloads, methods, templates, or exception translation.
 
 ADR 0010 enables one narrow `nogil` contract: a non-empty `with nogil` block
-may contain discarded calls or Python local/global, attribute, or item
+may contain discarded calls or Python local/global, attribute, item, or slice
 assignments from validated
 functions declared `noexcept nogil`. Portable literals become native constants;
 other supported scalar
@@ -64,7 +64,7 @@ state, invoke Python callbacks, throw across the C boundary, or escape with
 `longjmp`. The emitter leaves and re-enters Python execution through public HPy
 APIs around that handle-free interval. A supported scalar result may be kept in
 a native temporary, boxed, and assigned to a validated Python name, attribute,
-or item target only after re-entry. Python attribute/item arguments are
+item, or slice target only after re-entry. Python attribute/item arguments are
 evaluated before leaving execution. Compound/destructuring result targets,
 native status-code/`errno`, pointer/buffer lifetime, and callback contracts
 still need explicit designs. Unsupported forms fail at
@@ -81,4 +81,5 @@ runs it again. The example also executes ADR 0010 argumentless and
 argument-bearing native counter probes in normal and Debug modes, proves a
 failing `__index__` conversion never enters the native interval, returns a
 retained scalar only after re-entry, writes retained results through
-global/attribute/item targets, and audits the HPy execution-state spellings.
+global/attribute/item/slice targets, and audits the HPy execution-state
+spellings.

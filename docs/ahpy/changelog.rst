@@ -9,7 +9,7 @@ Bootstrap
 
 * Extended the strict Universal HPy ``noexcept nogil`` external-C lane so
   retained scalar results may be assigned after re-entry to Python
-  local/global, attribute, and item targets; attribute/item arguments are
+  local/global, attribute, item, and slice targets; attribute/item arguments are
   evaluated and checked before leaving execution, with compiler ordering and
   linked normal/Debug/wheel oracles.
 * Extended current-error-only terminal ``try``/``except`` handlers from one

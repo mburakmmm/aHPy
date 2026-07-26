@@ -285,8 +285,8 @@ checked, and closed before the leave; conversion failures therefore never
 enter the native interval. Each statement receives its own interval so a
 later argument's Python conversion cannot move ahead of an earlier native
 call. A used scalar result remains native until re-entry, is then boxed through
-public HPy, and may be moved into a Python local/global, attribute, or item
-target. Attribute/item argument expressions are evaluated before leave and
+public HPy, and may be moved into a Python local/global, attribute, item, or
+slice target. Attribute/item argument expressions are evaluated before leave and
 the corresponding result targets only after re-entry. Focused negative inputs
 reject expanded arguments, compound/destructuring result targets, and empty
 blocks with no generated C.
@@ -296,7 +296,7 @@ The setuptools integration example links argumentless and scalar-argument
 proves a raising `__index__` conversion leaves the counter unchanged. The exact
 oracle also observes that an earlier native statement completes before a later
 argument's `__index__` conversion and returns retained scalar results through
-global/attribute/item targets. The
+global/attribute/item/slice targets. The
 `.hpy0` passes normal and HPy Debug execution plus generated-source and
 undefined-import audits. This gate does not cover compound/destructuring result
 targets, native failure protocols, Python exception reacquisition, callbacks, nested
@@ -467,8 +467,8 @@ tables, and forces measured modules through a source-first finder so stale
 compiled extensions cannot hide Python lines. It reports the Universal
 backend, touched Cython frontend seam, and quality tools independently, plus
 ownership, Runtime API, emitter, compiler-seam, and quality-tool feature
-families. The current Python 3.11 validation records 100.00%, 45.59%, and
-41.63%; Python 3.14.6 records 100.00%, 45.73%, and 41.56%. CI keeps
+families. The current Python 3.11 validation records 100.00%, 45.66%, and
+41.63%; Python 3.14.6 records 100.00%, 45.81%, and 41.56%. CI keeps
 cross-version floors of 100%, 45%, and 41%. Schema 2 JSON and Markdown reports
 include exact missing lines and compact missing ranges for actionable
 follow-up.
