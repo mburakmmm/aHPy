@@ -12,3 +12,8 @@ cdef class QualifiedBox:
 
     def değer(self):
         return 44
+
+
+cdef class DeğerKutusu:
+    def answer(self):
+        return 45

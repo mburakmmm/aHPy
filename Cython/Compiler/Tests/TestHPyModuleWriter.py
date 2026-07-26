@@ -1278,11 +1278,6 @@ class UniversalHPyEmitterContractTest(TestCase):
             pos=None,
         )
         empty_body = Nodes.StatListNode(None, stats=[])
-        invalid_class = SimpleNamespace(
-            class_name="invalid-class",
-            body=empty_body,
-            pos=None,
-        )
         duplicate_class = SimpleNamespace(
             class_name="function",
             body=empty_body,
@@ -1350,10 +1345,6 @@ class UniversalHPyEmitterContractTest(TestCase):
             (
                 module(([safe_method], [], [duplicate_class], [])),
                 "function/type names collide",
-            ),
-            (
-                module(([safe_method], [], [invalid_class], [])),
-                "class names must be C identifiers",
             ),
             (
                 module(([], [], [reserved_class], [])),
@@ -2800,7 +2791,10 @@ class UniversalHPyModuleWriterTest(TestCase):
             "    def answer(self):\n"
             "        return 42\n\n"
             "    def değer(self):\n"
-            "        return 44\n",
+            "        return 44\n\n"
+            "cdef class DeğerKutusu:\n"
+            "    def answer(self):\n"
+            "        return 45\n",
             module_name="ahpy_package.qualified_module",
         )
         self.assertEqual(result.num_errors, 0, diagnostics)
@@ -2817,6 +2811,11 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertIn('"değer"', generated)
         self.assertIn("unicode_73656c616d5fc3a7", generated)
         self.assertIn("unicode_6465c49f6572", generated)
+        self.assertIn(
+            '.name = "ahpy_package.qualified_module.DeğerKutusu"',
+            generated,
+        )
+        self.assertIn("unicode_4465c49f65724b7574757375", generated)
 
     def test_hpy_early_builtin_filter_does_not_steal_base_handlers(self):
         base = Optimize.EarlyReplaceBuiltinCalls

@@ -5096,11 +5096,6 @@ class UniversalHPyModuleWriter:
                 ", ".join(sorted(duplicate_public_names)),
             )
         for extension_type in extension_types:
-            if not _C_IDENTIFIER.match(extension_type.class_name):
-                self.unsupported(
-                    extension_type,
-                    "pure HPy cdef class names must be C identifiers",
-                )
             self.name_registry.require_module_global(extension_type.class_name)
             reserved_type_names = [
                 entry.name
@@ -6032,7 +6027,8 @@ class UniversalHPyModuleWriter:
             for extension_type in extension_types
         }
         for type_index, extension_type in enumerate(extension_types):
-            class_name = extension_type.class_name
+            python_class_name = extension_type.class_name
+            class_name = _c_identifier_fragment(python_class_name)
             all_fields = list(extension_type.entry.type.scope.var_entries)
             fields = [
                 field for field in all_fields
@@ -6210,7 +6206,7 @@ class UniversalHPyModuleWriter:
                             "    if (nargs != 0 || nkw != 0) {",
                             "        HPyErr_SetString(ctx, ctx->h_TypeError, "
                             "%s);" % self._c_string(
-                                "%s() takes no arguments" % class_name),
+                                "%s() takes no arguments" % python_class_name),
                             "        return HPy_NULL;",
                             "    }",
                         ])
@@ -6482,7 +6478,7 @@ class UniversalHPyModuleWriter:
                     assignment_methods.get("__delitem__"),
                     definition_cname,
                     sequence_definition_cname,
-                    class_name,
+                    python_class_name,
                 )
             if richcompare_methods:
                 definition_cname = (
@@ -6520,7 +6516,8 @@ class UniversalHPyModuleWriter:
                 numeric_binary_slots.append((
                     family_methods,
                     definition_cname,
-                    self._type_slot_marker_attribute(module_name, class_name),
+                    self._type_slot_marker_attribute(
+                        module_name, python_class_name),
                     left_name,
                     right_name,
                 ))
@@ -6538,7 +6535,8 @@ class UniversalHPyModuleWriter:
                 type_power_slot_definitions[id(extension_type)] = (
                     power_methods,
                     definition_cname,
-                    self._type_slot_marker_attribute(module_name, class_name),
+                    self._type_slot_marker_attribute(
+                        module_name, python_class_name),
                 )
             type_method_definitions[id(extension_type)] = method_definitions
             type_property_definitions[id(extension_type)] = property_definitions
@@ -6640,7 +6638,7 @@ class UniversalHPyModuleWriter:
                 "};",
                 self.runtime_api.type_specification_declaration(type_cname),
                 "    .name = %s," % self._c_string(
-                    "%s.%s" % (module_name, class_name)),
+                    "%s.%s" % (module_name, python_class_name)),
                 "    .basicsize = sizeof(%s)," % struct_cname,
                 "    .itemsize = 0,",
                 "    .flags = %s," % flags,

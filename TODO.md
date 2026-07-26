@@ -662,6 +662,10 @@ earlier phase's exit gate.
 - [x] Generate `HPyType_HELPERS`, builtin shape, and `HPyType_Spec` for the
       currently supported layout.
 - [ ] Generate method, member, get/set, and slot definitions.
+  - [x] Preserve valid Unicode `cdef class` names in HPy type specs and module
+        publication while encoding only generated C type/helper symbols; cover
+        construction, method dispatch, qualified `__module__`, and
+        normal/Trace/Debug execution.
   - [x] Generate ordinary undecorated instance methods as `HPyDef_METH`
         entries with correct receiver, one-argument, keyword, and optional
         positional/keyword-only layouts; store supported defaults on the
