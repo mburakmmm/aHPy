@@ -664,7 +664,8 @@ earlier phase's exit gate.
 - [ ] Generate method, member, get/set, and slot definitions.
   - [x] Preserve valid Unicode `cdef class` names in HPy type specs and module
         publication while encoding only generated C type/helper symbols; cover
-        construction, method dispatch, qualified `__module__`, and
+        construction, method/property dispatch, qualified `__module__`,
+        Unicode closure captures/arguments/public fields, and
         normal/Trace/Debug execution.
   - [x] Generate ordinary undecorated instance methods as `HPyDef_METH`
         entries with correct receiver, one-argument, keyword, and optional

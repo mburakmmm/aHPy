@@ -42,7 +42,9 @@ fixture exports and calls valid Unicode module-function and extension-method
 names; their Python spellings stay intact while only indexed private C-symbol
 fragments use deterministic UTF-8 hex encoding. Unicode `cdef class` names
 follow the same rule for generated type/helper symbols while their HPy type
-spec name and module attribute retain the original spelling.
+spec name and module attribute retain the original spelling. The executable
+fixture also covers a Unicode property, closure capture/inner function,
+argument, and public `HPyField` descriptor in all three runtime modes.
 
 `HPy_GetItem` and UTF-8-name `HPy_GetAttr_s` reads are also enabled over the
 implemented expression subset. Their owned operands are closed before a null

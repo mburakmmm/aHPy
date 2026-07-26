@@ -1,3 +1,3 @@
-Valid Unicode `cdef class` names now retain their HPy type and module identity
-while private generated C type/helper symbols use deterministic UTF-8
-encoding.
+Valid Unicode `cdef class`, property, closure-capture, argument, and public
+field names now retain their HPy/Python identity while private generated C
+symbols use deterministic UTF-8 encoding.

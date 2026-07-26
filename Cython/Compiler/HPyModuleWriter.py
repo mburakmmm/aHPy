@@ -6257,7 +6257,7 @@ class UniversalHPyModuleWriter:
                 definition_cname = (
                     "__pyx_hpy_type_%d_%s_property_%d_%s" % (
                         type_index, class_name, property_index,
-                        property_node.name))
+                        _c_identifier_fragment(property_node.name)))
                 has_getter = "__get__" in accessors
                 has_setter = any(
                     name in accessors for name in ("__set__", "__del__"))

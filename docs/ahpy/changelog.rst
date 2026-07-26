@@ -20,7 +20,9 @@ Bootstrap
   deterministically encoding only their private generated C-symbol fragments;
   real Unicode calls pass normal, Trace, and Debug modes.
 * Extended the same boundary to Unicode `cdef class` names, preserving HPy
-  type/module identity while encoding private generated C type/helper symbols.
+  type/module identity while encoding private generated C type/helper symbols;
+  Unicode properties, closure captures, arguments, and public fields are
+  exercised in the real package fixture.
 * Based aHPy development on current Cython ``master`` at commit
   ``b99cb0e3b5425e11414cadd24168a6cc850e8000``.
 * Added the implementation roadmap, Universal ABI boundary, backend

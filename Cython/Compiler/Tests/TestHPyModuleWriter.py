@@ -2792,6 +2792,9 @@ class UniversalHPyModuleWriterTest(TestCase):
             "        return 42\n\n"
             "    def değer(self):\n"
             "        return 44\n\n"
+            "    property başlık:\n"
+            "        def __get__(self):\n"
+            "            return 46\n\n"
             "cdef class DeğerKutusu:\n"
             "    def answer(self):\n"
             "        return 45\n",
@@ -2811,6 +2814,8 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertIn('"değer"', generated)
         self.assertIn("unicode_73656c616d5fc3a7", generated)
         self.assertIn("unicode_6465c49f6572", generated)
+        self.assertIn('"başlık"', generated)
+        self.assertIn("unicode_6261c59f6cc4b16b", generated)
         self.assertIn(
             '.name = "ahpy_package.qualified_module.DeğerKutusu"',
             generated,
