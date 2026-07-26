@@ -161,14 +161,16 @@ exceptions, a tuple-normalized group of builtin exceptions, multiple clauses,
 or a final bare clause. An internal failure label checkpoints handles,
 builders, and argument trackers that existed before the try; each failure edge
 closes only intermediates created in the protected body. A matched clause
-clears the current error and returns a side-effect-free literal, while an
-unmatched error retains its identity and propagates through the ordinary
-function cleanup. Callable success, ValueError/TypeError/default matching,
-explicit raise, container return, a local allocated before a failing call,
-unmatched ZeroDivisionError, and leak cleanup pass normal, trace, and Debug
-execution. HPy 0.9 exposes no public exception
-type/value/traceback fetch/restore API, so observable handler bodies,
-`except as`, reraise, traceback/cause/chaining, `else`/`finally`, and nesting
+clears the current error, may execute linear assignments, expressions,
+deletions, pass, and supported `if`/`while`/`for`, then terminates with a return
+or explicit raise. An unmatched error retains its identity and propagates
+through ordinary function cleanup. Callable success,
+ValueError/TypeError/default matching, explicit and translated raises,
+multi-statement conditional handler mutation, container return, a local
+allocated before a failing call, unmatched ZeroDivisionError, and leak cleanup
+pass normal, trace, and Debug execution. HPy 0.9 exposes no public exception
+type/value/traceback fetch/restore API, so `except as`, bare reraise,
+traceback/cause/chaining, `else`/`finally`, nesting, and observable handler state
 remain rejected rather than emulated with CPython state.
 
 Python-object addition, subtraction, multiplication, true/floor division,

@@ -3117,6 +3117,23 @@ class UniversalHPyFunctionWriter:
             pattern = pattern.arg
         return pattern
 
+    @staticmethod
+    def _find_nested_try_except(node):
+        pending = [node]
+        while pending:
+            current = pending.pop()
+            if current is None:
+                continue
+            if type(current) is Nodes.TryExceptStatNode:
+                return current
+            for child_name in getattr(current, "child_attrs", ()):
+                child = getattr(current, child_name, None)
+                if isinstance(child, (list, tuple)):
+                    pending.extend(child)
+                else:
+                    pending.append(child)
+        return None
+
     def generate_terminal_try_except(self, node):
         """Emit the HPy-0.9 current-error-only handler subset."""
         if self._failure_scopes:
@@ -3176,14 +3193,31 @@ class UniversalHPyFunctionWriter:
                 )
             handler_body = self.stats(clause.body)
             if (
-                len(handler_body) != 1
-                or type(handler_body[0]) is not Nodes.ReturnStatNode
+                not handler_body
+                or type(handler_body[-1])
+                not in (Nodes.ReturnStatNode, Nodes.RaiseStatNode)
             ):
                 self.unsupported(
                     clause.body,
-                    "the initial HPy exception handler must contain exactly "
-                    "one return statement",
+                    "an HPy exception handler must end with a return or raise "
+                    "statement",
                 )
+            for statement in handler_body:
+                nested_try = self._find_nested_try_except(statement)
+                if nested_try is not None:
+                    self.unsupported(
+                        nested_try,
+                        "nested try/except statements are not implemented",
+                    )
+            for statement in handler_body[:-1]:
+                if type(statement) not in allowed_statement_types:
+                    self.unsupported(
+                        statement,
+                        "handler statements before the terminal return or "
+                        "raise must currently be linear assignments, "
+                        "expressions, deletions, pass, or supported "
+                        "if/while/for control",
+                    )
             exception_names = []
             if clause.pattern:
                 if default_seen:
@@ -3212,7 +3246,7 @@ class UniversalHPyFunctionWriter:
                     exception_names.append(pattern.name)
             else:
                 default_seen = True
-            clauses.append((exception_names, handler_body[0]))
+            clauses.append((exception_names, handler_body))
 
         if not clauses:
             raise AssertionError("try/except statement has no clauses")
@@ -3229,7 +3263,7 @@ class UniversalHPyFunctionWriter:
 
         self._restore_lifetime_state(copy.deepcopy(entry_state))
         self.putln("%s:" % handler_label)
-        for exception_names, handler in clauses:
+        for exception_names, handler_body in clauses:
             if exception_names:
                 conditions = [
                     self.runtime_api.exception_matches(
@@ -3249,7 +3283,8 @@ class UniversalHPyFunctionWriter:
             self.putln("%s;" % self.runtime_api.error_clear(
                 context_cname=self.context_cname))
             self._restore_lifetime_state(copy.deepcopy(entry_state))
-            handler.generate_hpy_bootstrap_execution_code(self)
+            for statement in handler_body:
+                statement.generate_hpy_bootstrap_execution_code(self)
             if terminal_state is None:
                 terminal_state = self._snapshot_lifetime_state()
             self.dedent()

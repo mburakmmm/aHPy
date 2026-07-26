@@ -631,6 +631,24 @@ def handle_linear_try(callable, value, /):
         return ("handled",)
 
 
+def handle_general_body(callable, value, /):
+    try:
+        return callable()
+    except ValueError:
+        local = [value]
+        if value:
+            local += [value]
+        return local
+
+
+def translate_value_error(callable, /):
+    try:
+        return callable()
+    except ValueError:
+        marker = ["translated"]
+        raise TypeError(marker)
+
+
 def add_values(left, right, /):
     return left + right
 

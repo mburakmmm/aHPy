@@ -1969,7 +1969,29 @@ class UniversalHPyEmitterContractTest(TestCase):
                 try_node(clauses=[clause(body=Nodes.StatListNode(
                     None, stats=[Nodes.PassStatNode(None)]))]),
                 CompileError,
-                "must contain exactly one return",
+                "must end with a return or raise",
+            ),
+            (
+                try_node(clauses=[clause(body=Nodes.StatListNode(
+                    None,
+                    stats=[
+                        SimpleNamespace(pos=None),
+                        return_statement,
+                    ],
+                ))]),
+                CompileError,
+                "handler statements before",
+            ),
+            (
+                try_node(clauses=[clause(body=Nodes.StatListNode(
+                    None,
+                    stats=[
+                        Nodes.TryExceptStatNode(None),
+                        return_statement,
+                    ],
+                ))]),
+                CompileError,
+                "nested try/except",
             ),
             (
                 try_node(clauses=[]),
@@ -3795,6 +3817,39 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertIn("HPy_Close(ctx,", generated[call_index:handler_jump])
         self.assertIn("HPyTracker_Close(ctx,", generated[handler_jump:])
 
+    def test_terminal_try_except_supports_general_handler_body_and_terminal_raise(self):
+        result, generated, diagnostics = self.compile_source(
+            "def handled(callable, value, /):\n"
+            "    try:\n"
+            "        return callable()\n"
+            "    except ValueError:\n"
+            "        local = [value]\n"
+            "        if value:\n"
+            "            local += [value]\n"
+            "        return local\n\n"
+            "def translated(callable, /):\n"
+            "    try:\n"
+            "        return callable()\n"
+            "    except ValueError:\n"
+            "        marker = ['translated']\n"
+            "        raise TypeError(marker)\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        handler_label = generated.index("__pyx_hpy_except_0:")
+        clear = generated.index("HPyErr_Clear(ctx);", handler_label)
+        builder = generated.index("HPyListBuilder_New(ctx, 1)", clear)
+        branch = generated.index("if (__pyx_hpy_truth_", builder)
+        return_index = generated.index("return ", branch)
+        self.assertLess(clear, builder)
+        self.assertLess(builder, branch)
+        self.assertLess(branch, return_index)
+        translated_label = generated.index(
+            "__pyx_hpy_except_0:", handler_label + 1)
+        translated_clear = generated.index(
+            "HPyErr_Clear(ctx);", translated_label)
+        type_error = generated.index("ctx->h_TypeError", translated_clear)
+        self.assertLess(translated_clear, type_error)
+
     def test_try_except_target_and_observable_handler_state_remain_rejected(self):
         result, generated, diagnostics = self.compile_source(
             "def handled(callable):\n"
@@ -3818,6 +3873,22 @@ class UniversalHPyModuleWriterTest(TestCase):
             "            return 1\n"
             "    except ValueError:\n"
             "        return 2\n"
+        )
+        self.assertGreaterEqual(result.num_errors, 1)
+        self.assertFalse(generated)
+        self.assertIn("nested try/except", diagnostics)
+
+        result, generated, diagnostics = self.compile_source(
+            "def handled(callable):\n"
+            "    try:\n"
+            "        return callable()\n"
+            "    except ValueError:\n"
+            "        if callable:\n"
+            "            try:\n"
+            "                return 1\n"
+            "            except TypeError:\n"
+            "                return 2\n"
+            "        return 3\n"
         )
         self.assertGreaterEqual(result.num_errors, 1)
         self.assertFalse(generated)

@@ -30,11 +30,11 @@ failure protocols, callbacks, Python exception reacquisition, nested `with gil`,
 `prange`, OpenMP, synchronization, or free-threaded interpreter support. Each
 remains an independent ownership and runtime gate.
 
-Post-change local gates pass all 564 focused coverage tests: 65 ownership-model,
-56 Runtime API, 238 Universal-emitter, 62 compiler-seam, and 143 quality-tool
+Post-change local gates pass all 565 focused coverage tests: 65 ownership-model,
+56 Runtime API, 239 Universal-emitter, 62 compiler-seam, and 143 quality-tool
 tests (two expected platform/tool availability skips on macOS). CPython 3.11
-reports 9270/9270 backend lines (100.00%), 15453/33926 frontend-seam lines
+reports 9299/9299 backend lines (100.00%), 15453/33926 frontend-seam lines
 (45.55%), and 2088/5016 quality-tool lines (41.63%); CPython 3.14.6 independently
-reports 9158/9158 (100.00%), 15551/34033 (45.69%), and 2082/5010 (41.56%).
+reports 9186/9186 (100.00%), 15551/34033 (45.69%), and 2082/5010 (41.56%).
 The linked external-C module additionally passes source, binary, normal-runtime,
 HPy Debug, wheel-build, and installed-wheel execution gates.

@@ -541,12 +541,15 @@ earlier phase's exit gate.
         public HPy type/subtype operations.
   - [x] Add the HPy 0.9 current-error-only terminal handler slice: a linear
         try body ending in return/raise, direct builtin or tuple-normalized
-        builtin matching, multiple/default clauses, literal-return handlers,
+        builtin matching, multiple/default clauses, terminal handlers,
         internal failure labels, checkpointed handle/builder/tracker cleanup,
         unmatched propagation, and normal/Trace/Debug execution.
-  - [ ] Add general handler bodies, `except as`, reraise, traceback, cause,
-        chaining, `else`/`finally`, nested handlers, and complete observable
-        handler-state semantics after a public exception-state design exists.
+  - [x] Add multi-statement handler bodies with linear assignments,
+        expressions, deletions, pass, supported `if`/`while`/`for`, and a
+        terminal return or explicit raise after the matched error is cleared.
+  - [ ] Add `except as`, bare reraise, traceback, cause/chaining,
+        `else`/`finally`, nested handlers, and complete observable handler-state
+        semantics after a public exception-state design exists.
 - [ ] Support iteration for the declared builtin containers.
   - [x] Support fixed, non-empty list/tuple literal iteration through
         `HPy_Length` and `HPy_GetItem_i`, including `break`, `continue`, `else`,
@@ -1280,7 +1283,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
       generated/native/subprocess behavior in its dedicated runtime gates.
   - [x] Reach 100% executable Python-line coverage for `HPyModuleWriter.py`,
         `HandleModel.py`, and `RuntimeAPI.py` on CPython 3.11 and 3.14; trace
-        564 tests and lock CI floors at backend 100%, frontend seam 45%, and
+        565 tests and lock CI floors at backend 100%, frontend seam 45%, and
         quality tools 41% without conflating native/generated-C gates.
 - [x] Add benchmark history and regression thresholds.
   - [x] Compare generated Universal HPy with an equivalent handwritten
