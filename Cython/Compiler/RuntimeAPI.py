@@ -2919,10 +2919,15 @@ class _HPyRuntimeAPIBase(_RuntimeAPIBase):
                     expected_implementation,
                 "generate the HPy method wrapper before emitting its definition",
             )
-        return "HPyDef_METH(%s, %s, %s)" % (
+        doc_argument = (
+            ", .doc = %s" % definition.doc_cname
+            if definition.doc_cname not in ("0", "NULL") else ""
+        )
+        return "HPyDef_METH(%s, %s, %s%s)" % (
             definition.definition_cname,
             definition.python_name_cname,
             hpy_signature,
+            doc_argument,
         )
 
     def method_implementation_declaration(

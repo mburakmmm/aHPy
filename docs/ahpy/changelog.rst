@@ -27,6 +27,10 @@ Bootstrap
   property documentation containing quotes, backslashes, controls, and Unicode
   now compiles and round-trips, while unrepresentable NUL-bearing HPy
   definition docs receive an explicit diagnostic.
+* Preserved module, module-function, pure-type, and ordinary-method docstrings
+  through `HPyModuleDef`, `HPyDef_METH`, and `HPyType_Spec`, with real
+  normal/Trace/Debug introspection and explicit diagnostics for NUL-bearing
+  definition docs.
 * Based aHPy development on current Cython ``master`` at commit
   ``b99cb0e3b5425e11414cadd24168a6cc850e8000``.
 * Added the implementation roadmap, Universal ABI boundary, backend

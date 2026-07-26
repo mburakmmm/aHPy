@@ -332,6 +332,9 @@ earlier phase's exit gate.
 - [x] Emit through the HPy build lane that defines `HPY_ABI_UNIVERSAL`, and
       compile with HPy's `forbid_python_h` include guard.
 - [x] Emit `HPy_MODINIT` and an `HPyModuleDef`.
+- [x] Preserve module and module-function docstrings in `HPyModuleDef` and
+      `HPyDef_METH`; encode UTF-8/multiline/control-bearing content with safe C
+      literals and reject NUL-bearing docs that the ABI cannot represent.
 - [x] Support qualified package-module names: retain the full dotted name for
       runtime type/metadata identity and use only the final identifier in the
       `HPy_MODINIT` export symbol; import the built package module in normal,
@@ -671,8 +674,9 @@ earlier phase's exit gate.
         entries with correct receiver, one-argument, keyword, and optional
         positional/keyword-only layouts; store supported defaults on the
         defining type, load them through `self.__class__`, preserve inherited
-        and mutable-default identity, and keep unsupported special methods
-        rejected.
+        and mutable-default identity, preserve class and ordinary-method
+        docstrings in `HPyType_Spec`/`HPyDef_METH`, and keep unsupported
+        special methods rejected.
     - [x] Enable slotless two-argument `__format__` as an ordinary
           `HPyDef_METH` method rather than inventing a type slot; use
           `HPyFunc_O` for a positional-only spelling and the ordinary checked

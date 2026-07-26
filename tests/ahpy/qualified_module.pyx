@@ -1,4 +1,9 @@
+"""qualified "module" documentation
+ikinci satır"""
+
+
 def answer():
+    """answer documentation"""
     return 42
 
 
@@ -16,7 +21,10 @@ def closure_unicode(value, /):
 
 
 cdef class QualifiedBox:
+    """qualified box documentation"""
+
     def answer(self):
+        """box answer documentation"""
         return 42
 
     def değer(self):

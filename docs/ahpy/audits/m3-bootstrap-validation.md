@@ -49,6 +49,10 @@ Property documentation containing Unicode, line breaks, quotes, backslashes,
 and controls is encoded through Cython's UTF-8-aware C-literal machinery and
 round-trips in all three modes. NUL-bearing property docs are rejected because
 HPy's definition field is a NUL-terminated C string.
+The same contract now covers module, module-function, pure extension-type, and
+ordinary extension-method documentation through their native HPy definition
+fields; the packaged fixture introspects each value in normal, Trace, and Debug
+modes, and every NUL-bearing definition-doc family receives a source diagnostic.
 
 `HPy_GetItem` and UTF-8-name `HPy_GetAttr_s` reads are also enabled over the
 implemented expression subset. Their owned operands are closed before a null

@@ -1764,7 +1764,8 @@ class RuntimeAPITest(TestCase):
         )
         self.assertEqual(
             runtime_api.method_definition_declaration(definition),
-            'HPyDef_METH(method_def, "method", HPyFunc_KEYWORDS)',
+            'HPyDef_METH(method_def, "method", HPyFunc_KEYWORDS, '
+            '.doc = method_doc)',
         )
         self.assertEqual(
             runtime_api.method_definition_prefix("method_def"), "")

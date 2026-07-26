@@ -2783,12 +2783,17 @@ class UniversalHPyModuleWriterTest(TestCase):
 
     def test_qualified_module_name_uses_leaf_init_symbol(self):
         result, generated, diagnostics = self.compile_source(
+            "'''qualified \"module\" documentation\n"
+            "ikinci satır'''\n\n"
             "def answer():\n"
+            "    '''answer documentation'''\n"
             "    return 42\n\n"
             "def selam_ç():\n"
             "    return 43\n\n"
             "cdef class QualifiedBox:\n"
+            "    '''qualified box documentation'''\n"
             "    def answer(self):\n"
+            "        '''box answer documentation'''\n"
             "        return 42\n\n"
             "    def değer(self):\n"
             "        return 44\n\n"
@@ -2808,6 +2813,22 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertNotIn("HPy_MODINIT(ahpy_package.", generated)
         self.assertIn(
             '.name = "ahpy_package.qualified_module.QualifiedBox"',
+            generated,
+        )
+        self.assertIn(
+            'HPyDef_METH(__pyx_hpy_def_0_answer, "answer", HPyFunc_NOARGS, '
+            '.doc = "answer documentation")',
+            generated,
+        )
+        self.assertIn(
+            'HPyDef_METH(__pyx_hpy_type_0_QualifiedBox_method_0_answer, '
+            '"answer", HPyFunc_NOARGS, .doc = "box answer documentation")',
+            generated,
+        )
+        self.assertIn('    .doc = "qualified box documentation",', generated)
+        self.assertIn(
+            '    .doc = "qualified \\"module\\" documentation\\n'
+            'ikinci sat\\304\\261r",',
             generated,
         )
         self.assertIn('"selam_\\303\\247"', generated)
@@ -5647,18 +5668,51 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertNotIn('"__set__", HPyFunc_', generated)
         self.assertNotIn('"__del__", HPyFunc_', generated)
 
-        result, _, diagnostics = self.compile_source(
-            "cdef class NulDoc:\n"
-            "    property value:\n"
-            "        '''before\\x00after'''\n"
-            "        def __get__(self):\n"
-            "            return None\n"
+        nul_doc_cases = (
+            (
+                "module",
+                "'''before\\x00after'''\n\n"
+                "def available():\n"
+                "    return None\n",
+            ),
+            (
+                "function",
+                "def available():\n"
+                "    '''before\\x00after'''\n"
+                "    return None\n",
+            ),
+            (
+                "type",
+                "cdef class NulDoc:\n"
+                "    '''before\\x00after'''\n"
+                "    def available(self):\n"
+                "        return None\n",
+            ),
+            (
+                "method",
+                "cdef class NulDoc:\n"
+                "    def available(self):\n"
+                "        '''before\\x00after'''\n"
+                "        return None\n",
+            ),
+            (
+                "property",
+                "cdef class NulDoc:\n"
+                "    property value:\n"
+                "        '''before\\x00after'''\n"
+                "        def __get__(self):\n"
+                "            return None\n",
+            ),
         )
-        self.assertEqual(result.num_errors, 1)
-        self.assertIn(
-            "property docstrings containing NUL are not representable",
-            diagnostics,
-        )
+        for subject, source in nul_doc_cases:
+            with self.subTest(nul_doc_subject=subject):
+                result, _, diagnostics = self.compile_source(source)
+                self.assertEqual(result.num_errors, 1)
+                self.assertIn(
+                    "%s docstrings containing NUL are not representable" %
+                    subject,
+                    diagnostics,
+                )
 
     def test_hash_uses_hash_slot_and_integer_validation(self):
         result, generated, diagnostics = self.compile_source(

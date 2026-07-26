@@ -863,8 +863,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:5521",
-      "line": 5521,
+      "id": "Cython/Compiler/HPyModuleWriter.py:5523",
+      "line": 5523,
       "message_template": "nested def requires InnerFunction closure synthesis",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -873,8 +873,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:5535",
-      "line": 5535,
+      "id": "Cython/Compiler/HPyModuleWriter.py:5537",
+      "line": 5537,
       "message_template": "nested def requires InnerFunction closure synthesis",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -883,8 +883,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:5592",
-      "line": 5592,
+      "id": "Cython/Compiler/HPyModuleWriter.py:5594",
+      "line": 5594,
       "message_template": "nested def requires InnerFunction closure synthesis",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -893,8 +893,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:5597",
-      "line": 5597,
+      "id": "Cython/Compiler/HPyModuleWriter.py:5599",
+      "line": 5599,
       "message_template": "decorated nested def functions are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -903,8 +903,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:5602",
-      "line": 5602,
+      "id": "Cython/Compiler/HPyModuleWriter.py:5604",
+      "line": 5604,
       "message_template": "decorated nested def functions are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -913,8 +913,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:5607",
-      "line": 5607,
+      "id": "Cython/Compiler/HPyModuleWriter.py:5609",
+      "line": 5609,
       "message_template": "generators and yield in nested def are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -923,8 +923,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:5612",
-      "line": 5612,
+      "id": "Cython/Compiler/HPyModuleWriter.py:5614",
+      "line": 5614,
       "message_template": "nested nested def closures are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -933,8 +933,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:5618",
-      "line": 5618,
+      "id": "Cython/Compiler/HPyModuleWriter.py:5620",
+      "line": 5620,
       "message_template": "nested nested def closures are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -943,8 +943,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:5623",
-      "line": 5623,
+      "id": "Cython/Compiler/HPyModuleWriter.py:5625",
+      "line": 5625,
       "message_template": "star arguments on nested def are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -953,8 +953,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:5629",
-      "line": 5629,
+      "id": "Cython/Compiler/HPyModuleWriter.py:5631",
+      "line": 5631,
       "message_template": "default arguments on nested def are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -963,8 +963,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:5643",
-      "line": 5643,
+      "id": "Cython/Compiler/HPyModuleWriter.py:5645",
+      "line": 5645,
       "message_template": "C-typed closure captures are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -973,8 +973,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:5810",
-      "line": 5810,
+      "id": "Cython/Compiler/HPyModuleWriter.py:5812",
+      "line": 5812,
       "message_template": "nested def body must end with a return statement",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -983,8 +983,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:5880",
-      "line": 5880,
+      "id": "Cython/Compiler/HPyModuleWriter.py:5882",
+      "line": 5882,
       "message_template": "unsupported nested def signature for closures",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -993,18 +993,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:6274",
-      "line": 6274,
-      "message_template": "property docstrings containing NUL are not representable by the HPy definition API",
-      "migration_action": {
-        "id": "unsupported-universal-construct",
-        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
-      },
-      "source": "Cython/Compiler/HPyModuleWriter.py"
-    },
-    {
-      "id": "Cython/Compiler/HPyModuleWriter.py:6694",
-      "line": 6694,
+      "id": "Cython/Compiler/HPyModuleWriter.py:6695",
+      "line": 6695,
       "message_template": "return annotations are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1013,8 +1003,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:6697",
-      "line": 6697,
+      "id": "Cython/Compiler/HPyModuleWriter.py:6698",
+      "line": 6698,
       "message_template": "__call__ body must end with a return statement",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1023,8 +1013,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:6805",
-      "line": 6805,
+      "id": "Cython/Compiler/HPyModuleWriter.py:6806",
+      "line": 6806,
       "message_template": "property getter body must end with a return statement",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1033,8 +1023,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:6891",
-      "line": 6891,
+      "id": "Cython/Compiler/HPyModuleWriter.py:6892",
+      "line": 6892,
       "message_template": "return annotations are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1043,8 +1033,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:6895",
-      "line": 6895,
+      "id": "Cython/Compiler/HPyModuleWriter.py:6896",
+      "line": 6896,
       "message_template": "%s body must end with a return statement",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1053,8 +1043,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:6926",
-      "line": 6926,
+      "id": "Cython/Compiler/HPyModuleWriter.py:6927",
+      "line": 6927,
       "message_template": "return annotations are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1063,8 +1053,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:6930",
-      "line": 6930,
+      "id": "Cython/Compiler/HPyModuleWriter.py:6931",
+      "line": 6931,
       "message_template": "__len__ body must end with a value-returning statement",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1073,8 +1063,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:6960",
-      "line": 6960,
+      "id": "Cython/Compiler/HPyModuleWriter.py:6961",
+      "line": 6961,
       "message_template": "return annotations are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1083,8 +1073,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:6964",
-      "line": 6964,
+      "id": "Cython/Compiler/HPyModuleWriter.py:6965",
+      "line": 6965,
       "message_template": "%s body must end with a return statement",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1093,8 +1083,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:7031",
-      "line": 7031,
+      "id": "Cython/Compiler/HPyModuleWriter.py:7032",
+      "line": 7032,
       "message_template": "return annotations are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1103,8 +1093,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:7035",
-      "line": 7035,
+      "id": "Cython/Compiler/HPyModuleWriter.py:7036",
+      "line": 7036,
       "message_template": "%s body must end with a return statement",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1113,8 +1103,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:7250",
-      "line": 7250,
+      "id": "Cython/Compiler/HPyModuleWriter.py:7251",
+      "line": 7251,
       "message_template": "return annotations are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1123,8 +1113,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:7254",
-      "line": 7254,
+      "id": "Cython/Compiler/HPyModuleWriter.py:7255",
+      "line": 7255,
       "message_template": "__hash__ body must end with a value-returning statement",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1133,8 +1123,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:7286",
-      "line": 7286,
+      "id": "Cython/Compiler/HPyModuleWriter.py:7287",
+      "line": 7287,
       "message_template": "return annotations are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1143,8 +1133,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:7290",
-      "line": 7290,
+      "id": "Cython/Compiler/HPyModuleWriter.py:7291",
+      "line": 7291,
       "message_template": "__bool__ body must end with a value-returning statement",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1153,8 +1143,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:7322",
-      "line": 7322,
+      "id": "Cython/Compiler/HPyModuleWriter.py:7323",
+      "line": 7323,
       "message_template": "return annotations are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1163,8 +1153,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:7326",
-      "line": 7326,
+      "id": "Cython/Compiler/HPyModuleWriter.py:7327",
+      "line": 7327,
       "message_template": "__contains__ body must end with a value-returning statement",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1173,8 +1163,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:7406",
-      "line": 7406,
+      "id": "Cython/Compiler/HPyModuleWriter.py:7407",
+      "line": 7407,
       "message_template": "return annotations are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1183,8 +1173,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:7415",
-      "line": 7415,
+      "id": "Cython/Compiler/HPyModuleWriter.py:7416",
+      "line": 7416,
       "message_template": "pure HPy __del__ may only return None",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1193,8 +1183,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:7447",
-      "line": 7447,
+      "id": "Cython/Compiler/HPyModuleWriter.py:7448",
+      "line": 7448,
       "message_template": "return annotations are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1203,8 +1193,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:7457",
-      "line": 7457,
+      "id": "Cython/Compiler/HPyModuleWriter.py:7458",
+      "line": 7458,
       "message_template": "%s may only return None",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1213,8 +1203,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:7498",
-      "line": 7498,
+      "id": "Cython/Compiler/HPyModuleWriter.py:7499",
+      "line": 7499,
       "message_template": "pure HPy %s may only return None",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1223,8 +1213,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:7756",
-      "line": 7756,
+      "id": "Cython/Compiler/HPyModuleWriter.py:7757",
+      "line": 7757,
       "message_template": "relative imports are not implemented",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1233,9 +1223,19 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/HPyModuleWriter.py:7781",
-      "line": 7781,
+      "id": "Cython/Compiler/HPyModuleWriter.py:7782",
+      "line": 7782,
       "message_template": "relative imports are not implemented",
+      "migration_action": {
+        "id": "unsupported-universal-construct",
+        "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
+      },
+      "source": "Cython/Compiler/HPyModuleWriter.py"
+    },
+    {
+      "id": "Cython/Compiler/HPyModuleWriter.py:7819",
+      "line": 7819,
+      "message_template": "%s docstrings containing NUL are not representable by the HPy definition API",
       "migration_action": {
         "id": "unsupported-universal-construct",
         "text": "Consult docs/ahpy/support-matrix.md, preserve the Universal diagnostic, and avoid CPython/Hybrid fallback."
