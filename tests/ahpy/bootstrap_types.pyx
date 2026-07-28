@@ -758,6 +758,30 @@ cdef class DerivedFormatBox(FormatBox):
     pass
 
 
+cdef class ProtocolMethods:
+    cdef object bytes_value
+    cdef object complex_value
+    cdef object round_values
+
+    def __init__(self, bytes_value, complex_value, round_values):
+        self.bytes_value = bytes_value
+        self.complex_value = complex_value
+        self.round_values = round_values
+
+    def __bytes__(self):
+        return self.bytes_value
+
+    def __complex__(self):
+        return self.complex_value
+
+    def __round__(self, ndigits=None):
+        return self.round_values[ndigits]
+
+
+cdef class DerivedProtocolMethods(ProtocolMethods):
+    pass
+
+
 cdef class Sized:
     cdef object value
 

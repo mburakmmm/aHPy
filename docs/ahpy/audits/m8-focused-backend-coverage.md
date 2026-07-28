@@ -1,10 +1,10 @@
 # M8 focused Universal backend coverage
 
-Date: 2026-07-26
+Date: 2026-07-28
 
 Status: local dual-interpreter gate green
 
-The dependency-free focused coverage gate now traces 570 tests and reaches
+The dependency-free focused coverage gate now traces 572 tests and reaches
 100% of the executable Python lines in the three Universal backend
 implementation modules:
 
@@ -14,8 +14,8 @@ implementation modules:
 
 | Interpreter | Backend | Frontend seam | Quality tools |
 | --- | ---: | ---: | ---: |
-| CPython 3.11 | 9408/9408 (100.00%) | 15523/33965 (45.70%) | 2088/5021 (41.59%) |
-| CPython 3.14.6 | 9295/9295 (100.00%) | 15620/34071 (45.85%) | 2082/5015 (41.52%) |
+| CPython 3.11 | 9408/9408 (100.00%) | 15528/33970 (45.71%) | 2088/5021 (41.59%) |
+| CPython 3.14.6 | 9295/9295 (100.00%) | 15635/34086 (45.87%) | 2082/5015 (41.52%) |
 
 The interpreter-specific executable-line totals differ because Python bytecode
 line tables differ; both independently satisfy the same CI floors:
@@ -27,7 +27,7 @@ python Tools/ahpy/report_coverage.py \
     --fail-under quality_tools=41
 ```
 
-The five traced families contain 65 ownership-model, 56 Runtime API, 244
+The five traced families contain 65 ownership-model, 56 Runtime API, 246
 Universal emitter, 62 compiler-seam, and 143 quality-tool tests; two
 platform/tool availability skips are expected on macOS.
 

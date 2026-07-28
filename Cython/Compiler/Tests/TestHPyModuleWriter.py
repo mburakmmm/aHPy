@@ -5844,6 +5844,65 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertIn("HPyDef_METH(__pyx_hpy_type_0_FormatBox_method_", generated)
         self.assertNotIn("HPy_tp_format", generated)
 
+    def test_slotless_protocol_methods_use_ordinary_hpy_method_definitions(self):
+        result, generated, diagnostics = self.compile_source(
+            "cdef class ProtocolBox:\n"
+            "    cdef object bytes_value\n"
+            "    cdef object complex_value\n"
+            "    cdef object round_values\n\n"
+            "    def __init__(self, bytes_value, complex_value, round_values):\n"
+            "        self.bytes_value = bytes_value\n"
+            "        self.complex_value = complex_value\n"
+            "        self.round_values = round_values\n\n"
+            "    def __bytes__(self):\n"
+            "        return self.bytes_value\n\n"
+            "    def __complex__(self):\n"
+            "        return self.complex_value\n\n"
+            "    def __round__(self, ndigits=None):\n"
+            "        return self.round_values[ndigits]\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn('"__bytes__", HPyFunc_NOARGS', generated)
+        self.assertIn('"__complex__", HPyFunc_NOARGS', generated)
+        self.assertIn('"__round__", HPyFunc_KEYWORDS', generated)
+        self.assertIn(
+            "HPyDef_METH(__pyx_hpy_type_0_ProtocolBox_method_", generated)
+        self.assertNotIn("HPy_tp_bytes", generated)
+        self.assertNotIn("HPy_tp_complex", generated)
+        self.assertNotIn("HPy_tp_round", generated)
+
+    def test_slotless_protocol_methods_reject_invalid_source_signatures(self):
+        sources = (
+            (
+                "bytes",
+                "cdef class BadBytes:\n"
+                "    def __bytes__(self, value):\n"
+                "        return value\n",
+            ),
+            (
+                "complex",
+                "cdef class BadComplex:\n"
+                "    def __complex__(self, value):\n"
+                "        return value\n",
+            ),
+            (
+                "round",
+                "cdef class BadRound:\n"
+                "    def __round__(self, first, second):\n"
+                "        return first\n",
+            ),
+        )
+        for feature, source in sources:
+            with self.subTest(feature=feature):
+                result, generated, diagnostics = self.compile_source(source)
+                self.assertEqual(result.num_errors, 1)
+                self.assertFalse(generated)
+                self.assertIn(
+                    "slotless protocol methods require __bytes__(self), "
+                    "__complex__(self), or __round__(self[, ndigits])",
+                    diagnostics,
+                )
+
     def test_instance_methods_load_and_store_object_fields_via_hpyfield(self):
         result, generated, diagnostics = self.compile_source(
             "cdef class Box:\n"

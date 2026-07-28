@@ -100,6 +100,15 @@ they never route private fields through Python attribute lookup. A null field
 is materialized as an owned `None`, matching Cython's initialized/deleted field
 semantics.
 
+Python protocols without HPy type slots use the same ordinary-method lane.
+`__format__`, `__bytes__`, `__complex__`, and `__round__` are published as
+`HPyDef_METH` definitions with `HPyFunc_O`, `HPyFunc_NOARGS`, or the checked
+keyword-capable signature as required. The generated runtime proves builtin
+`format`, `bytes`, `complex`, and one/two-argument `round` dispatch, inherited
+lookup, invalid bytes/complex result rejection by the interpreter, and body
+error propagation in normal, HPy Trace, and HPy Debug modes. Invalid source
+arities fail before C emission; no fictitious `HPy_tp_*` slot is generated.
+
 HPy 0.9's generic pure-type deallocator invokes every registered traverse
 implementation with a clearing visitor before optional `HPy_tp_destroy` hooks.
 The generated traversal therefore serves both cyclic GC and ordinary refcount

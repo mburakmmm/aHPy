@@ -198,7 +198,8 @@ audit/changelog fragments in the same change.
    `__new__` gates; keep weakref/`__dict__`/iter slots rejected on 0.9.
    **(compile-time diagnostics added for freelist, multiple inheritance,
    metaclass, variable-size layout, and existing `__dealloc__` wall; slot early
-   returns done for len/bool/hash/contains/call/property)**
+   returns done for len/bool/hash/contains/call/property; slotless
+   `__format__`/`__bytes__`/`__complex__`/`__round__` methods green)**
 10. Close M5 local GC/clear/finalize/resurrection stress; hosted
     all-interpreter promotion waits on Phase U2.
     **(local cycle/finalize/resurrect/field-clear oracle green on Python

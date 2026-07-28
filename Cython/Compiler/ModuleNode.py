@@ -691,6 +691,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     method for method in user_methods
                     if method.name == "__new__"
                 ]
+                invalid_slotless_protocol_methods = [
+                    method for method in user_methods
+                    if (
+                        method.name in ("__bytes__", "__complex__")
+                        and len(method.args) != 1
+                    ) or (
+                        method.name == "__round__"
+                        and len(method.args) not in (1, 2)
+                    )
+                ]
                 initial_numeric_method_names = (
                     "__add__", "__radd__", "__iadd__",
                     "__sub__", "__rsub__", "__isub__",
@@ -841,6 +851,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         "partial-object cleanup; custom allocation requires "
                         "its own constructor and layout validator",
                     )
+                elif invalid_slotless_protocol_methods:
+                    diagnostics.unsupported(
+                        invalid_slotless_protocol_methods[0],
+                        "pure Universal HPy slotless protocol methods require "
+                        "__bytes__(self), __complex__(self), or "
+                        "__round__(self[, ndigits]); no synthetic HPy type "
+                        "slot or mismatched callable signature is permitted",
+                    )
                 elif (
                     stat.visibility != "private"
                     or len(supported_fields) != len(fields)
@@ -854,7 +872,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                 "__neg__", "__pos__", "__abs__",
                                 "__invert__", "__int__", "__float__",
                                 "__index__", "__contains__", "__call__",
-                                "__format__",
+                                "__format__", "__bytes__", "__complex__",
+                                "__round__",
                                 "__cinit__",
                                 *initial_numeric_method_names,
                                 "__pow__", "__rpow__", "__ipow__",
@@ -876,6 +895,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             and len(method.args) != 2)
                         or (method.name == "__format__"
                             and len(method.args) != 2)
+                        or (method.name in ("__bytes__", "__complex__")
+                            and len(method.args) != 1)
+                        or (method.name == "__round__"
+                            and len(method.args) not in (1, 2))
                         or (method.name in initial_numeric_method_names
                             and len(method.args) != 2)
                         or (method.name in (
@@ -892,7 +915,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             method.name.startswith("__")
                             and method.name not in (
                                 "__cinit__", "__init__", "__call__",
-                                "__pow__", "__rpow__", "__ipow__")
+                                "__pow__", "__rpow__", "__ipow__",
+                                "__round__")
                             and any(argument.default is not None
                                     for argument in method.args)
                         )
@@ -937,7 +961,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         "and undecorated instance methods in the enabled "
                         "ordinary, property, __cinit__/__init__/__call__, "
                         "value, length, mapping, hash, bool, unary/conversion, "
-                        "contains, format, "
+                        "contains, slotless protocol, "
                         "rich-comparison, or __del__ families "
                         "(unsupported "
                         "entries: %s)" %
