@@ -4,7 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - master
+      - main
+      - "ahpy/**"
   pull_request:
   label:
     # Accepted labels (in the 'if' condition below) are:

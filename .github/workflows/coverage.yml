@@ -2,6 +2,9 @@ name: coverage
 
 on:
   push:
+    branches:
+      - main
+      - "ahpy/**"
     paths:
       - '.github/workflows/coverage.yml'
       - "Cython/**"

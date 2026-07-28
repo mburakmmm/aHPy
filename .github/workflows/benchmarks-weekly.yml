@@ -10,6 +10,8 @@ on:
   #        │  │ │ │ │
   - cron: "22 3 * * SUN"
   push:
+    branches:
+      - main
     paths:
       - ".github/workflows/benchmarks-weekly.yml"
   workflow_dispatch:

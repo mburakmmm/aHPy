@@ -307,6 +307,40 @@ class QualityGateTest(unittest.TestCase):
         self.assertNotIn("production-todo.md", pull_request_triggers)
         self.assertNotIn('"docs/**"', pull_request_triggers)
 
+    def test_expensive_workflows_do_not_duplicate_topic_branch_pushes(self):
+        workflow_names = (
+            "ahpy-universal.yml",
+            "benchmarks.yml",
+            "ci.yml",
+            "coverage.yml",
+            "sanitizers.yml",
+            "wheels.yml",
+        )
+        branch_policy = re.compile(
+            r"(?m)^  push:\n"
+            r"\s+branches:\n"
+            r"\s+- main\n"
+            r'\s+- "ahpy/\*\*"$'
+        )
+        for name in workflow_names:
+            workflow = (ROOT / ".github" / "workflows" / name).read_text(
+                encoding="utf8")
+            with self.subTest(workflow=name):
+                self.assertRegex(workflow, branch_policy)
+                self.assertIn("pull_request:", workflow)
+
+        weekly = (ROOT / ".github" / "workflows" /
+                  "benchmarks-weekly.yml").read_text(encoding="utf8")
+        self.assertRegex(
+            weekly,
+            re.compile(
+                r"(?m)^  push:\n"
+                r"\s+branches:\n"
+                r"\s+- main$"
+            ),
+        )
+        self.assertNotIn('"ahpy/**"', weekly)
+
     def test_nightlies_are_isolated_allowed_failure_early_warnings(self):
         manifest = tomllib.loads(VERSION_MANIFEST.read_text(encoding="utf8"))
         nightly = manifest["nightly"]

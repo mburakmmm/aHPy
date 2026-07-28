@@ -3,6 +3,9 @@ name: Benchmarks
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
+      - "ahpy/**"
     paths:
       # Only run on changes likely to affect benchmark code generation
       - ".github/workflows/benchmarks.yml"

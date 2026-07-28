@@ -170,8 +170,11 @@ Both regular and weekly workflows now fetch the exact release branches,
 `upstream` remote and benchmark those refs against aHPy `HEAD`. Their pipelines
 enable `pipefail`, summary rendering expands null-safe timing and size arrays
 and rejects either missing set, and artifact upload names the actual CSV globs
-with `if-no-files-found: error`. The path filter still skips unrelated PRs.
-A focused quality contract locks the upstream refs, irrelevant-change filter,
-pipeline propagation, CSV validation, and artifact policy. Local CPython 3.11
-and 3.14 coverage runs pass all 575 tests; hosted replacement evidence remains
+with `if-no-files-found: error`. Expensive workflow push triggers are limited
+to aHPy `main` and `ahpy/**` release branches; topic branches retain
+pull-request validation without running a second push matrix. The benchmark
+path filter still skips unrelated PRs. Focused quality contracts lock the
+upstream refs, irrelevant-change filter, pipeline propagation, CSV validation,
+artifact policy, and downstream branch trigger policy. Local CPython 3.11 and
+3.14 coverage runs pass all 576 tests; hosted replacement evidence remains
 required before the PRD-0 benchmark parent is closed.

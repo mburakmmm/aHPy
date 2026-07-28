@@ -31,6 +31,9 @@ on:
         - MANIFEST.in
         - setup.*
   push:
+      branches:
+        - main
+        - "ahpy/**"
       paths:
         #- Cython/Build/**
         - .github/cibuildwheel-requirement.txt

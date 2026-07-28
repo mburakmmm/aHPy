@@ -2,6 +2,9 @@ name: aHPy Universal
 
 on:
   push:
+    branches:
+      - main
+      - "ahpy/**"
   pull_request:
   workflow_dispatch:
   schedule:
