@@ -179,6 +179,6 @@ artifact policy, and downstream branch trigger policy.
 `tests/ahpy/ci-policy.toml` additionally classifies every job in all ten
 workflows exactly once; four regressions reject unknown workflows/jobs,
 duplicate classifications or job-level YAML keys, failure-policy drift, and
-branch-trigger drift. Local CPython 3.11 and 3.14 coverage runs pass all 580
+branch-trigger drift. Local CPython 3.11 and 3.14 coverage runs pass all 581
 tests; hosted replacement evidence remains required before the PRD-0 benchmark
 parent is closed.

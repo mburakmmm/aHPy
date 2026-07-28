@@ -9,4 +9,6 @@ The machine-readable ``tests/ahpy/ci-policy.toml`` manifest classifies every
 workflow job as required, mixed, allowed-failure, scheduled/manual, release,
 upstream-only, or reusable. Focused quality tests reject missing or duplicate
 classifications, job-level YAML key duplication, failure-policy drift, and
-downstream branch-trigger drift.
+downstream branch-trigger drift. A stable ``aHPy required checks`` aggregate
+collects mandatory aHPy families without allowing experimental or
+scheduled/manual diagnostics to break branch protection.

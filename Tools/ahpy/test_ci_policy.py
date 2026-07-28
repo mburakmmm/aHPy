@@ -119,6 +119,34 @@ class CIPolicyTest(unittest.TestCase):
                 entry["path"],
             )
 
+    def test_ahpy_required_aggregate_excludes_early_warnings(self):
+        entry = next(
+            entry for entry in load_policy()["workflows"]
+            if entry["path"] == ".github/workflows/ahpy-universal.yml"
+        )
+        text = (ROOT / entry["path"]).read_text(encoding="utf8")
+        block = workflow_job_blocks(text)["required-success"]
+        required_dependencies = {
+            "compiler-and-quality",
+            "stable-universal",
+            "development-revision",
+            "sanitizers",
+            "build-portability-artifact",
+        }
+        needs = set(re.findall(r"(?m)^      - ([A-Za-z0-9_-]+)$", block))
+        self.assertEqual(needs, required_dependencies)
+        self.assertIn("if: always()", block)
+        self.assertIn("contains(needs.*.result, 'failure')", block)
+        self.assertIn("contains(needs.*.result, 'cancelled')", block)
+        for excluded_job in (
+            "cross-interpreter",
+            "native-memory-valgrind",
+            "native-memory-windows",
+            "nightly-interpreter",
+            "nightly-hpy",
+        ):
+            self.assertNotIn(excluded_job, block)
+
     def test_job_level_workflow_mappings_have_no_duplicate_keys(self):
         for entry in load_policy()["workflows"]:
             text = (ROOT / entry["path"]).read_text(encoding="utf8")

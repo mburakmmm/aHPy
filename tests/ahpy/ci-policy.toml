@@ -13,6 +13,7 @@ required_jobs = [
   "stable-universal",
   "sanitizers",
   "build-portability-artifact",
+  "required-success",
 ]
 mixed_required_allowed_failure_jobs = ["development-revision"]
 allowed_failure_jobs = ["cross-interpreter"]

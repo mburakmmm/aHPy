@@ -22,6 +22,12 @@ The policy separates these categories:
 - `reusable_jobs`: workflow-call implementations whose caller owns the release
   policy.
 
+The `aHPy required checks` aggregate depends only on the compiler/quality,
+stable-platform, required HPy-development, sanitizer, and portability-artifact
+families. Experimental cross-interpreter and scheduled/manual early-warning
+jobs are deliberately excluded, so they cannot make the required branch
+protection context red.
+
 The manifest also fixes the downstream branch policy. Topic branches validate
 through `pull_request`; expensive `push` matrices run only for `main` and
 `ahpy/**` release branches. This prevents a branch with an open pull request
@@ -35,7 +41,8 @@ release-line evidence.
 3. scheduled/manual categories retain their event guards;
 4. mixed matrices retain their per-entry experimental expression;
 5. downstream branch triggers match the manifest; and
-6. job-level YAML mappings do not contain duplicate keys.
+6. the aHPy aggregate includes every required family and no early warning; and
+7. job-level YAML mappings do not contain duplicate keys.
 
 This classification does not itself prove a hosted run green. Exact run and
 job evidence remains in `validation-matrix.md` and the corresponding M8 audit.

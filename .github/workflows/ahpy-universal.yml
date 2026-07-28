@@ -423,6 +423,22 @@ jobs:
       - name: Execute staged unchanged Universal binaries
         run: python portability-artifact/portability_smoke.py
 
+  required-success:
+    name: aHPy required checks
+    needs:
+      - compiler-and-quality
+      - stable-universal
+      - development-revision
+      - sanitizers
+      - build-portability-artifact
+    if: always()
+    env:
+      FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Verify required jobs
+        run: exit $FAIL
+
   nightly-interpreter:
     name: early warning (CPython 3.15-dev + HPy 0.9)
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
