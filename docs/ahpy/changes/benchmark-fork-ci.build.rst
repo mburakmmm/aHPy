@@ -12,3 +12,5 @@ classifications, job-level YAML key duplication, failure-policy drift, and
 downstream branch-trigger drift. A stable ``aHPy required checks`` aggregate
 collects mandatory aHPy families without allowing experimental or
 scheduled/manual diagnostics to break branch protection.
+The Turkish production roadmap is explicitly excluded from the English-only
+codespell scan and that configuration is regression-tested.

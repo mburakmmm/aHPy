@@ -147,6 +147,15 @@ class CIPolicyTest(unittest.TestCase):
         ):
             self.assertNotIn(excluded_job, block)
 
+    def test_turkish_production_roadmap_is_outside_english_codespell(self):
+        text = (ROOT / ".codespellrc").read_text(encoding="utf8")
+        skip_line = next(
+            line for line in text.splitlines() if line.startswith("skip = "))
+        skipped_paths = {
+            value.strip() for value in skip_line.removeprefix("skip = ").split(",")
+        }
+        self.assertIn("production-todo.md", skipped_paths)
+
     def test_job_level_workflow_mappings_have_no_duplicate_keys(self):
         for entry in load_policy()["workflows"]:
             text = (ROOT / entry["path"]).read_text(encoding="utf8")

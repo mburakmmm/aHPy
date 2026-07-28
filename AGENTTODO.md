@@ -105,9 +105,9 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 150 tests pass (two expected platform/tool availability
+- Quality-tool suite: 151 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-07-28): 581 tests traced on both interpreters.
+- Focused coverage (2026-07-28): 582 tests traced on both interpreters.
   - CPython 3.11: backend 100.00%, frontend_seam 45.76%, quality_tools 41.59%.
   - CPython 3.14.6: backend 100.00%, frontend_seam 45.90%, quality_tools
     41.52%.
