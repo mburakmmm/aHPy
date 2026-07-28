@@ -6,7 +6,7 @@ checklist. An agent must update both files when implementation status changes.
 
 ## 1. Snapshot and source of truth
 
-- Snapshot date: 2026-07-26 (Cursor/Codex continuation and local coverage
+- Snapshot date: 2026-07-28 (Cursor/Codex continuation and local coverage
   audited and reconciled).
 - Workspace: `/Users/melihburakmemis/Documents/aHPy`.
 - Branch: `codex/ahpy-bootstrap`.
@@ -95,7 +95,7 @@ and the first performance regression gate.
 
 Last verified local gates:
 
-- Focused compiler suite: 419 tests pass (includes U1 closable surface and
+- Focused compiler suite: 431 tests pass (includes U1 closable surface and
   closure-registry regressions:
   `dir()`/`globals()`/`__dict__`, reject-duplicates keywords, imag constant
   cache, richer terminal try, sequence-safe inlined genexps, slot early
@@ -104,10 +104,10 @@ Last verified local gates:
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
 - Quality-tool suite: 143 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-07-26): 562 tests traced on both interpreters.
-  - CPython 3.11: backend 100.00%, frontend_seam 45.45%, quality_tools 41.60%.
-  - CPython 3.14.6: backend 100.00%, frontend_seam 45.62%, quality_tools
-    41.56%.
+- Focused coverage (2026-07-28): 574 tests traced on both interpreters.
+  - CPython 3.11: backend 100.00%, frontend_seam 45.76%, quality_tools 41.59%.
+  - CPython 3.14.6: backend 100.00%, frontend_seam 45.90%, quality_tools
+    41.52%.
   - CI floors are 100%, 45%, and 41%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
@@ -199,7 +199,8 @@ audit/changelog fragments in the same change.
    **(compile-time diagnostics added for freelist, multiple inheritance,
    metaclass, variable-size layout, and existing `__dealloc__` wall; slot early
    returns done for len/bool/hash/contains/call/property; slotless
-   `__format__`/`__bytes__`/`__complex__`/`__round__` methods green)**
+   `__format__`/`__bytes__`/`__complex__`/`__round__` and synchronous
+   `__enter__`/`__exit__` methods green)**
 10. Close M5 local GC/clear/finalize/resurrection stress; hosted
     all-interpreter promotion waits on Phase U2.
     **(local cycle/finalize/resurrect/field-clear oracle green on Python

@@ -5903,6 +5903,56 @@ class UniversalHPyModuleWriterTest(TestCase):
                     diagnostics,
                 )
 
+    def test_context_manager_methods_use_ordinary_hpy_method_definitions(self):
+        result, generated, diagnostics = self.compile_source(
+            "cdef class Manager:\n"
+            "    cdef object events\n"
+            "    cdef object suppress\n\n"
+            "    def __init__(self, events, suppress):\n"
+            "        self.events = events\n"
+            "        self.suppress = suppress\n\n"
+            "    def __enter__(self):\n"
+            "        self.events.append('enter')\n"
+            "        return self\n\n"
+            "    def __exit__(self, exc_type, exc_value, traceback):\n"
+            "        self.events.append(exc_type)\n"
+            "        return self.suppress\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn('"__enter__", HPyFunc_NOARGS', generated)
+        self.assertIn('"__exit__", HPyFunc_KEYWORDS', generated)
+        self.assertIn(
+            "HPyDef_METH(__pyx_hpy_type_0_Manager_method_", generated)
+        self.assertNotIn("HPy_tp_enter", generated)
+        self.assertNotIn("HPy_tp_exit", generated)
+
+    def test_context_manager_methods_reject_invalid_source_signatures(self):
+        sources = (
+            (
+                "enter",
+                "cdef class BadEnter:\n"
+                "    def __enter__(self, value):\n"
+                "        return value\n",
+            ),
+            (
+                "exit",
+                "cdef class BadExit:\n"
+                "    def __exit__(self, exc_type, exc_value):\n"
+                "        return False\n",
+            ),
+        )
+        for feature, source in sources:
+            with self.subTest(feature=feature):
+                result, generated, diagnostics = self.compile_source(source)
+                self.assertEqual(result.num_errors, 1)
+                self.assertFalse(generated)
+                self.assertIn(
+                    "synchronous context-manager methods require "
+                    "__enter__(self) and "
+                    "__exit__(self, exc_type, exc_value, traceback)",
+                    diagnostics,
+                )
+
     def test_instance_methods_load_and_store_object_fields_via_hpyfield(self):
         result, generated, diagnostics = self.compile_source(
             "cdef class Box:\n"

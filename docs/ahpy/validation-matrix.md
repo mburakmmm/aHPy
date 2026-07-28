@@ -242,6 +242,18 @@ body-error propagation in normal, HPy Trace, and HPy Debug modes. Focused
 negative inputs reject invalid source arities with a source-located diagnostic
 and no C output; generated source contains no invented `HPy_tp_*` spelling.
 
+## Synchronous pure-type context managers
+
+Pure Universal types publish `__enter__(self)` and
+`__exit__(self, exc_type, exc_value, traceback)` as ordinary `HPyDef_METH`
+entries because Python discovers the synchronous context-manager protocol by
+special-method lookup rather than an HPy type slot. The real generated corpus
+proves successful entry/exit, exception suppression and propagation, inherited
+lookup, and an exception raised by the `__exit__` body in normal, HPy Trace,
+and HPy Debug modes. Focused negative inputs require exact source arities,
+produce an actionable diagnostic, and emit no C; asynchronous context methods
+remain separately gated.
+
 ## Generator diagnose-only gate
 
 ADR 0006 records the resume-state and suspended-handle ownership contract, but
@@ -480,14 +492,14 @@ paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 572 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 574 focused tests under Python's built-in
 line-event tracer, derives executable lines from nested code-object line
 tables, and forces measured modules through a source-first finder so stale
 compiled extensions cannot hide Python lines. It reports the Universal
 backend, touched Cython frontend seam, and quality tools independently, plus
 ownership, Runtime API, emitter, compiler-seam, and quality-tool feature
-families. The current Python 3.11 validation records 100.00%, 45.71%, and
-41.59%; Python 3.14.6 records 100.00%, 45.87%, and 41.52%. CI keeps
+families. The current Python 3.11 validation records 100.00%, 45.76%, and
+41.59%; Python 3.14.6 records 100.00%, 45.90%, and 41.52%. CI keeps
 cross-version floors of 100%, 45%, and 41%. Schema 2 JSON and Markdown reports
 include exact missing lines and compact missing ranges for actionable
 follow-up.

@@ -695,6 +695,11 @@ earlier phase's exit gate.
           signature gates; validate builtin protocol dispatch, inherited
           methods, runtime result-type enforcement, body errors, and
           normal/Trace/Debug cleanup without inventing HPy slots.
+    - [x] Enable synchronous `__enter__` and `__exit__` context-manager
+          methods as ordinary `HPyDef_METH` definitions with exact source
+          arities; validate successful entry/exit, exception suppression and
+          propagation, inherited lookup, body failures, and
+          normal/Trace/Debug cleanup without inventing HPy slots.
   - [x] Generate user-written extension-type `property` blocks with exact
         Universal `HPyDef_GET`, `HPyDef_SET`, or `HPyDef_GETSET` definitions;
         preserve UTF-8, multiline, quoted, backslash/control-bearing docstrings
@@ -1302,7 +1307,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
       generated/native/subprocess behavior in its dedicated runtime gates.
   - [x] Reach 100% executable Python-line coverage for `HPyModuleWriter.py`,
         `HandleModel.py`, and `RuntimeAPI.py` on CPython 3.11 and 3.14; trace
-        572 tests and lock CI floors at backend 100%, frontend seam 45%, and
+        574 tests and lock CI floors at backend 100%, frontend seam 45%, and
         quality tools 41% without conflating native/generated-C gates.
 - [x] Add benchmark history and regression thresholds.
   - [x] Compare generated Universal HPy with an equivalent handwritten

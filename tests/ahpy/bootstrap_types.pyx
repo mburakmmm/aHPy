@@ -782,6 +782,27 @@ cdef class DerivedProtocolMethods(ProtocolMethods):
     pass
 
 
+cdef class ContextMethods:
+    cdef object events
+    cdef object suppress
+
+    def __init__(self, events, suppress):
+        self.events = events
+        self.suppress = suppress
+
+    def __enter__(self):
+        self.events.append("enter")
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.events.append(exc_type)
+        return self.suppress
+
+
+cdef class DerivedContextMethods(ContextMethods):
+    pass
+
+
 cdef class Sized:
     cdef object value
 

@@ -109,6 +109,16 @@ lookup, invalid bytes/complex result rejection by the interpreter, and body
 error propagation in normal, HPy Trace, and HPy Debug modes. Invalid source
 arities fail before C emission; no fictitious `HPy_tp_*` slot is generated.
 
+Synchronous context-manager protocols also use the ordinary-method lane.
+`__enter__(self)` is emitted as `HPyFunc_NOARGS`, while
+`__exit__(self, exc_type, exc_value, traceback)` uses the checked
+keyword-capable wrapper. The generated corpus proves successful entry and
+exit, true-result exception suppression, false-result propagation, inherited
+lookup, and body-error propagation in normal, HPy Trace, and HPy Debug modes.
+Invalid source arities fail before C emission with an actionable diagnostic;
+no fictitious context-manager type slot is generated, and asynchronous context
+methods remain behind their independent HPy 0.9 gate.
+
 HPy 0.9's generic pure-type deallocator invokes every registered traverse
 implementation with a clearing visitor before optional `HPy_tp_destroy` hooks.
 The generated traversal therefore serves both cyclic GC and ordinary refcount

@@ -701,6 +701,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         and len(method.args) not in (1, 2)
                     )
                 ]
+                invalid_context_manager_methods = [
+                    method for method in user_methods
+                    if (
+                        method.name == "__enter__"
+                        and len(method.args) != 1
+                    ) or (
+                        method.name == "__exit__"
+                        and len(method.args) != 4
+                    )
+                ]
                 initial_numeric_method_names = (
                     "__add__", "__radd__", "__iadd__",
                     "__sub__", "__rsub__", "__isub__",
@@ -859,6 +869,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         "__round__(self[, ndigits]); no synthetic HPy type "
                         "slot or mismatched callable signature is permitted",
                     )
+                elif invalid_context_manager_methods:
+                    diagnostics.unsupported(
+                        invalid_context_manager_methods[0],
+                        "pure Universal HPy synchronous context-manager "
+                        "methods require __enter__(self) and "
+                        "__exit__(self, exc_type, exc_value, traceback); "
+                        "asynchronous context methods remain separately gated",
+                    )
                 elif (
                     stat.visibility != "private"
                     or len(supported_fields) != len(fields)
@@ -873,7 +891,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                 "__invert__", "__int__", "__float__",
                                 "__index__", "__contains__", "__call__",
                                 "__format__", "__bytes__", "__complex__",
-                                "__round__",
+                                "__round__", "__enter__", "__exit__",
                                 "__cinit__",
                                 *initial_numeric_method_names,
                                 "__pow__", "__rpow__", "__ipow__",
@@ -899,6 +917,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             and len(method.args) != 1)
                         or (method.name == "__round__"
                             and len(method.args) not in (1, 2))
+                        or (method.name == "__enter__"
+                            and len(method.args) != 1)
+                        or (method.name == "__exit__"
+                            and len(method.args) != 4)
                         or (method.name in initial_numeric_method_names
                             and len(method.args) != 2)
                         or (method.name in (

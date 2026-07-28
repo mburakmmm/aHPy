@@ -7,6 +7,11 @@ Unreleased
 Bootstrap
 ~~~~~~~~~
 
+* Added pure-type synchronous context managers through ordinary Universal
+  ``HPyDef_METH`` definitions for ``__enter__`` and ``__exit__``; success,
+  exception suppression/propagation, inheritance, body failures, exact source
+  arities, and normal/Trace/Debug execution are covered without fictitious HPy
+  slots.
 * Added pure-type ``__bytes__``, ``__complex__``, and optional-argument
   ``__round__`` through ordinary Universal ``HPyDef_METH`` definitions;
   builtin dispatch, inheritance, invalid result types, and body failures pass
@@ -31,7 +36,7 @@ Bootstrap
   control flow, and a terminal return or explicit raise, with normal/Trace/Debug
   cleanup and translated-error execution.
 * Reached 100% executable Python-line coverage for the Universal backend on
-  CPython 3.11 and 3.14, expanded the focused run to 572 tests, and raised CI
+  CPython 3.11 and 3.14, expanded the focused run to 574 tests, and raised CI
   floors to 100% backend, 45% frontend seam, and 41% quality tools. Coverage
   schema 2 now reports missing lines/ranges and forces measured imports through
   source files so stale native extensions cannot mask gaps.
