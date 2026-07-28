@@ -7,6 +7,10 @@ Unreleased
 Bootstrap
 ~~~~~~~~~
 
+* Added explicit, non-empty ``with gil`` islands between Universal HPy
+  ``with nogil`` external-C intervals; supported Python bodies execute after
+  re-entry, while linked normal/Trace/Debug callback success and failure prove
+  ordering and prevent a following native call on error.
 * Added the exact signed-integer ``except -1`` external-C errno contract for
   held and ``nogil`` calls: generated code clears errno before the native call,
   snapshots it before re-entry, raises public-HPy ``OSError`` afterward, and
@@ -23,7 +27,7 @@ Bootstrap
   control flow, and a terminal return or explicit raise, with normal/Trace/Debug
   cleanup and translated-error execution.
 * Reached 100% executable Python-line coverage for the Universal backend on
-  CPython 3.11 and 3.14, expanded the focused run to 568 tests, and raised CI
+  CPython 3.11 and 3.14, expanded the focused run to 570 tests, and raised CI
   floors to 100% backend, 45% frontend seam, and 41% quality tools. Coverage
   schema 2 now reports missing lines/ranges and forces measured imports through
   source files so stale native extensions cannot mask gaps.

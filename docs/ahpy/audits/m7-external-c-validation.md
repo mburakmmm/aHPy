@@ -53,6 +53,8 @@ translation unit. `Tools/ahpy/setuptools_integration.py` proves:
 - overflow before native entry, checked with a private C call counter;
 - exact errno success/failure for held, released, and discarded calls, including
   `EDOM`→`OSError`, unchanged native state, and missing-errno `RuntimeError`;
+- an explicit GIL-island Python callback between native intervals, including a
+  raising callback that prevents the following native call;
 - normal, HPy Trace, and HPy Debug execution with Debug `LeakDetector`;
 - generated-source and undefined-binary-symbol Universal audits;
 - `.hpy0` build, current host-tagged wheel content, empty-target pip install,

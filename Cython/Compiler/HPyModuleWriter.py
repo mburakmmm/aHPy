@@ -783,6 +783,35 @@ class UniversalHPyFunctionWriter:
         for statement in self.stats(gil_node.body):
             if isinstance(statement, Nodes.ParallelStatNode):
                 self.reject_parallel_construct(statement)
+            if type(statement) is Nodes.GILStatNode:
+                if (
+                    statement.state != "gil"
+                    or statement.internally_generated
+                ):
+                    self.unsupported(
+                        statement,
+                        "only an explicit with gil block may interrupt the "
+                        "Universal HPy with nogil external-C lane",
+                    )
+                if statement.condition is not None:
+                    self.unsupported(
+                        statement,
+                        "conditional with gil blocks are not implemented in "
+                        "the Universal HPy with nogil lane",
+                    )
+                gil_body = self.stats(statement.body)
+                if not gil_body:
+                    self.unsupported(
+                        statement,
+                        "empty nested with gil blocks are not part of the "
+                        "Universal HPy execution-state slice",
+                    )
+                self.putln(
+                    "/* explicit with gil: Python execution is active between "
+                    "native intervals */")
+                for gil_statement in gil_body:
+                    gil_statement.generate_hpy_bootstrap_execution_code(self)
+                continue
             result_target = None
             if type(statement) is Nodes.ExprStatNode:
                 expression = statement.expr

@@ -289,7 +289,9 @@ public HPy, and may be moved into a Python local/global, attribute, item, or
 slice target. Attribute/item argument expressions are evaluated before leave and
 the corresponding result targets only after re-entry. Focused negative inputs
 reject expanded arguments, compound/destructuring result targets, and empty
-blocks with no generated C.
+blocks with no generated C. An explicit non-empty `with gil` island may run the
+already-supported held-execution HPy body between native intervals; implicit,
+conditional, and empty islands fail closed.
 
 The setuptools integration example links argumentless/scalar-argument
 `noexcept nogil` probes plus exact signed `except -1` errno probes, checks their
@@ -301,10 +303,12 @@ global/attribute/item/slice targets. The
 `.hpy0` passes normal, HPy Trace, and HPy Debug execution plus generated-source and
 undefined-import audits. Held, released, and discarded errno calls prove
 success, `EDOM`→`OSError`, unchanged native state on failure, snapshot-before-
-re-entry ordering, and missing-errno `RuntimeError`. This gate does not cover
+re-entry ordering, and missing-errno `RuntimeError`. A linked Python callback
+inside the GIL island proves native/Python/native ordering and its raising path
+proves the following native call is skipped in normal/Trace/Debug. This gate does not cover
 compound/destructuring result targets, other native failure protocols, Python
-exception reacquisition, callbacks, nested
-`with gil`, `prange`/OpenMP, or free-threading.
+exception reacquisition, callbacks crossing from native C, long-lived nested
+transitions, `prange`/OpenMP, or free-threading.
 
 ## Parallel/OpenMP fail-closed gate
 
@@ -465,14 +469,14 @@ paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 568 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 570 focused tests under Python's built-in
 line-event tracer, derives executable lines from nested code-object line
 tables, and forces measured modules through a source-first finder so stale
 compiled extensions cannot hide Python lines. It reports the Universal
 backend, touched Cython frontend seam, and quality tools independently, plus
 ownership, Runtime API, emitter, compiler-seam, and quality-tool feature
-families. The current Python 3.11 validation records 100.00%, 45.69%, and
-41.59%; Python 3.14.6 records 100.00%, 45.84%, and 41.52%. CI keeps
+families. The current Python 3.11 validation records 100.00%, 45.70%, and
+41.59%; Python 3.14.6 records 100.00%, 45.85%, and 41.52%. CI keeps
 cross-version floors of 100%, 45%, and 41%. Schema 2 JSON and Markdown reports
 include exact missing lines and compact missing ranges for actionable
 follow-up.

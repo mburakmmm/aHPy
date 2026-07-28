@@ -16,7 +16,8 @@ Project status
 
 aHPy is active, pre-release compiler work.  It already has an executable
 Universal subset, pure-HPy extension types, Python-independent external-C
-integration, multiple build-system examples, and normal/Trace/Debug,
+integration including a narrow ``nogil`` transition lane with explicit
+``with gil`` islands, multiple build-system examples, and normal/Trace/Debug,
 fault-injection, fuzz, coverage, ABI, footprint, and reproducibility gates.
 It is **not yet a claim that arbitrary Cython or NumPy C-API code can compile
 unchanged**, and the frontend has not been published to PyPI.
@@ -89,9 +90,9 @@ Validation snapshot
 
 The current local M9 snapshot records:
 
-* 420 focused compiler tests and 143 quality-tool tests (two expected
+* 427 focused compiler tests and 143 quality-tool tests (two expected
   platform skips);
-* 563 focused coverage tests on CPython 3.11 and 3.14;
+* 570 focused coverage tests on CPython 3.11 and 3.14;
 * 100% executable Python-line coverage for the three Universal backend
   implementation modules on both interpreters, with separate 45% frontend-seam
   and 41% quality-tool floors;

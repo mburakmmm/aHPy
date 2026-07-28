@@ -1,7 +1,7 @@
 # M6 `nogil` execution-state validation record
 
 Date: 2026-07-26
-Status: scalar-argument/result/errno external-C slice green; broader family open
+Status: scalar-argument/result/errno and explicit GIL-island slice green; broader family open
 
 ADR 0010 limits the Universal `with nogil` implementation to discarded calls
 or Python local/global, attribute, item, and slice result assignments whose
@@ -32,18 +32,24 @@ The exact errno lane clears before each native call, snapshots before re-entry,
 and raises public-HPy `OSError` only after re-entry; held, retained, and
 discarded calls pass success and `EDOM` failure, while a native sentinel without
 errno raises the documented `RuntimeError`.
+An explicit non-empty `with gil` island may emit an already-supported Python
+body between the per-call native intervals, where execution is active. The
+linked callback oracle proves native/Python/native ordering and proves a
+raising callback propagates its exception without entering the following
+native call in normal, HPy Trace, and HPy Debug modes. Implicit,
+conditional, and empty islands remain fail-closed.
 
 This is not a claim for general `nogil`, compound/destructuring result targets,
 other native failure protocols, callbacks, Python exception reacquisition,
-nested `with gil`,
+long-lived nested transition state,
 `prange`, OpenMP, synchronization, or free-threaded interpreter support. Each
 remains an independent ownership and runtime gate.
 
-Post-change local gates pass all 568 focused coverage tests: 65 ownership-model,
-56 Runtime API, 242 Universal-emitter, 62 compiler-seam, and 143 quality-tool
+Post-change local gates pass all 570 focused coverage tests: 65 ownership-model,
+56 Runtime API, 244 Universal-emitter, 62 compiler-seam, and 143 quality-tool
 tests (two expected platform/tool availability skips on macOS). CPython 3.11
-reports 9388/9388 backend lines (100.00%), 15520/33965 frontend-seam lines
-(45.69%), and 2088/5021 quality-tool lines (41.59%); CPython 3.14.6 independently
-reports 9275/9275 (100.00%), 15617/34071 (45.84%), and 2082/5015 (41.52%).
+reports 9408/9408 backend lines (100.00%), 15523/33965 frontend-seam lines
+(45.70%), and 2088/5021 quality-tool lines (41.59%); CPython 3.14.6 independently
+reports 9295/9295 (100.00%), 15620/34071 (45.85%), and 2082/5015 (41.52%).
 The linked external-C module additionally passes source, binary, normal-runtime,
 HPy Trace, HPy Debug, wheel-build, and installed-wheel execution gates.

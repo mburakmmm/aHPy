@@ -1,6 +1,6 @@
 # ADR 0010: Universal HPy execution-state transitions
 
-- Status: accepted; scalar-argument/result/errno external-C slice implemented
+- Status: accepted; scalar-argument/result/errno plus explicit GIL-island slice implemented
 - Date: 2026-07-16
 
 ## Context
@@ -57,11 +57,17 @@ without introducing CPython emulation.
    calls. `except?`, `except *`, unsigned returns, and non-`-1` sentinels remain
    rejected because they either require Python exception inspection or define a
    different native ABI contract.
-6. Other Python exception contracts, nested `with gil`, conditional/runtime
-   transitions, C callbacks, pointers/buffers, C++/RAII, `prange`, OpenMP, and
-   free-threading are independent gates. Re-entry cleanup must be modeled for
-   every future native failure or structured-control-flow path before that path
-   is enabled.
+6. Between per-call native intervals Python execution is active, so an
+   explicit, non-empty `with gil` island may emit the same supported HPy body as
+   held-execution code without another transition. A Python failure in that
+   body exits while execution is active and cannot reach a following native
+   call. Implicit compiler-inserted, conditional, and empty islands remain
+   rejected so they cannot silently widen this lane.
+7. Other Python exception contracts, callbacks crossing the C boundary,
+   conditional/runtime transitions, pointers/buffers, C++/RAII, `prange`,
+   OpenMP, and free-threading are independent gates. Re-entry cleanup must be
+   modeled for every future native failure or structured-control-flow path
+   before that path is enabled.
 
 ## Validation
 
@@ -77,7 +83,10 @@ conversion/close/leave/call/re-entry, and native-result/re-entry/HPy-box
 ordering, including attribute/item arguments before leave and local/global,
 attribute, item, and slice result writes after re-entry. Expanded arguments,
 compound/destructuring result targets, and empty blocks are rejected without
-producing C. The linked errno oracle proves held/released/discarded success,
+producing C. An explicit GIL island is ordered between two native intervals;
+the linked callback oracle proves both success and Python failure, including
+that failure prevents the second native call in normal/Trace/Debug. Implicit,
+conditional, and empty islands fail closed. The linked errno oracle proves held/released/discarded success,
 `EDOM` conversion to `OSError`, unchanged native state on failure, and the
 unset-errno `RuntimeError` path in normal/Trace/Debug and installed-wheel
 execution.
@@ -86,8 +95,8 @@ execution.
 
 1. Independently evaluate compound/destructuring result targets and any native
    failure protocol beyond the exact `except -1` errno lane.
-2. Model nested transition state and exception reacquisition without CPython
-   exception triples.
+2. Model any future long-lived/nested transition state and exception
+   reacquisition without CPython exception triples.
 3. Design `prange`/OpenMP worker context ownership, cancellation, reduction,
    and re-entry separately.
 4. Validate supported free-threaded interpreters as a distinct runtime lane;

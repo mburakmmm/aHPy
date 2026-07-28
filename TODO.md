@@ -1042,9 +1042,14 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         Reject `except?`, `except *`, unsigned/non-`-1` sentinels, and prove
         held/released/discarded calls in normal/Trace/Debug and installed-wheel
         runs.
+  - [x] Permit explicit, non-empty `with gil` islands between admitted native
+        intervals; emit their supported Python body while execution is active,
+        reject implicit/conditional/empty islands, and prove callback success
+        plus failure prevents the following native call in normal/Trace/Debug.
   - [ ] Independently gate compound/destructuring result targets.
-  - [ ] Design nested `with gil`, other native failure/exception
-        reacquisition, callbacks, and every structured early-exit cleanup path.
+  - [ ] Design other native failure/exception reacquisition, callbacks that
+        cross the C boundary, and every remaining structured early-exit cleanup
+        path.
 - [ ] `prange`, OpenMP, synchronization, and free-threading interactions.
   - [x] Record ADR 0011's backend-neutral scheduling/reduction plan,
         originating-thread transition, native-only worker rules, sequential
@@ -1292,7 +1297,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
       generated/native/subprocess behavior in its dedicated runtime gates.
   - [x] Reach 100% executable Python-line coverage for `HPyModuleWriter.py`,
         `HandleModel.py`, and `RuntimeAPI.py` on CPython 3.11 and 3.14; trace
-        568 tests and lock CI floors at backend 100%, frontend seam 45%, and
+        570 tests and lock CI floors at backend 100%, frontend seam 45%, and
         quality tools 41% without conflating native/generated-C gates.
 - [x] Add benchmark history and regression thresholds.
   - [x] Compare generated Universal HPy with an equivalent handwritten

@@ -47,9 +47,12 @@ APIs. The ordered probe proves a later Python conversion remains after the
 preceding native call, while the result probe boxes its retained scalar only
 after re-entry. The target probe evaluates attribute/item arguments before
 leave and writes retained results to global/attribute/item/slice targets only after
-re-entry, including a custom slice target. This does not enable
+re-entry, including a custom slice target. `external_nogil_with_gil()` places
+an explicit Python callback island between two native intervals and proves both
+ordered success and that callback failure skips the second native call in
+normal/Trace/Debug. This does not enable
 compound/destructuring result targets, native
-failure protocols, callbacks, `prange`, or general `nogil`.
+failure protocols, callbacks invoked from native C, `prange`, or general `nogil`.
 
 `external_errno_held()`, `external_errno_released()`,
 `external_errno_discarded()`, and `external_missing_errno()` are the native

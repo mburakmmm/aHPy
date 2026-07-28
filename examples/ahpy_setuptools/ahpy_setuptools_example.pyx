@@ -98,6 +98,15 @@ def external_nogil_targets(obj, mapping, /):
     )
 
 
+def external_nogil_with_gil(callback, /):
+    with nogil:
+        before = ahpy_external_nogil_advance(1)
+        with gil:
+            amount = callback(before)
+        after = ahpy_external_nogil_advance(amount)
+    return before, amount, after
+
+
 def external_errno_held(amount, /):
     return ahpy_external_errno_advance(amount)
 

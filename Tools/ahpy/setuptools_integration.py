@@ -104,6 +104,27 @@ def _runtime_program(debug):
         "assert target.value == target_base + 3\n"
         "assert mapping.item == target_base + 6\n"
         "assert mapping.slice_item == target_base + 10\n"
+        "gil_base = module.external_nogil_calls()\n"
+        "gil_events = []\n"
+        "def gil_callback(before):\n"
+        "    gil_events.append(before)\n"
+        "    assert module.external_nogil_calls() == gil_base + 1\n"
+        "    return 2\n"
+        "assert module.external_nogil_with_gil(gil_callback) == (\n"
+        "    gil_base + 1, 2, gil_base + 3)\n"
+        "assert gil_events == [gil_base + 1]\n"
+        "gil_failure_base = module.external_nogil_calls()\n"
+        "def failing_gil_callback(before):\n"
+        "    assert before == gil_failure_base + 1\n"
+        "    assert module.external_nogil_calls() == gil_failure_base + 1\n"
+        "    raise ValueError('nested with gil failed')\n"
+        "try:\n"
+        "    module.external_nogil_with_gil(failing_gil_callback)\n"
+        "except ValueError as error:\n"
+        "    assert str(error) == 'nested with gil failed'\n"
+        "else:\n"
+        "    raise AssertionError('missing nested with gil failure')\n"
+        "assert module.external_nogil_calls() == gil_failure_base + 1\n"
         "errno_base = module.external_nogil_calls()\n"
         "assert module.external_errno_held(2) == errno_base + 2\n"
         "assert module.external_errno_released(3) == errno_base + 5\n"
@@ -176,6 +197,7 @@ def build_and_run(python):
                 "HPyLong_FromUnsignedLongLong",
                 "HPyThreadState", "HPy_LeavePythonExecution",
                 "HPy_ReenterPythonExecution", "ahpy_external_nogil_advance",
+                "explicit with gil: Python execution is active",
                 "#include <errno.h>", "HPyErr_SetFromErrno",
             ),
         )

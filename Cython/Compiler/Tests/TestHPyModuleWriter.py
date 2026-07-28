@@ -636,9 +636,31 @@ class UniversalHPyEmitterContractTest(TestCase):
             exception_value=None,
             exception_check=False,
         )
+        implicit_gil = Nodes.GILStatNode.__new__(Nodes.GILStatNode)
+        implicit_gil.state = "gil"
+        implicit_gil.internally_generated = True
+        implicit_gil.condition = None
+        implicit_gil.body = Nodes.StatListNode(
+            None, stats=[_EmitLineStatement("implicit_gil();")])
+        implicit_gil.pos = None
+        conditional_gil = Nodes.GILStatNode.__new__(Nodes.GILStatNode)
+        conditional_gil.state = "gil"
+        conditional_gil.internally_generated = False
+        conditional_gil.condition = object()
+        conditional_gil.body = Nodes.StatListNode(
+            None, stats=[_EmitLineStatement("conditional_gil();")])
+        conditional_gil.pos = None
         invalid_cases = (
             (block(state="gil"), "with gil blocks"),
             (block(condition=object()), "conditional with nogil"),
+            (
+                block(statements=(implicit_gil,)),
+                "only an explicit with gil block may interrupt",
+            ),
+            (
+                block(statements=(conditional_gil,)),
+                "conditional with gil blocks are not implemented",
+            ),
             (
                 block(statements=(SimpleNamespace(pos=None),)),
                 "permits only discarded calls",
@@ -4805,6 +4827,75 @@ class UniversalHPyModuleWriterTest(TestCase):
             "Constructing Python tuple not allowed without gil",
             diagnostics,
         )
+
+    def test_nogil_external_c_allows_explicit_with_gil_islands(self):
+        result, generated, diagnostics = self.compile_source(
+            "cdef extern from \"worker.h\":\n"
+            "    long tick(long value) noexcept nogil\n\n"
+            "def run(callback, /):\n"
+            "    with nogil:\n"
+            "        before = tick(1)\n"
+            "        with gil:\n"
+            "            amount = callback(before)\n"
+            "        after = tick(amount)\n"
+            "    return before, amount, after\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        first_leave = generated.index("HPy_LeavePythonExecution(ctx)")
+        first_call = generated.index("= tick(((long)1));", first_leave)
+        first_reentry = generated.index(
+            "HPy_ReenterPythonExecution(ctx,", first_call)
+        gil_marker = generated.index(
+            "explicit with gil: Python execution is active", first_reentry)
+        callback_call = generated.index("HPy_Call(ctx,", gil_marker)
+        conversion = generated.index("HPyLong_AsLong(ctx,", callback_call)
+        second_leave = generated.index(
+            "HPy_LeavePythonExecution(ctx)", conversion)
+        second_call = generated.index("= tick(", second_leave)
+        second_reentry = generated.index(
+            "HPy_ReenterPythonExecution(ctx,", second_call)
+        self.assertLess(first_leave, first_call)
+        self.assertLess(first_call, first_reentry)
+        self.assertLess(first_reentry, gil_marker)
+        self.assertLess(gil_marker, callback_call)
+        self.assertLess(callback_call, conversion)
+        self.assertLess(conversion, second_leave)
+        self.assertLess(second_leave, second_call)
+        self.assertLess(second_call, second_reentry)
+
+    def test_nogil_external_c_rejects_implicit_conditional_and_empty_gil_islands(self):
+        sources = (
+            (
+                "conditional",
+                "cdef extern from \"worker.h\":\n"
+                "    long tick() noexcept nogil\n\n"
+                "def run(flag, /):\n"
+                "    with nogil:\n"
+                "        tick()\n"
+                "        with gil(flag):\n"
+                "            value = 1\n"
+                "    return value\n",
+                "Non-constant condition in a `with gil(<condition>)` statement",
+            ),
+            (
+                "empty",
+                "cdef extern from \"worker.h\":\n"
+                "    long tick() noexcept nogil\n\n"
+                "def run():\n"
+                "    with nogil:\n"
+                "        tick()\n"
+                "        with gil:\n"
+                "            pass\n"
+                "    return 1\n",
+                "empty nested with gil blocks are not part",
+            ),
+        )
+        for feature, source, expected in sources:
+            with self.subTest(feature=feature):
+                result, generated, diagnostics = self.compile_source(source)
+                self.assertEqual(result.num_errors, 1)
+                self.assertFalse(generated)
+                self.assertIn(expected, diagnostics)
 
     def test_external_c_errno_sentinel_checks_after_native_calls(self):
         result, generated, diagnostics = self.compile_source(

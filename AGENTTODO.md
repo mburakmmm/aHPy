@@ -514,8 +514,10 @@ Implement one independently gated family at a time:
    declared `noexcept nogil` or exact signed `except -1 nogil`; emission
    preconverts arguments, supports local/global/attribute/item/slice targets,
    snapshots errno before public-HPy re-entry, and validates held/released/
-   discarded error paths. Compound targets, nested `with gil`, other native
-   failures, and callbacks remain open. ADR 0011 now defines the neutral
+   discarded error paths. Explicit non-empty `with gil` islands between native
+   intervals now run their supported Python body while execution is active and
+   pass callback success/failure oracles. Compound targets, other native
+   failures, and C-boundary callbacks remain open. ADR 0011 now defines the neutral
    parallel plan and native-only worker path; `prange`/`parallel()` fail closed
    because HPy 0.9 has no public arbitrary-worker attach/error transport.
    OpenMP implementation and free-threading remain open.)**

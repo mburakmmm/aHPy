@@ -71,9 +71,12 @@ state, invoke Python callbacks, throw across the C boundary, or escape with
 APIs around that handle-free interval. A supported scalar result may be kept in
 a native temporary, boxed, and assigned to a validated Python name, attribute,
 item, or slice target only after re-entry. Python attribute/item arguments are
-evaluated before leaving execution. Compound/destructuring result targets,
-other native status/error protocols, pointer/buffer lifetime, and callback
-contracts still need explicit designs. The errno lane clears `errno` directly
+evaluated before leaving execution. An explicit non-empty `with gil` island
+between native calls emits its supported Python body while execution is active;
+a Python failure exits before the next native call. Implicit, conditional, and
+empty islands remain rejected. Compound/destructuring result targets, other
+native status/error protocols, pointer/buffer lifetime, and callbacks crossing
+the C boundary still need explicit designs. The errno lane clears `errno` directly
 before the call, snapshots it before re-entry, then uses
 `HPyErr_SetFromErrno(OSError)` after re-entry; a `-1` result with zero errno is
 a contract violation reported as `RuntimeError`. Unsupported forms fail at
@@ -91,6 +94,7 @@ argument-bearing native counter probes in normal and Debug modes, proves a
 failing `__index__` conversion never enters the native interval, returns a
 retained scalar only after re-entry, writes retained results through
 global/attribute/item/slice targets, and audits the HPy execution-state
-spellings. It also proves exact `except -1` held/released/discarded calls,
+spellings. Its explicit GIL-island callback proves native/Python/native ordering
+and that a Python failure prevents the second native call. It also proves exact `except -1` held/released/discarded calls,
 `EDOM`-backed `OSError`, unchanged native state on failure, and the unset-errno
 contract diagnostic.
