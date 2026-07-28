@@ -121,9 +121,11 @@ hosted artifact is reviewed; it does not expand the supported baseline.
 Documentation map
 -----------------
 
+* `Production readiness roadmap <production-todo.md>`_
 * `Project contract and architecture <docs/ahpy/README.md>`_
 * `Support matrix <docs/ahpy/support-matrix.md>`_
 * `Validation and release gates <docs/ahpy/validation-matrix.md>`_
+* `Machine-readable CI policy <docs/ahpy/ci-policy.md>`_
 * `Handle ownership model <docs/ahpy/handle-model.md>`_
 * `Runtime API seam <docs/ahpy/runtime-api.md>`_
 * `External-C contract <docs/ahpy/external-c.md>`_

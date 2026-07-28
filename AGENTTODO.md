@@ -2,7 +2,8 @@
 
 This file is the operational handoff for AI agents continuing aHPy. It does
 not replace `TODO.md`: that file is the normative, dependency-ordered project
-checklist. An agent must update both files when implementation status changes.
+checklist. `production-todo.md` is the release-readiness execution order. An
+agent must keep all three synchronized when implementation status changes.
 
 ## 1. Snapshot and source of truth
 
@@ -49,12 +50,13 @@ checklist. An agent must update both files when implementation status changes.
 Read these before changing code:
 
 1. `TODO.md` — normative scope, dependencies, and exit gates.
-2. `docs/ahpy/README.md` — project contract.
-3. `docs/ahpy/support-matrix.md` — current support claims.
-4. `tests/ahpy/ci-policy.toml` — machine-readable workflow/job policy.
-5. `docs/ahpy/validation-matrix.md` — actual validation evidence.
-6. `docs/ahpy/adr/` — architecture and release decisions.
-7. The milestone audit matching the code being changed in
+2. `production-todo.md` — ordered production and release gates.
+3. `docs/ahpy/README.md` — project contract.
+4. `docs/ahpy/support-matrix.md` — current support claims.
+5. `tests/ahpy/ci-policy.toml` — machine-readable workflow/job policy.
+6. `docs/ahpy/validation-matrix.md` — actual validation evidence.
+7. `docs/ahpy/adr/` — architecture and release decisions.
+8. The milestone audit matching the code being changed in
    `docs/ahpy/audits/`.
 
 ## 2. Non-negotiable implementation rules
