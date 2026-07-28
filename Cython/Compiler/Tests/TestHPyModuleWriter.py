@@ -533,13 +533,17 @@ class UniversalHPyEmitterContractTest(TestCase):
                 ahpy_universal_external_c_scalar_kind=storage_kind,
                 ahpy_universal_external_c_argument_kinds=argument_kinds,
             )
-            return SimpleNamespace(
-                self=receiver,
+            node = SimpleNamespace(
                 coerced_self=coerced_receiver,
                 args=args,
                 function=SimpleNamespace(entry=entry),
                 pos=None,
             )
+            # PyPy exposes SimpleNamespace.__init__() with a named ``self``
+            # receiver, so passing an AST field with that name as a keyword
+            # raises "multiple values for argument 'self'".
+            node.self = receiver
+            return node
 
         writer = UniversalHPyFunctionWriter(runtime_api)
         result_cname = writer.generate_external_c_scalar_call(call_node())
