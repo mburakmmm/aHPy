@@ -55,6 +55,14 @@ jobs:
           fetch-tags: true
           persist-credentials: false
 
+      - name: Fetch upstream benchmark revisions
+        run: |
+          git remote add upstream https://github.com/cython/cython.git
+          git fetch --force --tags upstream \
+            +refs/heads/3.0.x:refs/remotes/upstream/3.0.x \
+            +refs/heads/3.1.x:refs/remotes/upstream/3.1.x \
+            +refs/heads/master:refs/remotes/upstream/master
+
       - name: Compilation Cache
         uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
         with:
@@ -77,6 +85,7 @@ jobs:
 
       - name: Run Benchmarks
         run: |
+          set -o pipefail
           # Run benchmarks in all Python versions, Limited C-API only in 3.14.
           LIMITED_API=--with-limited
           for PYTHON in \
@@ -88,10 +97,10 @@ jobs:
                 ; do
               ${PYTHON} -m pip install setuptools numpy
               if [[ ${PYTHON} == *t || ${PYTHON} == *"t-dev" ]]; then
-                COMMITS=("origin/3.1.x" "origin/master"  "HEAD")
+                COMMITS=("upstream/3.1.x" "upstream/master" "HEAD")
                 CYTHONIZE_ARGS="${BENCHMARK_CYTHONIZE_ARGS} -Xfreethreading_compatible=True"
               else
-                COMMITS=("origin/3.0.x"  "3a7a936e099df468dcaa01829ae6567c577489c0"  "${LIMITED_API}" "origin/master"  "${LIMITED_API}" "HEAD")
+                COMMITS=("upstream/3.0.x" "3a7a936e099df468dcaa01829ae6567c577489c0" "${LIMITED_API}" "upstream/master" "${LIMITED_API}" "HEAD")
                 CYTHONIZE_ARGS="${BENCHMARK_CYTHONIZE_ARGS}"
               fi
               ${PYTHON} Demos/benchmarks/run_benchmarks.py  --report-size benchmark_sizes_${PYTHON}.csv --report benchmark_results_${PYTHON}.csv --with-python  ${CYTHONIZE_ARGS} ${COMMITS[*]}
@@ -100,17 +109,27 @@ jobs:
 
       - name: Create summary
         run: |
+          shopt -s nullglob
+          timing_files=(benchmark_results_*.csv)
+          size_files=(benchmark_sizes_*.csv)
+          if (( ${#timing_files[@]} == 0 || ${#size_files[@]} == 0 )); then
+            echo "::error::Benchmark command succeeded without producing the required timing and size CSV files."
+            exit 1
+          fi
           { echo "## Benchmark results:";
-            echo; python Demos/benchmarks/report.py -t timings benchmark_results_*.csv;
+            echo; python Demos/benchmarks/report.py -t timings "${timing_files[@]}";
             echo; echo "## Benchmark module sizes:";
-            echo; python Demos/benchmarks/report.py -t sizes benchmark_sizes_*.csv;
+            echo; python Demos/benchmarks/report.py -t sizes "${size_files[@]}";
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload CSV results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: benchmark_*.csv
-          path: benchmark_results_csv
+          name: benchmark-csv-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            benchmark_results_*.csv
+            benchmark_sizes_*.csv
+          if-no-files-found: error
 
       - name: Upload results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

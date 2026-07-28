@@ -17,8 +17,8 @@ güncellenmelidir.
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 431 compiler/seam testi, 143 quality-tool testi ve
-  iki yorumlayıcıda 574 coverage testi.
+- Mevcut odaklı doğrulama: 431 compiler/seam testi, 144 quality-tool testi ve
+  iki yorumlayıcıda 575 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Bu oran generated C, native runtime, binary portability veya bütün Cython
   özelliklerinin %100 desteklendiği anlamına gelmez.
@@ -53,11 +53,11 @@ Bu kapı kapanmadan yeni production özelliği eklenmez.
 - [ ] Son commit için devam eden bütün GitHub Actions işlerinin bitmesini
       bekle ve sonuçları kaydet.
 - [ ] `Benchmarks` workflow'undaki `benchmark_results_*.csv` bulunamadığı için
-      kırılan summary adımını düzelt.
-  - [ ] Benchmark üretilmeyen bir değişiklikte summary adımı güvenli biçimde
+      kırılan summary adımının local düzeltmesini hosted yeşil koşuyla doğrula.
+  - [x] Benchmark üretilmeyen bir değişiklikte summary adımı güvenli biçimde
         skip etmeli.
-  - [ ] Benchmark beklenen koşuda eksik artifact fail-closed davranmalı.
-  - [ ] Her iki davranış için workflow/quality regresyon testi ekle.
+  - [x] Benchmark beklenen koşuda eksik artifact fail-closed davranmalı.
+  - [x] Her iki davranış için workflow/quality regresyon testi ekle.
 - [ ] Push ve pull-request eventlerinden gelen mükerrer pahalı workflow
       koşularını incele; gerekli değilse concurrency/dedup politikası ekle.
 - [ ] Mandatory, allowed-failure, schedule-only ve manual-only işlerin listesini

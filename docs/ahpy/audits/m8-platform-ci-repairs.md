@@ -152,3 +152,26 @@ excluded `tag:shared_utility` from the outer four-worker pass, then ran the tag
 at outer `-j1`; both `memoryview_shared_utility` and
 `shared_utility_module` completed successfully with their internal parallel
 builds and no `LNK1158`.
+
+## Downstream benchmark reference and failure propagation repair
+
+PR benchmark run
+[30339567375](https://github.com/mburakmmm/aHPy/actions/runs/30339567375)
+failed before producing its first CSV. The inherited Cython workflow compared
+against `origin/3.0.x`, `origin/3.1.x`, and `origin/master`, but aHPy's `origin`
+is the downstream repository and intentionally publishes only its integration
+and topic branches. `git describe --long origin/3.0.x` therefore failed. The
+loop was piped through `tee` without `pipefail`, hiding that first error until
+the summary script received the literal unmatched
+`benchmark_results_*.csv` spelling and raised `FileNotFoundError`.
+
+Both regular and weekly workflows now fetch the exact release branches,
+`master`, and tags from `https://github.com/cython/cython.git` into an
+`upstream` remote and benchmark those refs against aHPy `HEAD`. Their pipelines
+enable `pipefail`, summary rendering expands null-safe timing and size arrays
+and rejects either missing set, and artifact upload names the actual CSV globs
+with `if-no-files-found: error`. The path filter still skips unrelated PRs.
+A focused quality contract locks the upstream refs, irrelevant-change filter,
+pipeline propagation, CSV validation, and artifact policy. Local CPython 3.11
+and 3.14 coverage runs pass all 575 tests; hosted replacement evidence remains
+required before the PRD-0 benchmark parent is closed.

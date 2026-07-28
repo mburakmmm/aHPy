@@ -265,6 +265,48 @@ class QualityGateTest(unittest.TestCase):
                 action,
             )
 
+    def test_benchmark_workflows_fetch_upstream_and_fail_closed(self):
+        workflows = {
+            name: (ROOT / ".github" / "workflows" / name).read_text(
+                encoding="utf8")
+            for name in ("benchmarks.yml", "benchmarks-weekly.yml")
+        }
+        for name, workflow in workflows.items():
+            with self.subTest(workflow=name):
+                self.assertIn(
+                    "- name: Fetch upstream benchmark revisions", workflow)
+                self.assertIn(
+                    "git remote add upstream "
+                    "https://github.com/cython/cython.git",
+                    workflow,
+                )
+                self.assertIn("git fetch --force --tags upstream", workflow)
+                self.assertIn("upstream/master", workflow)
+                self.assertNotRegex(
+                    workflow, r'COMMITS=\([^\n]*"origin/')
+                self.assertIn("set -o pipefail", workflow)
+                self.assertIn(
+                    "timing_files=(benchmark_results_*.csv)", workflow)
+                self.assertIn(
+                    "size_files=(benchmark_sizes_*.csv)", workflow)
+                self.assertIn(
+                    '${#timing_files[@]} == 0 || '
+                    '${#size_files[@]} == 0',
+                    workflow,
+                )
+                self.assertIn(
+                    '"${timing_files[@]}"', workflow)
+                self.assertIn(
+                    '"${size_files[@]}"', workflow)
+                self.assertIn("if-no-files-found: error", workflow)
+                self.assertNotIn("path: benchmark_results_csv", workflow)
+
+        pull_request_triggers = workflows["benchmarks.yml"].split(
+            "\nconcurrency:", 1)[0]
+        self.assertIn("pull_request:\n    paths:", pull_request_triggers)
+        self.assertNotIn("production-todo.md", pull_request_triggers)
+        self.assertNotIn('"docs/**"', pull_request_triggers)
+
     def test_nightlies_are_isolated_allowed_failure_early_warnings(self):
         manifest = tomllib.loads(VERSION_MANIFEST.read_text(encoding="utf8"))
         nightly = manifest["nightly"]
