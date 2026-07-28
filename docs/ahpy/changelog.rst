@@ -13,6 +13,9 @@ Bootstrap
   rendering, and uploading the actual CSV files with fail-closed artifact
   handling; expensive push triggers now run only on downstream main/release
   branches so topic branches with open PRs do not execute duplicate matrices.
+  A machine-readable policy now classifies every job in all ten workflows and
+  locks required, mixed, allowed-failure, scheduled/manual, release, upstream,
+  and reusable behavior.
 * Added pure-type synchronous context managers through ordinary Universal
   ``HPyDef_METH`` definitions for ``__enter__`` and ``__exit__``; success,
   exception suppression/propagation, inheritance, body failures, exact source
@@ -42,7 +45,7 @@ Bootstrap
   control flow, and a terminal return or explicit raise, with normal/Trace/Debug
   cleanup and translated-error execution.
 * Reached 100% executable Python-line coverage for the Universal backend on
-  CPython 3.11 and 3.14, expanded the focused run to 576 tests, and raised CI
+  CPython 3.11 and 3.14, expanded the focused run to 580 tests, and raised CI
   floors to 100% backend, 45% frontend seam, and 41% quality tools. Coverage
   schema 2 now reports missing lines/ranges and forces measured imports through
   source files so stale native extensions cannot mask gaps.

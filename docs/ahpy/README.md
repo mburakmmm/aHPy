@@ -44,6 +44,7 @@ Design and implementation references:
 - [HPyContext propagation model](context-model.md)
 - [Support matrix](support-matrix.md)
 - [Validation matrix and release gates](validation-matrix.md)
+- [Machine-readable CI policy](ci-policy.md)
 - [Source compatibility scanner](migration-scanner.md)
 - [Universal diagnostics catalog](diagnostics.md)
 - [Setuptools/cythonize example](../../examples/ahpy_setuptools/README.md)

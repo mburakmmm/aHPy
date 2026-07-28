@@ -17,8 +17,8 @@ güncellenmelidir.
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 431 compiler/seam testi, 145 quality-tool testi ve
-  iki yorumlayıcıda 576 coverage testi.
+- Mevcut odaklı doğrulama: 431 compiler/seam testi, 149 quality-tool testi ve
+  iki yorumlayıcıda 580 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Bu oran generated C, native runtime, binary portability veya bütün Cython
   özelliklerinin %100 desteklendiği anlamına gelmez.
@@ -60,11 +60,11 @@ Bu kapı kapanmadan yeni production özelliği eklenmez.
   - [x] Her iki davranış için workflow/quality regresyon testi ekle.
 - [x] Push ve pull-request eventlerinden gelen mükerrer pahalı workflow
       koşularını incele; gerekli değilse concurrency/dedup politikası ekle.
-- [ ] Mandatory, allowed-failure, schedule-only ve manual-only işlerin listesini
+- [x] Mandatory, allowed-failure, schedule-only ve manual-only işlerin listesini
       tek kaynakta tanımla ve test et.
 - [ ] Mandatory işlerde `pending`, `cancelled` veya `failure` kalmadığını
       doğrula.
-- [ ] Allowed-failure sonuçlarının aggregate required check'i yanlışlıkla
+- [x] Allowed-failure sonuçlarının aggregate required check'i yanlışlıkla
       kırmadığını doğrula.
 - [ ] Son yeşil run kimliklerini `validation-matrix.md`, ilgili M8 audit'i,
       `AGENTTODO.md` ve PR açıklamasına işle.

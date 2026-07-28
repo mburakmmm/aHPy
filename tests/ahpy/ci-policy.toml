@@ -1,0 +1,98 @@
+schema_version = 1
+validated_on = "2026-07-28"
+
+[branch_policy]
+topic_branch_event = "pull_request"
+push_branches = ["main", "ahpy/**"]
+
+[[workflows]]
+path = ".github/workflows/ahpy-universal.yml"
+trigger_class = "pr-main-release-schedule-manual"
+required_jobs = [
+  "compiler-and-quality",
+  "stable-universal",
+  "sanitizers",
+  "build-portability-artifact",
+]
+mixed_required_allowed_failure_jobs = ["development-revision"]
+allowed_failure_jobs = ["cross-interpreter"]
+schedule_manual_required_jobs = ["native-memory-valgrind"]
+schedule_manual_allowed_failure_jobs = [
+  "native-memory-windows",
+  "nightly-interpreter",
+  "nightly-hpy",
+]
+
+[[workflows]]
+path = ".github/workflows/benchmarks.yml"
+trigger_class = "pr-main-release-manual-label"
+required_jobs = ["benchmarks"]
+
+[[workflows]]
+path = ".github/workflows/benchmarks-weekly.yml"
+trigger_class = "manual-or-upstream-schedule"
+manual_required_jobs = ["benchmarks"]
+
+[[workflows]]
+path = ".github/workflows/ci.yml"
+trigger_class = "pr-main-release-manual"
+required_jobs = [
+  "file-changes",
+  "ci-early",
+  "ci-early-success",
+  "ci-all",
+  "ci-arm64",
+  "ci-32bit",
+  "ci-typespecs",
+  "ci-sharedmodule",
+  "ci-compileall",
+  "ci-stdc",
+  "ci-lapi",
+  "ci-noncpython",
+  "ci-success",
+  "codespell",
+  "codestyle",
+  "build_docs",
+]
+
+[[workflows]]
+path = ".github/workflows/coverage.yml"
+trigger_class = "pr-main-release-manual"
+required_jobs = ["pycoverage", "cycoverage"]
+
+[[workflows]]
+path = ".github/workflows/sanitizers.yml"
+trigger_class = "pr-main-release-manual-label"
+required_jobs = [
+  "file-changes",
+  "sanitizers",
+  "pydebug",
+  "sanitizers-success",
+]
+
+[[workflows]]
+path = ".github/workflows/wheels.yml"
+trigger_class = "release-schedule-manual-build-label"
+release_or_build_jobs = [
+  "generate-wheels-matrix",
+  "build_wheels",
+  "build_limited_api_wheels",
+  "build_sdist_pure_wheel",
+  "inspect_wheels",
+  "upload_release_assets",
+]
+
+[[workflows]]
+path = ".github/workflows/nightly-wheels.yml"
+trigger_class = "upstream-schedule-manual-build-label"
+upstream_only_jobs = ["build_pure_wheel"]
+
+[[workflows]]
+path = ".github/workflows/ci-job.yml"
+trigger_class = "reusable"
+reusable_jobs = ["build-and-test"]
+
+[[workflows]]
+path = ".github/workflows/compiled_python.yml"
+trigger_class = "reusable"
+reusable_jobs = ["do_run"]

@@ -175,6 +175,10 @@ to aHPy `main` and `ahpy/**` release branches; topic branches retain
 pull-request validation without running a second push matrix. The benchmark
 path filter still skips unrelated PRs. Focused quality contracts lock the
 upstream refs, irrelevant-change filter, pipeline propagation, CSV validation,
-artifact policy, and downstream branch trigger policy. Local CPython 3.11 and
-3.14 coverage runs pass all 576 tests; hosted replacement evidence remains
-required before the PRD-0 benchmark parent is closed.
+artifact policy, and downstream branch trigger policy.
+`tests/ahpy/ci-policy.toml` additionally classifies every job in all ten
+workflows exactly once; four regressions reject unknown workflows/jobs,
+duplicate classifications or job-level YAML keys, failure-policy drift, and
+branch-trigger drift. Local CPython 3.11 and 3.14 coverage runs pass all 580
+tests; hosted replacement evidence remains required before the PRD-0 benchmark
+parent is closed.
