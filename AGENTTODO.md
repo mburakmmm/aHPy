@@ -54,9 +54,10 @@ Read these before changing code:
 3. `docs/ahpy/README.md` — project contract.
 4. `docs/ahpy/support-matrix.md` — current support claims.
 5. `tests/ahpy/ci-policy.toml` — machine-readable workflow/job policy.
-6. `docs/ahpy/validation-matrix.md` — actual validation evidence.
-7. `docs/ahpy/adr/` — architecture and release decisions.
-8. The milestone audit matching the code being changed in
+6. `.github/rulesets/production-branches.json` — live ruleset source.
+7. `docs/ahpy/validation-matrix.md` — actual validation evidence.
+8. `docs/ahpy/adr/` — architecture and release decisions.
+9. The milestone audit matching the code being changed in
    `docs/ahpy/audits/`.
 
 ## 2. Non-negotiable implementation rules
@@ -105,9 +106,9 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 151 tests pass (two expected platform/tool availability
+- Quality-tool suite: 153 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-07-28): 582 tests traced on both interpreters.
+- Focused coverage (2026-07-28): 584 tests traced on both interpreters.
   - CPython 3.11: backend 100.00%, frontend_seam 45.76%, quality_tools 41.59%.
   - CPython 3.14.6: backend 100.00%, frontend_seam 45.90%, quality_tools
     41.52%.

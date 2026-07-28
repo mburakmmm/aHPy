@@ -1,3 +1,4 @@
+import json
 import re
 from pathlib import Path
 import tomllib
@@ -146,6 +147,100 @@ class CIPolicyTest(unittest.TestCase):
             "nightly-hpy",
         ):
             self.assertNotIn(excluded_job, block)
+
+    def test_selective_workflows_publish_stable_required_aggregates(self):
+        contracts = {
+            ".github/workflows/benchmarks.yml": (
+                "benchmarks-success",
+                {"file-changes", "benchmarks"},
+                "benchmark required checks",
+            ),
+            ".github/workflows/coverage.yml": (
+                "coverage-success",
+                {"file-changes", "pycoverage", "cycoverage"},
+                "coverage required checks",
+            ),
+        }
+        for path, (job, dependencies, check_name) in contracts.items():
+            text = (ROOT / path).read_text(encoding="utf8")
+            triggers = text.split("\nconcurrency:", 1)[0]
+            blocks = workflow_job_blocks(text)
+            block = blocks[job]
+            with self.subTest(workflow=path):
+                self.assertNotIn("\n    paths:", triggers)
+                self.assertIn("file-changes", blocks)
+                self.assertIn("contents: read", blocks["file-changes"])
+                self.assertIn("pull-requests: read", blocks["file-changes"])
+                self.assertEqual(
+                    set(re.findall(
+                        r"(?m)^    needs: \[(.+)\]", block)[0].split(", ")),
+                    dependencies,
+                )
+                self.assertIn(f"name: {check_name}", block)
+                self.assertIn("if: always()", block)
+                self.assertIn(
+                    "contains(needs.*.result, 'failure')", block)
+                self.assertIn(
+                    "contains(needs.*.result, 'cancelled')", block)
+
+    def test_repository_ruleset_matches_ci_policy(self):
+        ruleset = json.loads(
+            (ROOT / ".github" / "rulesets" / "production-branches.json")
+            .read_text(encoding="utf8")
+        )
+        policy = load_policy()["branch_policy"]
+        self.assertEqual(ruleset["enforcement"], "active")
+        self.assertEqual(ruleset["bypass_actors"], [])
+        self.assertEqual(
+            ruleset["conditions"]["ref_name"],
+            {
+                "include": [
+                    f"refs/heads/{branch}"
+                    for branch in policy["protected_branches"]
+                ],
+                "exclude": [],
+            },
+        )
+        rules = {rule["type"]: rule for rule in ruleset["rules"]}
+        self.assertEqual(
+            set(rules),
+            {
+                "deletion",
+                "non_fast_forward",
+                "pull_request",
+                "required_status_checks",
+            },
+        )
+        pull_request = rules["pull_request"]["parameters"]
+        self.assertEqual(pull_request["required_approving_review_count"], 0)
+        self.assertTrue(pull_request["required_review_thread_resolution"])
+        status_checks = rules["required_status_checks"]["parameters"]
+        self.assertTrue(status_checks["do_not_enforce_on_create"])
+        self.assertTrue(status_checks["strict_required_status_checks_policy"])
+        self.assertEqual(
+            [
+                check["context"]
+                for check in status_checks["required_status_checks"]
+            ],
+            policy["required_status_contexts"],
+        )
+        self.assertEqual(
+            {
+                check["integration_id"]
+                for check in status_checks["required_status_checks"]
+            },
+            {policy["required_status_integration_id"]},
+        )
+        workflow_source = "\n".join(
+            (ROOT / entry["path"]).read_text(encoding="utf8")
+            for entry in load_policy()["workflows"]
+        )
+        for context in policy["required_status_contexts"]:
+            self.assertTrue(
+                f"name: {context}" in workflow_source
+                or f"\n  {context}:" in workflow_source,
+                context,
+            )
 
     def test_turkish_production_roadmap_is_outside_english_codespell(self):
         text = (ROOT / ".codespellrc").read_text(encoding="utf8")

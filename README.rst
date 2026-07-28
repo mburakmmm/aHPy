@@ -90,9 +90,9 @@ Validation snapshot
 
 The current local M9 snapshot records:
 
-* 431 focused compiler tests and 151 quality-tool tests (two expected
+* 431 focused compiler tests and 153 quality-tool tests (two expected
   platform skips);
-* 582 focused coverage tests on CPython 3.11 and 3.14;
+* 584 focused coverage tests on CPython 3.11 and 3.14;
 * 100% executable Python-line coverage for the three Universal backend
   implementation modules on both interpreters, with separate 45% frontend-seam
   and 41% quality-tool floors;
@@ -126,6 +126,7 @@ Documentation map
 * `Support matrix <docs/ahpy/support-matrix.md>`_
 * `Validation and release gates <docs/ahpy/validation-matrix.md>`_
 * `Machine-readable CI policy <docs/ahpy/ci-policy.md>`_
+* `Production branch ruleset <.github/rulesets/production-branches.json>`_
 * `Handle ownership model <docs/ahpy/handle-model.md>`_
 * `Runtime API seam <docs/ahpy/runtime-api.md>`_
 * `External-C contract <docs/ahpy/external-c.md>`_

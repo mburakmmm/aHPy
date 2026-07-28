@@ -6,23 +6,7 @@ on:
     branches:
       - main
       - "ahpy/**"
-    paths:
-      # Only run on changes likely to affect benchmark code generation
-      - ".github/workflows/benchmarks.yml"
-      - "Demos/benchmarks/**"
-      - "Cython/Utility/**"
-      - "Cython/Compiler/Nodes.py"
-      - "Cython/Compiler/ExprNodes.py"
-      - "Cython/Compiler/Optimize.py"
   pull_request:
-    paths:
-      # Only run on PRs likely to affect benchmark code generation
-      - ".github/workflows/benchmarks.yml"
-      - "Demos/benchmarks/**"
-      - "Cython/Utility/**"
-      - "Cython/Compiler/Nodes.py"
-      - "Cython/Compiler/ExprNodes.py"
-      - "Cython/Compiler/Optimize.py"
   label:
     # Accepted labels (in the 'if' condition below) are:
     # * benchmark (explicit)
@@ -37,10 +21,85 @@ permissions:
   contents: read # to fetch code (actions/checkout)
 
 jobs:
-  benchmarks:
+  file-changes:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      - name: Checkout push history
+        if: github.event_name == 'push'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Select benchmark-relevant changes
+        id: filter
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        with:
+          filters: |
+            relevant:
+              - ".github/workflows/benchmarks.yml"
+              - "Demos/benchmarks/**"
+              - "Cython/Utility/**"
+              - "Cython/Compiler/Nodes.py"
+              - "Cython/Compiler/ExprNodes.py"
+              - "Cython/Compiler/Optimize.py"
 
-    if: ${{ github.event_name != 'label' || github.event.label.name == 'benchmark' || github.event.label.name == 'performance' }}
+  benchmarks:
+    name: benchmarks (${{ matrix.name }})
+    needs: [file-changes]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        include:
+          - name: "3.14"
+            python_version: "3.14"
+            executable: python3.14
+            free_threaded: false
+            limited_api: "--with-limited"
+          - name: "3.13"
+            python_version: "3.13"
+            executable: python3.13
+            free_threaded: false
+            limited_api: ""
+          - name: "3.14t"
+            python_version: "3.14t"
+            executable: python3.14t
+            free_threaded: true
+            limited_api: ""
+          - name: "3.12"
+            python_version: "3.12"
+            executable: python3.12
+            free_threaded: false
+            limited_api: ""
+          - name: "3.10"
+            python_version: "3.10"
+            executable: python3.10
+            free_threaded: false
+            limited_api: ""
+
+    if: >-
+      ${{
+        always() &&
+        (
+          github.event_name == 'workflow_dispatch' ||
+          needs.file-changes.outputs.relevant == 'true' ||
+          (
+            github.event_name == 'label' &&
+            (
+              github.event.label.name == 'benchmark' ||
+              github.event.label.name == 'performance'
+            )
+          )
+        )
+      }}
 
     env:
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
@@ -71,44 +130,33 @@ jobs:
         with:
           create-symlink: true
           variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
-          save: ${{ startsWith(github.ref, '/refs/pull/') && 'false' || 'true' }}  # fake ternary
-          key: ${{ runner.os }}-${{ runner.arch }}-hendrikmuhs-ccache-benchmarks
+          save: ${{ startsWith(github.ref, 'refs/pull/') && 'false' || 'true' }}  # fake ternary
+          key: ${{ runner.os }}-${{ runner.arch }}-hendrikmuhs-ccache-benchmarks-${{ matrix.name }}
           max-size: 250M
 
       - name: Setup python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          # List special Pythons first to keep the 'normal' one as (last) "python3.xy".
-          python-version: |
-            3.14t
-            3.10
-            3.12
-            3.13
-            3.14
+          python-version: ${{ matrix.python_version }}
 
       - name: Run Benchmarks
         run: |
           set -o pipefail
-          # Run benchmarks in all Python versions, Limited C-API only in 3.14.
-          LIMITED_API=--with-limited
-          for PYTHON in \
-                python3.14 \
-                python3.13 \
-                python3.14t \
-                python3.12 \
-                python3.10 \
-                ; do
-              ${PYTHON} -m pip install setuptools numpy
-              if [[ ${PYTHON} == *t || ${PYTHON} == *"t-dev" ]]; then
-                COMMITS=("upstream/3.1.x" "upstream/master" "HEAD")
-                CYTHONIZE_ARGS="${BENCHMARK_CYTHONIZE_ARGS} -Xfreethreading_compatible=True"
-              else
-                COMMITS=("upstream/3.0.x" "3a7a936e099df468dcaa01829ae6567c577489c0" "${LIMITED_API}" "upstream/master" "${LIMITED_API}" "HEAD")
-                CYTHONIZE_ARGS="${BENCHMARK_CYTHONIZE_ARGS}"
-              fi
-              ${PYTHON} Demos/benchmarks/run_benchmarks.py  --report-size benchmark_sizes_${PYTHON}.csv --report benchmark_results_${PYTHON}.csv --with-python  ${CYTHONIZE_ARGS} ${COMMITS[*]}
-              LIMITED_API=
-          done | tee benchmarks.log
+          PYTHON="${{ matrix.executable }}"
+          ${PYTHON} -m pip install setuptools numpy
+          if [[ "${{ matrix.free_threaded }}" == "true" ]]; then
+            COMMITS=("upstream/3.1.x" "upstream/master" "HEAD")
+            CYTHONIZE_ARGS="${BENCHMARK_CYTHONIZE_ARGS} -Xfreethreading_compatible=True"
+          else
+            LIMITED_API="${{ matrix.limited_api }}"
+            COMMITS=("upstream/3.0.x" "3a7a936e099df468dcaa01829ae6567c577489c0" "${LIMITED_API}" "upstream/master" "${LIMITED_API}" "HEAD")
+            CYTHONIZE_ARGS="${BENCHMARK_CYTHONIZE_ARGS}"
+          fi
+          ${PYTHON} Demos/benchmarks/run_benchmarks.py \
+            --report-size benchmark_sizes_${PYTHON}.csv \
+            --report benchmark_results_${PYTHON}.csv \
+            --with-python ${CYTHONIZE_ARGS} ${COMMITS[*]} \
+            | tee benchmarks.log
 
       - name: Create summary
         run: |
@@ -119,16 +167,16 @@ jobs:
             echo "::error::Benchmark command succeeded without producing the required timing and size CSV files."
             exit 1
           fi
-          { echo "## Benchmark results:";
+          { echo "## Benchmark results (${{ matrix.name }}):";
             echo; python Demos/benchmarks/report.py -t timings "${timing_files[@]}";
-            echo; echo "## Benchmark module sizes:";
+            echo; echo "## Benchmark module sizes (${{ matrix.name }}):";
             echo; python Demos/benchmarks/report.py -t sizes "${size_files[@]}";
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload CSV results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: benchmark-csv-${{ github.run_id }}-${{ github.run_attempt }}
+          name: benchmark-csv-${{ matrix.name }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             benchmark_results_*.csv
             benchmark_sizes_*.csv
@@ -137,5 +185,16 @@ jobs:
       - name: Upload results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: benchmark_results.txt
+          name: benchmark-results-${{ matrix.name }}
           path: benchmarks.log
+
+  benchmarks-success:
+    name: benchmark required checks
+    needs: [file-changes, benchmarks]
+    if: always()
+    env:
+      FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify selected benchmark jobs
+        run: exit $FAIL

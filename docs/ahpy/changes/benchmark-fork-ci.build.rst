@@ -14,3 +14,12 @@ collects mandatory aHPy families without allowing experimental or
 scheduled/manual diagnostics to break branch protection.
 The Turkish production roadmap is explicitly excluded from the English-only
 codespell scan and that configuration is regression-tested.
+Benchmark and coverage workflows always publish stable required aggregate
+contexts; lightweight selectors skip expensive bodies for irrelevant changes
+without leaving branch protection pending. The versioned production ruleset
+requires those aggregates together with the aHPy, Cython, and sanitizer
+aggregates on ``main`` and ``ahpy/**``.
+The regular benchmark’s five interpreters run as independent matrix entries
+with isolated cache keys and artifacts, fail-fast disabled, and a 90-minute
+per-entry timeout. This preserves the complete comparison set while avoiding
+the 3–4 hour wall time observed for the inherited sequential upstream job.

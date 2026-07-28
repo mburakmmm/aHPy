@@ -17,8 +17,8 @@ güncellenmelidir.
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 431 compiler/seam testi, 151 quality-tool testi ve
-  iki yorumlayıcıda 582 coverage testi.
+- Mevcut odaklı doğrulama: 431 compiler/seam testi, 153 quality-tool testi ve
+  iki yorumlayıcıda 584 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Bu oran generated C, native runtime, binary portability veya bütün Cython
   özelliklerinin %100 desteklendiği anlamına gelmez.
@@ -65,9 +65,9 @@ Bu kapı kapanmadan yeni production özelliği eklenmez.
 - [ ] `main` ve gelecekteki `ahpy/**` release dalları için GitHub
       branch-protection/ruleset politikasını uygula:
   - [ ] Değişikliklerin pull request üzerinden gelmesini zorunlu kıl.
-  - [ ] `tests/ahpy/ci-policy.toml` içindeki zorunlu PR kontrollerini gerçek
+  - [x] `tests/ahpy/ci-policy.toml` içindeki zorunlu PR kontrollerini gerçek
         required status check bağlamlarına eşle.
-  - [ ] Allowed-failure, schedule-only, manual-only ve release-only işlerini
+  - [x] Allowed-failure, schedule-only, manual-only ve release-only işlerini
         required PR check listesine katma.
   - [ ] Force-push ve dal silmeyi engelle; maintainer bypass politikasını
         belgeye bağla.

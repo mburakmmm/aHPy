@@ -173,12 +173,26 @@ and rejects either missing set, and artifact upload names the actual CSV globs
 with `if-no-files-found: error`. Expensive workflow push triggers are limited
 to aHPy `main` and `ahpy/**` release branches; topic branches retain
 pull-request validation without running a second push matrix. The benchmark
-path filter still skips unrelated PRs. Focused quality contracts lock the
-upstream refs, irrelevant-change filter, pipeline propagation, CSV validation,
-artifact policy, and downstream branch trigger policy.
+selector still skips its expensive body for unrelated PRs while publishing a
+stable required context. Focused quality contracts lock the upstream refs,
+irrelevant-change filter, pipeline propagation, CSV validation, artifact
+policy, and downstream branch trigger policy.
 `tests/ahpy/ci-policy.toml` additionally classifies every job in all ten
 workflows exactly once; four regressions reject unknown workflows/jobs,
 duplicate classifications or job-level YAML keys, failure-policy drift, and
-branch-trigger drift. Local CPython 3.11 and 3.14 coverage runs pass all 582
-tests; hosted replacement evidence remains required before the PRD-0 benchmark
-parent is closed.
+branch-trigger drift. Benchmark and coverage workflows now retain stable
+required aggregate contexts when lightweight selectors skip irrelevant
+changes, and `.github/rulesets/production-branches.json` binds the five stable
+aggregate contexts to pull-request-only, no-bypass protection for `main` and
+`ahpy/**`; each required context is restricted to GitHub Actions App
+integration ID `15368`. Local CPython 3.11 and 3.14 coverage runs pass all 584
+tests; hosted replacement and live-ruleset API evidence remain required before
+the PRD-0 parent is closed.
+
+The inherited regular benchmark serially ran all five Python interpreters in
+one job; current upstream evidence shows successful instances taking roughly
+three to four hours. The downstream workflow now preserves all interpreter,
+revision, Limited API, size, and timing comparisons as five independent
+fail-fast-disabled matrix entries. Each entry has an isolated ccache key,
+uniquely named CSV/log artifacts, and a 90-minute bound; hosted evidence is
+still required before claiming the wall-time repair.

@@ -5,17 +5,7 @@ on:
     branches:
       - main
       - "ahpy/**"
-    paths:
-      - '.github/workflows/coverage.yml'
-      - "Cython/**"
-      - '!Cython/Utility/**'
-      - "tests/**"
   pull_request:
-    paths:
-      - '.github/workflows/coverage.yml'
-      - "Cython/**"
-      - '!Cython/Utility/**'
-      - "tests/**"
   workflow_dispatch:
 
 concurrency:
@@ -26,7 +16,42 @@ permissions:
   contents: read # to fetch code (actions/checkout)
 
 jobs:
+  file-changes:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      - name: Checkout push history
+        if: github.event_name == 'push'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Select coverage-relevant changes
+        id: filter
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        with:
+          filters: |
+            relevant:
+              - ".github/workflows/coverage.yml"
+              - "Cython/**"
+              - "!Cython/Utility/**"
+              - "tests/**"
+
   pycoverage:
+    needs: [file-changes]
+    if: >-
+      ${{
+        always() &&
+        (
+          github.event_name == 'workflow_dispatch' ||
+          needs.file-changes.outputs.relevant == 'true'
+        )
+      }}
     runs-on: ubuntu-24.04
 
     permissions:
@@ -90,7 +115,16 @@ jobs:
 
   cycoverage:
     runs-on: ubuntu-24.04
-    needs: [ pycoverage ]  # order summary report output
+    needs: [file-changes, pycoverage]  # order summary report output
+    if: >-
+      ${{
+        always() &&
+        (
+          github.event_name == 'workflow_dispatch' ||
+          needs.file-changes.outputs.relevant == 'true'
+        ) &&
+        needs.pycoverage.result == 'success'
+      }}
 
     env:
       BACKEND: c,cpp
@@ -122,3 +156,14 @@ jobs:
         with:
           name: cycoverage_html
           path: coverage-report-html
+
+  coverage-success:
+    name: coverage required checks
+    needs: [file-changes, pycoverage, cycoverage]
+    if: always()
+    env:
+      FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify selected coverage jobs
+        run: exit $FAIL

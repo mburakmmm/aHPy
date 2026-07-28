@@ -303,9 +303,33 @@ class QualityGateTest(unittest.TestCase):
 
         pull_request_triggers = workflows["benchmarks.yml"].split(
             "\nconcurrency:", 1)[0]
-        self.assertIn("pull_request:\n    paths:", pull_request_triggers)
-        self.assertNotIn("production-todo.md", pull_request_triggers)
-        self.assertNotIn('"docs/**"', pull_request_triggers)
+        self.assertIn("pull_request:", pull_request_triggers)
+        self.assertNotIn("\n    paths:", pull_request_triggers)
+        self.assertIn(
+            "- name: Select benchmark-relevant changes",
+            workflows["benchmarks.yml"],
+        )
+        self.assertIn(
+            "name: benchmark required checks", workflows["benchmarks.yml"])
+        self.assertIn("timeout-minutes: 90", workflows["benchmarks.yml"])
+        self.assertIn("max-parallel: 5", workflows["benchmarks.yml"])
+        for python_name in ("3.14", "3.13", "3.14t", "3.12", "3.10"):
+            self.assertIn(f'- name: "{python_name}"', workflows["benchmarks.yml"])
+        self.assertNotIn("for PYTHON in", workflows["benchmarks.yml"])
+        self.assertIn(
+            'free_threaded: true', workflows["benchmarks.yml"])
+        self.assertIn(
+            'limited_api: "--with-limited"', workflows["benchmarks.yml"])
+        self.assertIn(
+            "ccache-benchmarks-${{ matrix.name }}", workflows["benchmarks.yml"])
+        self.assertIn(
+            "benchmark-csv-${{ matrix.name }}-", workflows["benchmarks.yml"])
+        self.assertNotIn(
+            "startsWith(github.ref, '/refs/pull/')",
+            workflows["benchmarks.yml"],
+        )
+        self.assertNotIn("production-todo.md", workflows["benchmarks.yml"])
+        self.assertNotIn('"docs/**"', workflows["benchmarks.yml"])
 
     def test_expensive_workflows_do_not_duplicate_topic_branch_pushes(self):
         workflow_names = (
