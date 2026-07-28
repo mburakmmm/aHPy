@@ -5,6 +5,72 @@ release claims from early warnings. Merely declaring a job does not make a
 platform supported: a release matrix entry becomes supported only after its
 first green hosted run is recorded and remains required for release branches.
 
+## Required branch protection
+
+Repository ruleset
+[`19886870`](https://github.com/mburakmmm/aHPy/rules/19886870) actively targets
+`main` and `ahpy/**` with no bypass actor. It blocks deletion and
+non-fast-forward pushes, requires pull requests with resolved review threads,
+and requires the following up-to-date GitHub Actions contexts:
+
+- `aHPy required checks`;
+- `benchmark required checks`;
+- `ci-success`;
+- `coverage required checks`; and
+- `sanitizers-success`.
+
+All five contexts are bound to GitHub Actions integration ID `15368`.
+Benchmark and coverage publish stable aggregate contexts even when lightweight
+selectors skip their expensive bodies, preventing an irrelevant change from
+leaving branch protection permanently pending. The live branch-rules API
+returns all four rule types for both `main` and the future-pattern probe
+`ahpy/3.2`.
+
+### PRD-0 hosted aggregate evidence
+
+CI-policy implementation commit
+`e791c8983bcb1a3c38aa932617a91ea976cb5c55` has the following hosted
+evidence:
+
+| Required context | Hosted result |
+|---|---|
+| `aHPy required checks` | [green job 90238576086](https://github.com/mburakmmm/aHPy/actions/runs/30347252766/job/90238576086) |
+| `benchmark required checks` | [green job 90250254151](https://github.com/mburakmmm/aHPy/actions/runs/30347253289/job/90250254151) |
+| `coverage required checks` | [green job 90245943934](https://github.com/mburakmmm/aHPy/actions/runs/30347253159/job/90245943934) |
+| `sanitizers-success` | [green job 90246538721](https://github.com/mburakmmm/aHPy/actions/runs/30347253367/job/90246538721) |
+| `ci-success` | replacement required after PyPy fixture repair |
+
+The benchmark run passed all five parallel interpreter jobs in 32m23s to
+1h03m28s, including CSV generation, summary rendering, and artifact upload.
+The full Cython graph found one PyPy 3.9-only test-fixture incompatibility:
+`SimpleNamespace(self=...)` raised `TypeError` before backend execution.
+Commit `1b3805e30` preserves the same synthetic AST field through post-
+construction assignment and passes all 248 `TestHPyModuleWriter` tests under
+both local CPython and PyPy. PRD-0 closes only after all five contexts are
+green on one exact replacement HEAD.
+
+Roadmap HEAD `7ad48c495e9410ec1aa0ab28cdd2a7201282e991` currently records:
+
+| Required context | Current-head result |
+|---|---|
+| `aHPy required checks` | [green job 90262950998](https://github.com/mburakmmm/aHPy/actions/runs/30355000922/job/90262950998) |
+| `benchmark required checks` | [green job 90279175748](https://github.com/mburakmmm/aHPy/actions/runs/30355000934/job/90279175748) |
+| `coverage required checks` | [green job 90270294573](https://github.com/mburakmmm/aHPy/actions/runs/30355000919/job/90270294573) |
+| `sanitizers-success` | [green job 90270728209](https://github.com/mburakmmm/aHPy/actions/runs/30355001070/job/90270728209) |
+| `ci-success` | [replacement required after cold-cache timeout in job 90261190485](https://github.com/mburakmmm/aHPy/actions/runs/30355001166/job/90261190485) |
+
+The aHPy aggregate remains green while the same three explicitly allowed
+HPy-development 3.14 and same-binary PyPy/GraalPy lanes fail, so the policy
+continues to isolate early warnings from the required support signal.
+
+The full Cython run did not expose a backend or test assertion failure. Its
+Ubuntu shared-utility C++ lane continued compiling and passing tests until the
+80-minute job ceiling cancelled it; the final log reports 109 ccache hits
+versus 442 misses and multiple active `g++`/`cc1plus` workers. The replacement
+keeps the full corpus, bounds this heavy mode to four outer workers, and grants
+only shared-utility jobs a 120-minute fail-closed ceiling. Promotion of
+`ci-success` still requires a green replacement hosted run.
+
 ## Required stable lane
 
 The stable lane installs `hpy==0.9.0` and `setuptools==80.9.0` on Python 3.11.

@@ -45,11 +45,24 @@ non-fast-forward pushes. It grants no bypass actor. The committed source and
 the live GitHub API result must both pass audit before branch protection is
 claimed.
 
+The live repository ruleset is
+[`19886870`](https://github.com/mburakmmm/aHPy/rules/19886870). GitHub reports
+it as active with `current_user_can_bypass: never`; both `main` and a
+non-existent probe branch named `ahpy/3.2` resolve to the deletion,
+non-fast-forward, pull-request, and required-status-check rules.
+
 The manifest also fixes the downstream branch policy. Topic branches validate
 through `pull_request`; expensive `push` matrices run only for `main` and
 `ahpy/**` release branches. This prevents a branch with an open pull request
 from running the same expensive matrix twice while preserving post-merge and
 release-line evidence.
+
+The reusable Cython job keeps ordinary lanes at an 80-minute fail-closed
+ceiling and GraalPy at 150 minutes. Shared-utility mode recompiles the full
+selected corpus with larger translation units, so it is independently bounded
+to four outer test workers and 120 minutes. This preserves the complete test
+surface on a cold or low-hit compiler cache without allowing seven outer
+workers to oversubscribe concurrent `g++`/`cc1plus` processes.
 
 `Tools/ahpy/test_ci_policy.py` enforces:
 

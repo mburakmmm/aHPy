@@ -48,8 +48,9 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 
 ### Şu anki kritik yol
 
-1. PyPy 3.9 fixture düzeltme commit'i `1b3805e30` üzerindeki beş required
-   context'in tamamlanmasını bekle.
+1. Roadmap commit'i `7ad48c495` üzerindeki cold-cache Ubuntu shared-utility C++
+   timeout düzeltmesini push et ve replacement `ci-success` kanıtını bekle;
+   diğer dört aggregate bu HEAD'de yeşil.
 2. Yeni bir mandatory iş kırılırsa log kanıtıyla düzelt; allowed-failure işini
    destek iddiasına dönüştürme.
 3. Replacement HEAD için run/job kimliklerini validation, audit, handoff ve PR
@@ -124,11 +125,11 @@ Bu kapı kapanmadan yeni production özelliği eklenmez.
   - [x] Ruleset ayarını GitHub API çıktısıyla audit belgesinde kanıtla.
 - [ ] Mandatory işlerde `pending`, `cancelled` veya `failure` kalmadığını
       doğrula.
-  - [ ] `aHPy required checks`.
-  - [ ] `benchmark required checks`.
+  - [x] `aHPy required checks` — run `30355000922`, job `90262950998`.
+  - [x] `benchmark required checks` — run `30355000934`, job `90279175748`.
   - [ ] `ci-success`.
-  - [ ] `coverage required checks`.
-  - [ ] `sanitizers-success`.
+  - [x] `coverage required checks` — run `30355000919`, job `90270294573`.
+  - [x] `sanitizers-success` — run `30355001070`, job `90270728209`.
 - [x] Allowed-failure sonuçlarının aggregate required check'i yanlışlıkla
       kırmadığını doğrula.
 - [ ] Son yeşil run kimliklerini `validation-matrix.md`, ilgili M8 audit'i,

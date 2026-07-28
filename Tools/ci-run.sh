@@ -220,6 +220,11 @@ elif [[ $PYTHON_VERSION == "graalpy"* ]]; then
   # JIT actually makes it faster! And reduces the number of cores each process uses.
   GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
   TEST_PARALLELISM=-j2
+elif [[ $SHARED_UTILITY ]]; then
+  # Shared-utility mode recompiles the complete selected corpus with larger
+  # generated translation units. Keep a cold-cache hosted runner from
+  # oversubscribing its compiler processes and exhausting the job timeout.
+  TEST_PARALLELISM=-j4
 fi
 
 RUNTESTS_ARGS=""

@@ -186,13 +186,76 @@ changes, and `.github/rulesets/production-branches.json` binds the five stable
 aggregate contexts to pull-request-only, no-bypass protection for `main` and
 `ahpy/**`; each required context is restricted to GitHub Actions App
 integration ID `15368`. Local CPython 3.11 and 3.14 coverage runs pass all 584
-tests; hosted replacement and live-ruleset API evidence remain required before
-the PRD-0 parent is closed.
+tests. Policy implementation commit
+`e791c8983bcb1a3c38aa932617a91ea976cb5c55` produced green required
+aggregates for
+[`aHPy required checks` job 90238576086](https://github.com/mburakmmm/aHPy/actions/runs/30347252766/job/90238576086),
+[`benchmark required checks` job 90250254151](https://github.com/mburakmmm/aHPy/actions/runs/30347253289/job/90250254151),
+[`coverage required checks` job 90245943934](https://github.com/mburakmmm/aHPy/actions/runs/30347253159/job/90245943934),
+and
+[`sanitizers-success` job 90246538721](https://github.com/mburakmmm/aHPy/actions/runs/30347253367/job/90246538721).
+The aHPy workflow remained successful while the explicitly allowed HPy
+development 3.14 and same-binary PyPy/GraalPy jobs failed, proving that those
+early warnings do not poison the required aggregate.
 
 The inherited regular benchmark serially ran all five Python interpreters in
 one job; current upstream evidence shows successful instances taking roughly
 three to four hours. The downstream workflow now preserves all interpreter,
 revision, Limited API, size, and timing comparisons as five independent
 fail-fast-disabled matrix entries. Each entry has an isolated ccache key,
-uniquely named CSV/log artifacts, and a 90-minute bound; hosted evidence is
-still required before claiming the wall-time repair.
+uniquely named CSV/log artifacts, and a 90-minute bound. Hosted run
+[`30347253289`](https://github.com/mburakmmm/aHPy/actions/runs/30347253289)
+passed all five entries and the required aggregate: Python 3.14t took
+32m23s, 3.12 took 42m00s, 3.13 took 43m11s, 3.10 took 1h00m25s, and 3.14 took
+1h03m28s. This preserves the complete benchmark semantics while reducing the
+hosted wall time from roughly three-to-four serial hours to about 64 minutes.
+
+The same implementation HEAD's full Cython run exposed one mandatory,
+interpreter-specific test-fixture defect in PyPy 3.9 job
+[`90243188768`](https://github.com/mburakmmm/aHPy/actions/runs/30347253678/job/90243188768):
+`SimpleNamespace(self=...)` conflicts with PyPy's named `self` receiver and
+raised `TypeError` before exercising the backend. Commit `1b3805e30` assigns
+the identical synthetic AST field after construction instead. The focused
+fixture passes all 248 `TestHPyModuleWriter` tests under both local CPython and
+PyPy; the full five-context replacement run on that commit remains the PRD-0
+same-HEAD exit evidence. The subsequent roadmap-only HEAD
+`7ad48c495e9410ec1aa0ab28cdd2a7201282e991` has green
+[`aHPy required checks` job 90262950998](https://github.com/mburakmmm/aHPy/actions/runs/30355000922/job/90262950998);
+[`coverage required checks` job 90270294573](https://github.com/mburakmmm/aHPy/actions/runs/30355000919/job/90270294573)
+and
+[`sanitizers-success` job 90270728209](https://github.com/mburakmmm/aHPy/actions/runs/30355001070/job/90270728209)
+and
+[`benchmark required checks` job 90279175748](https://github.com/mburakmmm/aHPy/actions/runs/30355000934/job/90279175748)
+are also green. Full Cython run `30355001166` reached a cold-cache capacity
+limit in Ubuntu shared-utility C++ job
+[`90261190485`](https://github.com/mburakmmm/aHPy/actions/runs/30355001166/job/90261190485):
+tests were still compiling and passing when the 80-minute job timeout
+cancelled the run, and ccache reported only 109 hits against 442 misses.
+The replacement retains the full corpus while bounding non-Windows
+shared-utility mode to four outer workers and assigning only that heavy lane a
+120-minute fail-closed ceiling. Its focused contract test, full 153-test
+quality suite, shell syntax, YAML parse, compileall, and diff checks pass
+locally. The audit keeps PRD-0 open until replacement `ci-success` is green.
+
+## Production branch ruleset
+
+GitHub repository ruleset
+[`19886870`](https://github.com/mburakmmm/aHPy/rules/19886870) was created from
+the committed `.github/rulesets/production-branches.json` source. The live API
+reports:
+
+- enforcement `active`;
+- no bypass actors and `current_user_can_bypass: never`;
+- ref includes `refs/heads/main` and `refs/heads/ahpy/**`;
+- deletion and non-fast-forward protection;
+- pull requests with resolved review threads and zero required approvals for
+  the current single-maintainer phase; and
+- five up-to-date required contexts, all bound to GitHub Actions integration
+  ID `15368`.
+
+The branch-rules endpoint returns `deletion`, `non_fast_forward`,
+`pull_request`, and `required_status_checks` for both existing `main` and the
+non-existent probe `ahpy/3.2`, proving that the future release-branch pattern
+is active rather than merely stored. After removing GitHub's response-only
+empty `required_reviewers` field, the normalized live API object is byte-for-
+byte JSON-equivalent to the committed ruleset source.

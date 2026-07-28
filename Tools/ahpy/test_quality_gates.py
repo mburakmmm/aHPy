@@ -48,7 +48,7 @@ class QualityGateTest(unittest.TestCase):
             self.assertFalse(is_excluded(compile_only_fixture),
                              compile_only_fixture)
 
-    def test_windows_ci_bounds_parallel_msvc_test_trees(self):
+    def test_ci_bounds_parallel_shared_utility_test_trees(self):
         script = (ROOT / "Tools" / "ci-run.sh").read_text(encoding="utf8")
         self.assertIn(
             'if [[ $OSTYPE == "msys" || $OSTYPE == "cygwin" ]]; then\n'
@@ -65,6 +65,21 @@ class QualityGateTest(unittest.TestCase):
         self.assertIn("    -j1 \\\n    tag:shared_utility || EXIT_CODE=1\n", script)
         self.assertIn('elif [[ $PYTHON_VERSION == "graalpy"* ]]; then', script)
         self.assertIn("  TEST_PARALLELISM=-j2\n", script)
+        self.assertIn(
+            "elif [[ $SHARED_UTILITY ]]; then\n"
+            "  # Shared-utility mode recompiles the complete selected corpus "
+            "with larger\n",
+            script,
+        )
+        self.assertEqual(script.count("  TEST_PARALLELISM=-j4\n"), 2)
+
+        workflow = (ROOT / ".github" / "workflows" / "ci-job.yml").read_text(
+            encoding="utf8")
+        self.assertIn(
+            "timeout-minutes: ${{ startsWith(inputs.python-version, "
+            "'graalpy') && 150 || inputs.shared_utility && 120 || 80 }}",
+            workflow,
+        )
 
     def test_runtime_check_is_written_to_a_script(self):
         with tempfile.TemporaryDirectory() as temp:

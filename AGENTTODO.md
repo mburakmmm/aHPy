@@ -27,6 +27,12 @@ agent must keep all three synchronized when implementation status changes.
   `b99cb0e3b` is published as `main`, `codex/ahpy-bootstrap` is pushed, and
   draft PR [#2](https://github.com/mburakmmm/aHPy/pull/2) carries the aHPy
   integration.
+- Live repository ruleset
+  [19886870](https://github.com/mburakmmm/aHPy/rules/19886870) protects `main`
+  and future `ahpy/**` release branches without bypass actors. It requires
+  pull requests, resolved review threads, deletion/non-fast-forward
+  protection, and the five GitHub Actions contexts declared in
+  `tests/ahpy/ci-policy.toml`, all bound to Actions integration ID `15368`.
 - At pre-repair HEAD `cfbd94b64475306036a11474d5cc587ab9bf8ac6`, dedicated
   aHPy run
   [29905497837](https://github.com/mburakmmm/aHPy/actions/runs/29905497837),
@@ -270,52 +276,56 @@ Work on these in order unless an earlier dependency is externally blocked.
 This list is the operational priority view; the detailed acceptance criteria
 remain in the phase and milestone sections below and in `TODO.md`.
 
-1. Restore a fully green mandatory current-head CI matrix. Land the focused
-   GraalPy/classic-backend fixture isolation without weakening the dedicated
-   Universal HPy suite or the CPython C/C++ matrix; record the replacement run.
-2. Reconcile release-facing evidence after that run: root README validation
-   wording, this snapshot, validation/support matrices, audit links, and draft
-   PR #2's HEAD/run/file references must all describe the same commit.
-3. Finish M8 evidence: classify the pinned PyPy/GraalPy same-binary blockers,
-   execute both moving nightlies, review/promote Linux Valgrind/LSan with its
-   positive control, and add the Windows native-memory equivalent.
-4. Complete the still-supported M2–M6 semantic and advanced families one gated
-   family at a time. Keep every HPy 0.9 public-API gap explicitly rejected.
-5. Finish public-alpha packaging: publication rehearsal/release, standardized
-   Universal tags only when available, reproducible native wheels, and
-   cross-interpreter install/import evidence.
-6. Complete M10's four real-world pilots, compatibility dashboard, porting
-   guide, and the shared conformance corpus for the author's language runtime.
-7. Complete M11 upstream/rebase, security, provenance, release-candidate, and
-   stable-release gates. Do not merge the draft PR or tag a stable release
-   without explicit user authorization and every declared release gate green.
+1. Close PRD-0 on one exact HEAD: all five required aggregate contexts must be
+   green, allowed-failure jobs must remain outside support claims, live ruleset
+   evidence and exact run/job links must be synchronized across the roadmap,
+   validation matrix, M8 audit, this handoff, and draft PR #2.
+2. Freeze PRD-1's first-release support contract: exact Cython/HPy/Python
+   revisions, OS/compiler/build-frontend matrix, product tier, status
+   vocabulary, and HPy public-API limitations.
+3. Close PRD-2 and PRD-3 for the declared release scope: core
+   ownership/cleanup/module-state and pure HPy extension-type/GC/finalizer
+   correctness, including normal/Trace/Debug and fault paths.
+4. Resolve every PRD-4 advanced family independently: fully implement and
+   prove it or reject it fail-closed with a source-located diagnostic and
+   migration guidance.
+5. Complete PRD-5 cross-interpreter, platform, compiler, sanitizer, and
+   native-memory evidence without promoting PyPy/GraalPy or moving nightlies
+   before real green hosted proof.
+6. Complete PRD-6 and PRD-7 packaging, reproducibility, provenance,
+   publication rehearsal, performance, and footprint gates.
+7. Complete PRD-8's four real-world pilots, compatibility dashboard, porting
+   guide, and shared conformance corpus for the author's language runtime.
+8. Complete PRD-9 upstream/rebase, security, maintenance, and ownership
+   obligations.
+9. Complete PRD-10 release-candidate and stable-release gates. Do not merge the
+   draft PR or tag a stable release without explicit user authorization and
+   every declared release gate green.
 
-Current item: **3**. Local tests prove that only `bootstrap_answer`,
-`bootstrap_types`, and `fault_injection` are excluded from GraalPy's generic
-classic backend run; compile-only `benchmark_generated` and `retry_case`
-remain in that run, and the dedicated Universal workflow remains authoritative
-for the three executable fixtures. Two broad runs reproduced Windows/MSVC
-`LNK1158`: first under seven outer test trees, then inside an internally
-parallel `shared_utility_module` build under the four-worker cap. Windows now
-runs ordinary tests at four workers and the `shared_utility` tag in an isolated
-one-tree pass, preserving each selected test's own `build_ext -j3`; GraalPy
-stays at two workers. Commit `d0026d83b` has clean replacement evidence: push
-run `29912142526` attempt 2 and PR run `29912145346` each passed all 103 jobs,
-coverage run `29912145042` passed both jobs, and the Windows C/C++ logs show the
-isolated `tag:shared_utility` pass completing both affected trees without
-`LNK1158`. The next actionable item is the Windows native-memory equivalent.
-That equivalent is now declared as an allowed-failure schedule/manual job:
-`run_appverifier_hpy.py` discovers 64-bit AppVerifier/GFlags fail closed,
-targets a unique copied Python image, requires `verifier.dll` injection in all
-five real runtime processes, proves a native heap overrun is detected, rejects
-AppVerifier XML errors from the corpus, uploads raw evidence, and removes both
-settings in `finally`. The immediate next action is a manual hosted run and
-artifact review; do not promote the job before that evidence exists.
-Manual run `29945115651`, job `89008424404`, found both hosted x64 tools and
-proved AppVerifier `Heaps`/`Full=true`, but the aggregate `gflags /p` listing
-did not expose AppVerifier-owned settings; the job failed closed before target
-execution and cleanup succeeded. The replacement uses direct GFlags enable
-output plus the AppVerifier query as authority and still needs hosted review.
+Current item: **PRD-0**. CI-policy implementation head
+`e791c8983bcb1a3c38aa932617a91ea976cb5c55` has green aHPy, benchmark,
+coverage, and sanitizer required aggregates. HPy development on Python 3.14
+and same-binary PyPy/GraalPy remain the three expected allowed failures. Its
+full Cython graph found a PyPy 3.9-only fixture error before backend execution:
+`SimpleNamespace(self=...)` conflicts with PyPy's named receiver. Replacement
+commit `1b3805e30` assigns the same AST field after construction and passes all
+248 `TestHPyModuleWriter` tests under both local CPython and PyPy, plus the
+full 431 compiler and 153 quality suites under CPython. Roadmap HEAD
+`7ad48c495e9410ec1aa0ab28cdd2a7201282e991` now has green
+[`aHPy required checks` job 90262950998](https://github.com/mburakmmm/aHPy/actions/runs/30355000922/job/90262950998);
+[`coverage required checks` job 90270294573](https://github.com/mburakmmm/aHPy/actions/runs/30355000919/job/90270294573)
+and
+[`sanitizers-success` job 90270728209](https://github.com/mburakmmm/aHPy/actions/runs/30355001070/job/90270728209)
+and
+[`benchmark required checks` job 90279175748](https://github.com/mburakmmm/aHPy/actions/runs/30355000934/job/90279175748)
+are also green. Full Cython run `30355001166` exposed a cold-cache capacity
+failure rather than a test assertion: Ubuntu shared-utility C++ job
+`90261190485` continued compiling and passing tests until its 80-minute
+timeout, with only 19.78% ccache hits and seven outer workers. The local repair
+bounds non-Windows shared-utility mode to four outer workers and gives only
+that heavy lane a 120-minute fail-closed ceiling; its focused regression and
+all 153 quality tests pass. Do not claim the same-HEAD PRD-0 exit until the
+replacement `ci-success` is green.
 
 ### A1. Resolve the parallel fault-gate transient — completed
 
