@@ -1,4 +1,4 @@
-# aHPy production readiness checklist
+# aHPy production yol haritası
 
 Bu dosya, aHPy'yi kontrollü alpha seviyesinden güvenilir bir production
 sürümüne taşımak için kalan işleri bağımlılık sırasıyla toplar.
@@ -9,10 +9,60 @@ listesidir. Bir madde burada tamamlandığında ilgili `TODO.md`, destek matrisi
 validasyon matrisi, audit ve değişiklik kaydı da aynı commit içinde
 güncellenmelidir.
 
+## Yeni ana hedef
+
+> aHPy'nin ilan edilen destek sözleşmesi içinde doğrudan Universal HPy kodu
+> üreten, sessiz fallback yapmayan, kaynak ve binary sınırları doğrulanmış,
+> yeniden üretilebilir artifact'leri bulunan ve gerçek kütüphanelerle
+> kanıtlanmış ilk production sürümünü yayımlamak.
+
+Bu hedef yalnızca kodun derlenmesiyle tamamlanmış sayılmaz. Aynı release
+candidate üzerinde correctness, ownership, portability, packaging,
+performance, documentation, security ve bakım kapılarının tamamı kapanmalıdır.
+
+### Durum anahtarı
+
+- `[x]`: Kanıtı kaydedilmiş ve tamamlanmış iş.
+- `[ ]`: Yapılacak veya hosted kanıtı henüz tamamlanmamış iş.
+- **AKTİF**: Şu anda üzerinde çalışılan ve bir sonraki commit'i belirleyen faz.
+- **SIRADAKİ**: Aktif faz kapanınca başlanacak faz.
+- **BEKLİYOR**: Önceki fazların çıkış kapısına bağımlı faz.
+- **DIŞ BAĞIMLILIK**: Sonuç için upstream proje, servis veya maintainer kararı
+  gereken iş; yine de reproducer, issue ve kapsam kararı aHPy sorumluluğundadır.
+
+### Faz panosu
+
+| Sıra | Faz | Durum | Production sonucuna katkısı |
+| ---: | --- | --- | --- |
+| 0 | PRD-0 — Mevcut dalı yeşile getir | **AKTİF** | Güvenilir aynı-HEAD CI tabanı |
+| 1 | PRD-1 — Destek sözleşmesini dondur | **SIRADAKİ** | İlk sürümün dürüst kapsamı |
+| 2 | PRD-2 — Core compiler/module state | **BEKLİYOR** | Ownership ve semantic correctness |
+| 3 | PRD-3 — Pure HPy extension type | **BEKLİYOR** | Type/GC/finalizer güvenliği |
+| 4 | PRD-4 — Advanced Cython aileleri | **BEKLİYOR** | Implement veya fail-closed sonucu |
+| 5 | PRD-5 — Portability/native memory | **BEKLİYOR** | Universal binary ve platform kanıtı |
+| 6 | PRD-6 — Paketleme/dağıtım | **BEKLİYOR** | Kurulabilir ve doğrulanabilir artifact |
+| 7 | PRD-7 — Performans/footprint | **BEKLİYOR** | Sürüm bütçeleri ve regresyon kapısı |
+| 8 | PRD-8 — Gerçek kütüphane pilotları | **BEKLİYOR** | Kullanıcı dünyasında çalışma kanıtı |
+| 9 | PRD-9 — Upstream/güvenlik/bakım | **BEKLİYOR** | Sürdürülebilir production işletimi |
+| 10 | PRD-10 — RC/stable yayın | **BEKLİYOR** | İmzalı ve kanıtlı production release |
+
+### Şu anki kritik yol
+
+1. PyPy 3.9 fixture düzeltme commit'i `1b3805e30` üzerindeki beş required
+   context'in tamamlanmasını bekle.
+2. Yeni bir mandatory iş kırılırsa log kanıtıyla düzelt; allowed-failure işini
+   destek iddiasına dönüştürme.
+3. Replacement HEAD için run/job kimliklerini validation, audit, handoff ve PR
+   açıklamasına kaydet.
+4. Kanıt belgelerini tek commit olarak push et ve o yeni HEAD'de required
+   context'leri yeniden tamamen yeşil gör.
+5. PRD-0 çıkış kapısını kapat; ardından PRD-1 destek sözleşmesi kararlarına geç.
+
 ## Başlangıç durumu
 
 - Başlangıç tarihi: 2026-07-28.
 - Başlangıç commit'i: `0924dc88049a514382b2befaae7b70074645f25b`.
+- PRD-0 CI uygulama commit'i: `e791c8983bcb1a3c38aa932617a91ea976cb5c55`.
 - Çalışma dalı: `codex/ahpy-bootstrap`.
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
@@ -24,27 +74,27 @@ güncellenmelidir.
   özelliklerinin %100 desteklendiği anlamına gelmez.
 - Mevcut uygun sınıflandırma: production-grade prototype / alpha.
 
-## Değiştirilemez production kuralları
+## Her fazda korunan production kuralları
 
-- [ ] Universal mod hiçbir zaman CPython, Limited API veya HPy Hybrid moduna
-      sessizce düşmemeli.
-- [ ] Generated Universal kaynakta `Python.h`, `PyObject *`, `cpython.*` veya
-      yasaklı CPython sembolü bulunmamalı.
-- [ ] Desteklenmeyen her kaynak yapısı, doğru kaynak konumunda uygulanabilir
-      bir diagnostic ile durmalı; traceback veya internal compiler error
-      üretmemeli.
-- [ ] HPy 0.9 public API'sinde bulunmayan özellikler private API, CPython slotu
-      veya yaklaşık davranışla taklit edilmemeli.
-- [ ] Her yeni executable davranış normal, HPy Trace ve HPy Debug modlarında
-      sınanmalı.
-- [ ] Her ownership değişikliği başarı, ara API hatası, erken çıkış ve cleanup
-      yollarını kapsamalı.
-- [ ] Frontend değişiklikleri CPython C ve C++ semantic oracle'larını
-      çalıştırmalı.
-- [ ] Kullanıcıya ait veya kapsam dışı çalışma ağacı dosyaları stage
-      edilmemeli.
-- [ ] Hosted evidence görülmeden bir platform, yorumlayıcı veya özellik
-      “supported” olarak işaretlenmemeli.
+- Universal mod hiçbir zaman CPython, Limited API veya HPy Hybrid moduna
+  sessizce düşmemeli.
+- Generated Universal kaynakta `Python.h`, `PyObject *`, `cpython.*` veya
+  yasaklı CPython sembolü bulunmamalı.
+- Desteklenmeyen her kaynak yapısı, doğru kaynak konumunda uygulanabilir
+  bir diagnostic ile durmalı; traceback veya internal compiler error
+  üretmemeli.
+- HPy 0.9 public API'sinde bulunmayan özellikler private API, CPython slotu
+  veya yaklaşık davranışla taklit edilmemeli.
+- Her yeni executable davranış normal, HPy Trace ve HPy Debug modlarında
+  sınanmalı.
+- Her ownership değişikliği başarı, ara API hatası, erken çıkış ve cleanup
+  yollarını kapsamalı.
+- Frontend değişiklikleri CPython C ve C++ semantic oracle'larını
+  çalıştırmalı.
+- Kullanıcıya ait veya kapsam dışı çalışma ağacı dosyaları stage
+  edilmemeli.
+- Hosted evidence görülmeden bir platform, yorumlayıcı veya özellik
+  “supported” olarak işaretlenmemeli.
 
 ## PRD-0 — Mevcut dalı tamamen yeşile getir
 
@@ -52,7 +102,7 @@ Bu kapı kapanmadan yeni production özelliği eklenmez.
 
 - [ ] Son commit için devam eden bütün GitHub Actions işlerinin bitmesini
       bekle ve sonuçları kaydet.
-- [ ] `Benchmarks` workflow'undaki `benchmark_results_*.csv` bulunamadığı için
+- [x] `Benchmarks` workflow'undaki `benchmark_results_*.csv` bulunamadığı için
       kırılan summary adımının local düzeltmesini hosted yeşil koşuyla doğrula.
   - [x] Benchmark üretilmeyen bir değişiklikte summary adımı güvenli biçimde
         skip etmeli.
@@ -62,18 +112,23 @@ Bu kapı kapanmadan yeni production özelliği eklenmez.
       koşularını incele; gerekli değilse concurrency/dedup politikası ekle.
 - [x] Mandatory, allowed-failure, schedule-only ve manual-only işlerin listesini
       tek kaynakta tanımla ve test et.
-- [ ] `main` ve gelecekteki `ahpy/**` release dalları için GitHub
+- [x] `main` ve gelecekteki `ahpy/**` release dalları için GitHub
       branch-protection/ruleset politikasını uygula:
-  - [ ] Değişikliklerin pull request üzerinden gelmesini zorunlu kıl.
+  - [x] Değişikliklerin pull request üzerinden gelmesini zorunlu kıl.
   - [x] `tests/ahpy/ci-policy.toml` içindeki zorunlu PR kontrollerini gerçek
         required status check bağlamlarına eşle.
   - [x] Allowed-failure, schedule-only, manual-only ve release-only işlerini
         required PR check listesine katma.
-  - [ ] Force-push ve dal silmeyi engelle; maintainer bypass politikasını
+  - [x] Force-push ve dal silmeyi engelle; maintainer bypass politikasını
         belgeye bağla.
-  - [ ] Ruleset ayarını GitHub API çıktısıyla audit belgesinde kanıtla.
+  - [x] Ruleset ayarını GitHub API çıktısıyla audit belgesinde kanıtla.
 - [ ] Mandatory işlerde `pending`, `cancelled` veya `failure` kalmadığını
       doğrula.
+  - [ ] `aHPy required checks`.
+  - [ ] `benchmark required checks`.
+  - [ ] `ci-success`.
+  - [ ] `coverage required checks`.
+  - [ ] `sanitizers-success`.
 - [x] Allowed-failure sonuçlarının aggregate required check'i yanlışlıkla
       kırmadığını doğrula.
 - [ ] Son yeşil run kimliklerini `validation-matrix.md`, ilgili M8 audit'i,
@@ -403,6 +458,24 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
 - [ ] M10 pilotları ve compatibility dashboard yayımlanmış.
 - [ ] M11 upstream/release/maintenance sorumlulukları tamamlanmış.
 - [ ] Release candidate matrisi temiz ve stable tag maintainer onayı almış.
+
+## Her iş maddesi için tamamlama protokolü
+
+Bir checkbox ancak aşağıdaki zincirin tamamı gerçekleştiğinde `[x]` yapılır:
+
+1. Davranış ve kapsam kararı ilgili ADR/support matrix içinde açık.
+2. Implementation veya bilinçli fail-closed diagnostic tamam.
+3. Başarı, hata, erken çıkış ve cleanup yolları için odaklı regresyonlar yeşil.
+4. Uygulanabilir her executable örnek normal, Trace ve Debug modlarında yeşil.
+5. Generated source, binary symbol ve ownership sınırları audit edilmiş.
+6. CPython frontend etkileniyorsa C ve C++ semantic oracle'ları yeşil.
+7. Kullanıcı belgesi, `TODO.md`, `AGENTTODO.md`, validation matrix, milestone
+   audit'i ve changelog aynı gerçek durumu gösteriyor.
+8. İlgili değişiklik kasıtlı bir commit olarak push edilmiş.
+9. Hosted mandatory kontroller aynı HEAD üzerinde yeşil ve run/job bağlantıları
+   kanıt belgelerine kaydedilmiş.
+10. Çalışma ağacındaki kullanıcıya ait veya ilgisiz dosyalar commit'e
+    alınmamış.
 
 ## Uygulama sırası
 
