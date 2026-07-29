@@ -10,12 +10,13 @@ from pathlib import Path
 import re
 import statistics
 
-from benchmark_hpy import OPERATIONS
+from benchmark_hpy import BENCHMARK_SCHEMA_VERSION, OPERATIONS
 
 
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 DEFAULT_MINIMUM_REPORTS = 5
 DEFAULT_MARGIN = 0.20
+CALIBRATION_SCHEMA_VERSION = 2
 
 
 def _require(condition, message):
@@ -48,7 +49,7 @@ def load_hosted_report(path):
         raise ValueError("cannot read benchmark report %s: %s" % (
             path, error)) from None
 
-    _require(report.get("schema_version") == 1,
+    _require(report.get("schema_version") == BENCHMARK_SCHEMA_VERSION,
              "%s has unsupported benchmark schema" % path)
     _require(report.get("violations") == [],
              "%s contains benchmark violations" % path)
@@ -429,7 +430,7 @@ def calibrate(
             item["run_id"], item["run_attempt"], item["sample_id"] or ""),
     )
     return {
-        "schema_version": 1,
+        "schema_version": CALIBRATION_SCHEMA_VERSION,
         "proposal_only": True,
         "apply_automatically": False,
         "source_commit": expected_commit,

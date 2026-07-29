@@ -39,6 +39,7 @@ EXTERNAL_SOURCE = ROOT / "tests" / "ahpy" / "benchmark_external.c"
 BENCHMARK_INCLUDE = ROOT / "tests" / "ahpy"
 LARGE_TYPE_SOURCE = ROOT / "tests" / "ahpy" / "bootstrap_types.pyx"
 DEFAULT_BUDGETS = ROOT / "tests" / "ahpy" / "performance-budgets.toml"
+BENCHMARK_SCHEMA_VERSION = 2
 OPERATIONS = (
     "identity", "arithmetic", "container", "attribute", "call", "exception",
     "type_create", "type_method", "iteration", "external_c",
@@ -804,7 +805,7 @@ def build_and_measure(python, budgets, budget_path, output):
         report["trace"] = json.loads(trace_child.stdout)
         reference_size = reference_binary.stat().st_size
         report.update({
-            "schema_version": 1,
+            "schema_version": BENCHMARK_SCHEMA_VERSION,
             "created_utc": datetime.now(timezone.utc).isoformat(),
             "provenance": provenance,
             "measurement": dict(measurement),

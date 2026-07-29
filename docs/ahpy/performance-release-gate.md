@@ -14,7 +14,9 @@ proposal generator, not a budget editor. It never modifies
 
 Every input must be an unmodified `ahpy-performance-<run-id>-<attempt>`
 artifact produced by `.github/workflows/ahpy-universal.yml`. The benchmark
-report records:
+report uses schema v2; the proposal also uses schema v2. Older v1 benchmark
+artifacts predate mandatory resource/build provenance and are rejected rather
+than silently pooled. Each report records:
 
 - the full source commit;
 - repository, workflow ref, job, run ID, run attempt, and GitHub SHA;

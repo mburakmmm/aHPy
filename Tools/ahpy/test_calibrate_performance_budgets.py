@@ -20,7 +20,7 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
             for operation in calibration.OPERATIONS
         }
         report = {
-            "schema_version": 1,
+            "schema_version": calibration.BENCHMARK_SCHEMA_VERSION,
             "created_utc": "2026-07-29T00:00:%02d+00:00" % run_id,
             "violations": [],
             "debug_leak_check": "passed",
@@ -121,6 +121,10 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
                 repository=REPOSITORY,
             )
         self.assertEqual(result["report_count"], 5)
+        self.assertEqual(
+            result["schema_version"],
+            calibration.CALIBRATION_SCHEMA_VERSION,
+        )
         self.assertTrue(result["proposal_only"])
         self.assertFalse(result["apply_automatically"])
         self.assertEqual([run["run_id"] for run in result["runs"]],
@@ -258,7 +262,7 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
             path.write_text("{", encoding="utf8")
             with self.assertRaisesRegex(ValueError, "cannot read"):
                 calibration.load_hosted_report(path)
-            path.write_text(json.dumps({"schema_version": 2}), encoding="utf8")
+            path.write_text(json.dumps({"schema_version": 1}), encoding="utf8")
             with self.assertRaisesRegex(ValueError, "unsupported"):
                 calibration.load_hosted_report(path)
 

@@ -13,4 +13,5 @@
    distributions without applying cross-host absolute limits. Platform,
    compiler command/flags, peak-memory iterations, and native timeout are part
    of the exact cohort identity; multiword compiler wrapper commands are
-   parsed without losing the underlying compiler argument.
+   parsed without losing the underlying compiler argument. Benchmark and
+   proposal schemas are v2; legacy v1 evidence is rejected.

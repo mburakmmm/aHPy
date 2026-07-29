@@ -115,9 +115,9 @@ Last verified local gates:
 - Quality-tool suite: 202 tests pass (two expected platform/tool availability
   skips on macOS).
 - Focused coverage (2026-07-29): 634 tests traced on both interpreters.
-  - CPython 3.11: backend 100.00%, frontend_seam 45.80%, quality_tools 48.04%.
+  - CPython 3.11: backend 100.00%, frontend_seam 45.80%, quality_tools 48.06%.
   - CPython 3.14.6: backend 100.00%, frontend_seam 45.94%, quality_tools
-    48.09%.
+    48.10%.
   - CI floors are 100%, 45%, and 41%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
