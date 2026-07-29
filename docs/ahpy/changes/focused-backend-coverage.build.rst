@@ -19,3 +19,6 @@ control-flow coverage above 98%.
 The isolated scikit-build-core wheel path now has focused coverage for pinned
 dependency materialization, wheel/tag inspection, Universal source/binary
 audits, install, normal/Debug execution, evidence output, and CLI reporting.
+The setuptools/cythonize integration now has focused coverage for Universal
+generation, external-C boundaries, normal/Trace/Debug execution, wheel
+contents/tags, target installation, and interpreter CLI resolution.
