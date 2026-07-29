@@ -16,6 +16,12 @@ wheel bytes match across roots. Names, sizes, SHA-256 hashes, and provenance
 are retained in the requested JSON output locally and the CI artifact on
 hosted runs.
 
+The reproducible sdist contains a full lowercase `.gitrev`, while sdist and
+wheel Core Metadata contain standard `Project-URL` fields for the exact aHPy
+source commit, exact embedded Cython base, and the HPy 0.9 compatibility
+contract at that source revision. The member and metadata audits fail closed
+if the revision is absent, malformed, or inconsistent with those URLs.
+
 This closes frontend archive reproducibility only. The existing `.hpy0`
 portability artifact has a separate native gate. A future standardized
 Universal extension wheel still requires two-root native compiler/linker and

@@ -3,7 +3,12 @@ from tempfile import TemporaryDirectory
 import unittest
 import zipfile
 
-from ahpy_version import AHPY_DISTRIBUTION, AHPY_VERSION
+from ahpy_version import (
+    AHPY_DISTRIBUTION,
+    AHPY_VERSION,
+    provenance_project_urls,
+    source_commit,
+)
 from pep517_integration import EXAMPLE, _copy_frontend_source, _frontend_metadata
 
 
@@ -29,6 +34,7 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
             _copy_frontend_source(destination)
             for relative in (
                 "pyproject.toml",
+                ".gitrev",
                 "ahpy_build_backend.py",
                 "ahpy_build_config.py",
                 "Cython/Compiler/RuntimeAPI.py",
@@ -49,8 +55,16 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
         with TemporaryDirectory() as temp_dir:
             wheel = Path(temp_dir) / "frontend.whl"
             metadata = (
-                "Metadata-Version: 2.4\nName: %s\nVersion: %s\n" %
-                (AHPY_DISTRIBUTION, AHPY_VERSION)
+                "Metadata-Version: 2.4\nName: %s\nVersion: %s\n%s" %
+                (
+                    AHPY_DISTRIBUTION,
+                    AHPY_VERSION,
+                    "".join(
+                        "Project-URL: %s, %s\n" % item
+                        for item in provenance_project_urls(
+                            source_commit()).items()
+                    ),
+                )
             )
             with zipfile.ZipFile(wheel, "w") as archive:
                 archive.writestr(

@@ -86,7 +86,8 @@ release, Trace, and Debug modes. Pinned HPy development commit
 therefore an allowed-failure early warning. Exact pins and runner state are in
 `tests/ahpy/hpy-versions.toml` and `validation-matrix.md`; the
 [PRD-5 audit](audits/prd5-portability-native-memory.md) records the minimal
-closure reproducer and the two remaining portability/native-memory blockers.
+closure and handwritten reproducers; only publication of the prepared upstream
+HPy issue report remains an external PRD-5 action.
 
 Schedule/manual-only nightlies are deliberately outside that support claim.
 One uses the moving CPython `3.15-dev` prerelease with stable HPy 0.9; the other

@@ -10,6 +10,11 @@ build-system contract, compiler/runtime packages, maintained
 tools/tests/docs/examples, and license. Its reviewed manifest emits no missing
 source warnings. The safety audit records the current member count in JSON and
 rejects traversal, links, native binaries, bytecode, caches, and VCS data.
+The sdist carries a validated full-commit `.gitrev`; both its `PKG-INFO` and
+the derived frontend wheel metadata link the exact aHPy source commit, exact
+Cython base commit, and HPy 0.9 compatibility contract. A Git checkout always
+resolves its live `HEAD`, so a stale local `.gitrev` cannot mislabel a new
+artifact.
 
 With index access disabled, the gate built the frontend wheel from that sdist,
 created a new virtual environment, installed the exact frontend plus HPy 0.9.0
@@ -17,6 +22,12 @@ and setuptools 80.9.0, and built the maintained PEP 517 example. The example
 passed normal and Debug LeakDetector execution. Both the frontend and example
 then passed uninstall, clean-directory absence verification, reinstall, and a
 final normal execution.
+
+Dependency-wheel materialization deliberately retains PEP 517 build isolation:
+HPy 0.9's source distribution otherwise derives the invalid version `0.0.0`
+when its declared build requirements are absent. Index access is disabled
+after the exact HPy 0.9.0 and setuptools 80.9.0 wheels have been materialized,
+so all consumer builds and installs remain closed-wheelhouse operations.
 
 The schema-versioned JSON record hashes the sdist, frontend wheel, example
 wheel, HPy 0.9 wheel, and setuptools 80.9.0 wheel. Exact hashes are preserved
@@ -31,7 +42,6 @@ extension-wheel reproducibility, publication, and standardized Universal wheel
 metadata remain open. The example wheel's CPython tag is not a portability
 claim.
 
-The current quality-tool suite passes 111 tests with one expected local
-Valgrind availability skip. The 455-test focused trace remains above the
-unchanged floors: Python 3.11 records 73.69% backend, 28.75% frontend seam, and
-35.49% quality tools; Python 3.14.6 records 72.85%, 28.62%, and 35.60%.
+Current quality and coverage counts are recorded in
+[`m8-focused-backend-coverage.md`](m8-focused-backend-coverage.md) and the
+top-level validation matrix rather than duplicated here.

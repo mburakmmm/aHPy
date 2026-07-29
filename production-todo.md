@@ -68,8 +68,8 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 432 compiler/seam testi, 160 quality-tool testi ve
-  iki yorumlayıcıda 592 coverage testi.
+- Mevcut odaklı doğrulama: 432 compiler/seam testi, 165 quality-tool testi ve
+  iki yorumlayıcıda 597 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Bu oran generated C, native runtime, binary portability veya bütün Cython
   özelliklerinin %100 desteklendiği anlamına gelmez.
@@ -303,24 +303,28 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
 ## PRD-6 — Paketleme ve dağıtım hattını production seviyesine getir
 
 - [ ] `aHPy-compiler` dağıtım adını proje sahibi hesabında ayır.
-- [ ] Version metadata'ya exact Cython base, aHPy commit ve HPy compatibility
-      bilgisini ekle/doğrula.
-- [ ] Clean source tree'den sdist ve frontend wheel üret.
-- [ ] Sdist/wheel member safety, completeness ve license/provenance audit'ini
+- [x] Version metadata'ya exact Cython base, aHPy commit ve HPy compatibility
+      bilgisini ekle/doğrula; sdist ve wheel Core Metadata'sı üç exact
+      provenance URL'si taşır, arşiv `.gitrev` kaydı fail-closed doğrulanır.
+- [x] Clean source tree'den sdist ve frontend wheel üret.
+- [x] Sdist/wheel member safety, completeness ve license/provenance audit'ini
       çalıştır.
-- [ ] İki bağımsız clean root'ta byte-reproducible frontend artifact üret.
-- [ ] Fresh venv içinde no-index install/uninstall/reinstall testi çalıştır.
-- [ ] PEP 517'in yanlışlıkla upstream Cython veya başka `ahpy` paketini
+- [x] İki bağımsız clean root'ta byte-reproducible frontend artifact üret.
+- [x] Fresh venv içinde no-index install/uninstall/reinstall testi çalıştır.
+- [x] PEP 517'in yanlışlıkla upstream Cython veya başka `ahpy` paketini
       çözümlemediğini doğrula.
 - [ ] Direct build, setuptools, CMake, Meson ve scikit-build-core
       dokümantasyonlarını temiz ortamda yeniden çalıştır.
 - [ ] CMake/Meson/scikit-build Windows ve cross-build kapsamını tamamla veya
       açıkça sınırla.
-- [ ] HPy/PyPA standart Universal wheel/tag sözleşmesini seçmeden özel tag
-      üretme veya CPython-tagged wheel'i Universal olarak adlandırma.
-- [ ] Universal wheel standardı hazır değilse `.hpy0` portability artifact
+- [x] HPy/PyPA standart Universal wheel/tag sözleşmesini seçmeden özel tag
+      üretme veya CPython-tagged wheel'i Universal olarak adlandırma; preview
+      sözleşmesi mevcut host-tagged example wheel'i yalnız packaging smoke
+      testi olarak sınırlar.
+- [x] Universal wheel standardı hazır değilse `.hpy0` portability artifact
       dağıtım yolunu açıkça tanımla ve stable release kapsamını buna göre
-      sınırla.
+      sınırla; aynı `.hpy0` dosyası release-evidence artifact'ıdır, yayımlanmış
+      installable Universal wheel iddiası değildir.
 - [ ] Standardize Universal wheel mevcut olduğunda onun reproducibility,
       install ve cross-interpreter testlerini ekle.
 - [ ] Artifact checksum, SBOM, license listesi ve build provenance üret.

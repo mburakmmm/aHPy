@@ -235,6 +235,14 @@ class QualityGateTest(unittest.TestCase):
             [hpy_versions["stable"]["version"]],
         )
         self.assertEqual(
+            contract["hpy"]["supported_versions"],
+            [versions["AHPY_HPY_SUPPORTED_VERSION"]],
+        )
+        self.assertEqual(
+            contract["hpy"]["setuptools_version"],
+            versions["AHPY_SETUPTOOLS_VERSION"],
+        )
+        self.assertEqual(
             contract["hpy"]["development_commit"],
             hpy_versions["development"]["commit"],
         )

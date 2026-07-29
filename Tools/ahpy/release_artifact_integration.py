@@ -18,7 +18,12 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ahpy_version import AHPY_DISTRIBUTION, AHPY_VERSION
+from ahpy_version import (
+    AHPY_DISTRIBUTION,
+    AHPY_VERSION,
+    provenance_project_urls,
+    validate_source_commit,
+)
 from pep517_integration import (
     EXAMPLE,
     _copy_frontend_source,
@@ -70,6 +75,7 @@ def verify_sdist(sdist):
         "/LICENSE.txt",
         "/CONTRIBUTING.md",
         "/SECURITY.md",
+        "/.gitrev",
     )
     with tarfile.open(sdist, "r:gz") as archive:
         members = archive.getmembers()
@@ -91,10 +97,18 @@ def verify_sdist(sdist):
                 raise AssertionError("sdist contains forbidden member: %s" % name)
         pkg_info = next(name for name in names if name.endswith("/PKG-INFO"))
         metadata = archive.extractfile(pkg_info).read().decode("utf8")
+        revision_name = next(
+            name for name in names if name.endswith("/.gitrev"))
+        source_revision = validate_source_commit(
+            archive.extractfile(revision_name).read().decode("ascii"))
     if "Name: %s\n" % AHPY_DISTRIBUTION not in metadata:
         raise AssertionError("sdist metadata has the wrong distribution name")
     if "Version: %s\n" % AHPY_VERSION not in metadata:
         raise AssertionError("sdist metadata has the wrong version")
+    for label, url in provenance_project_urls(source_revision).items():
+        if "Project-URL: %s, %s\n" % (label, url) not in metadata:
+            raise AssertionError(
+                "sdist metadata lacks exact provenance field %s" % label)
     return len(names)
 
 
@@ -159,8 +173,8 @@ def build_and_run(python, report_path=None):
         wheelhouse = temp / "wheelhouse"
         wheelhouse.mkdir()
         _run([
-            python, "-m", "pip", "wheel", "--no-build-isolation",
-            "--no-deps", "--wheel-dir", str(wheelhouse),
+            python, "-m", "pip", "wheel", "--no-deps",
+            "--wheel-dir", str(wheelhouse),
             "hpy==0.9.0", "setuptools==80.9.0",
         ], env=environment)
         dependency_wheels = sorted(wheelhouse.glob("*.whl"))

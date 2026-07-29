@@ -14,7 +14,12 @@ from collections import defaultdict
 from functools import partial
 
 import platform
-from ahpy_version import AHPY_DISTRIBUTION, AHPY_VERSION
+from ahpy_version import (
+    AHPY_DISTRIBUTION,
+    AHPY_VERSION,
+    provenance_project_urls,
+    source_commit,
+)
 
 is_cpython = platform.python_implementation() == 'CPython'
 
@@ -40,9 +45,9 @@ from distutils.command.sdist import sdist as sdist_orig
 class sdist(sdist_orig):
     def run(self):
         self.force_manifest = 1
-        if (sys.platform != "win32" and
-            os.path.isdir('.git')):
-            assert os.system("git rev-parse --verify HEAD > .gitrev") == 0
+        commit = source_commit()
+        with open(".gitrev", "w", encoding="ascii") as revision:
+            revision.write(commit + "\n")
         sdist_orig.run(self)
 add_command_class('sdist', sdist)
 
@@ -485,6 +490,7 @@ def run_build():
             "aHPy documentation": "https://github.com/mburakmmm/aHPy/tree/main/docs/ahpy",
             "Upstream Cython": "https://github.com/cython/cython",
             "HPy": "https://hpyproject.org/",
+            **provenance_project_urls(source_commit()),
         },
 
         scripts=scripts,

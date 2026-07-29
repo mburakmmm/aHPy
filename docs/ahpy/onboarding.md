@@ -37,11 +37,14 @@ SHA-256 digests, runtime modes, and uninstall/reinstall results.
 
 The tool creates a clean frontend source copy, builds
 `aHPy-compiler==3.3.0.1.dev0` as an sdist, and normalizes its tar/gzip metadata
-under ADR 0015. It rejects path traversal, archive
+under ADR 0015. The sdist's `.gitrev` and both package formats' Core Metadata
+bind the artifact to the exact aHPy source commit, embedded Cython base, and
+HPy 0.9 compatibility contract. It rejects path traversal, archive
 links, native binaries, bytecode, caches, VCS data, missing compiler/runtime
 sources, and incorrect distribution metadata. It then:
 
-1. materializes exact HPy 0.9.0 and setuptools 80.9.0 wheels;
+1. materializes exact HPy 0.9.0 and setuptools 80.9.0 wheels with their
+   declared isolated build requirements;
 2. disables package-index access and builds the frontend wheel from the sdist;
 3. creates a second, new virtual environment and installs only from the local
    wheelhouse;

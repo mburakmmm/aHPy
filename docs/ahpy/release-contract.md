@@ -14,6 +14,10 @@ The `aHPy-compiler` distribution is not published yet.
   `b99cb0e3b5425e11414cadd24168a6cc850e8000`.
 - Supported HPy release: exactly `0.9.0`.
 - Required HPy 0.9 build companion: exactly `setuptools==80.9.0`.
+- Every built sdist and frontend wheel carries Core Metadata `Project-URL`
+  records for its exact aHPy source commit, this exact Cython base, and the
+  HPy 0.9 compatibility contract; the sdist also carries a validated
+  full-commit `.gitrev`.
 - Supported interpreter: CPython 3.11 only; local evidence records 3.11.15
   and hosted jobs resolve the current 3.11 patch for their runner.
 - Pinned HPy development commit
@@ -79,6 +83,11 @@ each runner.
 Host-specific CPython wheel tags are not Universal-wheel portability evidence.
 No package index publication or same-wheel cross-interpreter installation is
 part of this preview contract.
+
+The portable `.hpy0` used by the same-binary validation matrix is retained as
+release evidence, not published as an installable Universal wheel. aHPy will
+not invent a private wheel tag or call a CPython-tagged wheel Universal while
+the HPy/PyPA distribution contract remains unsettled.
 
 ## Evidence and change control
 

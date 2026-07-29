@@ -18,7 +18,12 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ahpy_version import AHPY_DISTRIBUTION, AHPY_VERSION
+from ahpy_version import (
+    AHPY_DISTRIBUTION,
+    AHPY_VERSION,
+    provenance_project_urls,
+    source_commit,
+)
 from test_generated_hpy import run, verify_binary_boundary, verify_source_boundary
 
 
@@ -50,9 +55,11 @@ def _copy_frontend_source(destination):
         "CONTRIBUTING.md", "SECURITY.md",
     ):
         shutil.copy2(ROOT / name, destination / name)
+    destination.joinpath(".gitrev").write_text(
+        source_commit(ROOT) + "\n", encoding="ascii")
 
 
-def _frontend_metadata(wheel):
+def _frontend_metadata(wheel, expected_commit=None):
     with zipfile.ZipFile(wheel) as archive:
         names = archive.namelist()
         metadata_name = next(
@@ -62,6 +69,12 @@ def _frontend_metadata(wheel):
         raise AssertionError("frontend wheel is not the aHPy distribution")
     if "Version: %s\n" % AHPY_VERSION not in metadata_text:
         raise AssertionError("frontend wheel has the wrong aHPy version")
+    expected_commit = expected_commit or source_commit(ROOT)
+    for label, url in provenance_project_urls(expected_commit).items():
+        field = "Project-URL: %s, %s\n" % (label, url)
+        if field not in metadata_text:
+            raise AssertionError(
+                "frontend wheel lacks exact provenance field %s" % label)
     for required in (
         "ahpy_build_backend.py", "ahpy_build_config.py", "ahpy_version.py",
     ):

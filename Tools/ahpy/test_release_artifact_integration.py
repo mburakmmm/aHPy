@@ -12,8 +12,10 @@ import release_artifact_integration
 
 
 class ReleaseArtifactDefinitionTest(unittest.TestCase):
+    source_commit = "a" * 40
     required_members = (
         "PKG-INFO",
+        ".gitrev",
         "setup.py",
         "pyproject.toml",
         "ahpy_version.py",
@@ -35,20 +37,33 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
         "SECURITY.md",
     )
 
-    def write_sdist(self, path, *, extra_members=(), metadata=None):
+    def write_sdist(
+            self, path, *, extra_members=(), metadata=None, revision=None):
         prefix = "ahpy_compiler-test"
+        revision = self.source_commit if revision is None else revision
         if metadata is None:
             metadata = (
                 "Metadata-Version: 2.4\n"
                 "Name: %s\n"
-                "Version: %s\n" % (
+                "Version: %s\n%s" % (
                     release_artifact_integration.AHPY_DISTRIBUTION,
                     release_artifact_integration.AHPY_VERSION,
+                    "".join(
+                        "Project-URL: %s, %s\n" % item
+                        for item in
+                        release_artifact_integration.provenance_project_urls(
+                            self.source_commit).items()
+                    ),
                 )
             )
         with tarfile.open(path, "w:gz") as archive:
             for relative in self.required_members:
-                payload = metadata if relative == "PKG-INFO" else relative
+                if relative == "PKG-INFO":
+                    payload = metadata
+                elif relative == ".gitrev":
+                    payload = revision + "\n"
+                else:
+                    payload = relative
                 data = payload.encode("utf8")
                 member = tarfile.TarInfo("%s/%s" % (prefix, relative))
                 member.size = len(data)
@@ -71,6 +86,11 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
         self.assertIn('"build_dependencies"', source)
         self.assertIn('environment["SOURCE_DATE_EPOCH"]', source)
         self.assertIn('environment["PYTHONHASHSEED"] = "0"', source)
+        dependency_materialization = source.split(
+            'python, "-m", "pip", "wheel"', 1)[1].split(
+                "], env=environment)", 1)[0]
+        self.assertNotIn(
+            "--no-build-isolation", dependency_materialization)
 
     def test_sdist_verifier_rejects_links_and_native_binaries(self):
         source = Path(release_artifact_integration.__file__).read_text(
@@ -88,6 +108,13 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
                 len(self.required_members),
                 release_artifact_integration.verify_sdist(sdist),
             )
+
+    def test_sdist_verifier_rejects_invalid_source_revision(self):
+        with TemporaryDirectory() as temp_dir:
+            sdist = Path(temp_dir) / "invalid-revision.tar.gz"
+            self.write_sdist(sdist, revision="not-a-full-commit")
+            with self.assertRaisesRegex(RuntimeError, "full lowercase Git"):
+                release_artifact_integration.verify_sdist(sdist)
 
     def test_sdist_verifier_rejects_unsafe_or_binary_members(self):
         cases = (
