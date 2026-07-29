@@ -183,6 +183,29 @@ class BenchmarkHPyTest(unittest.TestCase):
         self.assertIn("-O3", command)
         self.assertIn("-DHPY_ABI_UNIVERSAL", command)
         self.assertIn("-Iinclude", command)
+        completed = SimpleNamespace(
+            stdout="wrapped clang 21\nmore detail\n",
+            stderr="",
+        )
+        with (
+            mock.patch.object(
+                benchmark_hpy.shutil, "which",
+                return_value="/usr/bin/ccache"),
+            mock.patch.object(
+                benchmark_hpy.subprocess, "run",
+                return_value=completed) as run,
+        ):
+            identity = benchmark_hpy._compiler_identity(
+                {"CC": "ccache clang"})
+        self.assertEqual(identity, "wrapped clang 21")
+        run.assert_called_once_with(
+            ["/usr/bin/ccache", "clang", "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        with self.assertRaisesRegex(ValueError, "compiler command"):
+            benchmark_hpy._compiler_identity({"CC": "   "})
 
     def test_thresholds_reject_large_type_compile_timeout(self):
         report = self._report()

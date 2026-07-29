@@ -12,4 +12,5 @@
    frontend/native build-time, peak-RSS, footprint, and large-type frontend/O0
    distributions without applying cross-host absolute limits. Platform,
    compiler command/flags, peak-memory iterations, and native timeout are part
-   of the exact cohort identity.
+   of the exact cohort identity; multiword compiler wrapper commands are
+   parsed without losing the underlying compiler argument.

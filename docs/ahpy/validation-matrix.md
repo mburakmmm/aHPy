@@ -592,7 +592,7 @@ compiled extensions cannot hide Python lines. It reports the Universal
 backend, touched Cython frontend seam, and quality tools independently, plus
 ownership, Runtime API, emitter, compiler-seam, and quality-tool feature
 families. The current Python 3.11 validation records 100.00%, 45.80%, and
-47.89%; Python 3.14.6 records 100.00%, 45.94%, and 47.93%. CI keeps
+48.04%; Python 3.14.6 records 100.00%, 45.94%, and 48.09%. CI keeps
 cross-version floors of 100%, 45%, and 41%. Schema 2 JSON and Markdown reports
 include exact missing lines and compact missing ranges for actionable
 follow-up.

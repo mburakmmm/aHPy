@@ -495,9 +495,16 @@ def trace_loaded_modules(build_lib, iterations, get_counts=None):
 
 def _compiler_identity(environment):
     command = environment.get("CC") or "cc"
-    executable = shutil.which(command) or command
+    parts = shlex.split(command)
+    if not parts:
+        raise ValueError("CC must contain a compiler command")
+    executable = shutil.which(parts[0]) or parts[0]
     result = subprocess.run(
-        [executable, "--version"], capture_output=True, text=True, check=False)
+        [executable, *parts[1:], "--version"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     first_line = (result.stdout or result.stderr).splitlines()
     return first_line[0] if first_line else command
 

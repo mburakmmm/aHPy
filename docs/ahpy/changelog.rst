@@ -13,7 +13,8 @@ Bootstrap
   local, mixed, duplicate, failing, byte-unstable, or resource-incomplete
   evidence is rejected, while build-time, peak-RSS, footprint, and large-type
   distributions remain bound to exact platform/compiler flags/resource
-  settings as cohort-scoped proposal data.
+  settings as cohort-scoped proposal data; wrapper commands such as
+  ``CC="ccache clang"`` retain a valid compiler identity.
 * Added the supported sequence-index iteration family to the generated,
   handwritten HPy, and classic Cython performance matrix while retaining typed
   memoryviews as an explicit HPy 0.9 blocked/non-comparable surface.
