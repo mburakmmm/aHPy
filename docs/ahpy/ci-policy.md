@@ -45,6 +45,13 @@ non-fast-forward pushes. It grants no bypass actor. The committed source and
 the live GitHub API result must both pass audit before branch protection is
 claimed.
 
+`.github/workflows/ahpy-release-attestations.yml` is deliberately outside
+ordinary branch and pull-request CI. Only an exact `ahpy-v<package-version>`
+tag can start its required signing job. The job rebuilds clean and reproducible
+release evidence before GitHub OIDC/Sigstore attestations are created, and all
+external actions are pinned to immutable commits. See
+[`release-signing.md`](release-signing.md) for the verification policy.
+
 The live repository ruleset is
 [`19886870`](https://github.com/mburakmmm/aHPy/rules/19886870). GitHub reports
 it as active with `current_user_can_bypass: never`; both `main` and a

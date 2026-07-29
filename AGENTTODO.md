@@ -112,9 +112,9 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 169 tests pass (two expected platform/tool availability
+- Quality-tool suite: 174 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-07-29): 601 tests traced on both interpreters.
+- Focused coverage (2026-07-29): 606 tests traced on both interpreters.
   - CPython 3.11: backend 100.00%, frontend_seam 45.80%, quality_tools 43.26%.
   - CPython 3.14.6: backend 100.00%, frontend_seam 45.94%, quality_tools
     43.22%.
@@ -617,6 +617,11 @@ implementation.
    **(completed locally by `release_artifact_integration.py` and
    `docs/ahpy/onboarding.md`; hosted Linux evidence is green in run
    `29685285138`.)**
+8. Sign approved release artifacts and publish strict verification guidance.
+   **(the tag-only `ahpy-release-attestations.yml` gate now rebuilds clean and
+   reproducible evidence, creates keyless Sigstore SLSA/SPDX attestations, and
+   retains offline bundles; the item stays open until an approved
+   `ahpy-v<version>` tag is signed and verified.)**
 
 ## 8. Performance, pilots, upstreaming, and release queue
 

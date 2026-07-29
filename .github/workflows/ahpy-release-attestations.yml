@@ -1,0 +1,92 @@
+name: aHPy release attestations
+
+on:
+  push:
+    tags:
+      - "ahpy-v*"
+
+permissions:
+  contents: read
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  attest-release:
+    name: attest aHPy release evidence
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - name: Checkout exact release source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Set up Python 3.11
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            tests/ahpy/requirements-hpy09.txt
+            tests/ahpy/requirements-build-systems.txt
+      - name: Require the exact package-version tag
+        run: >-
+          python -c "import os; from ahpy_version import AHPY_VERSION;
+          actual = os.environ['GITHUB_REF_NAME'];
+          expected = 'ahpy-v' + AHPY_VERSION;
+          assert actual == expected,
+          'release tag must be %s, got %s' % (expected, actual)"
+      - name: Install pinned release toolchain
+        run: >-
+          python -m pip install
+          -r tests/ahpy/requirements-hpy09.txt
+          -r tests/ahpy/requirements-build-systems.txt
+      - name: Build and validate clean release evidence
+        run: >-
+          python Tools/ahpy/release_artifact_integration.py
+          --python python
+          --output packaging-results/release-artifacts.json
+          --bundle-dir packaging-results/release-bundle
+      - name: Rebuild reproducible package archives
+        run: >-
+          python Tools/ahpy/verify_reproducible_packages.py
+          --python python
+          --output packaging-results/package-reproducibility.json
+      - name: Attest bundle provenance
+        id: provenance
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        with:
+          subject-path: "packaging-results/release-bundle/*"
+      - name: Attest package SBOM
+        id: sbom
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        with:
+          subject-path: |
+            packaging-results/release-bundle/*.whl
+            packaging-results/release-bundle/*.tar.gz
+          sbom-path: packaging-results/release-bundle/sbom.spdx.json
+      - name: Retain portable Sigstore bundles
+        env:
+          PROVENANCE_BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+          SBOM_BUNDLE: ${{ steps.sbom.outputs.bundle-path }}
+        run: |
+          mkdir -p packaging-results/release-attestations
+          cp "$PROVENANCE_BUNDLE" \
+            packaging-results/release-attestations/provenance.sigstore.json
+          cp "$SBOM_BUNDLE" \
+            packaging-results/release-attestations/sbom.sigstore.json
+      - name: Upload signed release evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ahpy-release-${{ github.ref_name }}-${{ github.run_attempt }}
+          path: |
+            packaging-results/release-artifacts.json
+            packaging-results/package-reproducibility.json
+            packaging-results/release-bundle
+            packaging-results/release-attestations
+          if-no-files-found: error
+          retention-days: 90

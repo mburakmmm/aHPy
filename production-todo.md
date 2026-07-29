@@ -68,8 +68,8 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 432 compiler/seam testi, 169 quality-tool testi ve
-  iki yorumlayıcıda 601 coverage testi.
+- Mevcut odaklı doğrulama: 432 compiler/seam testi, 174 quality-tool testi ve
+  iki yorumlayıcıda 606 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Bu oran generated C, native runtime, binary portability veya bütün Cython
   özelliklerinin %100 desteklendiği anlamına gelmez.
@@ -335,7 +335,11 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
       wheel'leri için doğrulanmış `SHA256SUMS`, SPDX 2.3 JSON,
       machine-readable lisans envanteri ve exact source/build
       `provenance.json` içeren fail-closed bundle üretir.
-- [ ] Release artifact'lerini imzala ve doğrulama talimatını yayımla.
+- [ ] Release artifact'lerini imzala ve doğrulama talimatını yayımla;
+      tag-only keyless Sigstore/GitHub OIDC workflow'u, SLSA + SPDX
+      attestation'ları ve online/offline doğrulama politikası hazırdır, kapı
+      ilk onaylı `ahpy-v<version>` tag'i gerçekten imzalanıp doğrulanana kadar
+      açık kalır.
 - [ ] PyPI/TestPyPI yayınlama ve geri çekme/yeniden yayınlamama politikasını
       belgeleyip dry-run yap.
 

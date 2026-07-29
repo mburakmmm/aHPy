@@ -36,6 +36,11 @@ schedule_manual_allowed_failure_jobs = [
 ]
 
 [[workflows]]
+path = ".github/workflows/ahpy-release-attestations.yml"
+trigger_class = "release-tags"
+release_or_build_jobs = ["attest-release"]
+
+[[workflows]]
 path = ".github/workflows/benchmarks.yml"
 trigger_class = "pr-main-release-manual-label"
 required_jobs = ["file-changes", "benchmarks", "benchmarks-success"]

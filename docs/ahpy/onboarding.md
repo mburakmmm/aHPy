@@ -62,6 +62,10 @@ sdist, frontend wheel, example wheel, exact HPy/setuptools wheels,
 `provenance.json`. Every copied artifact is rehashed against the validated
 report before the bundle is accepted.
 
+For release tags, the separate keyless Sigstore gate signs this bundle and its
+SPDX statement; see [release signing and verification](release-signing.md).
+Ordinary onboarding runs intentionally produce no signature.
+
 The clean subprocess checks run from a temporary directory, so an uninstalled
 package cannot be accidentally satisfied by the repository checkout.
 

@@ -24,6 +24,7 @@ TRIGGER_CLASSES = {
     "manual-or-upstream-schedule",
     "pr-main-release-manual",
     "release-schedule-manual-build-label",
+    "release-tags",
     "upstream-schedule-manual-build-label",
     "reusable",
 }
