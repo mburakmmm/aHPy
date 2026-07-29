@@ -59,6 +59,14 @@ requires the boolean publish input plus the `testpypi` environment. The
 frontend-only selection and recovery policy are in
 [`publishing.md`](publishing.md).
 
+`.github/workflows/ahpy-performance-calibration.yml` is manual-only and
+read-only. Five isolated matrix jobs benchmark one exact selected commit and
+upload distinct immutable sample artifacts. A dependent job can produce only
+a proposal-only release calibration after all samples pass; it cannot modify
+the versioned budget, publish a package, or obtain OIDC credentials. The
+evidence and review contract is in
+[`performance-release-gate.md`](performance-release-gate.md).
+
 The live repository ruleset is
 [`19886870`](https://github.com/mburakmmm/aHPy/rules/19886870). GitHub reports
 it as active with `current_user_can_bypass: never`; both `main` and a

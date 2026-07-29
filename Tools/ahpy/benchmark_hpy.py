@@ -84,6 +84,9 @@ def benchmark_provenance(environment=None):
     if required["run_id"] <= 0 or required["run_attempt"] <= 0:
         raise ValueError(
             "GitHub Actions run identifiers must be positive")
+    sample_id = environment.get("AHPY_BENCHMARK_SAMPLE_ID")
+    if sample_id:
+        required["sample_id"] = sample_id
     result["github"] = required
     return result
 

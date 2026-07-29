@@ -47,6 +47,14 @@ manual_required_jobs = ["build-testpypi-candidate"]
 release_or_build_jobs = ["publish-testpypi"]
 
 [[workflows]]
+path = ".github/workflows/ahpy-performance-calibration.yml"
+trigger_class = "manual-performance-calibration"
+manual_required_jobs = [
+  "performance-sample",
+  "calibrate-release-budget",
+]
+
+[[workflows]]
 path = ".github/workflows/benchmarks.yml"
 trigger_class = "pr-main-release-manual-label"
 required_jobs = ["file-changes", "benchmarks", "benchmarks-success"]

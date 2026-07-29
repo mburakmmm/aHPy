@@ -370,6 +370,9 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
   - [x] Her yeni rapora exact kaynak/GitHub run provenance ekle; en az beş
         benzersiz, başarılı, aynı-commit ve aynı-kohort hosted rapor olmadan
         bütçe önerisi üretmeyen fail-closed kalibratörü ekle.
+  - [x] Tek seçilmiş commit için beş izole hosted sample çalıştıran, yalnız
+        read-only izinli ve bütün sample'lar geçmeden proposal üretmeyen manual
+        kalibrasyon workflow'unu ekle.
   - [ ] Aynı release-candidate HEAD'i için hosted geçmişi topla, headroom
         önerisini incele ve release eşiklerini ayrı bir same-HEAD koşuyla
         doğrula.

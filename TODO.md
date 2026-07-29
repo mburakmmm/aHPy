@@ -1379,6 +1379,9 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         artifact and add a fail-closed proposal generator requiring at least
         five unique successful hosted reports from one exact commit and
         measurement cohort.
+  - [x] Add a read-only manual workflow that collects five isolated hosted
+        samples for one selected commit and emits only the reviewed proposal
+        artifact after every sample succeeds.
   - [ ] Collect the minimum hosted same-HEAD history, review the proposed
         headroom, version the release ceilings, and validate them again on the
         same release candidate.

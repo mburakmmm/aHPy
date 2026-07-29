@@ -137,6 +137,7 @@ class BenchmarkHPyTest(unittest.TestCase):
             "GITHUB_SHA": "a" * 40,
             "GITHUB_WORKFLOW_REF": "owner/aHPy/workflow.yml@refs/heads/main",
             "GITHUB_JOB": "compiler-and-quality",
+            "AHPY_BENCHMARK_SAMPLE_ID": "4",
         }
         with mock.patch.object(
                 benchmark_hpy, "source_commit", return_value="a" * 40):
@@ -145,6 +146,7 @@ class BenchmarkHPyTest(unittest.TestCase):
         self.assertEqual(result["github"]["run_id"], 123)
         self.assertEqual(result["github"]["run_attempt"], 2)
         self.assertEqual(result["github"]["sha"], "a" * 40)
+        self.assertEqual(result["github"]["sample_id"], "4")
 
     def test_hosted_benchmark_provenance_rejects_missing_or_wrong_identity(self):
         base = {

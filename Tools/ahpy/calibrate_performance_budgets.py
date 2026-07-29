@@ -81,6 +81,12 @@ def load_hosted_report(path):
             isinstance(github.get(field), str) and github[field].strip(),
             "%s github.%s is missing" % (path, field),
         )
+    sample_id = github.get("sample_id")
+    _require(
+        sample_id is None or
+        (isinstance(sample_id, str) and sample_id.strip()),
+        "%s github.sample_id must be a non-empty string when present" % path,
+    )
 
     environment = report.get("environment")
     _require(isinstance(environment, dict),
@@ -213,6 +219,7 @@ def calibrate(
             report["provenance"]["github"]["repository"],
             report["provenance"]["github"]["run_id"],
             report["provenance"]["github"]["run_attempt"],
+            report["provenance"]["github"].get("sample_id"),
         )
         for report in reports
     ]
@@ -222,6 +229,7 @@ def calibrate(
         key=lambda report: (
             report["provenance"]["github"]["run_id"],
             report["provenance"]["github"]["run_attempt"],
+            report["provenance"]["github"].get("sample_id") or "",
         )
     )
 
@@ -267,11 +275,13 @@ def calibrate(
             {
                 "run_id": report["provenance"]["github"]["run_id"],
                 "run_attempt": report["provenance"]["github"]["run_attempt"],
+                "sample_id": report["provenance"]["github"].get("sample_id"),
                 "created_utc": report.get("created_utc"),
             }
             for report in reports
         ),
-        key=lambda item: (item["run_id"], item["run_attempt"]),
+        key=lambda item: (
+            item["run_id"], item["run_attempt"], item["sample_id"] or ""),
     )
     return {
         "schema_version": 1,

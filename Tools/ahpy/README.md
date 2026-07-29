@@ -209,6 +209,9 @@ repository, workflow, job, run ID, run attempt, and GitHub SHA. Release-budget
 promotion uses `calibrate_performance_budgets.py`, which accepts at least five
 unique successful reports for one exact commit and cohort, rejects local or
 mixed evidence, and emits a proposal without editing the versioned budget.
+The manual `ahpy-performance-calibration.yml` workflow collects five isolated
+runner samples for the selected commit and invokes that proposal gate only
+after every matrix entry succeeds.
 The collection and review contract is in
 `docs/ahpy/performance-release-gate.md`.
 

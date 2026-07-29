@@ -709,6 +709,11 @@ proposal-only and cannot rewrite the versioned budget. The collection and
 maintainer review procedure is documented in
 `performance-release-gate.md`; hosted same-HEAD history is still required
 before the current conservative ceilings become release budgets.
+The manual-only `ahpy-performance-calibration.yml` workflow provides the
+bounded collection path: five isolated Ubuntu/Python 3.11/HPy 0.9 matrix
+samples for one exact selected commit, distinct sample provenance and
+artifacts, then one dependent proposal job. It has read-only permissions and
+cannot aggregate a partial matrix.
 
 The two-root package reproducibility gate retains only the first root's
 immutable sdist and wheel before starting the second build. This preserves the

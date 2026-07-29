@@ -686,10 +686,12 @@ implementation.
    after hosted history exists. Every new report now records exact source and
    GitHub run provenance; `calibrate_performance_budgets.py` rejects local,
    mixed, duplicate, failing, or byte-unstable evidence and requires five
-   same-commit hosted records before emitting a proposal. Collect that history,
-   review the proposed headroom, then validate any versioned ceiling on the
-   same release candidate. Document interpreter/HPy overhead separately from
-   backend overhead.
+   same-commit hosted records before emitting a proposal. The manual read-only
+   `ahpy-performance-calibration.yml` workflow collects five isolated samples
+   for one selected commit and aggregates only after all pass. Dispatch it on
+   an approved release-candidate commit, review the proposed headroom, then
+   validate any versioned ceiling on that same candidate. Document
+   interpreter/HPy overhead separately from backend overhead.
 5. Select and report four pilots: pure Cython, Python-independent C wrapper,
    extension type with GC/inheritance, and deliberately blocked CPython/NumPy
    API project. Convert recurring changes into support or migration rules.

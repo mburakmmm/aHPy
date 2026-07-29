@@ -38,7 +38,20 @@ attempt more than once is rejected.
 
 ## Collect and calibrate
 
-Download each selected run into its own directory:
+The preferred path is the manual
+`.github/workflows/ahpy-performance-calibration.yml` workflow. It checks out
+one exact selected commit, launches five isolated Ubuntu/Python 3.11/HPy 0.9
+matrix jobs, records an explicit sample identity in every report, downloads
+all five immutable artifacts, and runs the proposal generator only after every
+sample succeeds. The workflow and jobs have read-only repository/actions
+permissions and no OIDC or publication credentials.
+
+The resulting
+`ahpy-release-performance-proposal-<run-id>-<attempt>` artifact is the review
+input. The five raw `ahpy-performance-sample-*` artifacts remain the evidence.
+
+Existing separately triggered benchmark reports can also be calibrated
+manually. Download each selected run into its own directory:
 
 ```console
 gh run download RUN_ID \

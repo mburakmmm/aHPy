@@ -135,6 +135,28 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
                     repository=REPOSITORY,
                 )
 
+    def test_one_matrix_run_accepts_five_distinct_sample_ids(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            reports = []
+            for sample_id in range(1, 6):
+                report = self._report(
+                    100,
+                    provenance__github__sample_id=str(sample_id),
+                )
+                path = Path(temp_dir) / ("sample-%d.json" % sample_id)
+                path.write_text(json.dumps(report), encoding="utf8")
+                reports.append(path)
+            result = calibration.calibrate(
+                reports,
+                expected_commit=COMMIT,
+                repository=REPOSITORY,
+            )
+        self.assertEqual(result["report_count"], 5)
+        self.assertEqual(
+            [run["sample_id"] for run in result["runs"]],
+            ["1", "2", "3", "4", "5"],
+        )
+
     def test_mixed_commit_repository_and_cohort_are_rejected(self):
         cases = (
             ("provenance__source_commit", "b" * 40, "source commit"),
@@ -168,6 +190,7 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
             ("violations", ["runtime.call"], "violations"),
             ("debug_leak_check", "failed", "Debug"),
             ("large_type_compile__o0__timed_out", True, "timed out"),
+            ("provenance__github__sample_id", "", "sample_id"),
         )
         for field, value, message in cases:
             with self.subTest(field=field):
