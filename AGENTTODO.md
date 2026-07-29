@@ -112,12 +112,12 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 155 tests pass (two expected platform/tool availability
+- Quality-tool suite: 160 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-07-29): 587 tests traced on both interpreters.
-  - CPython 3.11: backend 100.00%, frontend_seam 45.80%, quality_tools 41.59%.
+- Focused coverage (2026-07-29): 592 tests traced on both interpreters.
+  - CPython 3.11: backend 100.00%, frontend_seam 45.80%, quality_tools 41.21%.
   - CPython 3.14.6: backend 100.00%, frontend_seam 45.94%, quality_tools
-    41.52%.
+    41.13%.
   - CI floors are 100%, 45%, and 41%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
@@ -245,8 +245,10 @@ A1 is done. Proceed when unblocked:
   Windows environment exists.
   **(Linux is promoted: manual run `29906185775`, job `88878105102`, detected
   the 64-byte positive control, recorded five clean real-corpus logs, and used
-  no active suppression. Its schedule/manual job is now required. The Windows
-  job is declared with AppVerifier/GFlags and remains hosted-pending.)**
+  no active suppression. Its schedule/manual job is now required. Windows is
+  also promoted: manual run `30431371077`, job `90509136349`, proved full-page
+  heap, the native-overrun positive control, verifier injection in all five
+  clean real-corpus processes, and successful cleanup.)**
 - A6 package reproducibility — after Phase U3 Universal packaging formats.
 
 ### Phase U3 — M6 advanced families (one gated family at a time)
@@ -302,7 +304,9 @@ remain in the phase and milestone sections below and in `TODO.md`.
    draft PR or tag a stable release without explicit user authorization and
    every declared release gate green.
 
-Current item: **PRD-5 Universal portability and native-memory evidence**.
+Current item: **PRD-5 Universal portability and native-memory evidence**;
+only publication of the exact HPy Python 3.14 upstream crash report remains
+open.
 PRD-0 CI-policy implementation head
 `e791c8983bcb1a3c38aa932617a91ea976cb5c55` has green aHPy, benchmark,
 coverage, and sanitizer required aggregates. HPy development on Python 3.14
@@ -340,7 +344,7 @@ scikit-build-core retain exact partial scopes. The separate
 known-limitations document locks HPy 0.9 gaps, and a quality test prevents
 manifest/code/CI/document drift. Verify the documentation-only evidence
 commit's required contexts without creating a recursive evidence commit.
-PRD-2 is closed for the preview scope: 432 compiler/seam tests, 155 quality
+PRD-2 is closed for the preview scope: 432 compiler/seam tests, 159 quality
 tests, generated normal/Trace/Debug execution, all 128 isolated fault
 selectors, and 38 CPython C/C++ oracle executions pass; source/binary audits
 show no CPython/Hybrid leakage, and M2/M3/M4 records assign every excluded
@@ -353,10 +357,11 @@ PRD-4 is closed through `tests/ahpy/advanced-surface.toml` and its audit:
 all 18 advanced families are either the fully tested narrow `nogil` partial
 slice or deterministic blocked/rejected preview behavior with migration
 guidance; C++, annotation, profile, linetrace, embedded signatures, and C-line
-traceback instrumentation now fail before output. Next execute PRD-5's exact
-same-binary interpreter, stable/development HPy, platform/compiler,
-sanitizer/Valgrind/AppVerifier, and reproducible portability artifact gates.
-Do not promote the three allowed-failure early warnings.
+traceback instrumentation now fail before output. PRD-5's same-binary,
+stable/development HPy, platform/compiler, sanitizer, Valgrind, AppVerifier,
+and reproducible portability gates are complete; publish the prepared HPy
+Python 3.14 heap-type crash report without promoting the three allowed-failure
+early warnings.
 
 ### A1. Resolve the parallel fault-gate transient — completed
 

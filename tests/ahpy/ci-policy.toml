@@ -1,5 +1,5 @@
 schema_version = 1
-validated_on = "2026-07-28"
+validated_on = "2026-07-29"
 
 [branch_policy]
 topic_branch_event = "pull_request"
@@ -26,9 +26,11 @@ required_jobs = [
 ]
 mixed_required_allowed_failure_jobs = ["development-revision"]
 allowed_failure_jobs = ["cross-interpreter"]
-schedule_manual_required_jobs = ["native-memory-valgrind"]
-schedule_manual_allowed_failure_jobs = [
+schedule_manual_required_jobs = [
+  "native-memory-valgrind",
   "native-memory-windows",
+]
+schedule_manual_allowed_failure_jobs = [
   "nightly-interpreter",
   "nightly-hpy",
 ]

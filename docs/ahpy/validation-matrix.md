@@ -136,6 +136,13 @@ because the pinned revision currently crashes the generated corpus on the
 locally tested macOS arm64 configuration and with exit status -11 in hosted
 Ubuntu job
 [88188395904](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395904).
+A handwritten public-HPy GC heap type and a five-line captured-object closure
+now reproduce the same failure before the full corpus: stable CPython 3.11
+passes both in normal/Trace/Debug, while CPython 3.14.6 and the pinned HPy
+development revision fault during the handwritten `HPy_New` through
+`_PyObject_GC_New`/`ctx_New`. The reproducer and ready-to-file upstream report
+are linked from the
+[PRD-5 audit](audits/prd5-portability-native-memory.md).
 A future green result must not alter stable support until the pin,
 compatibility audit, and support matrix are updated together.
 
@@ -230,17 +237,23 @@ The job is therefore no longer `continue-on-error`; Windows native-memory
 hosted evidence remains open. Required job 88897432278 in successful manual
 run 29912162645 revalidated the promoted gate at commit `d0026d83b`.
 
-The Windows counterpart is now declared separately on `windows-2025` for
-schedule/manual runs. It enables Application Verifier Basics and GFlags full
-page heap for a unique native overrun control and a uniquely copied Python
-executable. The control must fail with an AppVerifier XML error; each of the
-five real generated-corpus processes must prove `verifier.dll` injection and
-produce an XML log with no error severity. Preflight discovery, settings
-queries, per-process output, XML, raw logs, counts, and cleanup results are
-uploaded unconditionally. The job remains `continue-on-error` until its first
-hosted artifact is reviewed, so it is not yet a release gate or support
-evidence. It diagnoses native heap corruption, not leaks; HPy Debug and the
-Linux Valgrind job keep their separate leak contracts.
+The Windows counterpart is a required schedule/manual gate on `windows-2025`.
+It enables Application Verifier Basics and GFlags full page heap for a unique
+native overrun control and a uniquely copied Python executable. The control
+must fail with an AppVerifier XML error; each of the five real
+generated-corpus processes must prove `verifier.dll` injection and produce an
+XML log with no error severity. Preflight discovery, settings queries,
+per-process output, XML, raw logs, counts, and cleanup results are uploaded
+unconditionally. Manual run
+[30431371077](https://github.com/mburakmmm/aHPy/actions/runs/30431371077),
+[job 90509136349](https://github.com/mburakmmm/aHPy/actions/runs/30431371077/job/90509136349),
+proved full-page-heap configuration, a native-overrun AppVerifier error, five
+injected and clean real-corpus processes, and successful settings cleanup.
+Artifact digest is
+`sha256:de6b17f6500a6a74da862586d1bcb783bdc333860026f3d8ecf5280501985a36`.
+The job is therefore no longer `continue-on-error`. It diagnoses native heap
+corruption, not leaks; HPy Debug and the Linux Valgrind job keep their separate
+leak contracts.
 
 `Tools/ahpy/test_quality_gates.py` compiles the same source twice in independent
 directories and compares the emitted bytes. This gate found and fixed an
@@ -572,14 +585,14 @@ paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 587 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 592 focused tests under Python's built-in
 line-event tracer, derives executable lines from nested code-object line
 tables, and forces measured modules through a source-first finder so stale
 compiled extensions cannot hide Python lines. It reports the Universal
 backend, touched Cython frontend seam, and quality tools independently, plus
 ownership, Runtime API, emitter, compiler-seam, and quality-tool feature
 families. The current Python 3.11 validation records 100.00%, 45.80%, and
-41.59%; Python 3.14.6 records 100.00%, 45.94%, and 41.52%. CI keeps
+41.21%; Python 3.14.6 records 100.00%, 45.94%, and 41.13%. CI keeps
 cross-version floors of 100%, 45%, and 41%. Schema 2 JSON and Markdown reports
 include exact missing lines and compact missing ranges for actionable
 follow-up.

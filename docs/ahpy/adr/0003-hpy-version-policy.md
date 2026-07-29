@@ -37,7 +37,16 @@ built on Python 3.14.6 but its generated semantic corpus terminated with
 `SIGSEGV` both locally on macOS arm64 (2026-07-15) and in hosted Ubuntu job
 `88188395904` (2026-07-19). Python 3.14 therefore remains an explicitly
 experimental early-warning lane; it is not included in the validated support
-claim. The machine-readable record is `tests/ahpy/hpy-versions.toml`.
+claim. On 2026-07-29 the failure was reduced both to a handwritten public-HPy
+heap type in `tests/ahpy/hpy_dev_type_reproducer.c` and to the five-line
+generated closure in `tests/ahpy/hpy_dev_closure_reproducer.pyx`: CPython 3.11
+passes both in normal/Trace/Debug, while CPython 3.14.6 reaches
+`_PyObject_GC_New` through HPy's `ctx_New`/`HPy_New` and faults at address
+`0x10` during the handwritten allocation, before generated code runs. The
+dedicated reproducer runs before the full development corpus, and the ready-to-file
+upstream report is
+`docs/ahpy/audits/prd5-hpy-dev314-upstream-report.md`. The machine-readable
+record is `tests/ahpy/hpy-versions.toml`.
 
 The independent moving lanes select CPython `3.15-dev` with stable HPy 0.9 and
 CPython 3.11 with HPy's official `master` branch. GitHub's official

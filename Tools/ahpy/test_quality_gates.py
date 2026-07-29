@@ -376,6 +376,56 @@ class QualityGateTest(unittest.TestCase):
         self.assertIn("generated C-line ", module_node)
         self.assertIn("traceback instrumentation; disable", module_node)
 
+    def test_prd5_portability_scope_and_minimal_reproducer_are_locked(self):
+        release = tomllib.loads(
+            RELEASE_CONTRACT.read_text(encoding="utf8"))
+        versions = tomllib.loads(
+            VERSION_MANIFEST.read_text(encoding="utf8"))
+        self.assertEqual(
+            release["python"]["supported_implementation"],
+            "CPython",
+        )
+        self.assertEqual(release["python"]["supported_versions"], ["3.11"])
+        self.assertEqual(
+            set(release["python"]["unsupported_implementations"]),
+            {"PyPy", "GraalPy"},
+        )
+
+        failures = versions["development"]["known_failures"]
+        self.assertEqual({entry["python"] for entry in failures}, {"3.14.6"})
+        for failure in failures:
+            with self.subTest(platform=failure["platform"]):
+                self.assertTrue((ROOT / failure["reproducer"]).is_file())
+                self.assertTrue(
+                    (ROOT / failure["reproducer_source"]).is_file())
+                self.assertTrue(
+                    (
+                        ROOT / failure["handwritten_reproducer_source"]
+                    ).is_file()
+                )
+                self.assertIn("not filed", failure["upstream_status"])
+
+        workflow = (
+            ROOT / ".github" / "workflows" / "ahpy-universal.yml"
+        ).read_text(encoding="utf8")
+        development = workflow.split("  development-revision:", 1)[1]
+        development = development.split("\n  sanitizers:", 1)[0]
+        self.assertLess(
+            development.index(
+                "Classify minimal HPy heap-type compatibility"),
+            development.index("Build, audit, and run Universal module"),
+        )
+        self.assertIn("reproduce_hpy_dev_closure.py", development)
+
+        audit = (
+            ROOT / "docs" / "ahpy" / "audits" /
+            "prd5-portability-native-memory.md"
+        ).read_text(encoding="utf8")
+        self.assertIn("Only one PRD-5 blocker remains", audit)
+        self.assertIn("Windows AppVerifier", audit)
+        self.assertIn("job 90509136349", audit)
+        self.assertIn("exact upstream crash report", audit)
+
     def test_generated_source_is_deterministic(self):
         environment = os.environ.copy()
         environment["PYTHONPATH"] = str(ROOT)
@@ -745,12 +795,14 @@ class QualityGateTest(unittest.TestCase):
         self.assertIn("--fail-under frontend_seam=45", workflow)
         self.assertIn("--fail-under quality_tools=41", workflow)
 
-    def test_windows_native_memory_lane_is_fail_closed_but_experimental(self):
+    def test_windows_native_memory_lane_is_promoted_and_fail_closed(self):
         workflow = (ROOT / ".github" / "workflows" /
                     "ahpy-universal.yml").read_text(encoding="utf8")
         job = workflow.split("  native-memory-windows:\n", 1)[1].split(
             "  build-portability-artifact:\n", 1)[0]
-        self.assertIn("continue-on-error: true", job)
+        self.assertNotIn("continue-on-error: true", job)
+        self.assertIn(
+            "native memory gate (Windows AppVerifier full page heap)", job)
         self.assertIn("windows-2025", job)
         self.assertIn("github.event_name == 'schedule'", job)
         self.assertIn("github.event_name == 'workflow_dispatch'", job)

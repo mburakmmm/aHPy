@@ -254,6 +254,12 @@ jobs:
           cache-dependency-path: tests/ahpy/requirements-hpy-dev.txt
       - name: Install pinned HPy development revision
         run: python -m pip install -r tests/ahpy/requirements-hpy-dev.txt
+      - name: Classify minimal HPy heap-type compatibility
+        env:
+          CFLAGS: -O0
+        run: >-
+          python Tools/ahpy/reproduce_hpy_dev_closure.py
+          --python python
       - name: Build, audit, and run Universal module
         env:
           CFLAGS: -O0
@@ -328,10 +334,9 @@ jobs:
           if-no-files-found: warn
 
   native-memory-windows:
-    name: native memory diagnostic (Windows AppVerifier full page heap)
+    name: native memory gate (Windows AppVerifier full page heap)
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     runs-on: windows-2025
-    continue-on-error: true
     timeout-minutes: 45
     steps:
       - name: Checkout

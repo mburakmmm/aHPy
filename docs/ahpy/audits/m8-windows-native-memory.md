@@ -1,8 +1,8 @@
 # M8 Windows native-memory diagnostic declaration
 
-Date: 2026-07-22
-Status: declared as an allowed-failure schedule/manual job; hosted evidence
-pending
+Date: 2026-07-29
+Status: promoted to a required schedule/manual gate after reviewed hosted
+evidence
 
 ## Scope
 
@@ -45,11 +45,10 @@ Primary references:
 8. Disables page heap and deletes AppVerifier settings for both image names in
    `finally`, even after a positive-control or corpus failure.
 
-The workflow uploads the evidence with `if: always()`. It deliberately remains
-`continue-on-error: true` until a manual hosted run proves the runner actually
-contains compatible 64-bit tools, the injection marker and positive control
-work, all five runtime logs are clean, and cleanup succeeds. Only then may a
-separate reviewed change promote it to a required schedule/manual gate.
+The workflow uploads the evidence with `if: always()`. A manual hosted run has
+now proved compatible 64-bit tools, detector injection, the positive control,
+five clean runtime logs, and cleanup; the job is therefore a fail-closed
+required schedule/manual gate.
 
 ## First hosted probe
 
@@ -66,6 +65,29 @@ either target. The uploaded cleanup record shows successful page-heap disable
 and AppVerifier settings deletion for both unique image names.
 
 The follow-up records and validates the direct GFlags `/enable` output while
-retaining the AppVerifier full-heap query and aggregate listing. A replacement
-hosted run is still required; this probe is tool-discovery and cleanup evidence,
-not a clean-corpus or positive-control result.
+retaining the AppVerifier full-heap query and aggregate listing.
+
+## Reviewed promotion evidence
+
+Manual run
+[30431371077](https://github.com/mburakmmm/aHPy/actions/runs/30431371077),
+job
+[90509136349](https://github.com/mburakmmm/aHPy/actions/runs/30431371077/job/90509136349),
+completed successfully on `windows-2025` with CPython 3.11.9 and AppVerifier
+10.0.26100. The reviewed artifact
+`ahpy-appverifier-30431371077-1` records:
+
+- AppVerifier Heaps enabled with `Full = true` for both unique images;
+- successful GFlags full-page-heap enable output for both images;
+- a nonzero native positive-control exit and one AppVerifier Heaps error with
+  stop code `0x13` at `appverifier_positive_control.c:12`;
+- exactly five runtime reports, five injection markers, and five XML logs;
+- `verifier.dll`, `vrfcore.dll`, and `vfbasics.dll` loaded in every real-corpus
+  process;
+- return code zero and no XML error entry for every real-corpus process; and
+- successful GFlags disable and AppVerifier settings deletion for both images.
+
+GitHub records artifact digest
+`sha256:de6b17f6500a6a74da862586d1bcb783bdc333860026f3d8ecf5280501985a36`.
+This evidence satisfies the declared promotion conditions, so
+`native-memory-windows` no longer carries `continue-on-error`.

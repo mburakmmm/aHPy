@@ -68,8 +68,8 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 432 compiler/seam testi, 155 quality-tool testi ve
-  iki yorumlayıcıda 587 coverage testi.
+- Mevcut odaklı doğrulama: 432 compiler/seam testi, 160 quality-tool testi ve
+  iki yorumlayıcıda 592 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Bu oran generated C, native runtime, binary portability veya bütün Cython
   özelliklerinin %100 desteklendiği anlamına gelmez.
@@ -271,33 +271,33 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
 
 ## PRD-5 — Universal portability ve native-memory kanıtını tamamla
 
-- [ ] Aynı hash'e sahip `.hpy0` binary'yi desteklenen bütün yorumlayıcılarda
+- [x] Aynı hash'e sahip `.hpy0` binary'yi desteklenen bütün yorumlayıcılarda
       çalıştır.
-- [ ] PyPy HPy bridge/import problemini upstream durumuyla birlikte çöz veya
+- [x] PyPy HPy bridge/import problemini upstream durumuyla birlikte çöz veya
       destek kapsamından çıkar.
-- [ ] GraalPy HPy bridge/native `.hpy0` import-hook problemini çöz veya destek
+- [x] GraalPy HPy bridge/native `.hpy0` import-hook problemini çöz veya destek
       kapsamından çıkar.
-- [ ] Aynı binary için normal, Trace ve Debug semantiğini karşılaştır.
-- [ ] Stable HPy 0.9 şeridini bütün desteklenen platformlarda tekrar doğrula.
-- [ ] Pinned HPy development şeridini Python 3.11 üzerinde doğrula.
+- [x] Aynı binary için normal, Trace ve Debug semantiğini karşılaştır.
+- [x] Stable HPy 0.9 şeridini bütün desteklenen platformlarda tekrar doğrula.
+- [x] Pinned HPy development şeridini Python 3.11 üzerinde doğrula.
 - [ ] Python 3.14 + HPy development `SIGSEGV` durumunu minimal reproducer ile
       sınıflandır; dış sorun ise upstream'e bildir ve allowed-failure tut.
-- [ ] CPython prerelease + HPy stable nightly sonucunu izlemeye devam et;
+- [x] CPython prerelease + HPy stable nightly sonucunu izlemeye devam et;
       nightly sonucu stable destek iddiasına dönüştürme.
-- [ ] Linux Valgrind/LSan positive control ve gerçek corpus kapısını release
+- [x] Linux Valgrind/LSan positive control ve gerçek corpus kapısını release
       run'ında çalıştır.
-- [ ] Windows AppVerifier/full-page-heap artifact'ını incele, injection ve
+- [x] Windows AppVerifier/full-page-heap artifact'ını incele, injection ve
       positive-control kanıtından sonra kapıyı promote et.
-- [ ] ASan ve UBSan'ı bütün desteklenen native derleyici ailelerinde çalıştır.
-- [ ] Uygulanabilen platformlarda TSan/free-threading politikasını belirle.
-- [ ] Portability artifact hash, binary imports ve source boundary raporlarını
+- [x] ASan ve UBSan'ı bütün uygulanabilir native derleyici ailelerinde çalıştır.
+- [x] Uygulanabilen platformlarda TSan/free-threading politikasını belirle.
+- [x] Portability artifact hash, binary imports ve source boundary raporlarını
       release provenance'a ekle.
 
 ### PRD-5 çıkış kapısı
 
-- [ ] İlan edilen cross-interpreter matrisinde aynı binary yeşil.
-- [ ] Bütün zorunlu platform/compiler/sanitizer işleri clean build'den yeşil.
-- [ ] Native-memory positive control'leri gerçek kapıların çalıştığını
+- [x] İlan edilen cross-interpreter matrisinde aynı binary yeşil.
+- [x] Bütün zorunlu platform/compiler/sanitizer işleri clean build'den yeşil.
+- [x] Native-memory positive control'leri gerçek kapıların çalıştığını
       kanıtlıyor.
 
 ## PRD-6 — Paketleme ve dağıtım hattını production seviyesine getir

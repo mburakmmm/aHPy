@@ -46,6 +46,7 @@ Design and implementation references:
 - [Support matrix](support-matrix.md)
 - [Known limitations](known-limitations.md)
 - [Advanced-surface preview closure](audits/prd4-advanced-surface.md)
+- [PRD-5 portability and native-memory audit](audits/prd5-portability-native-memory.md)
 - [Validation matrix and release gates](validation-matrix.md)
 - [Machine-readable CI policy](ci-policy.md)
 - [Production branch ruleset](../../.github/rulesets/production-branches.json)
