@@ -3,6 +3,10 @@
 Date: 2026-07-16
 Status: CMake, Meson, and isolated scikit-build-core locally and hosted green
 
+The complete local macOS ARM64/CPython 3.11/HPy 0.9 path was rerun on
+2026-07-29: direct build, setuptools/cythonize, CMake, Meson, and the
+closed-wheelhouse scikit-build-core build all passed.
+
 The installed `ahpy_build_config` module and CLI wrapper emit schema-version 1
 contracts for the selected Python/HPy toolchain. Focused tests cover POSIX and
 Windows suffix/export state, static and source runtime selection, forbid-header

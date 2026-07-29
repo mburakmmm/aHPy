@@ -313,10 +313,13 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
 - [x] Fresh venv içinde no-index install/uninstall/reinstall testi çalıştır.
 - [x] PEP 517'in yanlışlıkla upstream Cython veya başka `ahpy` paketini
       çözümlemediğini doğrula.
-- [ ] Direct build, setuptools, CMake, Meson ve scikit-build-core
-      dokümantasyonlarını temiz ortamda yeniden çalıştır.
-- [ ] CMake/Meson/scikit-build Windows ve cross-build kapsamını tamamla veya
-      açıkça sınırla.
+- [x] Direct build, setuptools, CMake, Meson ve scikit-build-core
+      dokümantasyonlarını temiz ortamda yeniden çalıştır; macOS ARM64/CPython
+      3.11/HPy 0.9 kapılarının tamamı 2026-07-29'da tekrar yeşil.
+- [x] CMake/Meson/scikit-build Windows ve cross-build kapsamını tamamla veya
+      açıkça sınırla; preview sözleşmesi bu yolları Linux x86-64 hosted ve
+      macOS ARM64 local kanıtla sınırlar, Windows/cross-build'i support
+      kapsamına almaz.
 - [x] HPy/PyPA standart Universal wheel/tag sözleşmesini seçmeden özel tag
       üretme veya CPython-tagged wheel'i Universal olarak adlandırma; preview
       sözleşmesi mevcut host-tagged example wheel'i yalnız packaging smoke
