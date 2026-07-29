@@ -6,3 +6,5 @@ Nested coverage self-tests now restore the outer trace function instead of
 silently undercounting alphabetically later quality-tool tests.
 The corrected dual-interpreter baseline raises the quality-tool CI floor from
 41% to 50%.
+Reproducibility and direct-build integration control flow now has focused
+unit coverage above 97% without replacing their real hosted integration gates.
