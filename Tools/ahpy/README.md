@@ -145,6 +145,13 @@ example in normal/Debug modes, and proves clean uninstall/reinstall cycles for
 both distributions. The JSON report hashes all artifacts and build-dependency
 wheels. See `docs/ahpy/onboarding.md` and ADR 0014.
 
+`prepare_publish_dist.py` is a deliberately network-free package-index
+rehearsal. It requires a green schema-2 release bundle for the exact checkout,
+rehashes every selected file, rejects a non-empty output directory, and copies
+only the `aHPy-compiler` sdist and `py3-none-any` frontend wheel. Dependency
+and example wheels plus evidence metadata remain excluded. See
+`docs/ahpy/publishing.md`.
+
 `verify_reproducible_packages.py` builds the `aHPy-compiler` sdist and
 pure-Python wheel from two independent clean roots. A fixed epoch/hash seed and
 streaming tar/gzip metadata normalization make complete archive bytes the

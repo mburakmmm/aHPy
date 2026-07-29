@@ -59,8 +59,9 @@ larger Cython family an exact preview status and migration path.
   CPython tags. They are not standardized Universal wheels and are not
   evidence of same-wheel cross-interpreter installation.
 - The distribution is unpublished; package-index reservation, execution and
-  verification of the prepared tag-only signing workflow, publication
-  rehearsal, and stable release approval remain later production gates.
+  verification of the prepared tag-only signing workflow, an approved real
+  TestPyPI upload, and stable release approval remain later production gates;
+  the no-upload publication rehearsal is green.
 - Direct build, CMake, Meson, scikit-build-core, setuptools/cythonize, and
   isolated PEP 517 have the partial platform/packaging scopes frozen in the
   [preview contract](release-contract.md).

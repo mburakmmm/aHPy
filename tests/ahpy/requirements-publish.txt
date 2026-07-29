@@ -1,0 +1,2 @@
+# No-upload metadata validation for the TestPyPI rehearsal.
+twine==6.2.0

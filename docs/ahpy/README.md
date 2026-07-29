@@ -58,6 +58,7 @@ Design and implementation references:
 - [CMake, Meson, and scikit-build-core](build-systems.md)
 - [Clean release-artifact onboarding](onboarding.md)
 - [Release signing and verification](release-signing.md)
+- [TestPyPI and PyPI publication policy](publishing.md)
 - [Python-independent external C contract](external-c.md)
 - [M9 ABI performance baseline](audits/m9-abi-performance-baseline.md)
 - [Architecture decisions](adr/)

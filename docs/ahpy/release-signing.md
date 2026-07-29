@@ -121,3 +121,7 @@ approved, the official PyPA publishing action must use OIDC Trusted Publishing
 so PyPI emits its PEP 740 publish attestations. Consumers must then verify the
 index-served provenance with `pypi-attestations` in addition to the GitHub
 release evidence described here.
+
+The frontend-only candidate selection, TestPyPI Trusted Publishing boundary,
+and immutable-version recovery policy are documented in
+[the publication policy](publishing.md).

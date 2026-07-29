@@ -22,6 +22,7 @@ TRIGGER_CLASSES = {
     "pr-main-release-schedule-manual",
     "pr-main-release-manual-label",
     "manual-or-upstream-schedule",
+    "manual-publication",
     "pr-main-release-manual",
     "release-schedule-manual-build-label",
     "release-tags",

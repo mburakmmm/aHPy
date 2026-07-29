@@ -52,6 +52,13 @@ release evidence before GitHub OIDC/Sigstore attestations are created, and all
 external actions are pinned to immutable commits. See
 [`release-signing.md`](release-signing.md) for the verification policy.
 
+`.github/workflows/ahpy-testpypi.yml` is manual and defaults to a no-upload
+rehearsal. Its build job has no OIDC permission. Only a separately classified
+`publish-testpypi` job can receive `id-token: write`, and that job additionally
+requires the boolean publish input plus the `testpypi` environment. The
+frontend-only selection and recovery policy are in
+[`publishing.md`](publishing.md).
+
 The live repository ruleset is
 [`19886870`](https://github.com/mburakmmm/aHPy/rules/19886870). GitHub reports
 it as active with `current_user_can_bypass: never`; both `main` and a

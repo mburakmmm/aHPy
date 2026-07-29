@@ -68,8 +68,8 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 432 compiler/seam testi, 174 quality-tool testi ve
-  iki yorumlayıcıda 606 coverage testi.
+- Mevcut odaklı doğrulama: 432 compiler/seam testi, 183 quality-tool testi ve
+  iki yorumlayıcıda 615 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Bu oran generated C, native runtime, binary portability veya bütün Cython
   özelliklerinin %100 desteklendiği anlamına gelmez.
@@ -340,8 +340,11 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
       attestation'ları ve online/offline doğrulama politikası hazırdır, kapı
       ilk onaylı `ahpy-v<version>` tag'i gerçekten imzalanıp doğrulanana kadar
       açık kalır.
-- [ ] PyPI/TestPyPI yayınlama ve geri çekme/yeniden yayınlamama politikasını
-      belgeleyip dry-run yap.
+- [x] PyPI/TestPyPI yayınlama ve geri çekme/yeniden yayınlamama politikasını
+      belgeleyip dry-run yap; fail-closed seçici yalnız frontend sdist/pure
+      wheel'i hazırladı, hash'ler eşleşti ve pinned Twine 6.2.0 strict
+      metadata kontrolü geçti; gerçek TestPyPI/PyPI upload'u açıkça dış,
+      owner-onaylı bir release eylemidir.
 
 ### PRD-6 çıkış kapısı
 
