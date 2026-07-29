@@ -112,13 +112,13 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 202 tests pass (two expected platform/tool availability
+- Quality-tool suite: 203 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-07-29): 635 tests traced on both interpreters.
+- Focused coverage (2026-07-29): 636 tests traced on both interpreters.
   - CPython 3.11: backend 9417/9417 (100.00%), frontend_seam 45.80%,
-    quality_tools 48.06%.
+    quality_tools 48.09%.
   - CPython 3.14.6: backend 9304/9304 (100.00%), frontend_seam 45.94%,
-    quality_tools 48.10%.
+    quality_tools 48.14%.
   - CI floors are 100%, 45%, and 41%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and

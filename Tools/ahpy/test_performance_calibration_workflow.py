@@ -30,6 +30,7 @@ class PerformanceCalibrationWorkflowTest(unittest.TestCase):
         self.assertIn("fail-fast: false", sample)
         self.assertIn("max-parallel: 5", sample)
         self.assertIn("sample: [1, 2, 3, 4, 5]", sample)
+        self.assertIn("timeout-minutes: 90", sample)
         self.assertIn("AHPY_BENCHMARK_SAMPLE_ID: ${{ matrix.sample }}", sample)
         self.assertIn("benchmark-${{ matrix.sample }}.json", sample)
         self.assertIn(
@@ -42,6 +43,7 @@ class PerformanceCalibrationWorkflowTest(unittest.TestCase):
     def test_aggregate_requires_all_samples_and_exact_selected_commit(self):
         aggregate = WORKFLOW.split("  calibrate-release-budget:\n", 1)[1]
         self.assertIn("needs: performance-sample", aggregate)
+        self.assertIn("timeout-minutes: 10", aggregate)
         self.assertIn("merge-multiple: true", aggregate)
         self.assertIn("performance-history/benchmark-*.json", aggregate)
         self.assertIn("--expected-commit ${{ github.sha }}", aggregate)

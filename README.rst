@@ -94,15 +94,15 @@ Validation snapshot
 
 The current local M9 snapshot records:
 
-* 432 focused compiler tests and 183 quality-tool tests (two expected
+* 433 focused compiler tests and 203 quality-tool tests (two expected
   platform skips);
-* 615 focused coverage tests on CPython 3.11 and 3.14;
+* 636 focused coverage tests on CPython 3.11 and 3.14;
 * 100% executable Python-line coverage for the three Universal backend
   implementation modules on both interpreters, with separate 45% frontend-seam
   and 41% quality-tool floors;
 * normal, HPy Trace, and HPy Debug execution;
 * 128 isolated allocation/API fault selectors;
-* nine generated-versus-handwritten Universal HPy performance budgets;
+* ten generated-versus-handwritten Universal HPy performance budgets;
 * reproducible frontend wheel/sdist and portability artifacts;
 * sdist and frontend-wheel metadata bound to the exact aHPy source commit,
   embedded Cython base commit, and HPy compatibility contract;

@@ -1319,22 +1319,24 @@ until its full existing Cython test subset and new HPy-specific tests pass.
 
 ## M9 - Performance and footprint
 
-- [ ] Establish handwritten HPy reference implementations for all benchmark
+- [x] Establish handwritten HPy reference implementations for all supported
+      benchmark
       families.
   - [x] Maintain equivalent public-HPy references for identity/call,
         arithmetic, containers, attributes, nested calls, and exceptions.
-  - [x] Add equivalent type and external-C references; iteration/memoryview
-        references remain non-comparable while the generated Universal paths
-        are blocked.
+  - [x] Add equivalent type, external-C, and supported sequence-index iteration
+        references; typed memoryviews remain blocked/non-comparable because
+        HPy 0.9 exposes no public buffer-consumer API.
 - [x] Compare classic Cython, HPy CPython ABI, and HPy Universal ABI separately;
       retain standalone classic timings and independent generated/reference
       ratios for each HPy ABI instead of one cross-ABI overhead number.
-- [ ] Measure calls, arithmetic, containers, attributes, exceptions, types,
+- [x] Measure calls, arithmetic, containers, attributes, exceptions, types,
       iteration, memoryviews, and external-C wrappers.
   - [x] Measure calls, arithmetic, containers, attributes, and exceptions in
         alternating generated/reference repeats with Debug semantics.
-  - [x] Add types and external-C wrappers; record iteration/memoryviews as
-        blocked rather than fabricating runtime numbers until supported.
+  - [x] Add types, external-C wrappers, and supported sequence-index iteration;
+        record typed memoryviews as blocked/non-comparable rather than
+        fabricating a runtime number.
 - [x] Measure compile time, C compiler time, generated C size, binary size, and
       peak memory.
   - [x] Record frontend time, combined native build time, source/binary sizes,
@@ -1350,7 +1352,8 @@ until its full existing Cython test subset and new HPy-specific tests pass.
 - [x] Use HPy Trace Mode to identify excess API calls and handle churn; record
       exact per-operation API deltas and `ctx_Dup`/`ctx_Close` counts for both
       generated and handwritten modules in benchmark history.
-- [ ] Optimize duplicate/close pairs only after ownership proofs and tests.
+- [x] Optimize duplicate/close pairs only after ownership proofs and tests for
+      the declared release benchmark surface.
   - [x] Align generated/reference positional-only call contracts, then borrow
         direct live Name handles for `HPy_GetAttr_s` receivers and zero-argument
         `HPy_Call` callables. Trace proves attribute/call fell from 7 to 1 API
@@ -1374,6 +1377,10 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         ambiguous, and out-of-portable-range values. External-C Trace now
         matches the handwritten reference at 1 call/iteration with zero
         Dup/Close churn and enforces a 1.5× runtime ceiling.
+  - [x] Borrow dynamic sequence-loop sources only for incoming call-scoped
+        arguments; retain owned materialization for rebindable locals. Trace
+        drops from 38 to 36 calls/iteration while normal/Trace/Debug and all
+        128 fault selectors remain green.
 - [ ] Define and enforce release performance budgets.
   - [x] Record exact source/GitHub-run provenance in every new benchmark
         artifact and add a fail-closed proposal generator requiring at least

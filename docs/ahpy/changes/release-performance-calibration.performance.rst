@@ -14,4 +14,5 @@
    compiler command/flags, peak-memory iterations, and native timeout are part
    of the exact cohort identity; multiword compiler wrapper commands are
    parsed without losing the underlying compiler argument. Benchmark and
-   proposal schemas are v2; legacy v1 evidence is rejected.
+   proposal schemas are v2; legacy v1 evidence is rejected. Hosted samples and
+   proposal aggregation also have explicit 90- and 10-minute hard timeouts.

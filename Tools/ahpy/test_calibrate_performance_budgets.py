@@ -346,6 +346,27 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
         self.assertEqual(proposal["source_commit"], COMMIT)
         self.assertEqual(proposal["report_count"], 5)
 
+    def test_main_reports_invalid_evidence_as_cli_error(self):
+        argv = [
+            "calibrate_performance_budgets.py",
+            "invalid-report.json",
+            "--expected-commit", COMMIT,
+            "--repository", REPOSITORY,
+            "--output", "unused-proposal.json",
+        ]
+        with (
+            mock.patch("sys.argv", argv),
+            mock.patch("sys.stderr"),
+            mock.patch.object(
+                calibration,
+                "calibrate",
+                side_effect=ValueError("invalid hosted evidence"),
+            ),
+            self.assertRaises(SystemExit) as raised,
+        ):
+            calibration.main()
+        self.assertEqual(raised.exception.code, 2)
+
 
 if __name__ == "__main__":
     unittest.main()
