@@ -8,4 +8,6 @@
    failures, and non-reproducible footprint bytes are rejected before a
    release ceiling can be proposed. A manual read-only workflow now collects
    five isolated samples for one exact selected commit and aggregates only
-   after the complete matrix succeeds.
+   after the complete matrix succeeds. The proposal also validates and retains
+   frontend/native build-time, peak-RSS, footprint, and large-type frontend/O0
+   distributions without applying cross-host absolute limits.

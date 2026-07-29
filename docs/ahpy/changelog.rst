@@ -10,7 +10,9 @@ Bootstrap
 * Added exact source/GitHub-run provenance to every new aHPy performance
   artifact and a proposal-only release calibration gate that requires five
   unique successful hosted reports from one commit and measurement cohort;
-  local, mixed, duplicate, failing, or byte-unstable evidence is rejected.
+  local, mixed, duplicate, failing, byte-unstable, or resource-incomplete
+  evidence is rejected, while build-time, peak-RSS, footprint, and large-type
+  distributions remain cohort-bound proposal data.
 * Added the supported sequence-index iteration family to the generated,
   handwritten HPy, and classic Cython performance matrix while retaining typed
   memoryviews as an explicit HPy 0.9 blocked/non-comparable surface.

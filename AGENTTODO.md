@@ -112,12 +112,12 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 201 tests pass (two expected platform/tool availability
+- Quality-tool suite: 202 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-07-29): 633 tests traced on both interpreters.
-  - CPython 3.11: backend 100.00%, frontend_seam 45.80%, quality_tools 46.87%.
+- Focused coverage (2026-07-29): 634 tests traced on both interpreters.
+  - CPython 3.11: backend 100.00%, frontend_seam 45.80%, quality_tools 47.84%.
   - CPython 3.14.6: backend 100.00%, frontend_seam 45.94%, quality_tools
-    46.84%.
+    47.87%.
   - CI floors are 100%, 45%, and 41%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
@@ -691,8 +691,10 @@ implementation.
    `ahpy-performance-calibration.yml` workflow collects five isolated samples
    for one selected commit and aggregates only after all pass. Dispatch it on
    an approved release-candidate commit, review the proposed headroom, then
-   validate any versioned ceiling on that same candidate. Document
-   interpreter/HPy overhead separately from backend overhead.
+   validate any versioned ceiling on that same candidate. The proposal covers
+   runtime ratios, frontend/native build time, peak RSS, footprint, and
+   large-type frontend/O0 evidence; absolute values remain cohort-bound.
+   Document interpreter/HPy overhead separately from backend overhead.
 5. Select and report four pilots: pure Cython, Python-independent C wrapper,
    extension type with GC/inheritance, and deliberately blocked CPython/NumPy
    API project. Convert recurring changes into support or migration rules.

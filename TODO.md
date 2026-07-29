@@ -1386,6 +1386,9 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         equivalent handwritten HPy implementation in every ABI profile; keep
         typed memoryviews explicitly blocked/non-comparable on HPy 0.9 rather
         than publishing a synthetic number.
+  - [x] Include frontend/native build time, generated/reference peak RSS, and
+        large-type frontend/O0 distributions in the fail-closed hosted
+        proposal without auto-applying absolute cross-host limits.
   - [ ] Collect the minimum hosted same-HEAD history, review the proposed
         headroom, version the release ceilings, and validate them again on the
         same release candidate.

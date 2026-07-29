@@ -117,6 +117,9 @@ def load_hosted_report(path):
     compiler = build.get("compiler")
     _require(isinstance(compiler, str) and compiler,
              "%s lacks compiler identity" % path)
+    for field in ("cython_seconds", "native_build_seconds"):
+        _positive_number(
+            build.get(field), "%s build.%s" % (path, field))
     runtime = report.get("runtime")
     _require(isinstance(runtime, dict) and set(runtime) == set(OPERATIONS),
              "%s runtime operations differ from the release corpus" % path)
@@ -139,18 +142,99 @@ def load_hosted_report(path):
             "binary_to_reference_ratio"):
         _positive_number(
             footprint.get(field), "%s footprint.%s" % (path, field))
+    _require(
+        math.isclose(
+            footprint["binary_to_reference_ratio"],
+            round(
+                footprint["generated_binary_bytes"] /
+                footprint["reference_binary_bytes"],
+                6,
+            ),
+            rel_tol=0,
+            abs_tol=1e-6,
+        ),
+        "%s footprint binary ratio differs from byte evidence" % path,
+    )
+
+    peak_memory = report.get("peak_memory")
+    _require(isinstance(peak_memory, dict),
+             "%s lacks peak-memory evidence" % path)
+    for implementation in ("generated", "reference"):
+        measurement = peak_memory.get(implementation)
+        _require(
+            isinstance(measurement, dict),
+            "%s peak_memory.%s must be an object" %
+            (path, implementation),
+        )
+        _positive_integer(
+            measurement.get("iterations_per_operation"),
+            "%s peak_memory.%s.iterations_per_operation" %
+            (path, implementation),
+        )
+        _positive_integer(
+            measurement.get("peak_rss_bytes"),
+            "%s peak_memory.%s.peak_rss_bytes" %
+            (path, implementation),
+        )
+    _require(
+        peak_memory["generated"]["iterations_per_operation"] ==
+        peak_memory["reference"]["iterations_per_operation"],
+        "%s peak-memory iteration counts differ" % path,
+    )
+    _positive_number(
+        peak_memory.get("generated_to_reference_ratio"),
+        "%s peak_memory.generated_to_reference_ratio" % path,
+    )
+    _require(
+        math.isclose(
+            peak_memory["generated_to_reference_ratio"],
+            round(
+                peak_memory["generated"]["peak_rss_bytes"] /
+                peak_memory["reference"]["peak_rss_bytes"],
+                6,
+            ),
+            rel_tol=0,
+            abs_tol=1e-6,
+        ),
+        "%s peak-memory ratio differs from byte evidence" % path,
+    )
 
     large_type = report.get("large_type_compile")
     _require(isinstance(large_type, dict),
              "%s lacks large-type compile evidence" % path)
+    for field in ("frontend_seconds", "timeout_seconds"):
+        _positive_number(
+            large_type.get(field),
+            "%s large_type_compile.%s" % (path, field),
+        )
+    for field in ("generated_c_bytes", "generated_c_lines"):
+        _positive_integer(
+            large_type.get(field),
+            "%s large_type_compile.%s" % (path, field),
+        )
+    _require(
+        large_type.get("compiler") == compiler,
+        "%s large-type compiler differs from benchmark compiler" % path,
+    )
     o0 = large_type.get("o0")
     _require(isinstance(o0, dict),
              "%s lacks large-type O0 evidence" % path)
     _require(o0.get("timed_out") is False,
-             "%s required large-type O0 compile timed out" % path)
+        "%s required large-type O0 compile timed out" % path)
     _positive_number(
         o0.get("seconds"),
         "%s large_type_compile.o0.seconds" % path,
+    )
+    o3 = large_type.get("o3")
+    _require(isinstance(o3, dict),
+             "%s lacks large-type O3 evidence" % path)
+    _require(
+        isinstance(o3.get("timed_out"), bool),
+        "%s large_type_compile.o3.timed_out must be boolean" % path,
+    )
+    _positive_number(
+        o3.get("seconds"),
+        "%s large_type_compile.o3.seconds" % path,
     )
     return report
 
@@ -178,6 +262,28 @@ def _nearest_rank(values, percentile):
 def _ceil_limit(value, margin, digits=2):
     scale = 10 ** digits
     return math.ceil(value * (1.0 + margin) * scale) / scale
+
+
+def _distribution(values, margin):
+    observed_max = max(values)
+    return {
+        "samples": values,
+        "median": round(statistics.median(values), 6),
+        "p95_nearest_rank": round(_nearest_rank(values, 0.95), 6),
+        "maximum": round(observed_max, 6),
+        "proposed_maximum": _ceil_limit(observed_max, margin),
+    }
+
+
+def _byte_distribution(values, margin):
+    observed_max = max(values)
+    return {
+        "samples": values,
+        "median": round(statistics.median(values)),
+        "p95_nearest_rank": _nearest_rank(values, 0.95),
+        "maximum": observed_max,
+        "proposed_maximum": math.ceil(observed_max * (1.0 + margin)),
+    }
 
 
 def calibrate(
@@ -250,18 +356,19 @@ def calibrate(
             len(values) == 1,
             "footprint.%s is not byte-stable within the cohort" % field,
         )
+    for field in ("generated_c_bytes", "generated_c_lines"):
+        values = {
+            report["large_type_compile"][field] for report in reports
+        }
+        _require(
+            len(values) == 1,
+            "large_type_compile.%s is not stable within the cohort" % field,
+        )
 
     runtime = {}
     for operation in OPERATIONS:
         values = [report["runtime"][operation]["ratio"] for report in reports]
-        observed_max = max(values)
-        runtime[operation] = {
-            "samples": values,
-            "median": round(statistics.median(values), 6),
-            "p95_nearest_rank": round(_nearest_rank(values, 0.95), 6),
-            "maximum": round(observed_max, 6),
-            "proposed_maximum": _ceil_limit(observed_max, margin),
-        }
+        runtime[operation] = _distribution(values, margin)
 
     binary_ratios = [
         report["footprint"]["binary_to_reference_ratio"]
@@ -269,6 +376,28 @@ def calibrate(
     ]
     o0_seconds = [
         report["large_type_compile"]["o0"]["seconds"] for report in reports
+    ]
+    frontend_seconds = [
+        report["build"]["cython_seconds"] for report in reports
+    ]
+    native_seconds = [
+        report["build"]["native_build_seconds"] for report in reports
+    ]
+    large_frontend_seconds = [
+        report["large_type_compile"]["frontend_seconds"]
+        for report in reports
+    ]
+    generated_peak_rss = [
+        report["peak_memory"]["generated"]["peak_rss_bytes"]
+        for report in reports
+    ]
+    reference_peak_rss = [
+        report["peak_memory"]["reference"]["peak_rss_bytes"]
+        for report in reports
+    ]
+    peak_ratios = [
+        report["peak_memory"]["generated_to_reference_ratio"]
+        for report in reports
     ]
     run_evidence = sorted(
         (
@@ -294,6 +423,21 @@ def calibrate(
         "headroom_fraction": margin,
         "runs": run_evidence,
         "runtime_ratio": runtime,
+        "build_time": {
+            "cython_seconds": _distribution(frontend_seconds, margin),
+            "native_build_seconds": _distribution(native_seconds, margin),
+        },
+        "peak_memory": {
+            "iterations_per_operation":
+                reports[0]["peak_memory"]["generated"][
+                    "iterations_per_operation"],
+            "generated_peak_rss_bytes":
+                _byte_distribution(generated_peak_rss, margin),
+            "reference_peak_rss_bytes":
+                _byte_distribution(reference_peak_rss, margin),
+            "generated_to_reference_ratio":
+                _distribution(peak_ratios, margin),
+        },
         "footprint": {
             field: reports[0]["footprint"][field]
             for field in deterministic_fields
@@ -304,10 +448,13 @@ def calibrate(
                 max(binary_ratios), margin),
         },
         "large_type_compile": {
-            "o0_seconds_median": round(statistics.median(o0_seconds), 6),
-            "o0_seconds_p95_nearest_rank": round(
-                _nearest_rank(o0_seconds, 0.95), 6),
-            "o0_seconds_maximum": round(max(o0_seconds), 6),
+            "frontend_seconds":
+                _distribution(large_frontend_seconds, margin),
+            "o0_seconds": _distribution(o0_seconds, margin),
+            "generated_c_bytes":
+                reports[0]["large_type_compile"]["generated_c_bytes"],
+            "generated_c_lines":
+                reports[0]["large_type_compile"]["generated_c_lines"],
             "o3_timeout_count": sum(
                 report["large_type_compile"].get(
                     "o3", {}).get("timed_out") is True

@@ -68,8 +68,8 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 432 compiler/seam testi, 201 quality-tool testi ve
-  iki yorumlayıcıda 633 coverage testi.
+- Mevcut odaklı doğrulama: 432 compiler/seam testi, 202 quality-tool testi ve
+  iki yorumlayıcıda 634 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Bu oran generated C, native runtime, binary portability veya bütün Cython
   özelliklerinin %100 desteklendiği anlamına gelmez.
@@ -375,6 +375,9 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
   - [x] Tek seçilmiş commit için beş izole hosted sample çalıştıran, yalnız
         read-only izinli ve bütün sample'lar geçmeden proposal üretmeyen manual
         kalibrasyon workflow'unu ekle.
+  - [x] Frontend/native build süresi, generated/reference peak RSS oranı ve
+        large-type frontend/O0 ölçümlerini aynı hosted kohort içinde
+        fail-closed doğrula ve proposal-only tavanlar üret.
   - [ ] Aynı release-candidate HEAD'i için hosted geçmişi topla, headroom
         önerisini incele ve release eşiklerini ayrı bir same-HEAD koşuyla
         doğrula.

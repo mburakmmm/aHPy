@@ -49,7 +49,11 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
                 "warmups": 2,
                 "repeats": 7,
             },
-            "build": {"compiler": "gcc 13.3.0"},
+            "build": {
+                "compiler": "gcc 13.3.0",
+                "cython_seconds": 0.5 + run_id / 100,
+                "native_build_seconds": 1.0 + run_id / 100,
+            },
             "runtime": runtime,
             "footprint": {
                 "generated_c_bytes": 30000,
@@ -58,7 +62,26 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
                 "reference_binary_bytes": 75000,
                 "binary_to_reference_ratio": 1.013333,
             },
+            "peak_memory": {
+                "generated": {
+                    "implementation": "generated",
+                    "iterations_per_operation": 10000,
+                    "peak_rss_bytes": 35000000 + run_id * 1000,
+                },
+                "reference": {
+                    "implementation": "reference",
+                    "iterations_per_operation": 10000,
+                    "peak_rss_bytes": 35000000,
+                },
+                "generated_to_reference_ratio":
+                    round((35000000 + run_id * 1000) / 35000000, 6),
+            },
             "large_type_compile": {
+                "frontend_seconds": 1.0 + run_id / 100,
+                "generated_c_bytes": 4700000,
+                "generated_c_lines": 82000,
+                "timeout_seconds": 60,
+                "compiler": "gcc 13.3.0",
                 "o0": {"seconds": 5.0 + run_id / 100, "timed_out": False},
                 "o3": {"seconds": 60.0, "timed_out": True},
             },
@@ -99,6 +122,18 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
         self.assertEqual(identity["maximum"], 1.005)
         self.assertEqual(identity["p95_nearest_rank"], 1.005)
         self.assertEqual(identity["proposed_maximum"], 1.21)
+        self.assertEqual(
+            result["build_time"]["cython_seconds"]["proposed_maximum"],
+            0.66,
+        )
+        self.assertEqual(
+            result["peak_memory"]["generated_peak_rss_bytes"]["maximum"],
+            35005000,
+        )
+        self.assertEqual(
+            result["large_type_compile"]["o0_seconds"]["proposed_maximum"],
+            6.06,
+        )
         self.assertEqual(result["large_type_compile"]["o3_timeout_count"], 5)
 
     def test_report_order_does_not_change_proposal(self):
@@ -229,6 +264,34 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
             path.write_text(json.dumps(report), encoding="utf8")
             with self.assertRaisesRegex(ValueError, "positive finite"):
                 calibration.load_hosted_report(path)
+
+    def test_build_memory_and_large_type_resources_are_validated(self):
+        cases = (
+            ("build__cython_seconds", 0, "positive finite"),
+            ("peak_memory__generated__peak_rss_bytes", 0, "positive integer"),
+            ("peak_memory__reference__iterations_per_operation", 9999,
+             "iteration counts differ"),
+            ("large_type_compile__frontend_seconds", 0, "positive finite"),
+            ("large_type_compile__generated_c_lines", 0, "positive integer"),
+            ("large_type_compile__compiler", "clang", "compiler differs"),
+            ("peak_memory__generated_to_reference_ratio", 2.0,
+             "ratio differs"),
+            ("footprint__binary_to_reference_ratio", 2.0,
+             "ratio differs"),
+        )
+        for field, value, message in cases:
+            with self.subTest(field=field):
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    path = self._write_reports(temp_dir, count=1)[0]
+                    report = json.loads(path.read_text())
+                    target = report
+                    parts = field.split("__")
+                    for part in parts[:-1]:
+                        target = target[part]
+                    target[parts[-1]] = value
+                    path.write_text(json.dumps(report), encoding="utf8")
+                    with self.assertRaisesRegex(ValueError, message):
+                        calibration.load_hosted_report(path)
 
     def test_calibration_arguments_are_fail_closed(self):
         cases = (

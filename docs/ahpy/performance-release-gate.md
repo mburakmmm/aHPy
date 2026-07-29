@@ -75,9 +75,11 @@ python Tools/ahpy/calibrate_performance_budgets.py \
 ```
 
 The output records every run, raw ratio series, median, nearest-rank p95,
-observed maximum, and a ceiling proposal with 20% headroom. Footprint bytes,
-binary ratio, required `-O0` large-type compile distribution, and diagnostic
-`-O3` timeout count are retained separately.
+observed maximum, and a ceiling proposal with 20% headroom. Frontend/native
+build time, generated/reference peak RSS and their ratio, footprint bytes,
+binary ratio, large-type frontend/required-`-O0` distributions, and diagnostic
+`-O3` timeout count are retained separately. Absolute time/RSS proposals remain
+valid only for that exact hosted cohort.
 
 `proposal_only: true` and `apply_automatically: false` are mandatory. A
 maintainer must review the raw hosted artifacts, runner noise, proposed
