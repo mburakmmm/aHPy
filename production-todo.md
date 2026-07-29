@@ -35,10 +35,10 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 | Sıra | Faz | Durum | Production sonucuna katkısı |
 | ---: | --- | --- | --- |
 | 0 | PRD-0 — Mevcut dalı yeşile getir | **TAMAMLANDI** | Güvenilir aynı-HEAD CI tabanı |
-| 1 | PRD-1 — Destek sözleşmesini dondur | **AKTİF** | İlk sürümün dürüst kapsamı |
-| 2 | PRD-2 — Core compiler/module state | **SIRADAKİ** | Ownership ve semantic correctness |
-| 3 | PRD-3 — Pure HPy extension type | **BEKLİYOR** | Type/GC/finalizer güvenliği |
-| 4 | PRD-4 — Advanced Cython aileleri | **BEKLİYOR** | Implement veya fail-closed sonucu |
+| 1 | PRD-1 — Destek sözleşmesini dondur | **TAMAMLANDI** | İlk sürümün dürüst kapsamı |
+| 2 | PRD-2 — Core compiler/module state | **TAMAMLANDI** | Ownership ve semantic correctness |
+| 3 | PRD-3 — Pure HPy extension type | **AKTİF** | Type/GC/finalizer güvenliği |
+| 4 | PRD-4 — Advanced Cython aileleri | **SIRADAKİ** | Implement veya fail-closed sonucu |
 | 5 | PRD-5 — Portability/native memory | **BEKLİYOR** | Universal binary ve platform kanıtı |
 | 6 | PRD-6 — Paketleme/dağıtım | **BEKLİYOR** | Kurulabilir ve doğrulanabilir artifact |
 | 7 | PRD-7 — Performans/footprint | **BEKLİYOR** | Sürüm bütçeleri ve regresyon kapısı |
@@ -50,12 +50,14 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 
 1. Final kanıt commit'inin required context'lerini yeniden yeşil doğrula ve
    final run/job bağlantılarını commit döngüsü yaratmadan PR açıklamasında tut.
-2. PRD-1 için ilk sürümün ürün seviyesini ve exact Cython tabanını belirle.
-3. HPy, Python, OS/compiler ve build frontend destek sözleşmelerini dondur.
-4. “Supported”, “partial”, “blocked” ve “rejected” terimlerini kullanıcı
-   açısından normatif biçimde tanımla.
-5. README, support/validation matrisleri, onboarding ve release politikasını
-   tek destek sözleşmesine eşitle.
+2. PRD-3 preview kapsamındaki method/member/getset/slot ailelerini exact
+   test/diagnostic durumlarıyla envanterle.
+3. Constructor, partial-object cleanup, GC traverse/clear/finalize ve
+   resurrection yollarını normal/Trace/Debug ile yeniden doğrula.
+4. Weakref, instance dict, `__dealloc__`, freelist, multiple/cross-module
+   inheritance ve metaclass sınırlarını HPy 0.9'a göre kesinleştir.
+5. Type/field/descriptor/finalizer subinterpreter izolasyonunu ve bütün
+   release-scope type fault yollarını kapat.
 
 ## Başlangıç durumu
 
@@ -66,12 +68,12 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 431 compiler/seam testi, 153 quality-tool testi ve
+- Mevcut odaklı doğrulama: 431 compiler/seam testi, 154 quality-tool testi ve
   iki yorumlayıcıda 584 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Bu oran generated C, native runtime, binary portability veya bütün Cython
   özelliklerinin %100 desteklendiği anlamına gelmez.
-- Mevcut uygun sınıflandırma: production-grade prototype / alpha.
+- Mevcut uygun sınıflandırma: unpublished preview.
 
 ## Her fazda korunan production kuralları
 
@@ -141,65 +143,65 @@ Bu kapı kapanmadan yeni production özelliği eklenmez.
 
 ## PRD-1 — İlk production sürümünün destek sözleşmesini dondur
 
-- [ ] İlk sürümün ürün seviyesini seç: `preview`, `beta`, `release candidate`
+- [x] İlk sürümün ürün seviyesini seç: `preview`, `beta`, `release candidate`
       veya `stable`.
-- [ ] İlk sürümün exact Cython base commit ve sürümünü belirle.
-- [ ] Desteklenen HPy sürümlerini tam commit/sürüm olarak belirle.
-- [ ] Desteklenen Python yorumlayıcı ve sürümlerini belirle.
-- [ ] Desteklenen OS/compiler matrisini belirle.
-- [ ] Desteklenen build frontendlerini belirle:
-  - [ ] Doğrudan build.
-  - [ ] setuptools/cythonize.
-  - [ ] PEP 517.
-  - [ ] CMake.
-  - [ ] Meson.
-  - [ ] scikit-build-core.
-- [ ] “Supported”, “partial”, “blocked” ve “rejected” terimlerini release
+- [x] İlk sürümün exact Cython base commit ve sürümünü belirle.
+- [x] Desteklenen HPy sürümlerini tam commit/sürüm olarak belirle.
+- [x] Desteklenen Python yorumlayıcı ve sürümlerini belirle.
+- [x] Desteklenen OS/compiler matrisini belirle.
+- [x] Desteklenen build frontendlerini belirle:
+  - [x] Doğrudan build.
+  - [x] setuptools/cythonize.
+  - [x] PEP 517.
+  - [x] CMake.
+  - [x] Meson.
+  - [x] scikit-build-core.
+- [x] “Supported”, “partial”, “blocked” ve “rejected” terimlerini release
       notlarında kullanıcı açısından tanımla.
-- [ ] General Cython compatibility iddiası yapılmayacağını açıkça yaz.
-- [ ] PyPy/GraalPy aynı-binary desteği sağlanamazsa ilk sürümün Universal
+- [x] General Cython compatibility iddiası yapılmayacağını açıkça yaz.
+- [x] PyPy/GraalPy aynı-binary desteği sağlanamazsa ilk sürümün Universal
       iddiasını daralt veya stable etiketi kullanma.
-- [ ] HPy 0.9 dış API engellerini ayrı bir known-limitations belgesinde kilitle.
-- [ ] Destek sözleşmesini `support-matrix.md`, `validation-matrix.md`, README,
+- [x] HPy 0.9 dış API engellerini ayrı bir known-limitations belgesinde kilitle.
+- [x] Destek sözleşmesini `support-matrix.md`, `validation-matrix.md`, README,
       onboarding ve release policy ile eşitle.
 
 ### PRD-1 çıkış kapısı
 
-- [ ] Her kullanıcı özelliği tek bir support status'a sahip.
-- [ ] Her support status'ın testi, diagnostic'i veya dış engel kanıtı bağlı.
-- [ ] Release kapsamının dışında kalan hiçbir özellik dolaylı biçimde
+- [x] Her kullanıcı özelliği tek bir support status'a sahip.
+- [x] Her support status'ın testi, diagnostic'i veya dış engel kanıtı bağlı.
+- [x] Release kapsamının dışında kalan hiçbir özellik dolaylı biçimde
       production iddiasına dahil edilmiyor.
 
 ## PRD-2 — Core compiler, ownership ve module-state kapılarını kapat
 
-- [ ] M2'de kalan her `return`, `break`, `continue`, `goto` ve exception
+- [x] M2'de kalan her `return`, `break`, `continue`, `goto` ve exception
       çıkışında ownership/cleanup propagation'ı tamamla.
-- [ ] Python ile etkileşen kalan utility yollarına context propagation ekle;
+- [x] Python ile etkileşen kalan utility yollarına context propagation ekle;
       kanıtlanmış pure-C helper'ları context-free tut.
-- [ ] Her kalan ara HPy allocation/API çağrısından sonra kontrollü hata
+- [x] Her kalan ara HPy allocation/API çağrısından sonra kontrollü hata
       enjeksiyonu ekle.
-- [ ] Borrowed, owned, moved, closed, field, global ve context-constant
+- [x] Borrowed, owned, moved, closed, field, global ve context-constant
       handle durumlarının tamamını model/test et.
-- [ ] M3'te release kapsamına alınan module-function imzaları, container/call,
+- [x] M3'te release kapsamına alınan module-function imzaları, container/call,
       control-flow, import/global/default ve exception ailelerinin parent
       maddelerini kapat.
-- [ ] M4'te release kapsamındaki bütün güvenli cache'leri interpreter-owned
+- [x] M4'te release kapsamındaki bütün güvenli cache'leri interpreter-owned
       storage'a taşı.
-- [ ] Mutable Python state'in kayıt dışı C globalinde tutulmadığını kaynak ve
+- [x] Mutable Python state'in kayıt dışı C globalinde tutulmadığını kaynak ve
       davranış testleriyle doğrula.
-- [ ] Failed import, reload, teardown, concurrent import ve subinterpreter
+- [x] Failed import, reload, teardown, concurrent import ve subinterpreter
       yollarını release kapsamı için tekrar çalıştır.
-- [ ] Generated source ve binary forbidden-symbol audit'lerini bütün maintained
+- [x] Generated source ve binary forbidden-symbol audit'lerini bütün maintained
       corpus üzerinde çalıştır.
-- [ ] Tam CPython C/C++ regression matrisini current release base üzerinde
+- [x] Tam CPython C/C++ regression matrisini current release base üzerinde
       çalıştır ve farkları incele.
 
 ### PRD-2 çıkış kapısı
 
-- [ ] Release kapsamındaki core compiler özellikleri için açık ownership veya
+- [x] Release kapsamındaki core compiler özellikleri için açık ownership veya
       cleanup TODO'su kalmadı.
-- [ ] Normal/Trace/Debug, fault injection ve CPython regresyonları yeşil.
-- [ ] Bilinen leak, invalid handle, double-close veya borrowed-handle close
+- [x] Normal/Trace/Debug, fault injection ve CPython regresyonları yeşil.
+- [x] Bilinen leak, invalid handle, double-close veya borrowed-handle close
       hatası sıfır.
 
 ## PRD-3 — Pure HPy extension type kapısını kapat
@@ -491,4 +493,4 @@ Agent'lar ve geliştiriciler aşağıdaki sırayı korumalıdır:
 9. PRD-9: upstream, güvenlik ve bakım.
 10. PRD-10: release candidate ve stable yayın.
 
-Bir sonraki aktif hedef PRD-1 destek sözleşmesidir.
+Bir sonraki aktif hedef PRD-3 pure HPy extension type kapısıdır.

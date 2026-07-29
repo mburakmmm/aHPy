@@ -14,7 +14,11 @@ source location instead of silently falling back to CPython or HPy Hybrid mode.
 Project status
 --------------
 
-aHPy is active, pre-release compiler work.  It already has an executable
+aHPy's frozen product level is **preview**: active, unpublished pre-release
+compiler work rather than beta, release-candidate, or stable software.  The
+exact CPython 3.11/HPy 0.9.0 platform and build-frontend envelope is recorded
+in `the preview support contract <docs/ahpy/release-contract.md>`_.  aHPy
+already has an executable
 Universal subset, pure-HPy extension types, Python-independent external-C
 integration including a narrow ``nogil`` transition lane with explicit
 ``with gil`` islands, multiple build-system examples, and normal/Trace/Debug,
@@ -90,7 +94,7 @@ Validation snapshot
 
 The current local M9 snapshot records:
 
-* 431 focused compiler tests and 153 quality-tool tests (two expected
+* 431 focused compiler tests and 154 quality-tool tests (two expected
   platform skips);
 * 584 focused coverage tests on CPython 3.11 and 3.14;
 * 100% executable Python-line coverage for the three Universal backend
@@ -129,7 +133,9 @@ Documentation map
 
 * `Production readiness roadmap <production-todo.md>`_
 * `Project contract and architecture <docs/ahpy/README.md>`_
+* `Preview support contract <docs/ahpy/release-contract.md>`_
 * `Support matrix <docs/ahpy/support-matrix.md>`_
+* `Known limitations <docs/ahpy/known-limitations.md>`_
 * `Validation and release gates <docs/ahpy/validation-matrix.md>`_
 * `Machine-readable CI policy <docs/ahpy/ci-policy.md>`_
 * `Production branch ruleset <.github/rulesets/production-branches.json>`_

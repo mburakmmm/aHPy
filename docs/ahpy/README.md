@@ -39,10 +39,12 @@ stable release jobs from silently using it.
 
 Design and implementation references:
 
+- [Preview support contract](release-contract.md)
 - [Runtime API seam](runtime-api.md)
 - [Handle storage and ownership model](handle-model.md)
 - [HPyContext propagation model](context-model.md)
 - [Support matrix](support-matrix.md)
+- [Known limitations](known-limitations.md)
 - [Validation matrix and release gates](validation-matrix.md)
 - [Machine-readable CI policy](ci-policy.md)
 - [Production branch ruleset](../../.github/rulesets/production-branches.json)

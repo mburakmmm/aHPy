@@ -1,13 +1,22 @@
 # aHPy support matrix
 
+The current release envelope is the unpublished
+[`preview` contract](release-contract.md): CPython 3.11, HPy 0.9.0, and the
+six exact platform/compiler lanes listed there. These feature statuses do not
+claim general Cython compatibility. Principal HPy 0.9 and distribution gaps
+are summarized in [`known-limitations.md`](known-limitations.md).
+
 Status values:
 
 - **planned**: designed but not implemented;
 - **in progress**: implementation exists but has not passed its exit gate;
-- **supported**: all required tests and audits pass;
-- **partial**: a documented subset passes and unsupported cases are diagnosed;
-- **blocked**: an external API or unresolved design issue prevents correctness;
-- **rejected**: intentionally unavailable in this ABI mode.
+- **supported**: the documented preview behavior is a user-facing promise and
+  all of its required tests and audits pass;
+- **partial**: only the written subset is promised and unsupported cases are
+  diagnosed without fallback;
+- **blocked**: a public external API or unresolved correctness design prevents
+  a valid Universal implementation;
+- **rejected**: intentionally unavailable in Universal mode.
 
 No entry may be changed to **supported** without linking its tests in the same
 change.

@@ -109,10 +109,10 @@ The strict emitter rejects these patterns instead of approximating them:
 - richer extension-type caches and code-object caches; current pure HPy type
   objects, including generic `HPyField` layouts, ordinary methods, and the
   initial `HPy_tp_init` slice, are interpreter-owned module attributes, while
-  HPy 0.9 has no public code-object construction API;
-  effectful default evaluation is not yet implemented, while Unicode, bytes,
-  recursively immutable tuple, and side-effect-free default caches are
-  implemented.
+  HPy 0.9 has no public code-object construction API; and
+- effectful defaults, Unicode, bytes, scalar, imaginary, recursively immutable
+  tuple, and supported container defaults are interpreter-owned and evaluated
+  once in source-safe `HPy_mod_exec` order.
 
 These restrictions keep the current subset deterministic. Ordinary generated
 modules preserve module-then-builtins lookup, external rebinding, builtin

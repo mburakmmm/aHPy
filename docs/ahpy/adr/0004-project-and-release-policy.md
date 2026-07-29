@@ -1,6 +1,6 @@
 # ADR 0004: Project, version, branch, and release policy
 
-- Status: accepted for bootstrap
+- Status: accepted; preview contract frozen 2026-07-29
 - Date: 2026-07-14
 
 ## Licensing
@@ -61,3 +61,10 @@ A release candidate is cut only when all gates for its declared support tiers
 are green. Release notes state the exact Cython base, HPy versions, interpreter
 matrix, supported feature tiers, known blockers, performance results, and
 artifact provenance.
+
+The first frozen product level is **preview**, not beta, release candidate, or
+stable. Its exact unpublished distribution, Cython/HPy/Python baseline,
+platform/compiler lanes, frontend scopes, status meanings, and evidence are
+normative in [`release-contract.md`](../release-contract.md) and
+`tests/ahpy/release-contract.toml`. Preview status does not relax Universal
+fail-closed behavior; it limits the size of the support promise.

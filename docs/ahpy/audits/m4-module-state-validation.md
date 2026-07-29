@@ -2,8 +2,8 @@
 
 Date: 2026-07-14  
 Cython base: `b99cb0e3b5425e11414cadd24168a6cc850e8000`  
-Status: interpreter-owned module-namespace subset passes; remaining cache families are
-in progress
+Status: interpreter-owned preview module/cache scope passes; excluded cache
+families are blocked, planned, or rejected
 
 ## Generated structure
 
@@ -79,7 +79,7 @@ is absent from `sys.modules`. That HPy 0.9 lifetime limitation is a documented
 upstream/loader gap (see `docs/ahpy/module-state.md`); aHPy keeps the
 collection gate and does not claim GC-free immediate retry as supported.
 
-## Remaining M4 work
+## Preview boundary
 
 HPy 0.9 cannot supply isolated mutable state through either process-shared
 `HPyGlobal` or its rejected positive module size. Unicode, bytes, imaginary,
@@ -88,3 +88,10 @@ code-object caches remain blocked. Effectful defaults are cached once in
 `HPy_mod_exec`. Relative/star imports and custom module `__getattr__` parity
 remain rejected or planned. See `docs/ahpy/module-state.md` for the exact
 safety boundary.
+
+The 2026-07-29 PRD-2 closure reran the generated corpus in
+normal/Trace/Debug, all 128 isolated allocation/API fault selectors, and the
+38-case CPython C/C++ semantic oracle. Together with the previously green
+subinterpreter, concurrent-import, reload, failed-import collection/retry,
+teardown, generated-source, and binary-symbol gates, this leaves no mutable
+Python state or cache ownership TODO inside the preview support contract.

@@ -302,7 +302,8 @@ remain in the phase and milestone sections below and in `TODO.md`.
    draft PR or tag a stable release without explicit user authorization and
    every declared release gate green.
 
-Current item: **PRD-1 support contract**. PRD-0 CI-policy implementation head
+Current item: **PRD-3 pure HPy extension types, GC, and finalization**. PRD-0
+CI-policy implementation head
 `e791c8983bcb1a3c38aa932617a91ea976cb5c55` has green aHPy, benchmark,
 coverage, and sanitizer required aggregates. HPy development on Python 3.14
 and same-binary PyPy/GraalPy remain the three expected allowed failures. Its
@@ -329,10 +330,24 @@ job `90288783333` is green, and the complete 103-job Cython graph passed with
 [`ci-success` job 90328870116](https://github.com/mburakmmm/aHPy/actions/runs/30361153866/job/90328870116).
 All five required contexts are therefore green on the same repair HEAD, and
 the final evidence is published in the repository documentation and draft PR.
-PRD-0 is closed. Verify the documentation-only evidence commit's required
-contexts without creating a recursive evidence commit, then freeze PRD-1's
-exact product level, Cython/HPy/Python/platform/compiler/build-frontend support
-contract. Do not promote the three allowed-failure early warnings.
+PRD-0 is closed. PRD-1 freezes an unpublished `preview` in
+`tests/ahpy/release-contract.toml`: `aHPy-compiler==3.3.0.1.dev0`, Cython
+`3.3.0a2.dev0` at base `b99cb0e3b5425e11414cadd24168a6cc850e8000`,
+CPython 3.11, HPy 0.9.0/setuptools 80.9.0, and the six hosted
+platform/compiler lanes. The compiler CLI is supported within the documented
+source subset; direct build, setuptools/cythonize, PEP 517, CMake, Meson, and
+scikit-build-core retain exact partial scopes. The separate
+known-limitations document locks HPy 0.9 gaps, and a quality test prevents
+manifest/code/CI/document drift. Verify the documentation-only evidence
+commit's required contexts without creating a recursive evidence commit.
+PRD-2 is closed for the preview scope: 431 compiler/seam tests, 154 quality
+tests, generated normal/Trace/Debug execution, all 128 isolated fault
+selectors, and 38 CPython C/C++ oracle executions pass; source/binary audits
+show no CPython/Hybrid leakage, and M2/M3/M4 records assign every excluded
+family a fail-closed non-supported status. Next execute PRD-3's
+method/member/getset/slot, constructor/partial-object, GC/finalizer,
+subinterpreter, inheritance, and exact HPy 0.9 rejection gates. Do not promote
+the three allowed-failure early warnings.
 
 ### A1. Resolve the parallel fault-gate transient — completed
 

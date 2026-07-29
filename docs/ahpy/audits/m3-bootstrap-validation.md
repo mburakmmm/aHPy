@@ -2,7 +2,8 @@
 
 Date: 2026-07-15  
 Cython base: `b99cb0e3b5425e11414cadd24168a6cc850e8000`  
-Status: strict bootstrap subset passes; M3 remains in progress
+Status: frozen preview module-function subset passes; broader Cython source
+families remain partial, blocked, planned, or rejected
 
 ## Implemented subset
 
@@ -250,8 +251,10 @@ handles.
 The same Debug Mode lane executes a callable that raises, covering cleanup for
 both callable and positional-argument owned temporaries.
 
-This record does not claim the complete M3 function, value, exception,
-container, import, or cross-interpreter surface.
+This record does not claim arbitrary Cython function, value, exception,
+container, import, or cross-interpreter compatibility. It closes the exact
+module-function subset frozen by the preview support matrix; every excluded
+shape remains fail-closed or is assigned a non-supported status.
 
 Module execution, registered globals, imports, builtins, retry, concurrency,
 and subinterpreter evidence now live in the separate

@@ -4,6 +4,11 @@ This is the maintained clean-environment path for the unpublished aHPy
 frontend. It proves the local source artifact; it is not a PyPI publication or
 Universal-wheel portability claim.
 
+This flow belongs to the frozen
+[preview support contract](release-contract.md). It requires CPython 3.11,
+HPy 0.9.0, and setuptools 80.9.0; it does not promote PyPy, GraalPy, another
+Python minor, or another HPy release.
+
 ## Prerequisites
 
 - a clean checkout of this repository;
@@ -57,3 +62,5 @@ publication, standardized Universal wheel metadata, same-package
 cross-interpreter installation, and byte-for-byte standardized Universal
 extension-wheel reproducibility remain separate release gates. The frontend
 sdist and pure-Python wheel already pass their two-root byte comparison.
+See [known limitations](known-limitations.md) for the complete runtime and
+distribution boundary.

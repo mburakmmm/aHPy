@@ -21,6 +21,7 @@ import test_generated_hpy
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "tests" / "ahpy" / "bootstrap_answer.pyx"
 VERSION_MANIFEST = ROOT / "tests" / "ahpy" / "hpy-versions.toml"
+RELEASE_CONTRACT = ROOT / "tests" / "ahpy" / "release-contract.toml"
 GRAAL_EXCLUSIONS = ROOT / "tests" / "graal_bugs.txt"
 
 
@@ -203,6 +204,124 @@ class QualityGateTest(unittest.TestCase):
         self.assertRegex(commit, r"^[0-9a-f]{40}$")
         self.assertIn("@" + commit, dev_text)
         self.assertNotIn("@master", dev_text)
+
+    def test_preview_release_contract_matches_code_ci_and_docs(self):
+        contract = tomllib.loads(RELEASE_CONTRACT.read_text(encoding="utf8"))
+        versions = {}
+        exec(
+            (ROOT / "ahpy_version.py").read_text(encoding="utf8"),
+            versions,
+        )
+        hpy_versions = tomllib.loads(
+            VERSION_MANIFEST.read_text(encoding="utf8"))
+
+        self.assertEqual(contract["schema_version"], 1)
+        self.assertEqual(contract["product_level"], "preview")
+        self.assertEqual(contract["publication_status"], "unpublished")
+        self.assertFalse(contract["general_cython_compatibility"])
+        self.assertEqual(
+            contract["distribution"], versions["AHPY_DISTRIBUTION"])
+        self.assertEqual(
+            contract["distribution_version"], versions["AHPY_VERSION"])
+        self.assertEqual(
+            contract["cython"]["version"], versions["CYTHON_BASE_VERSION"])
+        self.assertEqual(
+            contract["cython"]["base_commit"],
+            versions["CYTHON_BASE_COMMIT"],
+        )
+        self.assertEqual(
+            contract["hpy"]["supported_versions"],
+            [hpy_versions["stable"]["version"]],
+        )
+        self.assertEqual(
+            contract["hpy"]["development_commit"],
+            hpy_versions["development"]["commit"],
+        )
+        self.assertEqual(
+            contract["hpy"]["development_status"], "early-warning")
+        self.assertEqual(
+            contract["python"]["supported_implementation"], "CPython")
+        self.assertEqual(contract["python"]["supported_versions"], ["3.11"])
+        self.assertEqual(
+            set(contract["python"]["unsupported_implementations"]),
+            {"PyPy", "GraalPy"},
+        )
+
+        platforms = {entry["id"]: entry for entry in contract["platforms"]}
+        self.assertEqual(
+            set(platforms),
+            {
+                "linux-x64-gcc",
+                "linux-x64-clang",
+                "linux-arm64-gcc",
+                "macos-intel-clang",
+                "macos-arm64-clang",
+                "windows-x64-msvc",
+            },
+        )
+        self.assertEqual(
+            {entry["status"] for entry in platforms.values()},
+            {"supported"},
+        )
+        workflow = (ROOT / ".github" / "workflows" /
+                    "ahpy-universal.yml").read_text(encoding="utf8")
+        for platform in platforms.values():
+            self.assertIn("name: " + platform["id"], workflow)
+            self.assertIn("os: " + platform["runner"], workflow)
+
+        frontends = {
+            entry["id"]: entry["status"]
+            for entry in contract["frontends"]
+        }
+        self.assertEqual(
+            frontends,
+            {
+                "compiler-cli": "supported",
+                "direct-build": "partial",
+                "setuptools-cythonize": "partial",
+                "pep517": "partial",
+                "cmake": "partial",
+                "meson": "partial",
+                "scikit-build-core": "partial",
+            },
+        )
+
+        release_contract = (
+            ROOT / "docs" / "ahpy" / "release-contract.md"
+        ).read_text(encoding="utf8")
+        known_limitations = (
+            ROOT / "docs" / "ahpy" / "known-limitations.md"
+        ).read_text(encoding="utf8")
+        readme = (ROOT / "README.rst").read_text(encoding="utf8")
+        support_matrix = (
+            ROOT / "docs" / "ahpy" / "support-matrix.md"
+        ).read_text(encoding="utf8")
+        handle_model = (
+            ROOT / "docs" / "ahpy" / "handle-model.md"
+        ).read_text(encoding="utf8")
+        module_state = (
+            ROOT / "docs" / "ahpy" / "module-state.md"
+        ).read_text(encoding="utf8")
+        for exact_value in (
+            contract["distribution_version"],
+            contract["cython"]["version"],
+            contract["cython"]["base_commit"],
+            contract["hpy"]["supported_versions"][0],
+            contract["hpy"]["development_commit"],
+        ):
+            self.assertIn(exact_value, release_contract)
+        self.assertIn("preview", readme.lower())
+        self.assertIn("release-contract.md", support_matrix)
+        self.assertIn("known-limitations.md", support_matrix)
+        self.assertIn("General Cython compatibility is not claimed",
+                      known_limitations)
+        for stale_claim in (
+            "generated cleanup are still gated work",
+            "cleanup blocks are not yet connected",
+            "backend remains gated",
+            "effectful default evaluation is not yet implemented",
+        ):
+            self.assertNotIn(stale_claim, handle_model + module_state)
 
     def test_generated_source_is_deterministic(self):
         environment = os.environ.copy()

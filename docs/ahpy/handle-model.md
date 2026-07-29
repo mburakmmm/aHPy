@@ -6,9 +6,12 @@ liveness separately before selecting generated C syntax. The initial model is
 implemented in `Cython.Compiler.HandleModel` and deliberately has no dependency
 on the C emitter.
 
-This is the M2 semantic foundation, not a claim that HPy code generation is
-enabled. Temporary allocation, control-flow merging, context propagation, and
-generated cleanup are still gated work.
+This M2 semantic foundation is consumed by the strict Universal emitter for
+the source subset frozen in the preview support contract. Temporary
+allocation, control-flow merging, call-scoped context propagation, and
+generated cleanup are executable and tested there. Source families outside the
+documented subset remain fail-closed; this model is not a general Cython
+compatibility claim.
 
 ## Storage contracts
 
@@ -42,9 +45,9 @@ tracker reports every owned value that remains live, while borrowed and
 immortal values never create a close obligation.
 
 These rules make double-close, use-after-move, borrowed close, invalid storage,
-and leaked owned handles deterministic compiler-model errors. Later M2 slices
-will attach these facts to runtime-operation results, Cython temporaries, and
-all generated early-exit paths.
+and leaked owned handles deterministic compiler-model errors. The strict
+Universal writer attaches them to runtime-operation results, Cython
+temporaries, and every supported generated early-exit path.
 
 ## Runtime-operation contracts
 
@@ -145,21 +148,26 @@ to be preserved and moved. Applying a plan changes those values to closed.
 Merging branches is deliberately strict: storage declarations, value sets,
 ownership, and terminal states must agree. A live value on one edge and a
 closed or moved value on another is rejected with a request for matching edge
-cleanup. This model is ready for emitter integration, but generated labels and
-cleanup blocks are not yet connected and remain an unchecked M2 item.
+cleanup. The strict Universal writer connects this planning to ordinary
+failure labels, terminal returns and raises, nested conditional exits, and
+loop `break`/`continue` cleanup. Generic AST/control-flow shapes outside the
+preview subset remain source-located rejections.
 
 ## Global-load boundary
 
-The code writer owns the sole compiler path for runtime-global loads. CPython
-keeps its borrowed `PyObject *` expression. HPy assigns `HPyGlobal_Load` to a
-new owned handle temporary, checks it with `HPy_IsNull`, and disposes it through
-a null-guarded `HPy_Close` before releasing the compiler temp. A second disposal
-is rejected by the state model.
+The backend-neutral code writer owns the sole compiler path for registered
+runtime-global loads. CPython keeps its borrowed `PyObject *` expression. A
+future HPy version that enables registered globals must assign
+`HPyGlobal_Load` to a new owned handle temporary, check it with `HPy_IsNull`,
+and dispose it through a null-guarded `HPy_Close`; a second disposal is
+rejected by the state model.
 
-A static compiler test prevents other emitter modules from calling
-`global_load` directly. M4 will route generated builtin, type, string, tuple,
-code-object, and user-global caches through this boundary; until then the HPy
-backend remains gated and no untracked HPy global load is emitted.
+The HPy 0.9 preview deliberately emits no `HPyGlobal`: mutable values, builtins,
+types, constants, defaults, closure environments, and user globals are owned
+by interpreter-created module/type objects and loaded into tracked owned
+handles through public attribute/field operations. Static compiler and
+generated-source audits reject bypasses and untracked process-global Python
+state. Code-object caches remain blocked by HPy 0.9's public API.
 
 Authoritative references verified on 2026-07-14:
 

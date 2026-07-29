@@ -5,6 +5,12 @@ release claims from early warnings. Merely declaring a job does not make a
 platform supported: a release matrix entry becomes supported only after its
 first green hosted run is recorded and remains required for release branches.
 
+The frozen product level is **preview**. Its exact CPython 3.11, HPy 0.9.0,
+Cython base, platform/compiler, and frontend status contract is defined in
+[`release-contract.md`](release-contract.md) and machine-readable
+`tests/ahpy/release-contract.toml`; PyPy, GraalPy, Python 3.14, and moving
+dependency lanes remain outside that contract.
+
 ## Required branch protection
 
 Repository ruleset
