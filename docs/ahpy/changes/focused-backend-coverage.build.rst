@@ -13,3 +13,6 @@ branches are also covered while real CMake/Meson builds remain separate gates.
 The portability artifact builder's reproducible flags, generated-source and
 binary audits, copied loaders, hashes, sizes, manifest, and CLI resolution now
 have focused control-flow coverage above 95%.
+CMake/Meson tool discovery, contract preparation, build commands, artifact
+selection, normal/Debug loading, reports, and CLI selection now have focused
+control-flow coverage above 98%.
