@@ -132,8 +132,8 @@ def build_and_run(python, report_path=None):
         _frontend_metadata(frontend_wheel)
 
         run([
-            python, "-m", "pip", "wheel", "--no-build-isolation",
-            "--no-deps", "--wheel-dir", str(wheelhouse),
+            python, "-m", "pip", "wheel", "--no-deps",
+            "--wheel-dir", str(wheelhouse),
             "hpy==0.9.0", "setuptools==80.9.0",
         ], env=environment)
         dependency_wheels = sorted(

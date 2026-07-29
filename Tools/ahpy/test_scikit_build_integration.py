@@ -22,6 +22,9 @@ class ScikitBuildDefinitionTest(unittest.TestCase):
             "scikit_build_integration.py").read_text(encoding="utf8")
         self.assertIn('"setuptools==80.9.0"', integration)
         self.assertIn('isolated["PIP_NO_INDEX"] = "1"', integration)
+        dependency_materialization = integration.split(
+            '"hpy==0.9.0"', 1)[0].rsplit("[", 1)[-1]
+        self.assertNotIn("--no-build-isolation", dependency_materialization)
 
     def test_loader_uses_public_hpy_load_and_runtime_mode(self):
         loader = (EXAMPLE / "ahpy_scikit_build_example.py").read_text(

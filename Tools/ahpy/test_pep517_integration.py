@@ -27,6 +27,9 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
             "pep517_integration.py").read_text(encoding="utf8")
         self.assertIn('isolated_environment["PIP_NO_INDEX"] = "1"', integration)
         self.assertIn('"hpy==0.9.0", "setuptools==80.9.0"', integration)
+        dependency_materialization = integration.split(
+            '"hpy==0.9.0"', 1)[0].rsplit("[", 1)[-1]
+        self.assertNotIn("--no-build-isolation", dependency_materialization)
 
     def test_clean_frontend_source_is_self_contained_and_excludes_junk(self):
         with TemporaryDirectory() as temp_dir:
