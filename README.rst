@@ -118,6 +118,12 @@ heap diagnostic is declared with a native overrun positive control and five
 real generated-runtime checks, but remains allowed-failure until its first
 hosted artifact is reviewed; it does not expand the supported baseline.
 
+Production branch-policy validation is green on repair commit
+``8ed77677ee6bd69fdc93a81bdfe3e704ea7d924b``: the aHPy, benchmark, full
+Cython, coverage, and sanitizer aggregate contexts all passed on the same
+HEAD.  Exact run and job links are recorded in
+`the validation matrix <docs/ahpy/validation-matrix.md>`_.
+
 Documentation map
 -----------------
 

@@ -46,18 +46,18 @@ The full Cython graph found one PyPy 3.9-only test-fixture incompatibility:
 `SimpleNamespace(self=...)` raised `TypeError` before backend execution.
 Commit `1b3805e30` preserves the same synthetic AST field through post-
 construction assignment and passes all 248 `TestHPyModuleWriter` tests under
-both local CPython and PyPy. PRD-0 closes only after all five contexts are
-green on one exact replacement HEAD.
+both local CPython and PyPy. PRD-0 therefore remained open until all five
+contexts became green on one exact replacement HEAD.
 
-Roadmap HEAD `7ad48c495e9410ec1aa0ab28cdd2a7201282e991` currently records:
+Repair HEAD `8ed77677ee6bd69fdc93a81bdfe3e704ea7d924b` currently records:
 
 | Required context | Current-head result |
 |---|---|
-| `aHPy required checks` | [green job 90262950998](https://github.com/mburakmmm/aHPy/actions/runs/30355000922/job/90262950998) |
-| `benchmark required checks` | [green job 90279175748](https://github.com/mburakmmm/aHPy/actions/runs/30355000934/job/90279175748) |
-| `coverage required checks` | [green job 90270294573](https://github.com/mburakmmm/aHPy/actions/runs/30355000919/job/90270294573) |
-| `sanitizers-success` | [green job 90270728209](https://github.com/mburakmmm/aHPy/actions/runs/30355001070/job/90270728209) |
-| `ci-success` | [replacement required after cold-cache timeout in job 90261190485](https://github.com/mburakmmm/aHPy/actions/runs/30355001166/job/90261190485) |
+| `aHPy required checks` | [green job 90283757405](https://github.com/mburakmmm/aHPy/actions/runs/30361153504/job/90283757405) |
+| `benchmark required checks` | [green job 90296401321](https://github.com/mburakmmm/aHPy/actions/runs/30361153497/job/90296401321) |
+| `coverage required checks` | [green job 90291908521](https://github.com/mburakmmm/aHPy/actions/runs/30361153526/job/90291908521) |
+| `sanitizers-success` | [green job 90296760091](https://github.com/mburakmmm/aHPy/actions/runs/30361153809/job/90296760091) |
+| `ci-success` | [green job 90328870116](https://github.com/mburakmmm/aHPy/actions/runs/30361153866/job/90328870116) |
 
 The aHPy aggregate remains green while the same three explicitly allowed
 HPy-development 3.14 and same-binary PyPy/GraalPy lanes fail, so the policy
@@ -68,8 +68,16 @@ Ubuntu shared-utility C++ lane continued compiling and passing tests until the
 80-minute job ceiling cancelled it; the final log reports 109 ccache hits
 versus 442 misses and multiple active `g++`/`cc1plus` workers. The replacement
 keeps the full corpus, bounds this heavy mode to four outer workers, and grants
-only shared-utility jobs a 120-minute fail-closed ceiling. Promotion of
-`ci-success` still requires a green replacement hosted run.
+only shared-utility jobs a 120-minute fail-closed ceiling. The replacement
+hosted run below supplied the required green `ci-success`.
+
+On the repair HEAD, the previously cancelled
+[shared-utility C++ job 90281110328](https://github.com/mburakmmm/aHPy/actions/runs/30361153866/job/90281110328)
+passed in 14m39s and
+[PyPy 3.9 job 90288783333](https://github.com/mburakmmm/aHPy/actions/runs/30361153866/job/90288783333)
+passed the fixture regression. The complete graph published 103 successful
+jobs including `ci-success`, so all five required contexts are green on the
+same repair HEAD.
 
 ## Required stable lane
 

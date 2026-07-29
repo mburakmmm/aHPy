@@ -34,9 +34,9 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 
 | Sıra | Faz | Durum | Production sonucuna katkısı |
 | ---: | --- | --- | --- |
-| 0 | PRD-0 — Mevcut dalı yeşile getir | **AKTİF** | Güvenilir aynı-HEAD CI tabanı |
-| 1 | PRD-1 — Destek sözleşmesini dondur | **SIRADAKİ** | İlk sürümün dürüst kapsamı |
-| 2 | PRD-2 — Core compiler/module state | **BEKLİYOR** | Ownership ve semantic correctness |
+| 0 | PRD-0 — Mevcut dalı yeşile getir | **TAMAMLANDI** | Güvenilir aynı-HEAD CI tabanı |
+| 1 | PRD-1 — Destek sözleşmesini dondur | **AKTİF** | İlk sürümün dürüst kapsamı |
+| 2 | PRD-2 — Core compiler/module state | **SIRADAKİ** | Ownership ve semantic correctness |
 | 3 | PRD-3 — Pure HPy extension type | **BEKLİYOR** | Type/GC/finalizer güvenliği |
 | 4 | PRD-4 — Advanced Cython aileleri | **BEKLİYOR** | Implement veya fail-closed sonucu |
 | 5 | PRD-5 — Portability/native memory | **BEKLİYOR** | Universal binary ve platform kanıtı |
@@ -48,16 +48,14 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 
 ### Şu anki kritik yol
 
-1. Roadmap commit'i `7ad48c495` üzerindeki cold-cache Ubuntu shared-utility C++
-   timeout düzeltmesini push et ve replacement `ci-success` kanıtını bekle;
-   diğer dört aggregate bu HEAD'de yeşil.
-2. Yeni bir mandatory iş kırılırsa log kanıtıyla düzelt; allowed-failure işini
-   destek iddiasına dönüştürme.
-3. Replacement HEAD için run/job kimliklerini validation, audit, handoff ve PR
-   açıklamasına kaydet.
-4. Kanıt belgelerini tek commit olarak push et ve o yeni HEAD'de required
-   context'leri yeniden tamamen yeşil gör.
-5. PRD-0 çıkış kapısını kapat; ardından PRD-1 destek sözleşmesi kararlarına geç.
+1. Final kanıt commit'inin required context'lerini yeniden yeşil doğrula ve
+   final run/job bağlantılarını commit döngüsü yaratmadan PR açıklamasında tut.
+2. PRD-1 için ilk sürümün ürün seviyesini ve exact Cython tabanını belirle.
+3. HPy, Python, OS/compiler ve build frontend destek sözleşmelerini dondur.
+4. “Supported”, “partial”, “blocked” ve “rejected” terimlerini kullanıcı
+   açısından normatif biçimde tanımla.
+5. README, support/validation matrisleri, onboarding ve release politikasını
+   tek destek sözleşmesine eşitle.
 
 ## Başlangıç durumu
 
@@ -101,7 +99,7 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 
 Bu kapı kapanmadan yeni production özelliği eklenmez.
 
-- [ ] Son commit için devam eden bütün GitHub Actions işlerinin bitmesini
+- [x] Son commit için devam eden bütün GitHub Actions işlerinin bitmesini
       bekle ve sonuçları kaydet.
 - [x] `Benchmarks` workflow'undaki `benchmark_results_*.csv` bulunamadığı için
       kırılan summary adımının local düzeltmesini hosted yeşil koşuyla doğrula.
@@ -123,23 +121,23 @@ Bu kapı kapanmadan yeni production özelliği eklenmez.
   - [x] Force-push ve dal silmeyi engelle; maintainer bypass politikasını
         belgeye bağla.
   - [x] Ruleset ayarını GitHub API çıktısıyla audit belgesinde kanıtla.
-- [ ] Mandatory işlerde `pending`, `cancelled` veya `failure` kalmadığını
+- [x] Mandatory işlerde `pending`, `cancelled` veya `failure` kalmadığını
       doğrula.
-  - [x] `aHPy required checks` — run `30355000922`, job `90262950998`.
-  - [x] `benchmark required checks` — run `30355000934`, job `90279175748`.
-  - [ ] `ci-success`.
-  - [x] `coverage required checks` — run `30355000919`, job `90270294573`.
-  - [x] `sanitizers-success` — run `30355001070`, job `90270728209`.
+  - [x] `aHPy required checks` — run `30361153504`, job `90283757405`.
+  - [x] `benchmark required checks` — run `30361153497`, job `90296401321`.
+  - [x] `ci-success` — run `30361153866`, job `90328870116`.
+  - [x] `coverage required checks` — run `30361153526`, job `90291908521`.
+  - [x] `sanitizers-success` — run `30361153809`, job `90296760091`.
 - [x] Allowed-failure sonuçlarının aggregate required check'i yanlışlıkla
       kırmadığını doğrula.
-- [ ] Son yeşil run kimliklerini `validation-matrix.md`, ilgili M8 audit'i,
+- [x] Son yeşil run kimliklerini `validation-matrix.md`, ilgili M8 audit'i,
       `AGENTTODO.md` ve PR açıklamasına işle.
 
 ### PRD-0 çıkış kapısı
 
-- [ ] Aynı HEAD üzerinde clean-build mandatory CI tamamen yeşil.
-- [ ] Kırmızı kalan her iş açıkça allowed-failure ve destek iddiası dışında.
-- [ ] README ve kanıt belgeleri aynı commit/run durumunu gösteriyor.
+- [x] Aynı HEAD üzerinde clean-build mandatory CI tamamen yeşil.
+- [x] Kırmızı kalan her iş açıkça allowed-failure ve destek iddiası dışında.
+- [x] README ve kanıt belgeleri aynı commit/run durumunu gösteriyor.
 
 ## PRD-1 — İlk production sürümünün destek sözleşmesini dondur
 
@@ -493,4 +491,4 @@ Agent'lar ve geliştiriciler aşağıdaki sırayı korumalıdır:
 9. PRD-9: upstream, güvenlik ve bakım.
 10. PRD-10: release candidate ve stable yayın.
 
-Bir sonraki aktif hedef PRD-0'dır.
+Bir sonraki aktif hedef PRD-1 destek sözleşmesidir.

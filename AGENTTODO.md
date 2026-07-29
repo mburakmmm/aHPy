@@ -302,7 +302,7 @@ remain in the phase and milestone sections below and in `TODO.md`.
    draft PR or tag a stable release without explicit user authorization and
    every declared release gate green.
 
-Current item: **PRD-0**. CI-policy implementation head
+Current item: **PRD-1 support contract**. PRD-0 CI-policy implementation head
 `e791c8983bcb1a3c38aa932617a91ea976cb5c55` has green aHPy, benchmark,
 coverage, and sanitizer required aggregates. HPy development on Python 3.14
 and same-binary PyPy/GraalPy remain the three expected allowed failures. Its
@@ -311,21 +311,28 @@ full Cython graph found a PyPy 3.9-only fixture error before backend execution:
 commit `1b3805e30` assigns the same AST field after construction and passes all
 248 `TestHPyModuleWriter` tests under both local CPython and PyPy, plus the
 full 431 compiler and 153 quality suites under CPython. Roadmap HEAD
-`7ad48c495e9410ec1aa0ab28cdd2a7201282e991` now has green
-[`aHPy required checks` job 90262950998](https://github.com/mburakmmm/aHPy/actions/runs/30355000922/job/90262950998);
-[`coverage required checks` job 90270294573](https://github.com/mburakmmm/aHPy/actions/runs/30355000919/job/90270294573)
-and
-[`sanitizers-success` job 90270728209](https://github.com/mburakmmm/aHPy/actions/runs/30355001070/job/90270728209)
-and
-[`benchmark required checks` job 90279175748](https://github.com/mburakmmm/aHPy/actions/runs/30355000934/job/90279175748)
-are also green. Full Cython run `30355001166` exposed a cold-cache capacity
+`7ad48c495e9410ec1aa0ab28cdd2a7201282e991` exposed a cold-cache capacity
 failure rather than a test assertion: Ubuntu shared-utility C++ job
 `90261190485` continued compiling and passing tests until its 80-minute
 timeout, with only 19.78% ccache hits and seven outer workers. The local repair
 bounds non-Windows shared-utility mode to four outer workers and gives only
 that heavy lane a 120-minute fail-closed ceiling; its focused regression and
-all 153 quality tests pass. Do not claim the same-HEAD PRD-0 exit until the
-replacement `ci-success` is green.
+all 153 quality tests pass. Repair HEAD
+`8ed77677ee6bd69fdc93a81bdfe3e704ea7d924b` now has green
+[`aHPy required checks` job 90283757405](https://github.com/mburakmmm/aHPy/actions/runs/30361153504/job/90283757405),
+[`benchmark required checks` job 90296401321](https://github.com/mburakmmm/aHPy/actions/runs/30361153497/job/90296401321),
+[`coverage required checks` job 90291908521](https://github.com/mburakmmm/aHPy/actions/runs/30361153526/job/90291908521),
+and
+[`sanitizers-success` job 90296760091](https://github.com/mburakmmm/aHPy/actions/runs/30361153809/job/90296760091).
+The repaired shared-utility C++ job `90281110328` passed in 14m39s, PyPy 3.9
+job `90288783333` is green, and the complete 103-job Cython graph passed with
+[`ci-success` job 90328870116](https://github.com/mburakmmm/aHPy/actions/runs/30361153866/job/90328870116).
+All five required contexts are therefore green on the same repair HEAD, and
+the final evidence is published in the repository documentation and draft PR.
+PRD-0 is closed. Verify the documentation-only evidence commit's required
+contexts without creating a recursive evidence commit, then freeze PRD-1's
+exact product level, Cython/HPy/Python/platform/compiler/build-frontend support
+contract. Do not promote the three allowed-failure early warnings.
 
 ### A1. Resolve the parallel fault-gate transient — completed
 

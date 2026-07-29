@@ -217,8 +217,8 @@ interpreter-specific test-fixture defect in PyPy 3.9 job
 raised `TypeError` before exercising the backend. Commit `1b3805e30` assigns
 the identical synthetic AST field after construction instead. The focused
 fixture passes all 248 `TestHPyModuleWriter` tests under both local CPython and
-PyPy; the full five-context replacement run on that commit remains the PRD-0
-same-HEAD exit evidence. The subsequent roadmap-only HEAD
+PyPy; at that point the full five-context replacement run was still required
+as PRD-0 same-HEAD exit evidence. The subsequent roadmap-only HEAD
 `7ad48c495e9410ec1aa0ab28cdd2a7201282e991` has green
 [`aHPy required checks` job 90262950998](https://github.com/mburakmmm/aHPy/actions/runs/30355000922/job/90262950998);
 [`coverage required checks` job 90270294573](https://github.com/mburakmmm/aHPy/actions/runs/30355000919/job/90270294573)
@@ -235,7 +235,23 @@ The replacement retains the full corpus while bounding non-Windows
 shared-utility mode to four outer workers and assigning only that heavy lane a
 120-minute fail-closed ceiling. Its focused contract test, full 153-test
 quality suite, shell syntax, YAML parse, compileall, and diff checks pass
-locally. The audit keeps PRD-0 open until replacement `ci-success` is green.
+locally. Repair HEAD `8ed77677ee6bd69fdc93a81bdfe3e704ea7d924b`
+has green
+[`aHPy required checks` job 90283757405](https://github.com/mburakmmm/aHPy/actions/runs/30361153504/job/90283757405),
+[`benchmark required checks` job 90296401321](https://github.com/mburakmmm/aHPy/actions/runs/30361153497/job/90296401321),
+[`coverage required checks` job 90291908521](https://github.com/mburakmmm/aHPy/actions/runs/30361153526/job/90291908521),
+and
+[`sanitizers-success` job 90296760091](https://github.com/mburakmmm/aHPy/actions/runs/30361153809/job/90296760091).
+The repaired
+[shared-utility C++ job 90281110328](https://github.com/mburakmmm/aHPy/actions/runs/30361153866/job/90281110328)
+passed in 14m39s, and
+[PyPy 3.9 job 90288783333](https://github.com/mburakmmm/aHPy/actions/runs/30361153866/job/90288783333)
+is green. The audit kept PRD-0's hosted gate open until full run
+`30361153866` published a green replacement `ci-success`. That run completed
+all 103 jobs successfully
+and published
+[`ci-success` job 90328870116](https://github.com/mburakmmm/aHPy/actions/runs/30361153866/job/90328870116),
+closing the same-HEAD PRD-0 hosted evidence gate.
 
 ## Production branch ruleset
 
