@@ -153,6 +153,30 @@ at outer `-j1`; both `memoryview_shared_utility` and
 `shared_utility_module` completed successfully with their internal parallel
 builds and no `LNK1158`.
 
+## Fixture-local MSVC serialization
+
+The later full Cython run
+[30439469712](https://github.com/mburakmmm/aHPy/actions/runs/30439469712)
+at `b173e6f3797298723d8b5c325a68ad5d5aa6e577` showed that outer isolation was
+necessary but not sufficient. Its isolated Windows C++/Python 3.11 job
+[90542124435](https://github.com/mburakmmm/aHPy/actions/runs/30439469712/job/90542124435)
+ran `memoryview_shared_utility` alone at outer `-j1`, but the fixture's own
+`setup_with_sources.py build_ext -j3` launched three MSVC links and one again
+failed with `LNK1158: cannot run 'rc.exe'`. Adjacent links used the same
+compiler and SDK successfully, so this remains resource-compiler contention,
+not an aHPy semantic or generated-code defect.
+
+The second-stage repair changes all three
+`memoryview_shared_utility.srctree` and all five
+`shared_utility_module.srctree` build commands to `build_ext -j1`. The two
+fixture trees remain excluded from the ordinary Windows four-worker pool and
+run in their isolated outer `-j1` pass, eliminating both levels of link
+concurrency. Other Cython fixtures retain explicit parallel-build coverage.
+A quality contract locks all eight serial commands and rejects reintroduction
+of fixture-local `-j3`. The real local Python 3.14 C-backend run passed all
+three selected end-to-end trees in 21.04 seconds; replacement Windows hosted
+confirmation is still required.
+
 ## Downstream benchmark reference and failure propagation repair
 
 PR benchmark run

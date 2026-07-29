@@ -48,6 +48,16 @@ agent must keep all three synchronized when implementation status changes.
   `tag:shared_utility` trees from that pool and runs them alone while retaining
   their internal parallel build. Replacement hosted confirmation remains
   mandatory; do not call the complete matrix green before it lands.
+- Later full Cython run
+  [30439469712](https://github.com/mburakmmm/aHPy/actions/runs/30439469712)
+  at `b173e6f3797298723d8b5c325a68ad5d5aa6e577` proved that outer isolation
+  alone is still insufficient: isolated Windows C++/Python 3.11 job
+  [90542124435](https://github.com/mburakmmm/aHPy/actions/runs/30439469712/job/90542124435)
+  reproduced `LNK1158` inside the fixture's own `build_ext -j3`. The current
+  local repair changes all eight shared-utility fixture builds to `-j1` while
+  retaining separate parallel-build coverage elsewhere; both real local
+  shared-utility trees and the quality contract pass. Replacement hosted
+  confirmation remains mandatory.
 - User mandate (2026-07-15): complete **HPy 0.9 max Universal coverage** and the
   **full M2–M11 roadmap** (options 1+3). Work the ordered queues below; never
   mark a HPy-0.9 API gap as supported; never claim hosted lanes without green

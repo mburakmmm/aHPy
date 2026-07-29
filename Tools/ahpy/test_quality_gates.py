@@ -58,6 +58,11 @@ class QualityGateTest(unittest.TestCase):
             "MSVC builds.\n",
             script,
         )
+        self.assertIn(
+            "  # even an isolated -j3 run reproduced link.exe failing to "
+            "launch the Windows\n",
+            script,
+        )
         self.assertIn("  TEST_PARALLELISM=-j4\n", script)
         self.assertIn(
             '  WINDOWS_SHARED_UTILITY_EXCLUDE="-x tag:shared_utility"\n',
@@ -74,6 +79,20 @@ class QualityGateTest(unittest.TestCase):
             script,
         )
         self.assertEqual(script.count("  TEST_PARALLELISM=-j4\n"), 2)
+
+        fixture_jobs = {
+            ROOT / "tests" / "memoryview" /
+                "memoryview_shared_utility.srctree": 3,
+            ROOT / "tests" / "run" /
+                "shared_utility_module.srctree": 5,
+        }
+        for path, expected_count in fixture_jobs.items():
+            fixture = path.read_text(encoding="utf8")
+            self.assertEqual(
+                fixture.count("build_ext --inplace --force -j1"),
+                expected_count,
+            )
+            self.assertNotIn("build_ext --inplace --force -j3", fixture)
 
         workflow = (ROOT / ".github" / "workflows" / "ci-job.yml").read_text(
             encoding="utf8")

@@ -85,6 +85,17 @@ passed the fixture regression. The complete graph published 103 successful
 jobs including `ci-success`, so all five required contexts are green on the
 same repair HEAD.
 
+Later full Cython run
+[30439469712](https://github.com/mburakmmm/aHPy/actions/runs/30439469712)
+at `b173e6f3797298723d8b5c325a68ad5d5aa6e577` is not a replacement green
+baseline: isolated Windows C++/Python 3.11 job
+[90542124435](https://github.com/mburakmmm/aHPy/actions/runs/30439469712/job/90542124435)
+again hit `LNK1158` when the selected shared-utility fixture launched its own
+`build_ext -j3`. The current local repair serializes all eight fixture-local
+build commands in addition to the existing outer isolation. Local end-to-end
+shared-utility tests pass; a replacement hosted run is required before the
+latest branch HEAD can be called fully green.
+
 ## Required stable lane
 
 The stable lane installs `hpy==0.9.0` and `setuptools==80.9.0` on Python 3.11.

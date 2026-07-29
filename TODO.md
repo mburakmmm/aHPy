@@ -1510,7 +1510,7 @@ emulated.
 
 ### U2 - M8 evidence without false claims
 
-- [x] Keep every mandatory workflow green on the current aHPy branch HEAD,
+- [ ] Keep every mandatory workflow green on the current aHPy branch HEAD,
       including the upstream Cython C/C++ and non-CPython regression matrix.
       Run `29900694989` verifies that the focused GraalPy exclusion moved past
       the former Universal-fixture import failure while compile-only aHPy
@@ -1526,7 +1526,11 @@ emulated.
       coverage run `29912145042` completed both jobs successfully. The early
       Windows C/C++ jobs executed the isolated one-tree pass and both
       `memoryview_shared_utility` and `shared_utility_module` passed without
-      `LNK1158`.
+      `LNK1158`. Later run `30439469712` at `b173e6f37` reproduced the same
+      failure inside the already isolated fixture's own `build_ext -j3`;
+      the stronger local repair serializes all eight shared-utility fixture
+      builds with `-j1`, passes both real local trees, and still requires
+      replacement hosted proof.
 - [x] Record first green hosted runs for every declared Linux/macOS/Windows
       compiler job. Push run `29685285138` is green at commit `02d9f8cdd` for
       Linux x64 GCC/Clang, Linux ARM64 GCC, macOS Intel/ARM64 Clang, Windows x64

@@ -209,10 +209,10 @@ fi
 
 if [[ $OSTYPE == "msys" || $OSTYPE == "cygwin" ]]; then
   # Several end-to-end tests launch their own multi-extension MSVC builds.
-  # Keep the ordinary trees bounded and run the internally parallel
-  # shared-utility trees in isolation below. Otherwise their build_ext -j3
-  # subprocesses can overlap the outer pool and make link.exe fail to launch
-  # the Windows SDK rc.exe helper (LNK1158).
+  # Keep the ordinary trees bounded and run the shared-utility trees in
+  # isolation below. Their fixture-local build_ext commands are also serial:
+  # even an isolated -j3 run reproduced link.exe failing to launch the Windows
+  # SDK rc.exe helper (LNK1158).
   TEST_PARALLELISM=-j4
   WINDOWS_SHARED_UTILITY_EXCLUDE="-x tag:shared_utility"
 elif [[ $PYTHON_VERSION == "graalpy"* ]]; then
@@ -266,9 +266,9 @@ $PYTHON $GRAAL_PYTHON_ARGS runtests.py \
 EXIT_CODE=$?
 
 if [[ $WINDOWS_SHARED_UTILITY_EXCLUDE ]]; then
-  # Preserve the tests' own build_ext -j3 coverage without competing outer
-  # test trees on the same Windows runner. The final -j1 overrides the outer
-  # pool size only for this isolated tag run.
+  # The final -j1 serializes the outer tag run; both shared-utility fixtures
+  # also use build_ext -j1 so no concurrent link.exe process competes for
+  # rc.exe inside the isolated tree.
   $PYTHON runtests.py \
     -vv --no-code-style \
     --no-cleanup \
