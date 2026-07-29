@@ -34,6 +34,15 @@ wheel, HPy 0.9 wheel, and setuptools 80.9.0 wheel. Exact hashes are preserved
 in the requested local JSON output and in the CI evidence artifact for hosted
 runs, avoiding a self-referential hash inside the sdist itself.
 
+The release bundle retains those five exact artifacts together with a sorted
+GNU-compatible `SHA256SUMS`, SPDX 2.3 JSON SBOM, JSON license inventory, and
+build provenance. Provenance records the aHPy and Cython commits, HPy and
+setuptools compatibility pins, selected Python implementation/version/path,
+platform, compiler, build frontend, and deterministic source epoch. Bundle
+creation rejects a non-empty destination, unexpected/missing artifacts, unsafe
+filenames, duplicate names, malformed digests, and copied bytes that do not
+match the validated report.
+
 Local macOS ARM64/CPython 3.11 evidence is complemented by the green clean
 sdist/onboarding step in hosted
 [compiler-and-quality job 88188395921](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395921).

@@ -58,9 +58,9 @@ larger Cython family an exact preview status and migration path.
 - The maintained frontend and example wheels currently carry host-specific
   CPython tags. They are not standardized Universal wheels and are not
   evidence of same-wheel cross-interpreter installation.
-- The distribution is unpublished; package-index reservation, provenance,
-  signing, SBOM, publication rehearsal, and stable release approval remain
-  later production gates.
+- The distribution is unpublished; package-index reservation, artifact
+  signing, publication rehearsal, and stable release approval remain later
+  production gates.
 - Direct build, CMake, Meson, scikit-build-core, setuptools/cythonize, and
   isolated PEP 517 have the partial platform/packaging scopes frozen in the
   [preview contract](release-contract.md).

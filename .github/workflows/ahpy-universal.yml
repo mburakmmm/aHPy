@@ -64,6 +64,7 @@ jobs:
           python Tools/ahpy/release_artifact_integration.py
           --python python
           --output packaging-results/release-artifacts.json
+          --bundle-dir packaging-results/release-bundle
       - name: Reproducible frontend package archives
         run: >-
           python Tools/ahpy/verify_reproducible_packages.py
@@ -77,6 +78,7 @@ jobs:
           path: |
             packaging-results/pep517.json
             packaging-results/release-artifacts.json
+            packaging-results/release-bundle
             packaging-results/package-reproducibility.json
           if-no-files-found: error
       - name: CMake and Meson Universal integrations

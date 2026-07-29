@@ -23,6 +23,7 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
         "ahpy_build_config.py",
         "Cython/Compiler/RuntimeAPI.py",
         "Tools/ahpy/release_artifact_integration.py",
+        "Tools/ahpy/release_evidence.py",
         "Tools/ahpy/benchmark_hpy.py",
         "tests/ahpy/benchmark_generated.pyx",
         "tests/ahpy/benchmark_reference.c",
@@ -84,6 +85,8 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
         self.assertIn("_runtime_program(True)", source)
         self.assertIn('"setuptools==80.9.0"', source)
         self.assertIn('"build_dependencies"', source)
+        self.assertIn('"schema_version": 2', source)
+        self.assertIn("write_release_bundle(", source)
         self.assertIn('environment["SOURCE_DATE_EPOCH"]', source)
         self.assertIn('environment["PYTHONHASHSEED"] = "0"', source)
         dependency_materialization = source.split(
@@ -229,10 +232,14 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
                         "release_artifact_integration.py",
                         "--python", "/chosen/python",
                         "--output", "/tmp/report.json",
+                        "--bundle-dir", "/tmp/release-bundle",
                     ]), patch("builtins.print") as print_mock:
             release_artifact_integration.main()
         build.assert_called_once_with(
-            "/chosen/python", Path("/tmp/report.json"))
+            "/chosen/python",
+            Path("/tmp/report.json"),
+            Path("/tmp/release-bundle"),
+        )
         print_mock.assert_called_once_with(
             "aHPy clean release-artifact onboarding passed: %s" %
             report["sdist"]["name"])

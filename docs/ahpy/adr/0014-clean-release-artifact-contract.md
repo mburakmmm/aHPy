@@ -28,8 +28,11 @@ uninstall and create a false success. HPy 0.9's current Python loader imports
    executes in normal and Debug modes before removal and normally after
    reinstall.
 5. The JSON evidence hashes the sdist, frontend wheel, example wheel, and exact
-   build-dependency wheels.
-6. This gate proves local artifacts only. Publication, standardized Universal
+   build-dependency wheels and records exact source/toolchain provenance.
+6. An optional non-empty-destination-refusing bundle retains those artifacts,
+   `SHA256SUMS`, SPDX 2.3 JSON SBOM, machine-readable license inventory, and
+   provenance; every copied artifact is rehashed before acceptance.
+7. This gate proves local artifacts only. Publication, standardized Universal
    wheel tags, cross-interpreter package installation, and reproducible archive
    bytes remain independent gates.
 

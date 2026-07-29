@@ -20,8 +20,12 @@ if str(ROOT) not in sys.path:
 
 from ahpy_version import (
     AHPY_DISTRIBUTION,
+    AHPY_HPY_SUPPORTED_VERSION,
+    AHPY_SETUPTOOLS_VERSION,
     AHPY_VERSION,
+    CYTHON_BASE_COMMIT,
     provenance_project_urls,
+    source_commit,
     validate_source_commit,
 )
 from pep517_integration import (
@@ -30,6 +34,7 @@ from pep517_integration import (
     _frontend_metadata,
     _runtime_program,
 )
+from release_evidence import write_release_bundle
 from verify_reproducible_packages import SOURCE_DATE_EPOCH, normalize_sdist
 
 
@@ -63,6 +68,7 @@ def verify_sdist(sdist):
         "/ahpy_build_config.py",
         "/Cython/Compiler/RuntimeAPI.py",
         "/Tools/ahpy/release_artifact_integration.py",
+        "/Tools/ahpy/release_evidence.py",
         "/Tools/ahpy/benchmark_hpy.py",
         "/tests/ahpy/benchmark_generated.pyx",
         "/tests/ahpy/benchmark_reference.c",
@@ -142,10 +148,56 @@ def _assert_frontend(python, present, cwd):
     _run([python, "-c", program], cwd=cwd)
 
 
-def build_and_run(python, report_path=None):
+def _build_provenance(python):
+    program = (
+        "from importlib.metadata import version\n"
+        "import json, platform, sys, sysconfig\n"
+        "print(json.dumps({"
+        "'python': platform.python_version(),"
+        "'python_implementation': platform.python_implementation(),"
+        "'python_executable': sys.executable,"
+        "'platform': platform.platform(),"
+        "'compiler': sysconfig.get_config_var('CC'),"
+        "'build_frontend_version': version('build'),"
+        "'installed_hpy': version('hpy'),"
+        "'installed_setuptools': version('setuptools')"
+        "}, sort_keys=True))\n"
+    )
+    selected = subprocess.run(
+        [python, "-c", program],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    provenance = json.loads(selected.stdout)
+    for field, expected in (
+        ("installed_hpy", AHPY_HPY_SUPPORTED_VERSION),
+        ("installed_setuptools", AHPY_SETUPTOOLS_VERSION),
+    ):
+        if provenance[field] != expected:
+            raise AssertionError(
+                "release provenance requires %s=%s, found %s" % (
+                    field, expected, provenance[field]))
+    provenance.update({
+        "source_commit": source_commit(ROOT),
+        "cython_base_commit": CYTHON_BASE_COMMIT,
+        "hpy_compatibility": AHPY_HPY_SUPPORTED_VERSION,
+        "setuptools_compatibility": AHPY_SETUPTOOLS_VERSION,
+        "build_frontend": "build",
+        "source_date_epoch": int(SOURCE_DATE_EPOCH),
+    })
+    return provenance
+
+
+def build_and_run(python, report_path=None, bundle_dir=None):
     python = os.path.abspath(python) if Path(python).exists() else shutil.which(python)
     if python is None:
         raise ValueError("Python interpreter not found")
+    if bundle_dir:
+        bundle_dir = Path(bundle_dir)
+        if bundle_dir.exists() and any(bundle_dir.iterdir()):
+            raise ValueError("release bundle directory must be empty")
     with TemporaryDirectory(prefix="ahpy-release-artifacts-") as temp_dir:
         temp = Path(temp_dir)
         source = temp / "frontend-source"
@@ -265,7 +317,8 @@ def build_and_run(python, report_path=None):
         _run([clean_python, "-c", _runtime_program(False)], env=runtime_environment)
 
         report = {
-            "schema_version": 1,
+            "schema_version": 2,
+            "provenance": _build_provenance(python),
             "sdist": {
                 "name": sdist.name,
                 "sha256": _sha256(sdist),
@@ -288,6 +341,12 @@ def build_and_run(python, report_path=None):
             "example_uninstall_reinstall": True,
             "runtime_modes": ["normal", "debug", "normal-after-reinstall"],
         }
+        if bundle_dir:
+            write_release_bundle(
+                bundle_dir,
+                report,
+                [sdist, frontend_wheel, example_wheel, *dependency_wheels],
+            )
         if report_path:
             report_path = Path(report_path)
             report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -302,8 +361,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--python", default=sys.executable)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--bundle-dir", type=Path)
     args = parser.parse_args()
-    report = build_and_run(args.python, args.output)
+    report = build_and_run(args.python, args.output, args.bundle_dir)
     print("aHPy clean release-artifact onboarding passed: %s" %
           report["sdist"]["name"])
 

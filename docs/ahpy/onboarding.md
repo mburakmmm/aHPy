@@ -25,13 +25,15 @@ python3.11 -m venv .venv-ahpy-onboarding
     -r tests/ahpy/requirements-build-systems.txt
 .venv-ahpy-onboarding/bin/python Tools/ahpy/release_artifact_integration.py \
     --python .venv-ahpy-onboarding/bin/python \
-    --output /tmp/ahpy-release-artifacts.json
+    --output /tmp/ahpy-release-artifacts.json \
+    --bundle-dir /tmp/ahpy-release-bundle
 ```
 
 On Windows, use `.venv-ahpy-onboarding\Scripts\python.exe` in the same three
 commands. A successful run ends with `aHPy clean release-artifact onboarding
 passed` and writes a schema-versioned JSON record containing artifact names,
-SHA-256 digests, runtime modes, and uninstall/reinstall results.
+SHA-256 digests, exact build provenance, runtime modes, and uninstall/reinstall
+results.
 
 ## What the gate proves
 
@@ -53,6 +55,12 @@ sources, and incorrect distribution metadata. It then:
 6. removes and verifies absence of the frontend, reinstalls it, and repeats the
    same remove/absence/reinstall cycle for the example;
 7. executes the example once more after reinstall.
+
+The requested bundle directory is created only when empty and retains the
+sdist, frontend wheel, example wheel, exact HPy/setuptools wheels,
+`SHA256SUMS`, an SPDX 2.3 JSON SBOM, a machine-readable license inventory, and
+`provenance.json`. Every copied artifact is rehashed against the validated
+report before the bundle is accepted.
 
 The clean subprocess checks run from a temporary directory, so an uninstalled
 package cannot be accidentally satisfied by the repository checkout.

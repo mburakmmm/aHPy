@@ -94,9 +94,9 @@ Validation snapshot
 
 The current local M9 snapshot records:
 
-* 432 focused compiler tests and 165 quality-tool tests (two expected
+* 432 focused compiler tests and 169 quality-tool tests (two expected
   platform skips);
-* 597 focused coverage tests on CPython 3.11 and 3.14;
+* 601 focused coverage tests on CPython 3.11 and 3.14;
 * 100% executable Python-line coverage for the three Universal backend
   implementation modules on both interpreters, with separate 45% frontend-seam
   and 41% quality-tool floors;
@@ -105,7 +105,9 @@ The current local M9 snapshot records:
 * nine generated-versus-handwritten Universal HPy performance budgets;
 * reproducible frontend wheel/sdist and portability artifacts;
 * sdist and frontend-wheel metadata bound to the exact aHPy source commit,
-  embedded Cython base commit, and HPy compatibility contract.
+  embedded Cython base commit, and HPy compatibility contract;
+* a retained release bundle with artifact checksums, SPDX 2.3 SBOM, license
+  inventory, and exact build provenance.
 
 The CPython 3.11/HPy 0.9 stable baseline is green on hosted Linux x86-64 and
 ARM64, macOS Intel and ARM64, and Windows x64.  Same-binary PyPy and GraalPy
