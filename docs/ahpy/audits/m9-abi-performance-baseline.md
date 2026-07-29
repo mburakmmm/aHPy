@@ -57,6 +57,13 @@ public API, and typed memoryviews remain blocked/non-comparable because that API
 does not expose a public buffer-consumer contract; neither blocked surface gets
 a synthetic performance number.
 
+The ownership-proven iteration follow-up borrows the sequence handle only when
+it is an incoming call argument whose frame/tracker lifetime spans the complete
+loop. Rebindable locals remain owned. Normal/Trace/Debug source-name rebinding
+and all 128 fault selectors pass; generated Trace falls from 38 to 36 calls per
+iteration while the local runtime range remains inside the temporary 2.50×
+ceiling.
+
 ## Post-baseline ownership correction
 
 The initial table exposed a contract mismatch: generated benchmark functions

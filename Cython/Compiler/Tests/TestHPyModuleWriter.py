@@ -6891,6 +6891,23 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertIn("HPy_Length(ctx,", generated)
         self.assertIn("HPy_GetItem_i(ctx,", generated)
         self.assertIn("for (HPy_ssize_t", generated)
+        self.assertNotIn("HPy_Dup(ctx, arg)", generated)
+        self.assertNotIn("HPy_Close(ctx, arg)", generated)
+
+    def test_dynamic_sequence_loop_borrows_rebound_call_argument(self):
+        result, generated, diagnostics = self.compile_source(
+            "def consume(values, /):\n"
+            "    result = []\n"
+            "    for item in values:\n"
+            "        values = None\n"
+            "        result += [item]\n"
+            "    return result\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn("HPy_Length(ctx, arg)", generated)
+        self.assertIn("HPy_GetItem_i(ctx, arg,", generated)
+        self.assertEqual(generated.count("HPy_Dup(ctx, arg)"), 1)
+        self.assertNotIn("HPy_Close(ctx, arg)", generated)
 
     def test_dynamic_sequence_comprehensions_use_public_index_api(self):
         result, generated, diagnostics = self.compile_source(

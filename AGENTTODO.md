@@ -105,7 +105,7 @@ and the first performance regression gate.
 
 Last verified local gates:
 
-- Focused compiler suite: 432 tests pass (includes U1 closable surface and
+- Focused compiler suite: 433 tests pass (includes U1 closable surface and
   closure-registry regressions:
   `dir()`/`globals()`/`__dict__`, reject-duplicates keywords, imag constant
   cache, richer terminal try, sequence-safe inlined genexps, slot early
@@ -114,10 +114,11 @@ Last verified local gates:
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
 - Quality-tool suite: 202 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-07-29): 634 tests traced on both interpreters.
-  - CPython 3.11: backend 100.00%, frontend_seam 45.80%, quality_tools 48.06%.
-  - CPython 3.14.6: backend 100.00%, frontend_seam 45.94%, quality_tools
-    48.10%.
+- Focused coverage (2026-07-29): 635 tests traced on both interpreters.
+  - CPython 3.11: backend 9417/9417 (100.00%), frontend_seam 45.80%,
+    quality_tools 48.06%.
+  - CPython 3.14.6: backend 9304/9304 (100.00%), frontend_seam 45.94%,
+    quality_tools 48.10%.
   - CI floors are 100%, 45%, and 41%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
@@ -643,9 +644,10 @@ implementation.
    **(Trace measurement completed for all ten comparable operations: exact
    per-API deltas and dup/close churn are in benchmark JSON; arithmetic,
    container, attribute, call, extension-type, and external-C overhead is
-   quantified. Sequence-index iteration is 38 generated versus 18 handwritten
-   calls per iteration and measured 1.86–2.00× locally; its temporary 2.50× ceiling
-   awaits hosted calibration. Separate-clean-process peak RSS,
+   quantified. Sequence-index iteration is 36 generated versus 18 handwritten
+   calls per iteration after borrowing only its call-scoped source argument;
+   rebindable owned locals remain materialized. Its 1.86–2.00× local range and
+   temporary 2.50× ceiling await hosted calibration. Separate-clean-process peak RSS,
    frontend/native build times, and source/binary sizes are also recorded.
    Typed memoryviews remain blocked; remove no cleanup without
    ownership/failure proofs.)**

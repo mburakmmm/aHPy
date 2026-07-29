@@ -3736,9 +3736,8 @@ class UniversalHPyFunctionWriter:
     def generate_sequence_for_loop(
         self, sequence, target_name, body, else_body, unpack_target=None,
     ):
-        sequence_cname = self.materialize_owned_handle(
-            sequence.generate_hpy_bootstrap_owned_result(self))
-        self.put_error_return_if_null(sequence_cname)
+        sequence_cname, sequence_is_borrowed = _borrow_sequence_source(
+            self, sequence)
         length_cname = "__pyx_hpy_sequence_length_%d" % self._next_loop
         index_cname = "__pyx_hpy_sequence_index_%d" % self._next_loop
         self._next_loop += 1
@@ -3784,7 +3783,8 @@ class UniversalHPyFunctionWriter:
         popped_flag = self._loop_stack.pop()
         if popped_flag != break_flag:
             raise AssertionError("bootstrap loop stack changed")
-        self.close_owned_handle(sequence_cname)
+        if not sequence_is_borrowed:
+            self.close_owned_handle(sequence_cname)
         if else_body is not None:
             self.putln("if (%s) {" % break_flag)
             self.indent()
@@ -8085,3 +8085,18 @@ class UniversalHPyModuleWriter:
             getattr(node, "pos", None),
             "aHPy bootstrap backend: %s" % message,
         )
+
+
+def _borrow_sequence_source(writer, sequence):
+    """Keep call arguments borrowed; materialize rebindable local sources."""
+    # The HPy call frame (or its argument tracker) keeps an incoming argument
+    # alive until return, even when its source name is rebound in the loop.
+    # Owned locals are ineligible because rebinding closes their old handle.
+    sequence_cname = writer.borrow_direct_named_value(
+        sequence, borrowed_arguments_only=True)
+    if sequence_cname is not None:
+        return sequence_cname, True
+    sequence_cname = writer.materialize_owned_handle(
+        sequence.generate_hpy_bootstrap_owned_result(writer))
+    writer.put_error_return_if_null(sequence_cname)
+    return sequence_cname, False

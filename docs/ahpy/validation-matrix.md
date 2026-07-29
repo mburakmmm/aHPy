@@ -585,7 +585,7 @@ paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 634 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 635 focused tests under Python's built-in
 line-event tracer, derives executable lines from nested code-object line
 tables, and forces measured modules through a source-first finder so stale
 compiled extensions cannot hide Python lines. It reports the Universal
@@ -715,6 +715,13 @@ cannot rewrite the versioned budget. The collection and
 maintainer review procedure is documented in
 `performance-release-gate.md`; hosted same-HEAD history is still required
 before the current conservative ceilings become release budgets.
+
+The sequence-index iteration follow-up borrows its loop source only when the
+source is an incoming call-scoped argument. Rebindable owned locals retain
+materialization, and a body that rebinds the original argument name passes
+normal/Trace/Debug plus all 128 fault selectors. Generated Trace falls from 38
+to 36 calls per iteration (9 Dup/17 Close versus the reference's 1/8); the
+temporary runtime ceiling remains unchanged pending hosted calibration.
 The manual-only `ahpy-performance-calibration.yml` workflow provides the
 bounded collection path: five isolated Ubuntu/Python 3.11/HPy 0.9 matrix
 samples for one exact selected commit, distinct sample provenance and

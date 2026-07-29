@@ -3343,6 +3343,7 @@ def build_and_run(python, runtime_prefix=()):
             "assert bootstrap_answer.for_dynamic_consume([0, 2, -1]) == [2]\n"
             "assert bootstrap_answer.for_dynamic_consume((0, 2, 3)) == [2, 3, 'done']\n"
             "assert bootstrap_answer.for_dynamic_consume([]) == ['done']\n"
+            "assert bootstrap_answer.for_dynamic_rebind_source((1, 2, 3)) == [1, 2, 3]\n"
             "assert bootstrap_answer.empty_sequence_for(()) == 100\n"
             "assert bootstrap_answer.empty_sequence_for((1, 2)) == 103\n"
             "try:\n"

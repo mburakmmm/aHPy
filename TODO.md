@@ -1386,6 +1386,10 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         equivalent handwritten HPy implementation in every ABI profile; keep
         typed memoryviews explicitly blocked/non-comparable on HPy 0.9 rather
         than publishing a synthetic number.
+  - [x] Borrow a dynamic sequence-loop source only when it is an incoming
+        call-scoped argument; retain owned materialization for rebindable
+        locals, prove source-name rebinding in normal/Trace/Debug, and pass all
+        128 fault selectors. Trace drops from 38 to 36 calls per iteration.
   - [x] Include frontend/native build time, generated/reference peak RSS, and
         large-type frontend/O0 distributions in the fail-closed hosted
         proposal without auto-applying absolute cross-host limits.

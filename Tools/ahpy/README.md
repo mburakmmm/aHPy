@@ -246,6 +246,11 @@ and out-of-portable-range values retain checked HPy conversion. The external-C
 path therefore matches the handwritten one-call Trace contract with zero
 Dup/Close churn.
 These are optimization candidates, not permission to remove proven cleanup.
+Sequence-index loops now borrow only an incoming call argument whose HPy frame
+or argument tracker owns it through function return. A loop over a rebindable
+owned local still materializes its own reference. The guarded change preserves
+source-name rebinding in normal/Trace/Debug and reduces the iteration Trace
+path from 38 to 36 calls without removing item/result ownership.
 
 The same invocation records a three-profile ABI matrix without blending their
 costs: classic Cython has standalone timings, HPy CPython ABI has its own

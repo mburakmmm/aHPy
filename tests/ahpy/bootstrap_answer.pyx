@@ -872,6 +872,14 @@ def for_dynamic_consume(values, /):
     return result
 
 
+def for_dynamic_rebind_source(values, /):
+    result = []
+    for item in values:
+        values = None
+        result += [item]
+    return result
+
+
 def list_comp_dynamic(values, /):
     return [item * 2 for item in values if item]
 

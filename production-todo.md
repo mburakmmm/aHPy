@@ -68,8 +68,8 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 432 compiler/seam testi, 202 quality-tool testi ve
-  iki yorumlayıcıda 634 coverage testi.
+- Mevcut odaklı doğrulama: 433 compiler/seam testi, 202 quality-tool testi ve
+  iki yorumlayıcıda 635 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Bu oran generated C, native runtime, binary portability veya bütün Cython
   özelliklerinin %100 desteklendiği anlamına gelmez.
@@ -383,7 +383,9 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
         doğrula.
 - [x] Eşik aşımında fail-closed CI ve anlamlı rapor üret.
 - [x] HPy runtime/interpreter maliyetini aHPy overhead'inden ayrı göster.
-- [ ] Ownership kanıtı olmadan Dup/Close optimizasyonu yapma.
+- [x] Ownership kanıtı olmadan Dup/Close optimizasyonu yapma; call-frame
+      lifetime kanıtı yalnız incoming sequence argümanını borrow eder, rebind
+      edilebilir owned local kaynakları materialize etmeye devam eder.
 
 ### PRD-7 çıkış kapısı
 

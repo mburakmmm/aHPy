@@ -21,7 +21,7 @@ The local CPython 3.11.15/HPy 0.9/Apple Clang run recorded:
 | exception | 1 | 1 | 0 / 0 | 0 / 0 |
 | type create | 15 | 2 | 3 / 4 | 0 / 0 |
 | type method | 8.015 | 2.002 | 1.003 / 3.004 | 0 / 0 |
-| iteration | 38 | 18 | 10 / 18 | 1 / 8 |
+| iteration | 36 | 18 | 9 / 17 | 1 / 8 |
 | external C | 7 | 1 | 0 / 2 | 0 / 0 |
 
 The generated arithmetic/container overhead includes `ctx_Tracker_New`,
@@ -43,7 +43,7 @@ identity, 2.99× arithmetic, 2.86× container, 0.87× attribute, 1.02× call,
 1.00× exception, 3.74× type construction, 5.95× type method, and 3.85× external
 C. Generated/reference binaries were 76,816/76,080 bytes. These are local
 baselines, not release budgets. Sequence-index iteration measured 1.86–2.00× with
-38 generated versus 18 reference API calls per operation; its 2.50× initial
+36 generated versus 18 reference API calls per operation; its 2.50× initial
 ceiling remains provisional until hosted calibration. True iterator-protocol
 loops and typed memoryviews are blocked/non-comparable. Classic Cython,
 HPy CPython ABI, and hosted history remain separate M9 work. Separate

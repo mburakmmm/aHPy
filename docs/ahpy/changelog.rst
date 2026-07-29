@@ -19,6 +19,10 @@ Bootstrap
 * Added the supported sequence-index iteration family to the generated,
   handwritten HPy, and classic Cython performance matrix while retaining typed
   memoryviews as an explicit HPy 0.9 blocked/non-comparable surface.
+* Borrowed sequence-loop sources only for call-scoped incoming arguments,
+  preserving owned local/rebind semantics in normal/Trace/Debug and all 128
+  fault selectors while reducing generated iteration Trace from 38 to 36 API
+  calls.
 * Repaired benchmark CI for the downstream aHPy fork by fetching the exact
   Cython upstream release branches and tags, propagating benchmark-command
   failures through ``pipefail``, validating timing/size CSV sets before
