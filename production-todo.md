@@ -330,7 +330,11 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
       installable Universal wheel iddiası değildir.
 - [ ] Standardize Universal wheel mevcut olduğunda onun reproducibility,
       install ve cross-interpreter testlerini ekle.
-- [ ] Artifact checksum, SBOM, license listesi ve build provenance üret.
+- [x] Artifact checksum, SBOM, license listesi ve build provenance üret;
+      release gate sdist, frontend/example wheel ve exact HPy/setuptools
+      wheel'leri için doğrulanmış `SHA256SUMS`, SPDX 2.3 JSON,
+      machine-readable lisans envanteri ve exact source/build
+      `provenance.json` içeren fail-closed bundle üretir.
 - [ ] Release artifact'lerini imzala ve doğrulama talimatını yayımla.
 - [ ] PyPI/TestPyPI yayınlama ve geri çekme/yeniden yayınlamama politikasını
       belgeleyip dry-run yap.
