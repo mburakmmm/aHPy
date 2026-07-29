@@ -138,6 +138,33 @@ static HPy ahpy_raise_value_impl(HPyContext *ctx, HPy self)
 }
 
 
+HPyDef_METH(ahpy_sequence_last, "sequence_last", HPyFunc_O)
+static HPy ahpy_sequence_last_impl(HPyContext *ctx, HPy self, HPy values)
+{
+    HPy_ssize_t length = HPy_Length(ctx, values);
+    HPy result;
+    HPy_ssize_t index;
+
+    if (length < 0) {
+        return HPy_NULL;
+    }
+    result = HPy_Dup(ctx, ctx->h_None);
+    if (HPy_IsNull(result)) {
+        return HPy_NULL;
+    }
+    for (index = 0; index < length; index++) {
+        HPy item = HPy_GetItem_i(ctx, values, index);
+        if (HPy_IsNull(item)) {
+            HPy_Close(ctx, result);
+            return HPy_NULL;
+        }
+        HPy_Close(ctx, result);
+        result = item;
+    }
+    return result;
+}
+
+
 HPyDef_METH(ahpy_external_add, "external_add", HPyFunc_NOARGS)
 static HPy ahpy_external_add_impl(HPyContext *ctx, HPy self)
 {
@@ -168,6 +195,7 @@ static HPyDef *ahpy_benchmark_defines[] = {
     &ahpy_get_value,
     &ahpy_call_zero,
     &ahpy_raise_value,
+    &ahpy_sequence_last,
     &ahpy_external_add,
     &ahpy_benchmark_exec,
     NULL,

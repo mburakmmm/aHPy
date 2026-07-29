@@ -33,6 +33,12 @@ exception = 1.50
 # equivalent to the handwritten reference apart from cinit's separate AsStruct.
 type_create = 1.50
 type_method = 1.50
+# Sequence-index iteration is the supported HPy 0.9 iteration surface; true
+# iterator-protocol loops remain blocked and receive no performance number. The
+# initial 2.50x ceiling contains the observed 1.86x-2.00x local
+# generated/reference range; hosted same-HEAD calibration must replace it for
+# a release.
+iteration = 2.50
 # Portable literal arguments bypass the Python-object round trip and match the
 # handwritten one-call Trace contract. Dynamic values remain checked.
 external_c = 1.50

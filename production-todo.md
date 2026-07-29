@@ -68,8 +68,8 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 432 compiler/seam testi, 183 quality-tool testi ve
-  iki yorumlayıcıda 615 coverage testi.
+- Mevcut odaklı doğrulama: 432 compiler/seam testi, 201 quality-tool testi ve
+  iki yorumlayıcıda 633 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Bu oran generated C, native runtime, binary portability veya bütün Cython
   özelliklerinin %100 desteklendiği anlamına gelmez.
@@ -356,15 +356,17 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
 ## PRD-7 — Release performans ve footprint bütçelerini sabitle
 
 - [x] Benchmark workflow artifact/summary hatasını PRD-0 kapsamında kapat.
-- [ ] Generated Universal ve eşdeğer handwritten HPy implementasyonlarını bütün
-      release benchmark ailelerinde tut.
-- [ ] Classic Cython, HPy CPython ABI ve HPy Universal ABI sonuçlarını ayrı
-      raporla.
+- [x] Generated Universal ve eşdeğer handwritten HPy implementasyonlarını bütün
+      release benchmark ailelerinde tut; desteklenen sequence-index iteration
+      ailesi de iki tarafta aynı semantic oracle ile ölçülür.
+- [x] Classic Cython, HPy CPython ABI ve HPy Universal ABI sonuçlarını ayrı
+      raporla; cross-ABI aggregate oran yayımlama.
 - [ ] Calls, arithmetic, containers, attributes, exceptions, types ve
       external-C için hosted history biriktir.
-- [ ] Release kapsamında destekleniyorsa iteration ve memoryview benchmark'ı
-      ekle; desteklenmiyorsa “blocked/non-comparable” olarak bırak.
-- [ ] Compile time, C compiler time, generated C boyutu, binary boyutu ve peak
+- [x] Release kapsamında desteklenen sequence-index iteration benchmark'ını
+      ekle; HPy 0.9 public buffer consumer API sunmadığı için memoryview'i
+      “blocked/non-comparable” ve performans sayısı olmadan bırak.
+- [x] Compile time, C compiler time, generated C boyutu, binary boyutu ve peak
       memory ölç.
 - [ ] Gürültü analiziyle mutlak/nispi release eşiklerini versiyonla.
   - [x] Her yeni rapora exact kaynak/GitHub run provenance ekle; en az beş
@@ -376,8 +378,8 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
   - [ ] Aynı release-candidate HEAD'i için hosted geçmişi topla, headroom
         önerisini incele ve release eşiklerini ayrı bir same-HEAD koşuyla
         doğrula.
-- [ ] Eşik aşımında fail-closed CI ve anlamlı rapor üret.
-- [ ] HPy runtime/interpreter maliyetini aHPy overhead'inden ayrı göster.
+- [x] Eşik aşımında fail-closed CI ve anlamlı rapor üret.
+- [x] HPy runtime/interpreter maliyetini aHPy overhead'inden ayrı göster.
 - [ ] Ownership kanıtı olmadan Dup/Close optimizasyonu yapma.
 
 ### PRD-7 çıkış kapısı

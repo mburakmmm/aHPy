@@ -31,6 +31,7 @@ class BenchmarkHPyTest(unittest.TestCase):
             call_zero=lambda callable_object, /: callable_object(),
             raise_value=raise_value,
             BenchmarkBox=BenchmarkBox,
+            sequence_last=lambda values, /: values[-1] if values else None,
             external_add=lambda: 42,
         )
 
@@ -241,7 +242,8 @@ class BenchmarkHPyTest(unittest.TestCase):
             module = self._module()
             for name in (
                     "identity", "add", "make_pair", "get_value",
-                    "call_zero", "raise_value", "external_add"):
+                    "call_zero", "raise_value", "sequence_last",
+                    "external_add"):
                 function = getattr(module, name)
 
                 def wrapper(*args, _function=function):

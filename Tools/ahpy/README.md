@@ -191,7 +191,7 @@ Python source in normal and HPy Debug modes. Seed `0xC0A4F9` currently selects
 16 mutations and a 4,141-line compiler frontier; three unit tests guard source
 determinism, greedy selection, and isolation from global random state.
 
-`benchmark_hpy.py` builds nine equivalent operations twice: once from aHPy
+`benchmark_hpy.py` builds ten equivalent operations twice: once from aHPy
 generated Universal C and once from a handwritten public-HPy reference. It
 alternates both modules across seven repeats, records per-call medians and raw
 samples for identity/call overhead, arithmetic, containers, attributes, nested
@@ -199,8 +199,10 @@ calls, exceptions, extension-type construction/method calls, and a shared
 Python-independent external-C function, and rejects ratios or source/binary sizes outside
 `tests/ahpy/performance-budgets.toml`. The exact HPy and interpreter family are
 part of the budget contract. Both binaries receive source/import audits and a
-separate Debug `LeakDetector` semantic pass. Each implementation also runs all
-nine operations in its own clean child to record peak RSS without cross-module
+separate Debug `LeakDetector` semantic pass. Sequence-index iteration is
+measured; true iterator-protocol loops and typed memoryviews remain explicitly
+blocked/non-comparable on HPy 0.9. Each implementation also runs all ten
+operations in its own clean child to record peak RSS without cross-module
 high-water contamination. CI uploads the timestamped JSON
 result under a run-specific artifact name, forming append-only benchmark
 history without comparing noisy absolute timings across different hosts.

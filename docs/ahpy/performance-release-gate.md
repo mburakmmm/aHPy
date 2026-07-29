@@ -29,7 +29,7 @@ Calibration fails closed unless all reports:
 3. identify the requested repository and exact 40-character release commit;
 4. have unique run ID/run-attempt pairs;
 5. share one Python/HPy/compiler/measurement cohort;
-6. contain the complete nine-operation release corpus; and
+6. contain the complete ten-operation release corpus; and
 7. reproduce the generated/reference source and binary byte sizes exactly.
 
 At least five hosted reports are required. Re-running one workflow is allowed

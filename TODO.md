@@ -1382,6 +1382,10 @@ until its full existing Cython test subset and new HPy-specific tests pass.
   - [x] Add a read-only manual workflow that collects five isolated hosted
         samples for one selected commit and emits only the reviewed proposal
         artifact after every sample succeeds.
+  - [x] Benchmark the supported sequence-index iteration surface against an
+        equivalent handwritten HPy implementation in every ABI profile; keep
+        typed memoryviews explicitly blocked/non-comparable on HPy 0.9 rather
+        than publishing a synthetic number.
   - [ ] Collect the minimum hosted same-HEAD history, review the proposed
         headroom, version the release ceilings, and validate them again on the
         same release candidate.

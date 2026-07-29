@@ -45,11 +45,11 @@ long-lived nested transition state,
 `prange`, OpenMP, synchronization, or free-threaded interpreter support. Each
 remains an independent ownership and runtime gate.
 
-The current local gates pass all 615 focused coverage tests: 65 ownership-model,
-56 Runtime API, 249 Universal-emitter, 62 compiler-seam, and 183 quality-tool
+The current local gates pass all 633 focused coverage tests: 65 ownership-model,
+56 Runtime API, 249 Universal-emitter, 62 compiler-seam, and 201 quality-tool
 tests (two expected platform/tool availability skips on macOS). CPython 3.11
 reports 9408/9408 backend lines (100.00%), 15576/34007 frontend-seam lines
-(45.80%), and 2410/5493 quality-tool lines (43.87%); CPython 3.14.6 independently
-reports 9295/9295 (100.00%), 15673/34113 (45.94%), and 2406/5489 (43.83%).
+(45.80%), and 2729/5822 quality-tool lines (46.87%); CPython 3.14.6 independently
+reports 9295/9295 (100.00%), 15673/34113 (45.94%), and 2725/5818 (46.84%).
 The linked external-C module additionally passes source, binary, normal-runtime,
 HPy Trace, HPy Debug, wheel-build, and installed-wheel execution gates.

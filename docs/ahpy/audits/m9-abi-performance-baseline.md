@@ -3,7 +3,7 @@
 Date: 2026-07-16
 Status: local three-profile measurement green
 
-`Tools/ahpy/benchmark_hpy.py` measures the same nine semantic operations in
+`Tools/ahpy/benchmark_hpy.py` measures the same ten semantic operations in
 three profiles but does not collapse them into a cross-ABI ratio:
 
 - classic Cython/CPython records standalone per-call timings;
@@ -48,6 +48,14 @@ portable limits. Only same-process, same-ABI generated/reference Universal
 ratios use the current conservative regression ceilings. Hosted history is
 required before promoting HPy CPython or absolute resource values into release
 budgets.
+
+The release corpus now also includes sequence-index iteration, the iteration
+surface supported by the HPy 0.9 backend. Generated Cython and handwritten HPy
+both return the last item from the same fixed sequence, including the empty
+sequence case. True iterator-protocol loops remain blocked by the HPy 0.9
+public API, and typed memoryviews remain blocked/non-comparable because that API
+does not expose a public buffer-consumer contract; neither blocked surface gets
+a synthetic performance number.
 
 ## Post-baseline ownership correction
 

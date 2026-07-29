@@ -585,14 +585,14 @@ paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 615 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 633 focused tests under Python's built-in
 line-event tracer, derives executable lines from nested code-object line
 tables, and forces measured modules through a source-first finder so stale
 compiled extensions cannot hide Python lines. It reports the Universal
 backend, touched Cython frontend seam, and quality tools independently, plus
 ownership, Runtime API, emitter, compiler-seam, and quality-tool feature
 families. The current Python 3.11 validation records 100.00%, 45.80%, and
-43.87%; Python 3.14.6 records 100.00%, 45.94%, and 43.83%. CI keeps
+46.87%; Python 3.14.6 records 100.00%, 45.94%, and 46.84%. CI keeps
 cross-version floors of 100%, 45%, and 41%. Schema 2 JSON and Markdown reports
 include exact missing lines and compact missing ranges for actionable
 follow-up.
@@ -614,7 +614,7 @@ and C/C++ oracle gates; they are not folded into an inflated Python percentage.
 
 ## Performance regression history
 
-`Tools/ahpy/benchmark_hpy.py` compiles the same nine operations as generated
+`Tools/ahpy/benchmark_hpy.py` compiles the same ten operations as generated
 Universal HPy and as a handwritten public-HPy reference, validates semantics
 and Debug handle cleanup, then alternates both modules across seven repeats.
 The versioned budget file rejects relative runtime regressions in identity,
@@ -673,9 +673,12 @@ pass.
 The expanded local run measured 4.57× for extension-type construction, 5.89×
 for a field-returning extension method, and 5.70× for the external-C wrapper
 before its literal-lowering optimization.
-The generated and reference extensions compile the same external C source;
-iteration and typed-memoryview numbers remain deliberately absent while those
-generated Universal paths are unsupported.
+The generated and reference extensions compile the same external C source.
+Supported sequence-index iteration now has equivalent generated/handwritten
+semantics and an initial 2.50× ceiling around the observed 1.86–2.00× local range;
+hosted same-HEAD calibration remains mandatory. True iterator-protocol and
+typed-memoryview numbers remain deliberately absent while those HPy 0.9
+surfaces are blocked.
 
 Peak RSS is measured in two separate clean children, each running 10,000
 iterations per operation, so one module cannot inherit the other's process

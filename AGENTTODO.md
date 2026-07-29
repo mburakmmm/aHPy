@@ -112,12 +112,12 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 183 tests pass (two expected platform/tool availability
+- Quality-tool suite: 201 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-07-29): 615 tests traced on both interpreters.
-  - CPython 3.11: backend 100.00%, frontend_seam 45.80%, quality_tools 43.87%.
+- Focused coverage (2026-07-29): 633 tests traced on both interpreters.
+  - CPython 3.11: backend 100.00%, frontend_seam 45.80%, quality_tools 46.87%.
   - CPython 3.14.6: backend 100.00%, frontend_seam 45.94%, quality_tools
-    43.83%.
+    46.84%.
   - CI floors are 100%, 45%, and 41%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
@@ -130,7 +130,7 @@ Last verified local gates:
   effects, method-call, Python `type()` surface, plus five M5 reject samples).
 - Coverage-guided fuzz: 16 of 64 mutations retained across 16 families and a
   4,141-line compiler frontier; normal/Debug oracle and ABI audits pass.
-- Performance gate: generated and handwritten Universal HPy modules pass nine
+- Performance gate: generated and handwritten Universal HPy modules pass ten
   versioned runtime budgets, footprint budgets, binary audits, and Debug leak
   checks. CI writes a timestamped JSON history artifact.
 - Diagnostic catalog, Python compileall, CI YAML parsing, and `git diff
@@ -630,23 +630,24 @@ implementation.
 
 ## 8. Performance, pilots, upstreaming, and release queue
 
-1. Extend the handwritten HPy benchmark reference beyond the current nine
-   operations to iteration and memoryviews once those generated Universal
-   paths exist. Extension-type creation/method calls and a shared
-   Python-independent external-C wrapper now have equivalent generated and
-   handwritten references; do not fabricate iteration/memoryview numbers.
+1. Keep the generated and handwritten HPy benchmark references aligned across
+   the current ten operations. Supported sequence-index iteration now has an
+   equivalent reference; typed memoryviews remain HPy 0.9
+   blocked/non-comparable, so do not fabricate a memoryview number.
 2. Keep the completed classic Cython, HPy CPython ABI, and HPy Universal ABI
    benchmark profiles separate; never combine their overheads into one number.
    Add hosted history before enforcing non-Universal release budgets.
 3. Record compile time, native compiler time, C size, binary size, peak memory,
    HPy Trace API counts, and handle churn. Optimize duplicate/close pairs only
    after ownership proofs and tests.
-   **(Trace measurement completed for all nine comparable operations: exact
+   **(Trace measurement completed for all ten comparable operations: exact
    per-API deltas and dup/close churn are in benchmark JSON; arithmetic,
    container, attribute, call, extension-type, and external-C overhead is
-   quantified. Separate-clean-process peak RSS, frontend/native build times,
-   and source/binary sizes are also recorded. The currently blocked
-   iteration/memoryview families remain open; remove no cleanup without
+   quantified. Sequence-index iteration is 38 generated versus 18 handwritten
+   calls per iteration and measured 1.86–2.00× locally; its temporary 2.50× ceiling
+   awaits hosted calibration. Separate-clean-process peak RSS,
+   frontend/native build times, and source/binary sizes are also recorded.
+   Typed memoryviews remain blocked; remove no cleanup without
    ownership/failure proofs.)**
    **(The first ownership-proven optimization is complete: benchmark call
    contracts are genuinely positional-only on both sides, and direct live Name

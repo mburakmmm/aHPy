@@ -41,7 +41,7 @@ LARGE_TYPE_SOURCE = ROOT / "tests" / "ahpy" / "bootstrap_types.pyx"
 DEFAULT_BUDGETS = ROOT / "tests" / "ahpy" / "performance-budgets.toml"
 OPERATIONS = (
     "identity", "arithmetic", "container", "attribute", "call", "exception",
-    "type_create", "type_method", "external_c",
+    "type_create", "type_method", "iteration", "external_c",
 )
 TRACE_ITERATIONS = 1000
 
@@ -181,6 +181,7 @@ class _Holder:
 
 def _time_operation(module, operation, iterations):
     marker = object()
+    iteration_values = [None, 1, 2, 3, 4, 5, 6, marker]
     functions = {
         "identity": module.identity,
         "arithmetic": module.add,
@@ -189,6 +190,7 @@ def _time_operation(module, operation, iterations):
         "call": module.call_zero,
         "exception": module.raise_value,
         "type_create": module.BenchmarkBox,
+        "iteration": module.sequence_last,
         "external_c": module.external_add,
     }
     box = None
@@ -221,6 +223,9 @@ def _time_operation(module, operation, iterations):
     elif operation == "type_method":
         for _ in range(iterations):
             function()
+    elif operation == "iteration":
+        for _ in range(iterations):
+            function(iteration_values)
     elif operation == "external_c":
         for _ in range(iterations):
             function()
@@ -250,6 +255,16 @@ def _verify_semantics(module):
     box = module.BenchmarkBox(marker)
     if box.identity() is not marker:
         raise AssertionError("extension type semantic mismatch")
+    if module.sequence_last([]) is not None:
+        raise AssertionError("empty iteration semantic mismatch")
+    if module.sequence_last([None, marker]) is not marker:
+        raise AssertionError("iteration semantic mismatch")
+    try:
+        module.sequence_last(42)
+    except TypeError:
+        pass
+    else:
+        raise AssertionError("iteration error semantic mismatch")
     if module.external_add() != 42:
         raise AssertionError("external C semantic mismatch")
     positional_only_calls = (
@@ -259,6 +274,7 @@ def _verify_semantics(module):
         (module.get_value, {"value": holder}),
         (module.call_zero, {"callable_object": lambda: marker}),
         (module.BenchmarkBox, {"value": marker}),
+        (module.sequence_last, {"values": [marker]}),
     )
     for function, keywords in positional_only_calls:
         try:
@@ -600,6 +616,7 @@ def build_and_measure(python, budgets, budget_path, output):
             required=("#include <hpy.h>", "HPyDef_METH", "HPy_Add",
                       "HPyListBuilder_New", "HPy_GetAttr_s", "HPy_Call",
                       "HPyErr_SetString", "HPyType_FromSpec",
+                      "HPy_Length", "HPy_GetItem_i",
                       "ahpy_benchmark_external_add", "HPy_MODINIT"),
         )
 

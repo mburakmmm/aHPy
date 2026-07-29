@@ -42,5 +42,12 @@ def raise_value():
     raise ValueError("aHPy benchmark")
 
 
+def sequence_last(values, /):
+    result = None
+    for value in values:
+        result = value
+    return result
+
+
 def external_add():
     return ahpy_benchmark_external_add(20, 22)
