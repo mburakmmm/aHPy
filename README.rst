@@ -94,9 +94,9 @@ Validation snapshot
 
 The current local M9 snapshot records:
 
-* 433 focused compiler tests and 235 quality-tool tests (two expected
+* 433 focused compiler tests and 240 quality-tool tests (two expected
   platform skips);
-* 668 focused coverage tests on CPython 3.11 and 3.14;
+* 673 focused coverage tests on CPython 3.11 and 3.14;
 * 100% executable Python-line coverage for the three Universal backend
   implementation modules on both interpreters, with separate 45% frontend-seam
   and 50% quality-tool floors;

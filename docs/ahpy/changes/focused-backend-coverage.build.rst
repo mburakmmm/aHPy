@@ -16,3 +16,6 @@ have focused control-flow coverage above 95%.
 CMake/Meson tool discovery, contract preparation, build commands, artifact
 selection, normal/Debug loading, reports, and CLI selection now have focused
 control-flow coverage above 98%.
+The isolated scikit-build-core wheel path now has focused coverage for pinned
+dependency materialization, wheel/tag inspection, Universal source/binary
+audits, install, normal/Debug execution, evidence output, and CLI reporting.
