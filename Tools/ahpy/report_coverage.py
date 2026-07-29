@@ -183,9 +183,16 @@ def _load_quality_suite(loader, root=ROOT):
 
 
 def _load_suite_under_trace(tracer, loader, modules, root=ROOT):
-    if modules is None:
-        return tracer.runfunc(_load_quality_suite, loader, root)
-    return tracer.runfunc(_load_family_suite, loader, modules)
+    previous_trace = sys.gettrace()
+    try:
+        if modules is None:
+            return tracer.runfunc(_load_quality_suite, loader, root)
+        return tracer.runfunc(_load_family_suite, loader, modules)
+    finally:
+        # trace.Trace.runfunc() unconditionally installs None when it returns.
+        # Preserve an outer coverage tracer when this helper is itself tested
+        # from inside the quality-tool coverage suite.
+        sys.settrace(previous_trace)
 
 
 def run_traced_tests(root=ROOT, stream=None):

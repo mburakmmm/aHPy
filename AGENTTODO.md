@@ -112,14 +112,14 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 203 tests pass (two expected platform/tool availability
+- Quality-tool suite: 210 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-07-29): 636 tests traced on both interpreters.
+- Focused coverage (2026-07-29): 643 tests traced on both interpreters.
   - CPython 3.11: backend 9417/9417 (100.00%), frontend_seam 45.80%,
-    quality_tools 48.09%.
+    quality_tools 57.22%.
   - CPython 3.14.6: backend 9304/9304 (100.00%), frontend_seam 45.94%,
-    quality_tools 48.14%.
-  - CI floors are 100%, 45%, and 41%; do not lower them to hide new code.
+    quality_tools 57.25%.
+  - CI floors are 100%, 45%, and 50%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
     generated-C behavior remains governed by its dedicated gates.
@@ -733,7 +733,7 @@ git diff --check
 .venv-hpy09/bin/python Tools/ahpy/report_coverage.py \
     --fail-under backend=100 \
     --fail-under frontend_seam=45 \
-    --fail-under quality_tools=41
+    --fail-under quality_tools=50
 
 .venv-hpy09/bin/python Tools/ahpy/test_generated_hpy.py \
     --python .venv-hpy09/bin/python

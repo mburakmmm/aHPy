@@ -100,7 +100,7 @@ It reports the Universal backend, touched Cython frontend seam, and aHPy
 quality tools separately, while also running ownership-model, Runtime API,
 emitter, compiler-seam, and quality-tool test families independently. Schema 2
 JSON and Markdown output include exact missing lines and compact missing
-ranges. The CI command enforces floors of 100%, 45%, and 41% respectively.
+ranges. The CI command enforces floors of 100%, 45%, and 50% respectively.
 Generated C, native execution, and child-process coverage deliberately remain
 the responsibility of the real HPy, fault-injection, sanitizer, and C/C++
 oracle gates rather than being misreported as Python line coverage.

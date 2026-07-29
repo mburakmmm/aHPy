@@ -801,7 +801,7 @@ class QualityGateTest(unittest.TestCase):
                     "ahpy-universal.yml").read_text(encoding="utf8")
         self.assertIn("--fail-under backend=100", workflow)
         self.assertIn("--fail-under frontend_seam=45", workflow)
-        self.assertIn("--fail-under quality_tools=41", workflow)
+        self.assertIn("--fail-under quality_tools=50", workflow)
 
     def test_windows_native_memory_lane_is_promoted_and_fail_closed(self):
         workflow = (ROOT / ".github" / "workflows" /

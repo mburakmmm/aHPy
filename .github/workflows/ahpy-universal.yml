@@ -116,7 +116,7 @@ jobs:
           python Tools/ahpy/report_coverage.py
           --fail-under backend=100
           --fail-under frontend_seam=45
-          --fail-under quality_tools=41
+          --fail-under quality_tools=50
       - name: Universal HPy performance regression budgets
         run: >-
           python Tools/ahpy/benchmark_hpy.py

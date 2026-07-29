@@ -54,6 +54,26 @@ class CoverageReportTest(unittest.TestCase):
         self.assertTrue(loader.traced)
         self.assertEqual(suite.countTestCases(), 0)
 
+    def test_suite_discovery_restores_an_outer_trace_function(self):
+        class EmptyLoader:
+            def loadTestsFromNames(self, names):
+                return unittest.TestSuite()
+
+        def outer_trace(frame, event, argument):
+            return outer_trace
+
+        original_trace = sys.gettrace()
+        try:
+            sys.settrace(outer_trace)
+            report_coverage._load_suite_under_trace(
+                trace.Trace(count=True, trace=False),
+                EmptyLoader(),
+                ("example.tests",),
+            )
+            self.assertIs(sys.gettrace(), outer_trace)
+        finally:
+            sys.settrace(original_trace)
+
     def test_measured_source_finder_prefers_the_reported_python_file(self):
         with TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

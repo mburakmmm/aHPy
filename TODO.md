@@ -1308,7 +1308,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
   - [x] Reach 100% executable Python-line coverage for `HPyModuleWriter.py`,
         `HandleModel.py`, and `RuntimeAPI.py` on CPython 3.11 and 3.14; trace
         584 tests and lock CI floors at backend 100%, frontend seam 45%, and
-        quality tools 41% without conflating native/generated-C gates.
+        quality tools 50% without conflating native/generated-C gates.
 - [x] Add benchmark history and regression thresholds.
   - [x] Compare generated Universal HPy with an equivalent handwritten
         public-HPy module for identity/call overhead, arithmetic, containers,
