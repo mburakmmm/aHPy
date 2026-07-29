@@ -8,3 +8,5 @@ The corrected dual-interpreter baseline raises the quality-tool CI floor from
 41% to 50%.
 Reproducibility and direct-build integration control flow now has focused
 unit coverage above 97% without replacing their real hosted integration gates.
+The build-system contract CLI's JSON, CMake, Meson, stdout, and file-output
+branches are also covered while real CMake/Meson builds remain separate gates.

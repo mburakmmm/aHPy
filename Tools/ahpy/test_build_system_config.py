@@ -1,9 +1,16 @@
+import io
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest import mock
 
-from build_system_config import create_contract, render_cmake, render_meson
+import build_system_config as config
 from test_direct_build import _probe
+
+
+create_contract = config.create_contract
+render_cmake = config.render_cmake
+render_meson = config.render_meson
 
 
 class BuildSystemConfigTest(unittest.TestCase):
@@ -44,6 +51,67 @@ class BuildSystemConfigTest(unittest.TestCase):
             probe = _probe(root=temp)
             with self.assertRaisesRegex(ValueError, "plain C identifier"):
                 create_contract(probe, "bad.name")
+
+    def test_cli_renders_every_supported_format_to_stdout(self):
+        contract = {"abi": "universal"}
+        cases = (
+            ("json", '{\n  "abi": "universal"\n}\n'),
+            ("cmake", "cmake-contract\n"),
+            ("meson", "meson-contract\n"),
+        )
+        for output_format, expected in cases:
+            with self.subTest(output_format=output_format):
+                argv = [
+                    "build_system_config.py",
+                    "--python", "python",
+                    "--module", "demo",
+                    "--runtime", "static",
+                    "--format", output_format,
+                ]
+                stdout = io.StringIO()
+                with (
+                    mock.patch("sys.argv", argv),
+                    mock.patch.object(
+                        config, "probe_toolchain", return_value={"probe": True}
+                    ) as probe,
+                    mock.patch.object(
+                        config, "create_contract", return_value=contract
+                    ) as create,
+                    mock.patch.object(
+                        config, "render_cmake", return_value="cmake-contract\n"
+                    ),
+                    mock.patch.object(
+                        config, "render_meson", return_value="meson-contract\n"
+                    ),
+                    mock.patch.object(config.sys, "stdout", stdout),
+                ):
+                    config.main()
+                probe.assert_called_once_with("python")
+                create.assert_called_once_with(
+                    {"probe": True}, "demo", "static")
+                self.assertEqual(stdout.getvalue(), expected)
+
+    def test_cli_creates_parent_and_writes_selected_output(self):
+        with TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "nested" / "contract.cmake"
+            argv = [
+                "build_system_config.py",
+                "--module", "demo",
+                "--format", "cmake",
+                "--output", str(output),
+            ]
+            with (
+                mock.patch("sys.argv", argv),
+                mock.patch.object(
+                    config, "probe_toolchain", return_value={"probe": True}),
+                mock.patch.object(
+                    config, "create_contract",
+                    return_value={"abi": "universal"}),
+                mock.patch.object(
+                    config, "render_cmake", return_value="cmake-contract\n"),
+            ):
+                config.main()
+            self.assertEqual(output.read_text(), "cmake-contract\n")
 
 
 if __name__ == "__main__":
