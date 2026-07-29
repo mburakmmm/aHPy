@@ -12,7 +12,8 @@ Bootstrap
   unique successful hosted reports from one commit and measurement cohort;
   local, mixed, duplicate, failing, byte-unstable, or resource-incomplete
   evidence is rejected, while build-time, peak-RSS, footprint, and large-type
-  distributions remain cohort-bound proposal data.
+  distributions remain bound to exact platform/compiler flags/resource
+  settings as cohort-scoped proposal data.
 * Added the supported sequence-index iteration family to the generated,
   handwritten HPy, and classic Cython performance matrix while retaining typed
   memoryviews as an explicit HPy 0.9 blocked/non-comparable surface.

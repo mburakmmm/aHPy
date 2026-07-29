@@ -805,6 +805,13 @@ def build_and_measure(python, budgets, budget_path, output):
                 "cython_seconds": round(cython_seconds, 6),
                 "native_build_seconds": round(build_seconds, 6),
                 "compiler": _compiler_identity(environment),
+                "configuration": {
+                    "cc": environment.get("CC") or "cc",
+                    "cflags": environment.get("CFLAGS", ""),
+                    "cppflags": environment.get("CPPFLAGS", ""),
+                    "ldflags": environment.get("LDFLAGS", ""),
+                    "archflags": environment.get("ARCHFLAGS", ""),
+                },
             },
             "footprint": {
                 "generated_c_bytes": generated.stat().st_size,

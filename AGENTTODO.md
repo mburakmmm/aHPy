@@ -115,9 +115,9 @@ Last verified local gates:
 - Quality-tool suite: 202 tests pass (two expected platform/tool availability
   skips on macOS).
 - Focused coverage (2026-07-29): 634 tests traced on both interpreters.
-  - CPython 3.11: backend 100.00%, frontend_seam 45.80%, quality_tools 47.84%.
+  - CPython 3.11: backend 100.00%, frontend_seam 45.80%, quality_tools 47.89%.
   - CPython 3.14.6: backend 100.00%, frontend_seam 45.94%, quality_tools
-    47.87%.
+    47.93%.
   - CI floors are 100%, 45%, and 41%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
@@ -694,6 +694,8 @@ implementation.
    validate any versioned ceiling on that same candidate. The proposal covers
    runtime ratios, frontend/native build time, peak RSS, footprint, and
    large-type frontend/O0 evidence; absolute values remain cohort-bound.
+   Platform, compiler command/flags, peak iterations, and native timeout are
+   cohort identity and may not be pooled.
    Document interpreter/HPy overhead separately from backend overhead.
 5. Select and report four pilots: pure Cython, Python-independent C wrapper,
    extension type with GC/inheritance, and deliberately blocked CPython/NumPy

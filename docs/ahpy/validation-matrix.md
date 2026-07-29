@@ -592,7 +592,7 @@ compiled extensions cannot hide Python lines. It reports the Universal
 backend, touched Cython frontend seam, and quality tools independently, plus
 ownership, Runtime API, emitter, compiler-seam, and quality-tool feature
 families. The current Python 3.11 validation records 100.00%, 45.80%, and
-47.84%; Python 3.14.6 records 100.00%, 45.94%, and 47.87%. CI keeps
+47.89%; Python 3.14.6 records 100.00%, 45.94%, and 47.93%. CI keeps
 cross-version floors of 100%, 45%, and 41%. Schema 2 JSON and Markdown reports
 include exact missing lines and compact missing ranges for actionable
 follow-up.
@@ -705,7 +705,8 @@ measurement contract are in `audits/m9-abi-performance-baseline.md`.
 Each new benchmark history record also contains exact source-commit and GitHub
 Actions run provenance. `Tools/ahpy/calibrate_performance_budgets.py` requires
 at least five unique successful records from the same commit, repository,
-workflow, Python/HPy/compiler identity, and measurement contract. It rejects
+workflow, Python/HPy/platform/compiler/build-configuration identity, resource
+settings, and measurement contract. It rejects
 local reports, duplicate attempts, mixed cohorts, existing violations, failed
 Debug evidence, resource-schema gaps, and footprint/large-source byte drift.
 Its output includes runtime, frontend/native build-time, peak-RSS, footprint,

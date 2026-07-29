@@ -10,4 +10,6 @@
    five isolated samples for one exact selected commit and aggregates only
    after the complete matrix succeeds. The proposal also validates and retains
    frontend/native build-time, peak-RSS, footprint, and large-type frontend/O0
-   distributions without applying cross-host absolute limits.
+   distributions without applying cross-host absolute limits. Platform,
+   compiler command/flags, peak-memory iterations, and native timeout are part
+   of the exact cohort identity.

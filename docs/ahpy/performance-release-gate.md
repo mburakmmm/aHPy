@@ -18,7 +18,8 @@ report records:
 
 - the full source commit;
 - repository, workflow ref, job, run ID, run attempt, and GitHub SHA;
-- exact Python, HPy, machine, compiler, and measurement identities;
+- exact Python, HPy, platform, machine, compiler, compiler-command/flags,
+  peak-memory iteration, timeout, and measurement identities;
 - all generated/reference samples and same-ABI ratios;
 - byte footprint, large-type compile evidence, Debug result, and violations.
 
@@ -28,7 +29,8 @@ Calibration fails closed unless all reports:
 2. have no budget violations and contain a passing HPy Debug check;
 3. identify the requested repository and exact 40-character release commit;
 4. have unique run ID/run-attempt pairs;
-5. share one Python/HPy/compiler/measurement cohort;
+5. share one Python/HPy/platform/compiler/build-configuration/resource/
+   measurement cohort;
 6. contain the complete ten-operation release corpus; and
 7. reproduce the generated/reference source and binary byte sizes exactly.
 

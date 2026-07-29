@@ -211,6 +211,8 @@ repository, workflow, job, run ID, run attempt, and GitHub SHA. Release-budget
 promotion uses `calibrate_performance_budgets.py`, which accepts at least five
 unique successful reports for one exact commit and cohort, rejects local or
 mixed evidence, and emits a proposal without editing the versioned budget.
+The cohort includes platform, compiler identity, CC/CFLAGS/CPPFLAGS/LDFLAGS/
+ARCHFLAGS, measurement settings, peak-memory iterations, and native timeout.
 The proposal retains runtime, frontend/native build-time, peak-RSS, footprint,
 and large-type frontend/O0 distributions; absolute values are never pooled
 across unlike hosted cohorts.

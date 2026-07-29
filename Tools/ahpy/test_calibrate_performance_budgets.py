@@ -51,6 +51,13 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
             },
             "build": {
                 "compiler": "gcc 13.3.0",
+                "configuration": {
+                    "cc": "cc",
+                    "cflags": "",
+                    "cppflags": "",
+                    "ldflags": "",
+                    "archflags": "",
+                },
                 "cython_seconds": 0.5 + run_id / 100,
                 "native_build_seconds": 1.0 + run_id / 100,
             },
@@ -197,6 +204,10 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
             ("provenance__source_commit", "b" * 40, "source commit"),
             ("provenance__github__repository", "other/repo", "repository"),
             ("environment__python_version", "3.14.6", "cohort"),
+            ("environment__platform", "Other-Linux", "cohort"),
+            ("build__configuration__cflags", "-march=native", "cohort"),
+            ("peak_memory__generated__iterations_per_operation", 9000,
+             "iteration counts differ"),
             ("footprint__generated_c_bytes", 30001, "byte-stable"),
         )
         for field, value, message in cases:
@@ -268,6 +279,7 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
     def test_build_memory_and_large_type_resources_are_validated(self):
         cases = (
             ("build__cython_seconds", 0, "positive finite"),
+            ("build__configuration", {}, "build configuration"),
             ("peak_memory__generated__peak_rss_bytes", 0, "positive integer"),
             ("peak_memory__reference__iterations_per_operation", 9999,
              "iteration counts differ"),

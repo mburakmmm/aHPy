@@ -92,7 +92,7 @@ def load_hosted_report(path):
     _require(isinstance(environment, dict),
              "%s lacks benchmark environment" % path)
     for field in (
-            "python_implementation", "python_version", "machine",
+            "python_implementation", "python_version", "platform", "machine",
             "hpy_version"):
         _require(
             isinstance(environment.get(field), str) and environment[field],
@@ -117,6 +117,16 @@ def load_hosted_report(path):
     compiler = build.get("compiler")
     _require(isinstance(compiler, str) and compiler,
              "%s lacks compiler identity" % path)
+    configuration = build.get("configuration")
+    configuration_fields = {
+        "cc", "cflags", "cppflags", "ldflags", "archflags",
+    }
+    _require(
+        isinstance(configuration, dict) and
+        set(configuration) == configuration_fields and
+        all(isinstance(value, str) for value in configuration.values()),
+        "%s lacks exact build configuration" % path,
+    )
     for field in ("cython_seconds", "native_build_seconds"):
         _positive_number(
             build.get(field), "%s build.%s" % (path, field))
@@ -246,10 +256,16 @@ def _cohort_key(report):
         "workflow_ref": report["provenance"]["github"]["workflow_ref"],
         "python_implementation": environment["python_implementation"],
         "python_version": environment["python_version"],
+        "platform": environment["platform"],
         "machine": environment["machine"],
         "hpy_version": environment["hpy_version"],
         "compiler": report["build"]["compiler"],
+        "build_configuration": report["build"]["configuration"],
         "measurement": report["measurement"],
+        "peak_memory_iterations":
+            report["peak_memory"]["generated"]["iterations_per_operation"],
+        "large_type_timeout_seconds":
+            report["large_type_compile"]["timeout_seconds"],
     }
 
 
