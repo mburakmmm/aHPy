@@ -124,6 +124,7 @@ class ReproduciblePackagesTest(unittest.TestCase):
                 ["ahpy_compiler-test.tar.gz", "ahpy_compiler-test.whl"],
                 sorted(path.name for path in dist.iterdir()),
             )
+            self.assertFalse((Path(temp_dir) / "build" / "source").exists())
         self.assertEqual("0", environments[0]["PYTHONHASHSEED"])
         self.assertEqual(
             verify_reproducible_packages.SOURCE_DATE_EPOCH,

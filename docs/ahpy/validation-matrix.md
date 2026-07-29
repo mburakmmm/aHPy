@@ -710,6 +710,11 @@ maintainer review procedure is documented in
 `performance-release-gate.md`; hosted same-HEAD history is still required
 before the current conservative ceilings become release budgets.
 
+The two-root package reproducibility gate retains only the first root's
+immutable sdist and wheel before starting the second build. This preserves the
+byte-for-byte comparison contract while preventing two complete copied
+source/build trees from becoming the gate's peak disk requirement.
+
 The record additionally regenerates the large extension-type corpus and runs
 one isolated native compile at `-O0` and `-O3`, with a 60-second ceiling. O0 is
 the required C-validity/liveness gate and O3 is a bounded diagnostic
