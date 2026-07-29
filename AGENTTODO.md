@@ -683,8 +683,13 @@ implementation.
    Ubuntu GCC 13 exceeded both 60- and 180-second hosted trials while O0 stayed
    near 5 seconds. Preserve further hosted history before changing policy.)**
 4. Turn the current conservative regression ceilings into release budgets only
-   after hosted history exists. Document interpreter/HPy overhead separately
-   from backend overhead.
+   after hosted history exists. Every new report now records exact source and
+   GitHub run provenance; `calibrate_performance_budgets.py` rejects local,
+   mixed, duplicate, failing, or byte-unstable evidence and requires five
+   same-commit hosted records before emitting a proposal. Collect that history,
+   review the proposed headroom, then validate any versioned ceiling on the
+   same release candidate. Document interpreter/HPy overhead separately from
+   backend overhead.
 5. Select and report four pilots: pure Cython, Python-independent C wrapper,
    extension type with GC/inheritance, and deliberately blocked CPython/NumPy
    API project. Convert recurring changes into support or migration rules.

@@ -70,6 +70,7 @@ def verify_sdist(sdist):
         "/Tools/ahpy/release_artifact_integration.py",
         "/Tools/ahpy/release_evidence.py",
         "/Tools/ahpy/benchmark_hpy.py",
+        "/Tools/ahpy/calibrate_performance_budgets.py",
         "/tests/ahpy/benchmark_generated.pyx",
         "/tests/ahpy/benchmark_reference.c",
         "/tests/ahpy/benchmark_external.c",

@@ -118,6 +118,60 @@ class BenchmarkHPyTest(unittest.TestCase):
                          benchmark_hpy.OPERATIONS)
         json.dumps(budgets, sort_keys=True)
 
+    def test_local_benchmark_provenance_records_exact_source_commit(self):
+        with mock.patch.object(
+                benchmark_hpy, "source_commit", return_value="a" * 40):
+            result = benchmark_hpy.benchmark_provenance({})
+        self.assertEqual(result, {
+            "source_commit": "a" * 40,
+            "execution": "local",
+            "github": None,
+        })
+
+    def test_hosted_benchmark_provenance_is_complete_and_typed(self):
+        environment = {
+            "GITHUB_ACTIONS": "true",
+            "GITHUB_REPOSITORY": "owner/aHPy",
+            "GITHUB_RUN_ID": "123",
+            "GITHUB_RUN_ATTEMPT": "2",
+            "GITHUB_SHA": "a" * 40,
+            "GITHUB_WORKFLOW_REF": "owner/aHPy/workflow.yml@refs/heads/main",
+            "GITHUB_JOB": "compiler-and-quality",
+        }
+        with mock.patch.object(
+                benchmark_hpy, "source_commit", return_value="a" * 40):
+            result = benchmark_hpy.benchmark_provenance(environment)
+        self.assertEqual(result["execution"], "github-actions")
+        self.assertEqual(result["github"]["run_id"], 123)
+        self.assertEqual(result["github"]["run_attempt"], 2)
+        self.assertEqual(result["github"]["sha"], "a" * 40)
+
+    def test_hosted_benchmark_provenance_rejects_missing_or_wrong_identity(self):
+        base = {
+            "GITHUB_ACTIONS": "true",
+            "GITHUB_REPOSITORY": "owner/aHPy",
+            "GITHUB_RUN_ID": "123",
+            "GITHUB_RUN_ATTEMPT": "1",
+            "GITHUB_SHA": "a" * 40,
+            "GITHUB_WORKFLOW_REF": "owner/aHPy/workflow.yml@refs/heads/main",
+            "GITHUB_JOB": "compiler-and-quality",
+        }
+        with mock.patch.object(
+                benchmark_hpy, "source_commit", return_value="a" * 40):
+            missing = dict(base)
+            del missing["GITHUB_JOB"]
+            with self.assertRaisesRegex(ValueError, "incomplete"):
+                benchmark_hpy.benchmark_provenance(missing)
+            wrong = dict(base, GITHUB_SHA="b" * 40)
+            with self.assertRaisesRegex(ValueError, "differs"):
+                benchmark_hpy.benchmark_provenance(wrong)
+            non_integer = dict(base, GITHUB_RUN_ID="not-an-integer")
+            with self.assertRaisesRegex(ValueError, "must be integers"):
+                benchmark_hpy.benchmark_provenance(non_integer)
+            non_positive = dict(base, GITHUB_RUN_ID="0")
+            with self.assertRaisesRegex(ValueError, "must be positive"):
+                benchmark_hpy.benchmark_provenance(non_positive)
+
     def test_native_compile_command_keeps_optimization_and_universal_abi(self):
         command = benchmark_hpy._native_compile_command(
             "ccache clang", 3, Path("include"), Path("input.c"),

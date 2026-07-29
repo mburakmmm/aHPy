@@ -25,6 +25,11 @@ from test_generated_hpy import verify_binary_boundary, verify_source_boundary
 
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from ahpy_version import source_commit
+
 GENERATED_NAME = "ahpy_benchmark_generated"
 REFERENCE_NAME = "ahpy_benchmark_reference"
 CLASSIC_NAME = "ahpy_benchmark_classic"
@@ -39,6 +44,48 @@ OPERATIONS = (
     "type_create", "type_method", "external_c",
 )
 TRACE_ITERATIONS = 1000
+
+
+def benchmark_provenance(environment=None):
+    environment = os.environ if environment is None else environment
+    commit = source_commit(ROOT)
+    hosted = environment.get("GITHUB_ACTIONS") == "true"
+    result = {
+        "source_commit": commit,
+        "execution": "github-actions" if hosted else "local",
+        "github": None,
+    }
+    if not hosted:
+        return result
+
+    required = {
+        "repository": environment.get("GITHUB_REPOSITORY"),
+        "run_id": environment.get("GITHUB_RUN_ID"),
+        "run_attempt": environment.get("GITHUB_RUN_ATTEMPT"),
+        "sha": environment.get("GITHUB_SHA"),
+        "workflow_ref": environment.get("GITHUB_WORKFLOW_REF"),
+        "job": environment.get("GITHUB_JOB"),
+    }
+    missing = sorted(name for name, value in required.items() if not value)
+    if missing:
+        raise ValueError(
+            "GitHub Actions benchmark provenance is incomplete: %s" %
+            ", ".join(missing))
+    if required["sha"] != commit:
+        raise ValueError(
+            "GitHub Actions SHA %s differs from source commit %s" %
+            (required["sha"], commit))
+    try:
+        required["run_id"] = int(required["run_id"])
+        required["run_attempt"] = int(required["run_attempt"])
+    except ValueError:
+        raise ValueError(
+            "GitHub Actions run identifiers must be integers") from None
+    if required["run_id"] <= 0 or required["run_attempt"] <= 0:
+        raise ValueError(
+            "GitHub Actions run identifiers must be positive")
+    result["github"] = required
+    return result
 
 
 def load_budgets(path):
@@ -533,6 +580,7 @@ def build_and_measure(python, budgets, budget_path, output):
     measurement = budgets["measurement"]
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(ROOT)
+    provenance = benchmark_provenance(environment)
     with TemporaryDirectory(prefix="ahpy-benchmark-") as temp_dir:
         temp = Path(temp_dir)
         generated_input = temp / (GENERATED_NAME + ".pyx")
@@ -731,6 +779,7 @@ def build_and_measure(python, budgets, budget_path, output):
         report.update({
             "schema_version": 1,
             "created_utc": datetime.now(timezone.utc).isoformat(),
+            "provenance": provenance,
             "measurement": dict(measurement),
             "build": {
                 "cython_seconds": round(cython_seconds, 6),

@@ -204,6 +204,13 @@ nine operations in its own clean child to record peak RSS without cross-module
 high-water contamination. CI uploads the timestamped JSON
 result under a run-specific artifact name, forming append-only benchmark
 history without comparing noisy absolute timings across different hosts.
+New reports also carry the exact source commit and, on GitHub Actions, the
+repository, workflow, job, run ID, run attempt, and GitHub SHA. Release-budget
+promotion uses `calibrate_performance_budgets.py`, which accepts at least five
+unique successful reports for one exact commit and cohort, rejects local or
+mixed evidence, and emits a proposal without editing the versioned budget.
+The collection and review contract is in
+`docs/ahpy/performance-release-gate.md`.
 
 The benchmark also launches a separate HPy Trace child for 1,000 calls per
 operation and records exact API deltas, calls per iteration, plus

@@ -699,6 +699,17 @@ record generated-versus-handwritten timings within their own ABI. No cross-ABI
 ratio is treated as a release threshold. The initial evidence and exact
 measurement contract are in `audits/m9-abi-performance-baseline.md`.
 
+Each new benchmark history record also contains exact source-commit and GitHub
+Actions run provenance. `Tools/ahpy/calibrate_performance_budgets.py` requires
+at least five unique successful records from the same commit, repository,
+workflow, Python/HPy/compiler identity, and measurement contract. It rejects
+local reports, duplicate attempts, mixed cohorts, existing violations, failed
+Debug evidence, and footprint byte drift. Its output is explicitly
+proposal-only and cannot rewrite the versioned budget. The collection and
+maintainer review procedure is documented in
+`performance-release-gate.md`; hosted same-HEAD history is still required
+before the current conservative ceilings become release budgets.
+
 The record additionally regenerates the large extension-type corpus and runs
 one isolated native compile at `-O0` and `-O3`, with a 60-second ceiling. O0 is
 the required C-validity/liveness gate and O3 is a bounded diagnostic

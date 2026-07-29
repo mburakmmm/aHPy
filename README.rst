@@ -141,6 +141,7 @@ Documentation map
 * `Support matrix <docs/ahpy/support-matrix.md>`_
 * `Known limitations <docs/ahpy/known-limitations.md>`_
 * `Validation and release gates <docs/ahpy/validation-matrix.md>`_
+* `Release performance budget calibration <docs/ahpy/performance-release-gate.md>`_
 * `Release signing and verification <docs/ahpy/release-signing.md>`_
 * `TestPyPI and PyPI publication policy <docs/ahpy/publishing.md>`_
 * `Machine-readable CI policy <docs/ahpy/ci-policy.md>`_

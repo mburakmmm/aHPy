@@ -61,6 +61,7 @@ Design and implementation references:
 - [TestPyPI and PyPI publication policy](publishing.md)
 - [Python-independent external C contract](external-c.md)
 - [M9 ABI performance baseline](audits/m9-abi-performance-baseline.md)
+- [Release performance budget calibration](performance-release-gate.md)
 - [Architecture decisions](adr/)
 - [Audits](audits/)
 

@@ -39,10 +39,10 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 | 2 | PRD-2 — Core compiler/module state | **TAMAMLANDI** | Ownership ve semantic correctness |
 | 3 | PRD-3 — Pure HPy extension type | **TAMAMLANDI** | Type/GC/finalizer güvenliği |
 | 4 | PRD-4 — Advanced Cython aileleri | **TAMAMLANDI** | Implement veya fail-closed sonucu |
-| 5 | PRD-5 — Portability/native memory | **AKTİF** | Universal binary ve platform kanıtı |
-| 6 | PRD-6 — Paketleme/dağıtım | **SIRADAKİ** | Kurulabilir ve doğrulanabilir artifact |
-| 7 | PRD-7 — Performans/footprint | **BEKLİYOR** | Sürüm bütçeleri ve regresyon kapısı |
-| 8 | PRD-8 — Gerçek kütüphane pilotları | **BEKLİYOR** | Kullanıcı dünyasında çalışma kanıtı |
+| 5 | PRD-5 — Portability/native memory | **DIŞ BAĞIMLILIK** | Universal binary ve platform kanıtı |
+| 6 | PRD-6 — Paketleme/dağıtım | **DIŞ BAĞIMLILIK** | Kurulabilir ve doğrulanabilir artifact |
+| 7 | PRD-7 — Performans/footprint | **AKTİF** | Sürüm bütçeleri ve regresyon kapısı |
+| 8 | PRD-8 — Gerçek kütüphane pilotları | **SIRADAKİ** | Kullanıcı dünyasında çalışma kanıtı |
 | 9 | PRD-9 — Upstream/güvenlik/bakım | **BEKLİYOR** | Sürdürülebilir production işletimi |
 | 10 | PRD-10 — RC/stable yayın | **BEKLİYOR** | İmzalı ve kanıtlı production release |
 
@@ -50,14 +50,14 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 
 1. Final kanıt commit'inin required context'lerini yeniden yeşil doğrula ve
    final run/job bağlantılarını commit döngüsü yaratmadan PR açıklamasında tut.
-2. PRD-5 same-binary PyPy/GraalPy early-warning başarısızlıklarını upstream
-   bridge/import kök nedenleriyle sınıflandır ve preview dışında tut.
-3. Stable HPy 0.9 platform/compiler matrisini, pinned HPy-dev 3.11 lane'ini ve
-   Python 3.14 `SIGSEGV` reproducer durumunu güncel hosted kanıtla kilitle.
-4. ASan/UBSan, Linux Valgrind ve Windows AppVerifier kanıtlarını supported ile
-   diagnostic-only sınırlarına göre sonuçlandır.
-5. Reproducible `.hpy0`, forbidden-symbol ve cross-build/cross-interpreter
-   artifact iddialarını yalnız gerçek binary kanıtı kadar genişlet.
+2. Hazır Python 3.14 + HPy-development `SIGSEGV` raporunu proje sahibi açıkça
+   onayladığında HPy upstream'e yayımla ve sonucu PRD-5 audit'ine bağla.
+3. `aHPy-compiler` ad ayırma, gerçek TestPyPI upload'u ve ilk imzalı tag gibi
+   owner-onaylı dış PRD-6 eylemlerini yayın yetkisi verilmeden uygulama.
+4. Aynı release-candidate commit'inde en az beş benzersiz hosted performans
+   raporu topla, fail-closed kalibrasyon önerisini incele ve eşikleri yeniden
+   same-HEAD doğrula.
+5. Release bütçeleri kilitlenince dört gerçek kütüphane pilotuna geç.
 
 ## Başlangıç durumu
 
@@ -355,7 +355,7 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
 
 ## PRD-7 — Release performans ve footprint bütçelerini sabitle
 
-- [ ] Benchmark workflow artifact/summary hatasını PRD-0 kapsamında kapat.
+- [x] Benchmark workflow artifact/summary hatasını PRD-0 kapsamında kapat.
 - [ ] Generated Universal ve eşdeğer handwritten HPy implementasyonlarını bütün
       release benchmark ailelerinde tut.
 - [ ] Classic Cython, HPy CPython ABI ve HPy Universal ABI sonuçlarını ayrı
@@ -367,6 +367,12 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
 - [ ] Compile time, C compiler time, generated C boyutu, binary boyutu ve peak
       memory ölç.
 - [ ] Gürültü analiziyle mutlak/nispi release eşiklerini versiyonla.
+  - [x] Her yeni rapora exact kaynak/GitHub run provenance ekle; en az beş
+        benzersiz, başarılı, aynı-commit ve aynı-kohort hosted rapor olmadan
+        bütçe önerisi üretmeyen fail-closed kalibratörü ekle.
+  - [ ] Aynı release-candidate HEAD'i için hosted geçmişi topla, headroom
+        önerisini incele ve release eşiklerini ayrı bir same-HEAD koşuyla
+        doğrula.
 - [ ] Eşik aşımında fail-closed CI ve anlamlı rapor üret.
 - [ ] HPy runtime/interpreter maliyetini aHPy overhead'inden ayrı göster.
 - [ ] Ownership kanıtı olmadan Dup/Close optimizasyonu yapma.
@@ -511,5 +517,6 @@ Agent'lar ve geliştiriciler aşağıdaki sırayı korumalıdır:
 9. PRD-9: upstream, güvenlik ve bakım.
 10. PRD-10: release candidate ve stable yayın.
 
-Bir sonraki aktif hedef PRD-5 Universal portability ve native-memory
-kanıtıdır.
+Bir sonraki aktif yerel hedef PRD-7 release performans/footprint bütçeleridir;
+PRD-5 upstream raporu ile PRD-6 name/sign/upload adımları açık owner yetkisi
+gerektiren dış eylemler olarak bekler.

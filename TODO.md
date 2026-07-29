@@ -1375,6 +1375,13 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         matches the handwritten reference at 1 call/iteration with zero
         Dup/Close churn and enforces a 1.5× runtime ceiling.
 - [ ] Define and enforce release performance budgets.
+  - [x] Record exact source/GitHub-run provenance in every new benchmark
+        artifact and add a fail-closed proposal generator requiring at least
+        five unique successful hosted reports from one exact commit and
+        measurement cohort.
+  - [ ] Collect the minimum hosted same-HEAD history, review the proposed
+        headroom, version the release ceilings, and validate them again on the
+        same release candidate.
 - [x] Document interpreter/HPy reference cost separately from aHPy overhead by
       retaining standalone classic timings and same-ABI handwritten HPy
       baselines; publish no aggregate cross-ABI ratio.
