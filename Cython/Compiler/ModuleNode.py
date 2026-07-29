@@ -1078,6 +1078,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 self.pos,
                 "aHPy bootstrap backend: annotated output is not implemented yet",
             )
+        instrumentation = [
+            directive
+            for directive in ("profile", "linetrace", "embedsignature")
+            if self.directives.get(directive)
+        ]
+        if instrumentation:
+            raise CompileError(
+                self.pos,
+                "aHPy Universal preview does not implement generated %s "
+                "instrumentation; disable these directives or use a "
+                "separately selected CPython backend" %
+                "/".join(instrumentation),
+            )
+        if options.c_line_in_traceback:
+            raise CompileError(
+                self.pos,
+                "aHPy Universal preview does not implement generated C-line "
+                "traceback instrumentation; disable c_line_in_traceback or "
+                "use a separately selected CPython backend",
+            )
         from .HPyModuleWriter import UniversalHPyModuleWriter
         self.assure_safe_target(result.c_file, allow_failed=True)
         output = UniversalHPyModuleWriter(

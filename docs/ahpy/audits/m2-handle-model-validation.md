@@ -47,7 +47,7 @@ python3 -m unittest \
     Cython.Compiler.Tests.TestCode
 ```
 
-The current command passes 431 tests, including the focused handle-model
+The current command passes 432 tests, including the focused handle-model
 property/transition suite. Python bytecode compilation and `git diff --check`
 also pass. The generated Universal corpus also
 passes normal/Trace/Debug with the new loop-exit and mixed-branch surface under
@@ -88,7 +88,7 @@ first generated aHPy execution.
 
 ## PRD-2 preview closure
 
-On 2026-07-29 the frozen preview scope passed 431 compiler/seam tests, 154
+On 2026-07-29 the frozen preview scope passed 432 compiler/seam tests, 155
 quality tests (two expected platform/tool skips), the generated Universal
 corpus in normal/Trace/Debug, all 128 isolated allocation/API fault selectors,
 and the 38-case CPython C/C++ semantic oracle. Generated-source and undefined-

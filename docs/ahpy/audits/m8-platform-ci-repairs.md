@@ -185,7 +185,7 @@ required aggregate contexts when lightweight selectors skip irrelevant
 changes, and `.github/rulesets/production-branches.json` binds the five stable
 aggregate contexts to pull-request-only, no-bypass protection for `main` and
 `ahpy/**`; each required context is restricted to GitHub Actions App
-integration ID `15368`. Local CPython 3.11 and 3.14 coverage runs pass all 584
+integration ID `15368`. Local CPython 3.11 and 3.14 coverage runs pass all 587
 tests. Policy implementation commit
 `e791c8983bcb1a3c38aa932617a91ea976cb5c55` produced green required
 aggregates for

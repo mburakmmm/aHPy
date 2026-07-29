@@ -37,10 +37,10 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 | 0 | PRD-0 — Mevcut dalı yeşile getir | **TAMAMLANDI** | Güvenilir aynı-HEAD CI tabanı |
 | 1 | PRD-1 — Destek sözleşmesini dondur | **TAMAMLANDI** | İlk sürümün dürüst kapsamı |
 | 2 | PRD-2 — Core compiler/module state | **TAMAMLANDI** | Ownership ve semantic correctness |
-| 3 | PRD-3 — Pure HPy extension type | **AKTİF** | Type/GC/finalizer güvenliği |
-| 4 | PRD-4 — Advanced Cython aileleri | **SIRADAKİ** | Implement veya fail-closed sonucu |
-| 5 | PRD-5 — Portability/native memory | **BEKLİYOR** | Universal binary ve platform kanıtı |
-| 6 | PRD-6 — Paketleme/dağıtım | **BEKLİYOR** | Kurulabilir ve doğrulanabilir artifact |
+| 3 | PRD-3 — Pure HPy extension type | **TAMAMLANDI** | Type/GC/finalizer güvenliği |
+| 4 | PRD-4 — Advanced Cython aileleri | **TAMAMLANDI** | Implement veya fail-closed sonucu |
+| 5 | PRD-5 — Portability/native memory | **AKTİF** | Universal binary ve platform kanıtı |
+| 6 | PRD-6 — Paketleme/dağıtım | **SIRADAKİ** | Kurulabilir ve doğrulanabilir artifact |
 | 7 | PRD-7 — Performans/footprint | **BEKLİYOR** | Sürüm bütçeleri ve regresyon kapısı |
 | 8 | PRD-8 — Gerçek kütüphane pilotları | **BEKLİYOR** | Kullanıcı dünyasında çalışma kanıtı |
 | 9 | PRD-9 — Upstream/güvenlik/bakım | **BEKLİYOR** | Sürdürülebilir production işletimi |
@@ -50,14 +50,14 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 
 1. Final kanıt commit'inin required context'lerini yeniden yeşil doğrula ve
    final run/job bağlantılarını commit döngüsü yaratmadan PR açıklamasında tut.
-2. PRD-3 preview kapsamındaki method/member/getset/slot ailelerini exact
-   test/diagnostic durumlarıyla envanterle.
-3. Constructor, partial-object cleanup, GC traverse/clear/finalize ve
-   resurrection yollarını normal/Trace/Debug ile yeniden doğrula.
-4. Weakref, instance dict, `__dealloc__`, freelist, multiple/cross-module
-   inheritance ve metaclass sınırlarını HPy 0.9'a göre kesinleştir.
-5. Type/field/descriptor/finalizer subinterpreter izolasyonunu ve bütün
-   release-scope type fault yollarını kapat.
+2. PRD-5 same-binary PyPy/GraalPy early-warning başarısızlıklarını upstream
+   bridge/import kök nedenleriyle sınıflandır ve preview dışında tut.
+3. Stable HPy 0.9 platform/compiler matrisini, pinned HPy-dev 3.11 lane'ini ve
+   Python 3.14 `SIGSEGV` reproducer durumunu güncel hosted kanıtla kilitle.
+4. ASan/UBSan, Linux Valgrind ve Windows AppVerifier kanıtlarını supported ile
+   diagnostic-only sınırlarına göre sonuçlandır.
+5. Reproducible `.hpy0`, forbidden-symbol ve cross-build/cross-interpreter
+   artifact iddialarını yalnız gerçek binary kanıtı kadar genişlet.
 
 ## Başlangıç durumu
 
@@ -68,8 +68,8 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 431 compiler/seam testi, 154 quality-tool testi ve
-  iki yorumlayıcıda 584 coverage testi.
+- Mevcut odaklı doğrulama: 432 compiler/seam testi, 155 quality-tool testi ve
+  iki yorumlayıcıda 587 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Bu oran generated C, native runtime, binary portability veya bütün Cython
   özelliklerinin %100 desteklendiği anlamına gelmez.
@@ -206,32 +206,32 @@ Bu kapı kapanmadan yeni production özelliği eklenmez.
 
 ## PRD-3 — Pure HPy extension type kapısını kapat
 
-- [ ] M5 method/member/getset/slot parent maddesini release kapsamı için kapat.
-- [ ] Native member storage ve direct method access matrisindeki kalan türleri
+- [x] M5 method/member/getset/slot parent maddesini release kapsamı için kapat.
+- [x] Native member storage ve direct method access matrisindeki kalan türleri
       tamamla veya exact diagnostic ile sınır dışına al.
-- [ ] Constructor, `__cinit__`, `__init__`, allocation ve partial-object
+- [x] Constructor, `__cinit__`, `__init__`, allocation ve partial-object
       cleanup matrisini tamamla.
-- [ ] GC traversal, clear, finalization ve resurrection stresini bütün
+- [x] GC traversal, clear, finalization ve resurrection stresini bütün
       desteklenen yorumlayıcı şeritlerinde çalıştır.
-- [ ] Weakref, portable instance `__dict__`, context-bearing `__dealloc__` ve
+- [x] Weakref, portable instance `__dict__`, context-bearing `__dealloc__` ve
       freelist politikasını HPy sürümüne göre kesin olarak destekle, engelle
       veya reddet.
-- [ ] Fused extension type politikasını ayrı olarak belirle.
-- [ ] Multiple inheritance için implement/reject kararını exact diagnostic ile
+- [x] Fused extension type politikasını ayrı olarak belirle.
+- [x] Multiple inheritance için implement/reject kararını exact diagnostic ile
       kapat.
-- [ ] Forward-declared, cross-module generated, builtin base ve metaclass
+- [x] Forward-declared, cross-module generated, builtin base ve metaclass
       senaryolarını ayrı ayrı implement/reject et.
-- [ ] Variable-size layout'ların fail-closed kaldığını doğrula.
-- [ ] Release kapsamındaki bütün special method ve numeric/sequence/mapping
+- [x] Variable-size layout'ların fail-closed kaldığını doğrula.
+- [x] Release kapsamındaki bütün special method ve numeric/sequence/mapping
       slotlarını semantic, inheritance ve failure-path testleriyle kapat.
-- [ ] Type, field, descriptor ve finalizer durumunu en az üç subinterpreter
+- [x] Type, field, descriptor ve finalizer durumunu en az üç subinterpreter
       altında doğrula.
 
 ### PRD-3 çıkış kapısı
 
-- [ ] Extension-type suite bütün desteklenen yorumlayıcı/platformlarda yeşil.
-- [ ] Traverse/clear/finalize/cyclic-GC Debug testleri temiz.
-- [ ] Kapsam dışındaki her type özelliği source-located diagnostic üretiyor.
+- [x] Extension-type suite bütün desteklenen yorumlayıcı/platformlarda yeşil.
+- [x] Traverse/clear/finalize/cyclic-GC Debug testleri temiz.
+- [x] Kapsam dışındaki her type özelliği source-located diagnostic üretiyor.
 
 ## PRD-4 — Advanced Cython ailelerini tek tek sonuçlandır
 
@@ -242,31 +242,31 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
 2. Sürüm belirtilen diagnostic, test ve migration guidance ile
    blocked/rejected.
 
-- [ ] Generic iterator protokolü ve pure-type `__iter__`/`__next__`.
-- [ ] Generator, `yield`, `yield from`, `send`, `throw` ve `close`.
-- [ ] Native coroutine, `async`/`await` ve async generator.
-- [ ] Buffer producer acquisition/release ownership modeli.
-- [ ] Buffer consumer ve typed memoryview.
-- [ ] Fused types ve specialization dispatcher.
-- [ ] Genel `nogil`, execution re-entry ve exception reacquisition.
-- [ ] `prange`, OpenMP, synchronization ve free-threading.
-- [ ] Python state taşıyan C callback'leri.
-- [ ] Capsules ve cross-module public/C API.
-- [ ] C++ compilation, exception translation, STL ve RAII cleanup.
-- [ ] Profiling, tracing, coverage, monitoring ve traceback üretimi.
-- [ ] Pickling, signatures, annotations, code object ve introspection.
-- [ ] Embedding ve birden fazla embedded HPy module.
-- [ ] NumPy ve diğer CPython-only third-party C API politikası.
-- [ ] Set construction/mutation HPy public API eksikliği.
-- [ ] Genel exception state: `except as`, bare reraise, traceback, cause,
+- [x] Generic iterator protokolü ve pure-type `__iter__`/`__next__`.
+- [x] Generator, `yield`, `yield from`, `send`, `throw` ve `close`.
+- [x] Native coroutine, `async`/`await` ve async generator.
+- [x] Buffer producer acquisition/release ownership modeli.
+- [x] Buffer consumer ve typed memoryview.
+- [x] Fused types ve specialization dispatcher.
+- [x] Genel `nogil`, execution re-entry ve exception reacquisition.
+- [x] `prange`, OpenMP, synchronization ve free-threading.
+- [x] Python state taşıyan C callback'leri.
+- [x] Capsules ve cross-module public/C API.
+- [x] C++ compilation, exception translation, STL ve RAII cleanup.
+- [x] Profiling, tracing, coverage, monitoring ve traceback üretimi.
+- [x] Pickling, signatures, annotations, code object ve introspection.
+- [x] Embedding ve birden fazla embedded HPy module.
+- [x] NumPy ve diğer CPython-only third-party C API politikası.
+- [x] Set construction/mutation HPy public API eksikliği.
+- [x] Genel exception state: `except as`, bare reraise, traceback, cause,
       chaining, `else`, `finally` ve nested handlers.
-- [ ] HPy method function-object/`__defaults__`/code-object introspection
+- [x] HPy method function-object/`__defaults__`/code-object introspection
       eksikleri.
 
 ### PRD-4 çıkış kapısı
 
-- [ ] Hiçbir advanced aile belirsiz veya yarım enabled durumda değil.
-- [ ] Release kapsamındaki aileler tam testli; diğerleri deterministik ve
+- [x] Hiçbir advanced aile belirsiz veya yarım enabled durumda değil.
+- [x] Release kapsamındaki aileler tam testli; diğerleri deterministik ve
       belgelenmiş şekilde fail-closed.
 
 ## PRD-5 — Universal portability ve native-memory kanıtını tamamla
@@ -493,4 +493,5 @@ Agent'lar ve geliştiriciler aşağıdaki sırayı korumalıdır:
 9. PRD-9: upstream, güvenlik ve bakım.
 10. PRD-10: release candidate ve stable yayın.
 
-Bir sonraki aktif hedef PRD-3 pure HPy extension type kapısıdır.
+Bir sonraki aktif hedef PRD-5 Universal portability ve native-memory
+kanıtıdır.

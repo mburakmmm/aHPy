@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "tests" / "ahpy" / "bootstrap_answer.pyx"
 VERSION_MANIFEST = ROOT / "tests" / "ahpy" / "hpy-versions.toml"
 RELEASE_CONTRACT = ROOT / "tests" / "ahpy" / "release-contract.toml"
+ADVANCED_SURFACE = ROOT / "tests" / "ahpy" / "advanced-surface.toml"
 GRAAL_EXCLUSIONS = ROOT / "tests" / "graal_bugs.txt"
 
 
@@ -322,6 +323,58 @@ class QualityGateTest(unittest.TestCase):
             "effectful default evaluation is not yet implemented",
         ):
             self.assertNotIn(stale_claim, handle_model + module_state)
+
+    def test_advanced_surface_contract_is_complete_and_fail_closed(self):
+        manifest = tomllib.loads(
+            ADVANCED_SURFACE.read_text(encoding="utf8"))
+        self.assertEqual(manifest["schema_version"], 1)
+        families = {entry["id"]: entry for entry in manifest["families"]}
+        self.assertEqual(
+            set(families),
+            {
+                "generic-iteration",
+                "generators",
+                "async",
+                "buffer-producer",
+                "buffer-consumer-memoryview",
+                "fused-types",
+                "nogil-reentry",
+                "parallel-openmp-free-threading",
+                "python-state-callbacks",
+                "capsules-cross-module-api",
+                "cxx-raii",
+                "instrumentation-tracebacks",
+                "pickling-signatures-code-objects",
+                "embedding",
+                "third-party-cpython-capi",
+                "sets",
+                "exception-state",
+                "method-function-introspection",
+            },
+        )
+        self.assertEqual(
+            {entry["status"] for entry in families.values()},
+            {"blocked", "partial", "rejected"},
+        )
+        for family in families.values():
+            with self.subTest(family=family["id"]):
+                self.assertTrue(family["migration"].strip())
+                self.assertTrue((ROOT / family["evidence"]).is_file())
+
+        closure = (
+            ROOT / "docs" / "ahpy" / "audits" /
+            "prd4-advanced-surface.md"
+        ).read_text(encoding="utf8")
+        module_node = (
+            ROOT / "Cython" / "Compiler" / "ModuleNode.py"
+        ).read_text(encoding="utf8")
+        self.assertIn("No row below authorizes CPython, Hybrid, or private HPy",
+                      closure)
+        for directive in ("profile", "linetrace", "embedsignature"):
+            self.assertIn('"%s"' % directive, module_node)
+        self.assertIn("C++ output is not implemented", module_node)
+        self.assertIn("generated C-line ", module_node)
+        self.assertIn("traceback instrumentation; disable", module_node)
 
     def test_generated_source_is_deterministic(self):
         environment = os.environ.copy()

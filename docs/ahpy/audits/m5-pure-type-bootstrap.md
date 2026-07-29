@@ -1,5 +1,10 @@
 # M5 pure-type bootstrap validation
 
+Date: 2026-07-29
+Cython base: `b99cb0e3b5425e11414cadd24168a6cc850e8000`
+Status: frozen preview pure-type scope complete; excluded type families have
+exact partial, blocked, planned, or rejected contracts
+
 The current M5 vertical slice accepts private `cdef class` declarations with
 no base or with one earlier generated pure HPy base from the same module. Their
 fields may be generic `object` values or enabled fixed C numeric scalars with
@@ -399,3 +404,24 @@ descriptor hooks (`__get__`, `__set__`, `__delete__`), and async protocol hooks
 slots; CPython `Py_tp_*`/`Py_am_*` substitution is forbidden. User-written
 extension properties remain supported through the independent public
 `HPyDef_GET`/`SET`/`GETSET` surface.
+
+## PRD-3 preview closure
+
+The frozen preview type scope passes the 432-test compiler/seam suite, the
+155-test quality suite, generated normal/Trace/Debug execution, all 128
+isolated allocation/API fault selectors, and the CPython C/C++ semantic
+oracle. The generated type corpus covers constructor ordering and
+partial-object failure, public/private/readonly object and native fields,
+traverse-driven ordinary teardown, self/base-derived cycles,
+`HPy_tp_finalize` success/error/resurrection, inherited methods/slots/defaults,
+and three-subinterpreter isolation of types, fields, descriptors, module
+globals, numeric-dispatch markers, and finalizer events. Source and binary
+audits reject CPython/Hybrid leakage.
+
+HPy 0.9 gaps are locked rather than deferred ambiguously: `__weakref__`,
+`__dict__`, `__dealloc__`, freelists, variable-size layouts, multiple,
+forward/cross-module/builtin inheritance, metaclasses, iterator/attribute/
+descriptor/async slots, fused dispatch, and unsupported native fields fail
+closed through the diagnostic catalog or retain an explicit non-supported
+status in the support matrix. No unclassified type/GC/finalizer behavior
+remains inside the preview contract.

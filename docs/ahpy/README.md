@@ -45,6 +45,7 @@ Design and implementation references:
 - [HPyContext propagation model](context-model.md)
 - [Support matrix](support-matrix.md)
 - [Known limitations](known-limitations.md)
+- [Advanced-surface preview closure](audits/prd4-advanced-surface.md)
 - [Validation matrix and release gates](validation-matrix.md)
 - [Machine-readable CI policy](ci-policy.md)
 - [Production branch ruleset](../../.github/rulesets/production-branches.json)

@@ -5,6 +5,8 @@ source-level gap must remain fail-closed with the diagnostic recorded in the
 [Universal diagnostic catalog](diagnostics.md). The
 [support matrix](support-matrix.md) is authoritative for finer-grained
 implemented subsets.
+The [advanced-surface closure](audits/prd4-advanced-surface.md) assigns every
+larger Cython family an exact preview status and migration path.
 
 ## HPy 0.9 public-API gaps
 

@@ -105,18 +105,18 @@ and the first performance regression gate.
 
 Last verified local gates:
 
-- Focused compiler suite: 431 tests pass (includes U1 closable surface and
+- Focused compiler suite: 432 tests pass (includes U1 closable surface and
   closure-registry regressions:
   `dir()`/`globals()`/`__dict__`, reject-duplicates keywords, imag constant
   cache, richer terminal try, sequence-safe inlined genexps, slot early
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 153 tests pass (two expected platform/tool availability
+- Quality-tool suite: 155 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-07-28): 584 tests traced on both interpreters.
-  - CPython 3.11: backend 100.00%, frontend_seam 45.76%, quality_tools 41.59%.
-  - CPython 3.14.6: backend 100.00%, frontend_seam 45.90%, quality_tools
+- Focused coverage (2026-07-29): 587 tests traced on both interpreters.
+  - CPython 3.11: backend 100.00%, frontend_seam 45.80%, quality_tools 41.59%.
+  - CPython 3.14.6: backend 100.00%, frontend_seam 45.94%, quality_tools
     41.52%.
   - CI floors are 100%, 45%, and 41%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
@@ -302,8 +302,8 @@ remain in the phase and milestone sections below and in `TODO.md`.
    draft PR or tag a stable release without explicit user authorization and
    every declared release gate green.
 
-Current item: **PRD-3 pure HPy extension types, GC, and finalization**. PRD-0
-CI-policy implementation head
+Current item: **PRD-5 Universal portability and native-memory evidence**.
+PRD-0 CI-policy implementation head
 `e791c8983bcb1a3c38aa932617a91ea976cb5c55` has green aHPy, benchmark,
 coverage, and sanitizer required aggregates. HPy development on Python 3.14
 and same-binary PyPy/GraalPy remain the three expected allowed failures. Its
@@ -340,14 +340,23 @@ scikit-build-core retain exact partial scopes. The separate
 known-limitations document locks HPy 0.9 gaps, and a quality test prevents
 manifest/code/CI/document drift. Verify the documentation-only evidence
 commit's required contexts without creating a recursive evidence commit.
-PRD-2 is closed for the preview scope: 431 compiler/seam tests, 154 quality
+PRD-2 is closed for the preview scope: 432 compiler/seam tests, 155 quality
 tests, generated normal/Trace/Debug execution, all 128 isolated fault
 selectors, and 38 CPython C/C++ oracle executions pass; source/binary audits
 show no CPython/Hybrid leakage, and M2/M3/M4 records assign every excluded
-family a fail-closed non-supported status. Next execute PRD-3's
-method/member/getset/slot, constructor/partial-object, GC/finalizer,
-subinterpreter, inheritance, and exact HPy 0.9 rejection gates. Do not promote
-the three allowed-failure early warnings.
+family a fail-closed non-supported status. PRD-3 is also closed for the
+preview: the M5 record binds constructor/partial-object cleanup,
+traverse/cyclic GC, finalizer error/resurrection, inheritance, fields,
+descriptors, numeric/mapping slots, and three-subinterpreter isolation to the
+same executable gates; unsupported HPy 0.9 type shapes have exact diagnostics.
+PRD-4 is closed through `tests/ahpy/advanced-surface.toml` and its audit:
+all 18 advanced families are either the fully tested narrow `nogil` partial
+slice or deterministic blocked/rejected preview behavior with migration
+guidance; C++, annotation, profile, linetrace, embedded signatures, and C-line
+traceback instrumentation now fail before output. Next execute PRD-5's exact
+same-binary interpreter, stable/development HPy, platform/compiler,
+sanitizer/Valgrind/AppVerifier, and reproducible portability artifact gates.
+Do not promote the three allowed-failure early warnings.
 
 ### A1. Resolve the parallel fault-gate transient — completed
 

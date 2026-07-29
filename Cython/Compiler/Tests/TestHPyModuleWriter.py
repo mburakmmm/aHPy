@@ -2856,7 +2856,7 @@ class UniversalHPyEmitterContractTest(TestCase):
 
 
 class UniversalHPyModuleWriterTest(TestCase):
-    def compile_source(self, source_text, module_name=None):
+    def compile_source(self, source_text, module_name=None, **option_overrides):
         temp_dir = TemporaryDirectory()
         self.addCleanup(temp_dir.cleanup)
         source = Path(temp_dir.name) / "bootstrap_case.pyx"
@@ -2870,11 +2870,43 @@ class UniversalHPyModuleWriterTest(TestCase):
                     output_file=str(output),
                     language_level=3,
                     runtime_backend=HPY_UNIVERSAL_BACKEND,
+                    **option_overrides,
                 ),
                 full_module_name=module_name,
             )
         generated = output.read_text(encoding="utf8") if output.exists() else ""
         return result, generated, diagnostics.getvalue()
+
+    def test_output_and_instrumentation_modes_fail_closed(self):
+        cases = (
+            ({"cplus": True}, "C++ output is not implemented"),
+            ({"annotate": True}, "annotated output is not implemented"),
+            (
+                {"compiler_directives": {"profile": True}},
+                "generated profile instrumentation",
+            ),
+            (
+                {"compiler_directives": {"linetrace": True}},
+                "generated linetrace instrumentation",
+            ),
+            (
+                {"compiler_directives": {"embedsignature": True}},
+                "generated embedsignature instrumentation",
+            ),
+            (
+                {"c_line_in_traceback": True},
+                "generated C-line traceback instrumentation",
+            ),
+        )
+        for options, expected in cases:
+            with self.subTest(options=options):
+                result, generated, diagnostics = self.compile_source(
+                    "def answer():\n    return 42\n",
+                    **options,
+                )
+                self.assertEqual(result.num_errors, 1, diagnostics)
+                self.assertFalse(generated)
+                self.assertIn(expected, diagnostics)
 
     def test_qualified_module_name_uses_leaf_init_symbol(self):
         result, generated, diagnostics = self.compile_source(
