@@ -6,7 +6,12 @@
 import cython
 cython.declare(Naming=object, Options=object, PyrexTypes=object, TypeSlots=object,
                error=object, warning=object, py_object_type=object, UtilityCode=object,
-               EncodedString=object, itertools=object, operator=object, re=object)
+               IncludeCode=object, TempitaUtilityCode=object,
+               EncodedString=object, itertools=object, operator=object, re=object,
+               defaultdict=object, json=object, os=object, sys=object,
+               CPtrType=object, Code=object, Nodes=object,
+               bytes_literal=object, has_np_pythran=object,
+)
 
 from collections import defaultdict
 import itertools
@@ -15,7 +20,7 @@ import operator
 import os
 import re
 import sys
-from typing import Sequence
+from typing import Sequence, Optional
 
 from .PyrexTypes import CPtrType
 from . import Future
@@ -28,8 +33,8 @@ from . import TypeSlots
 from . import PyrexTypes
 from . import Pythran
 
-from .Errors import error, warning, CompileError, format_position
-from .PyrexTypes import py_object_type, get_all_subtypes
+from .Errors import error, warning, CompileError
+from .PyrexTypes import py_object_type
 from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_version, is_cython_generated_file
 from .Code import UtilityCode, IncludeCode, TempitaUtilityCode
 from .StringEncoding import EncodedString, bytes_literal, encoded_string_or_bytes_literal
@@ -37,11 +42,14 @@ from .Pythran import has_np_pythran
 from .RuntimeAPI import RuntimeSequenceKind
 
 
+@cython.cfunc
 def replace_suffix_encoded(path, newsuf):
     # calls replace suffix and returns a EncodedString or BytesLiteral with the encoding set
     newpath = replace_suffix(path, newsuf)
     return as_encoded_filename(newpath)
 
+
+@cython.cfunc
 def as_encoded_filename(path):
     # wraps the path with either EncodedString or BytesLiteral (depending on its input type)
     # and sets the encoding to the file system encoding
@@ -59,6 +67,7 @@ def check_c_declarations(module_node):
     return module_node
 
 
+@cython.cfunc
 def generate_c_code_config(env, options):
     if Options.annotate or options.annotate:
         emit_linenums = False
@@ -74,12 +83,14 @@ def generate_c_code_config(env, options):
         emit_code_comments=env.directives['emit_code_comments'],
         c_line_in_traceback=options.c_line_in_traceback)
 
+
 # The code required to generate one comparison from another.
 # The keys are (from, to).
 # The comparison operator always goes first, with equality possibly second.
 # The first value specifies if the comparison is inverted. The second is the
 # logic op to use, and the third is if the equality is inverted or not.
-TOTAL_ORDERING = {
+# Type is "dict[tuple[str, str], tuple[cython.bint, str, Optional[bool]]]", but Shadow.py doesn't allow it.
+TOTAL_ORDERING = cython.declare(dict, {
     # a > b from (not a < b) and (a != b)
     ('__lt__', '__gt__'): (True, '&&', True),
     # a <= b from (a < b) or (a == b)
@@ -107,7 +118,7 @@ TOTAL_ORDERING = {
     ('__ge__', '__gt__'): (False, '&&', True),
     # a < b from (not a >= b)
     ('__ge__', '__lt__'): (True, '', None),
-}
+})
 
 class SharedUtilityExporter:
     """
@@ -2007,6 +2018,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                    "please install development version of Python.")
         code.putln("#elif PY_VERSION_HEX < 0x03090000")
         code.putln("    #error Cython requires Python 3.9+.")
+        code.putln("#elif defined(Py_LIMITED_API) && (Py_LIMITED_API & 0xFFFF0000) > (PY_VERSION_HEX & 0xFFFF0000)")
+        code.putln("    #error 'Py_LIMITED_API' can only select past Python X.Y versions, not future ones.")
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
@@ -2137,12 +2150,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('static PyObject *%s;' % Naming.preimport_cname)
         code.putln('#endif')
 
-        code.putln('static int %s;' % Naming.lineno_cname)
-        code.putln('static int %s = 0;' % Naming.clineno_cname)
         code.putln('static const char * const %s = %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
-        code.putln('static const char *%s;' % Naming.filename_cname)
 
-        env.use_utility_code(UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
         env.use_utility_code(UtilityCode.load("GetRuntimeVersion", "ModuleSetupCode.c"))
         env.use_utility_code(UtilityCode.load_cached("AddModuleRef", "ModuleSetupCode.c"))
         if has_np_pythran(env):
@@ -3680,7 +3689,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if total_ordering:
             # Check this is valid - we must have at least 1 operation defined.
-            comp_names = [from_name for from_name, to_name in TOTAL_ORDERING if from_name in comp_entry]
+            comp_names: list[str] = [from_name for from_name, to_name in TOTAL_ORDERING if from_name in comp_entry]
             if not comp_names:
                 if '__eq__' not in comp_entry and '__ne__'  not in comp_entry:
                     warning(scope.parent_type.pos,
@@ -3710,6 +3719,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry is None:
                 assert total_ordering
                 # We need to generate this from the other methods.
+                invert_comp: bool
+                comp_op: str
                 invert_comp, comp_op, invert_equals = TOTAL_ORDERING[ordering_source, cmp_method]
 
                 # First we always do the comparison.
@@ -4789,7 +4800,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 assert re.match("^[a-zA-Z0-9_]+$", cname)
                 self.cfunc_name = "__Pyx_modinit_%s" % cname
                 self.description = code_type
-                self.tempdecl_code = None
                 self.call_code = None
 
             def set_call_code(self, code):
@@ -4803,7 +4813,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     f"int {self.cfunc_name}({Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})",
                     scope, refnanny=True)
                 code.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
-                self.tempdecl_code = code.insertion_point()
                 code.put_setup_refcount_context(EncodedString(self.cfunc_name))
                 # Leave a grepable marker that makes it easy to find the generator source.
                 code.putln("/*--- %s ---*/" % self.description)
@@ -4812,15 +4821,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             def __exit__(self, exc_type, exc_value, exc_tb):
                 if exc_type is not None:
                     # Don't generate any code or do any validations on errors.
-                    self.tempdecl_code = self.call_code = None
+                    self.call_code = None
                     return
 
                 code = function_code
                 code.put_finish_refcount_context()
                 code.putln("return 0;")
-
-                self.tempdecl_code.put_temp_declarations(code.funcstate)
-                self.tempdecl_code = None
 
                 needs_error_handling = code.label_used(code.error_label)
                 if needs_error_handling:
@@ -5507,7 +5513,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 # cimport/export code for functions and pointers.
 
 @cython.cfunc
-def _deduplicate_inout_signatures(item_tuples) -> tuple[list[str], tuple[str, ...], tuple[str, ...]]:
+def _deduplicate_inout_signatures(item_tuples) -> tuple[list[str], tuple, tuple]:
     # We can save runtime space for identical signatures by reusing the same C strings.
     # To deduplicate the signatures, we sort by them and store duplicates as empty C strings.
     signatures, names, items = zip(*sorted(item_tuples))

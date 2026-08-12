@@ -13,16 +13,17 @@ python3 Tools/ahpy/rebase_log.py --json
 ## Current baseline
 
 - Upstream: `https://github.com/cython/cython.git`
-- Exact commit: `b99cb0e3b5425e11414cadd24168a6cc850e8000`
-- Commit date: 2026-07-13
-- Subject: `Merge branch '3.2.x'`
-- Relationship: this commit is the merge base of the current aHPy topic branch.
+- Exact commit: `86b94cef002aa23aea0b390335ea3d9e9b62c19e`
+- Commit date: 2026-08-12
+- Subject: `Report an error instead of crashing on a C++ constructor call with keyword arguments (GH-7895)`
+- Relationship: accepted upstream parent of the current aHPy topic merge.
 
-The first log event is a baseline selection, not a claimed rebase; its old and
-new commits are deliberately equal and its conflict list is empty. Future
-`rebase` events must continue from the preceding accepted base and change the
-commit. The final event must always equal the base embedded in package and
-release metadata.
+The first log event remains a baseline selection, not a claimed rebase; its old
+and new commits are deliberately equal and its conflict list is empty. Event 2
+records the 2026-08-12 topic merge of 120 upstream commits and all six textual
+conflicts. Future `rebase` events must continue from the preceding accepted
+base and change the commit. The final event must always equal the base embedded
+in package and release metadata.
 
 ## Conflict classifications
 
@@ -38,5 +39,5 @@ Before accepting a new base, follow `maintenance.md`: inspect the whole commit
 range, use a topic branch, run full Cython plus applicable aHPy/native gates,
 and update version, support, audit, changelog and provenance records together.
 
-No newer upstream HEAD is implied by this log. Monthly review may conclude
+No newer upstream HEAD than the exact accepted commit is implied by this log. Monthly review may conclude
 “no transition”; only an actually validated accepted base creates a new event.

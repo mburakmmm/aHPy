@@ -13,7 +13,7 @@ agent must keep all three synchronized when implementation status changes.
   reconciled).
 - Workspace: `/Users/melihburakmemis/Documents/aHPy`.
 - Branch: `codex/ahpy-bootstrap`.
-- Upstream Cython baseline: `b99cb0e3b5425e11414cadd24168a6cc850e8000`.
+- Upstream Cython baseline: `86b94cef002aa23aea0b390335ea3d9e9b62c19e`.
 - Last fully green dedicated-aHPy reference:
   `20e401ca71a0440ed91e9b6f9d083f3d6a24ef25`; always obtain the live branch
   HEAD with `git rev-parse HEAD` before reporting or changing evidence.
@@ -26,8 +26,8 @@ agent must keep all three synchronized when implementation status changes.
 - `.DS_Store` and
   `docs/examples/userguide/wrapping_CPlusPlus/rect_with_attributes.cpp` are
   user-owned/unrelated. Leave them untouched.
-- `origin` is `https://github.com/mburakmmm/aHPy.git`; upstream Cython baseline
-  `b99cb0e3b` is published as `main`, `codex/ahpy-bootstrap` is pushed, and
+- `origin` is `https://github.com/mburakmmm/aHPy.git`; the original Cython
+  baseline is published as `main`, `codex/ahpy-bootstrap` is pushed, and
   draft PR [#2](https://github.com/mburakmmm/aHPy/pull/2) carries the aHPy
   integration.
 - Live repository ruleset
@@ -118,7 +118,7 @@ and the first performance regression gate.
 
 Last verified local gates:
 
-- Focused compiler suite: 440 tests pass (includes U1 closable surface,
+- Focused compiler suite: 441 tests pass (includes U1 closable surface,
   writable scalar/fixed-array buffer producers, and
   closure-registry regressions:
   `dir()`/`globals()`/`__dict__`, reject-duplicates keywords, imag constant
@@ -128,10 +128,10 @@ Last verified local gates:
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
 - Quality-tool suite: 530 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-08-12): 970 tests traced on both interpreters.
-  - CPython 3.11: backend 9609/9609 (100.00%), frontend_seam 53.29%,
+- Focused coverage (2026-08-12): 971 tests traced on both interpreters.
+  - CPython 3.11: backend 9609/9609 (100.00%), frontend_seam 52.95%,
     quality_tools 9430/9430 (100.00%).
-  - CPython 3.14.2: backend 9495/9495 (100.00%), frontend_seam 53.42%,
+  - CPython 3.14.2: backend 9495/9495 (100.00%), frontend_seam 53.08%,
     quality_tools 9439/9439 (100.00%).
   - CI floors are 100%, 45%, and 100%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
@@ -367,7 +367,7 @@ All five required contexts are therefore green on the same repair HEAD, and
 the final evidence is published in the repository documentation and draft PR.
 PRD-0 is closed. PRD-1 freezes an unpublished `preview` in
 `tests/ahpy/release-contract.toml`: `aHPy-compiler==3.3.0.1.dev0`, Cython
-`3.3.0a2.dev0` at base `b99cb0e3b5425e11414cadd24168a6cc850e8000`,
+`3.3.0b1` at base `86b94cef002aa23aea0b390335ea3d9e9b62c19e`,
 CPython 3.11, HPy 0.9.0/setuptools 83.0.0, and the six hosted
 platform/compiler lanes. The compiler CLI is supported within the documented
 source subset; direct build, setuptools/cythonize, PEP 517, CMake, Meson, and

@@ -70,8 +70,8 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 440 compiler/seam testi, 530 quality-tool testi ve
-  iki yorumlayıcıda 970 coverage testi.
+- Mevcut odaklı doğrulama: 441 compiler/seam testi, 530 quality-tool testi ve
+  iki yorumlayıcıda 971 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Quality-tool Python satır kapsamı CPython 3.11 ve 3.14'te %100; ayrı native,
   subprocess, portability ve hosted kapıları bu orana dahil edilmez.
@@ -533,7 +533,7 @@ gizleyemez.
 - [ ] Backend-neutral refactor'ları küçük bağımsız upstream PR'larına ayır.
 - [ ] HPy API eksiklerini minimal reproducer ile upstream issue/PR olarak aç.
 - [ ] PyPy/GraalPy bridge sorunlarını ilgili upstream projelere taşı.
-- [ ] Cython upstream rebase log'unu ve conflict kararlarını güncel tut.
+- [x] Cython upstream rebase log'unu ve conflict kararlarını güncel tut.
 - [ ] Release branch/backport politikasını uygula.
 - [x] Security policy ve özel vulnerability reporting kanalını yayımla;
       `SECURITY.md` private GitHub Advisory yolunu tanımlar ve repository API
@@ -563,12 +563,13 @@ taramalarını immutable SHA'larla PR/push/weekly kapılarına bağlıyor; Depen
 Actions ile üç Python dependency kökünü aylık izliyor. Hosted ilk taramalar ve
 security artifact kanıtı başarıyla tamamlanmadan ilgili publication/automation
 checkbox'ları açık kalır.
-Append-only `rebase-log.toml`, mevcut
+Append-only `rebase-log.toml`, ilk
 `b99cb0e3b5425e11414cadd24168a6cc850e8000` baseline seçimini gerçek bir rebase
-gibi göstermeden kaydediyor. `rebase_log.py` gelecekteki accepted geçişlerin
-önceki commit'ten zincirlenmesini, conflict dosyası/sınıfı/kararını, kanıt
-belgelerini ve final base'in package/release metadata'sıyla eşleşmesini zorunlu
-tutuyor; henüz yeni upstream base kabul edilmediği için rebase checkbox'ı açık.
+gibi göstermeden koruyor ve 2026-08-12 tarihinde 120 upstream commit içeren
+`86b94cef002aa23aea0b390335ea3d9e9b62c19e` geçişini altı conflict kararıyla
+kaydediyor. `rebase_log.py` accepted geçişlerin önceki commit'ten
+zincirlenmesini, conflict dosyası/sınıfı/kararını, kanıt belgelerini ve final
+base'in package/release metadata'sıyla eşleşmesini zorunlu tutuyor.
 `debugging.md`, source diagnostic'ten generated C/native link/import/runtime ve
 ownership sınırına kadar ilk bozulan aşamayı koruyan tek troubleshooting akışını
 veriyor. `upstream-dependencies.md` ise HPy 3.14 handwritten reproducer'ı, HPy

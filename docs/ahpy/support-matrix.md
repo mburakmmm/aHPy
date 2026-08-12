@@ -105,4 +105,4 @@ generated runtime completed in 19 seconds. The CPython 3.15/HPy 0.9 lane still
 fails in HPy's own build before aHPy executes. Neither result changes support.
 
 The baseline Cython revision is
-`b99cb0e3b5425e11414cadd24168a6cc850e8000` from 2026-07-13.
+`86b94cef002aa23aea0b390335ea3d9e9b62c19e` from 2026-08-12.

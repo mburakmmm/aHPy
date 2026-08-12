@@ -1,3 +1,5 @@
+# cython: binding=False
+
 import cython
 cython.declare(UtilityCode=object, EncodedString=object, bytes_literal=object, encoded_string=object,
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
@@ -11,7 +13,7 @@ import copy
 import codecs
 import itertools
 from functools import partial, reduce
-from typing import Optional
+from typing import Optional, Any
 from operator import attrgetter
 
 from . import TypeSlots
@@ -35,32 +37,37 @@ from .ParseTreeTransforms import SkipDeclarations
 from .. import Utils
 
 
+@cython.cfunc
 def load_c_utility(name):
     return UtilityCode.load_cached(name, "Optimize.c")
 
 
+@cython.cfunc
 def unwrap_coerced_node(node, coercion_nodes=(ExprNodes.CoerceToPyTypeNode, ExprNodes.CoerceFromPyTypeNode)):
     if isinstance(node, coercion_nodes):
         return node.arg
     return node
 
 
+@cython.cfunc
 def unwrap_node(node):
     while isinstance(node, UtilNodes.ResultRefNode):
         node = node.expression
     return node
 
 
-def is_common_value(a, b):
+@cython.cfunc
+def is_common_value(a, b) -> bool:
     a = unwrap_node(a)
     b = unwrap_node(b)
-    if isinstance(a, ExprNodes.NameNode) and isinstance(b, ExprNodes.NameNode):
+    if a.is_name and b.is_name:
         return a.name == b.name
-    if isinstance(a, ExprNodes.AttributeNode) and isinstance(b, ExprNodes.AttributeNode):
+    if a.is_attribute and b.is_attribute:
         return not a.is_py_attr and is_common_value(a.obj, b.obj) and a.attribute == b.attribute
     return False
 
 
+@cython.cfunc
 def filter_none_node(node):
     if node is not None and node.constant_result is None:
         return None
@@ -68,7 +75,7 @@ def filter_none_node(node):
 
 
 @cython.cfunc
-def _unpack_union_type_nodes(union_type_nodes: list):
+def _unpack_union_type_nodes(union_type_nodes: list) -> tuple[list, Any]:
     # Unpack 'int | float | None' etc.
     BitwiseOrNode = ExprNodes.BitwiseOrNode
 
@@ -1303,8 +1310,7 @@ class SwitchTransform(Visitor.EnvTransform):
         if isinstance(cond, ExprNodes.PrimaryCmpNode):
             if cond.cascade is not None:
                 return self.NO_MATCH
-            elif cond.is_c_string_contains() and \
-                   isinstance(cond.operand2, (ExprNodes.UnicodeNode, ExprNodes.BytesNode)):
+            elif cond.operator in ('in', 'not_in') and cond.operand1.type.is_int and cond.operand2.is_string_literal:
                 not_in = cond.operator == 'not_in'
                 if not_in and not allow_not_in:
                     return self.NO_MATCH
@@ -1548,12 +1554,11 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         else:
             return node
 
-        if not isinstance(node.operand2, (ExprNodes.TupleNode,
-                                          ExprNodes.ListNode,
-                                          ExprNodes.SetNode)):
+        if not node.operand2.is_sequence_or_set_constructor:
             return node
 
         lhs = node.operand1
+        is_set = node.operand2.is_set_literal
         args = node.operand2.args
         if len(args) == 0:
             # note: lhs may have side effects, but ".is_simple()" may not work yet before type analysis.
@@ -1566,11 +1571,18 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
             # Starred arguments do not directly translate to comparisons or "in" tests.
             return node
 
+        make_readonly = lhs.is_sequence_or_set_constructor  # known safe builtin types for comparisons
         lhs = UtilNodes.ResultRefNode(lhs)
 
         conds = []
         temps = []
         for arg in args:
+            if is_set and arg.is_sequence_or_set_constructor:
+                if arg.type not in (Builtin.frozenset_type, Builtin.tuple_type):
+                    # Only these two are hashable.
+                    return node
+            if make_readonly and arg.is_sequence_or_set_constructor:
+                arg.read_only = True
             # Trial optimisation to avoid redundant temp assignments.
             if not arg.try_is_simple():
                 # must evaluate all non-simple RHS before doing the comparisons
@@ -2146,14 +2158,17 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         return node
 
     def _handle_simple_function_frozenset(self, node, pos_args):
-        """Replace frozenset([...]) by frozenset((...)) as tuples are more efficient.
+        """Clear the argument for empty frozenset([]) etc.
         """
         if len(pos_args) != 1:
             return node
-        if pos_args[0].is_sequence_constructor and not pos_args[0].args:
+        arg = pos_args[0]
+        if arg.is_sequence_constructor and not arg.args:
             del pos_args[0]
-        elif isinstance(pos_args[0], ExprNodes.ListNode):
-            pos_args[0] = pos_args[0].as_tuple()
+            return node
+        if arg.is_string_literal and not arg.value:
+            del pos_args[0]
+            return node
         return node
 
     def _handle_simple_function_list(self, node, pos_args):
@@ -2723,26 +2738,25 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 is_temp=node.is_temp,
                 py_name="set"))
 
-    PyFrozenSet_New_func_type = PyrexTypes.CFuncType(
-        Builtin.frozenset_type, [
-            PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None)
-        ])
-
     def _handle_simple_function_frozenset(self, node, function, pos_args):
+        """Replace frozenset(...) with a dedicated FrozenSetNode that handles all special cases.
+        """
         if not pos_args:
-            pos_args = [ExprNodes.NullNode(node.pos)]
-        elif len(pos_args) > 1:
+            return ExprNodes.FrozenSetNode.from_node(node, arg=None, env=self.current_env())
+        if len(pos_args) > 1:
             return node
-        elif pos_args[0].type.is_pyfrozenset_type and not pos_args[0].may_be_none():
-            return pos_args[0]
-        # PyFrozenSet_New(it) is better than a generic Python call to frozenset(it)
-        return ExprNodes.PythonCapiCallNode(
-            node.pos, "__Pyx_PyFrozenSet_New",
-            self.PyFrozenSet_New_func_type,
-            args=pos_args,
-            is_temp=node.is_temp,
-            utility_code=UtilityCode.load_cached('pyfrozenset_new', 'Builtins.c'),
-            py_name="frozenset")
+
+        arg = pos_args[0]
+        if arg.type.is_pyfrozenset_type and not arg.may_be_none():
+            # Redundant frozenset(afrozenset) -> afrozenset
+            return arg
+
+        if arg.is_sequence_constructor:
+            if arg.args:
+                return ExprNodes.FrozenSetFromArrayNode.from_node(node, args=arg.args)
+            arg = None
+
+        return ExprNodes.FrozenSetNode.from_node(node, arg=arg)
 
     PyObject_AsDouble_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_double_type, [
@@ -3042,7 +3056,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
         builtin_tests = set()
         for test_type_node in types:
-            builtin_type = entry = None
+            builtin_type = entry = utility_code = None
             if test_type_node.is_name and test_type_node.entry:
                 entry = env.lookup(test_type_node.entry.name)
                 if entry and entry.type and entry.type.is_builtin_type:
@@ -3058,9 +3072,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     continue
                 builtin_tests.add(type_check_function)
                 type_check_args = [arg]
+                if entry is not None:
+                    utility_code = entry.utility_code
             elif test_type_node.type is Builtin.type_type:
                 type_check_function = '__Pyx_TypeCheck'
                 type_check_args = [arg, test_type_node]
+                utility_code = UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c")
             else:
                 if not test_type_node.is_literal:
                     test_type_node = UtilNodes.ResultRefNode(test_type_node)
@@ -3071,7 +3088,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 ExprNodes.PythonCapiCallNode(
                     test_type_node.pos, type_check_function, self.Py_type_check_func_type,
                     args=type_check_args,
-                    utility_code=entry.utility_code if entry is not None else None,
+                    utility_code=utility_code,
                     is_temp=True,
                 ))
 
@@ -3647,7 +3664,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     _handle_simple_method_int___floordiv__ = _handle_simple_method_object___floordiv__
     _handle_simple_method_int___truediv__ = _handle_simple_method_object___truediv__
 
-    def _optimise_num_div(self, operator, node, function, args, is_unbound_method):
+    def _optimise_num_div(self, operator: str, node, function, args: list, is_unbound_method):
         if len(args) != 2 or not args[1].has_constant_result() or args[1].constant_result == 0:
             return node
         if isinstance(args[1], ExprNodes.IntNode):
@@ -3681,7 +3698,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _handle_simple_method_float___ne__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Ne', node, function, args, is_unbound_method)
 
-    def _optimise_num_binop(self, operator, node, function, args, is_unbound_method):
+    def _optimise_num_binop(self, operator: str, node, function, args: list, is_unbound_method):
         """
         Optimise math operators for (likely) float or small integer operations.
         """
@@ -3728,7 +3745,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             ],
             exception_value=-1)
 
-    def _inject_unicode_predicate(self, node, function, args, is_unbound_method):
+    def _inject_unicode_predicate(self, node, function, args: list, is_unbound_method):
         if is_unbound_method or len(args) != 1:
             return node
         ustring = args[0]
@@ -3898,8 +3915,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             node, function, args, is_unbound_method, 'str', 'startswith',
             unicode_tailmatch_utility_code, -1)
 
-    def _inject_tailmatch(self, node, function, args, is_unbound_method, type_name,
-                          method_name, utility_code, direction):
+    def _inject_tailmatch(self, node, function, args: list, is_unbound_method, type_name: str,
+                          method_name: str, utility_code, direction):
         """Replace unicode.startswith(...) and unicode.endswith(...)
         by a direct call to the corresponding C-API function.
         """
@@ -4396,7 +4413,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             args[arg_index] = args[arg_index].coerce_to_boolean(self.current_env())
 
 
-def optimise_numeric_binop(operator, node, ret_type, arg0, arg1):
+def optimise_numeric_binop(operator: str, node, ret_type, arg0, arg1):
     """
     Optimise math operators for (likely) float or small integer operations.
     """
@@ -5037,10 +5054,18 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         if not node.cascade:
             if node.has_constant_result():
                 return self._bool_node(node, node.constant_result)
+
+            if node.operator in ('in', 'not_in'):
+                right_node = node.operand2
+                if right_node.is_sequence_or_set_constructor:
+                    # The right-most in-collection is not used in further cascades, so allow
+                    # later optimisation into a (possibly constant) immutable tuple/frozenset.
+                    right_node.read_only = True
+
             return node
 
         # collect partial cascades: [[value, CmpNode...], [value, CmpNode, ...], ...]
-        cascades = [[node.operand1]]
+        cascades: list[list] = [[node.operand1]]
         final_false_result = []
 
         cmp_node = node
@@ -5076,6 +5101,13 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 last_cmp_node.cascade = cmp_node
                 last_cmp_node = cmp_node
             last_cmp_node.cascade = None
+
+            if last_cmp_node.operator in ('in', 'not_in'):
+                right_node = last_cmp_node.operand2
+                if right_node.is_sequence_or_set_constructor:
+                    # The right-most in-collection is not used in further cascades, so allow
+                    # later optimisation into a (possibly constant) immutable tuple/frozenset.
+                    right_node.read_only = True
 
         if final_false_result:
             # last cascade was constant False
@@ -5181,6 +5213,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_ForInStatNode(self, node):
         self.visitchildren(node)
+
         sequence = node.iterator.sequence
         if isinstance(sequence, ExprNodes.SequenceNode):
             if not sequence.args:
@@ -5192,6 +5225,11 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             # iterating over a list literal? => tuples are more efficient
             if isinstance(sequence, ExprNodes.ListNode):
                 node.iterator.sequence = sequence.as_tuple()
+
+        elif isinstance(sequence, ExprNodes.SetNode):
+            # frozensets are more efficient to store than sets.
+            sequence.read_only = True
+
         return node
 
     def visit_WhileStatNode(self, node):

@@ -52,7 +52,7 @@ def _bundle(root):
         "provenance": {
             "source_commit": COMMIT,
             "cython_base_commit": (
-                "b99cb0e3b5425e11414cadd24168a6cc850e8000"),
+                "86b94cef002aa23aea0b390335ea3d9e9b62c19e"),
             "build_frontend_version": "1.5.0",
             "installed_hpy": "0.9.0",
             "installed_setuptools": "83.0.0",

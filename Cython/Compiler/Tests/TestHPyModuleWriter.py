@@ -6642,7 +6642,10 @@ class UniversalHPyModuleWriterTest(TestCase):
         function_code = generated[:generated.index(
             "HPyDef_SLOT(__pyx_hpy_mod_exec")]
         self.assertNotIn("HPyErr_ExceptionMatches", function_code)
-        self.assertIn("name 'MISSING' is not defined", generated)
+        self.assertRegex(
+            generated,
+            r"name (?:\\047|')MISSING(?:\\047|') is not defined",
+        )
 
     def test_local_deletion_uses_stable_null_slot_and_unbound_local(self):
         result, generated, diagnostics = self.compile_source(
@@ -6670,8 +6673,11 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertEqual(result.num_errors, 0, diagnostics)
         self.assertIn("ctx->h_UnboundLocalError", generated)
         self.assertIn("HPy_IsNull(", generated)
-        self.assertIn(
-            "local variable 'value' referenced before assignment", generated)
+        self.assertRegex(
+            generated,
+            r"local variable (?:\\047|')value(?:\\047|') "
+            r"referenced before assignment",
+        )
         maybe_impl = generated.index("__pyx_hpy_def_2_maybe_impl")
         maybe_code = generated[maybe_impl:generated.index(
             "__pyx_hpy_def_3_looped_impl", maybe_impl)]

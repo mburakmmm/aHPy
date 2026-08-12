@@ -32,7 +32,8 @@ earlier phase's exit gate.
 
 - [x] Attach the empty repository to the official Cython upstream.
 - [x] Base development on Cython commit
-      `b99cb0e3b5425e11414cadd24168a6cc850e8000` (2026-07-13).
+      `86b94cef002aa23aea0b390335ea3d9e9b62c19e` (2026-08-12), with the
+      previous baseline and transition preserved in the append-only rebase log.
 - [x] Create the `codex/ahpy-bootstrap` development branch.
 - [x] Add the complete dependency-ordered implementation checklist.
 - [x] Add the initial scope, architecture, version-policy, and support-matrix

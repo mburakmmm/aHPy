@@ -540,6 +540,27 @@ __PYX_GOOD:
 static CYTHON_INLINE int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long checksum2, long checksum3, const char *members); /*proto*/
 
 /////////////// CheckUnpickleChecksum ///////////////
+//@requires: CheckUnpickleChecksumError
+
+static int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long checksum2, long checksum3, const char *members) {
+    int found = 0;
+    found |= checksum1 == checksum;
+    found |= checksum2 == checksum;
+    found |= checksum3 == checksum;
+    if (likely(found))
+        return 0;
+
+    __Pyx_RaiseUnpickleChecksumError(checksum, checksum1, checksum2, checksum3, members);
+    return -1;
+}
+
+
+/////////////// CheckUnpickleChecksumError.export ///////////////
+//@feature: AutoPickle
+
+static void __Pyx_RaiseUnpickleChecksumError(long checksum, long checksum1, long checksum2, long checksum3, const char *members); /*proto*/
+
+/////////////// CheckUnpickleChecksumError ///////////////
 
 static void __Pyx_RaiseUnpickleChecksumError(long checksum, long checksum1, long checksum2, long checksum3, const char *members) {
     // This function always raises some kind of error, either the expected one or a different one.
@@ -561,18 +582,6 @@ static void __Pyx_RaiseUnpickleChecksumError(long checksum, long checksum1, long
             checksum, checksum1, checksum2, checksum3, members);
     }
     Py_DECREF(pickle_error);
-}
-
-static int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long checksum2, long checksum3, const char *members) {
-    int found = 0;
-    found |= checksum1 == checksum;
-    found |= checksum2 == checksum;
-    found |= checksum3 == checksum;
-    if (likely(found))
-        return 0;
-
-    __Pyx_RaiseUnpickleChecksumError(checksum, checksum1, checksum2, checksum3, members);
-    return -1;
 }
 
 
@@ -646,6 +655,7 @@ static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t 
 
 
 /////////////// BinopSlot ///////////////
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type, PyObject *left, PyObject *right {{extra_arg_decl}}) {
     {{slot_type}} slot;
@@ -706,7 +716,8 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
     return __Pyx_NewRef(Py_NotImplemented);
 }
 
-/////////////// ValidateExternBase.proto ///////////////
+
+/////////////// ValidateExternBase.export ///////////////
 
 static int __Pyx_validate_extern_base(PyTypeObject *base); /* proto */
 

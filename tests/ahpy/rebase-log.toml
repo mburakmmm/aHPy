@@ -1,6 +1,6 @@
 schema_version = 1
 upstream_repository = "https://github.com/cython/cython.git"
-current_base = "b99cb0e3b5425e11414cadd24168a6cc850e8000"
+current_base = "86b94cef002aa23aea0b390335ea3d9e9b62c19e"
 
 [[events]]
 sequence = 1
@@ -17,3 +17,48 @@ validation_documents = [
   "docs/ahpy/release-contract.md",
 ]
 notes = "Initial modern Cython baseline selected before the aHPy backend topic series; no upstream transition or conflict resolution was performed in this event."
+
+[[events]]
+sequence = 2
+date = "2026-08-12"
+kind = "rebase"
+from_commit = "b99cb0e3b5425e11414cadd24168a6cc850e8000"
+to_commit = "86b94cef002aa23aea0b390335ea3d9e9b62c19e"
+strategy = "topic-merge"
+result = "accepted"
+validation_documents = [
+  "docs/ahpy/audits/current-cython-rebase-2026-08-12.md",
+  "docs/ahpy/release-contract.md",
+  "docs/ahpy/validation-matrix.md",
+]
+notes = "Merged 120 upstream commits into the aHPy topic branch, retained the typed runtime boundary, and recorded every textual conflict before full local gate validation."
+
+[[events.conflicts]]
+path = ".github/workflows/benchmarks.yml"
+classification = "ahpy-specific"
+decision = "Retain branch-safe aHPy filtering and stable aggregate contexts while adopting the upstream pull-request trigger repair and immutable action revisions."
+
+[[events.conflicts]]
+path = ".github/workflows/coverage.yml"
+classification = "ahpy-specific"
+decision = "Retain always-created aHPy aggregate contexts and internal path filtering while adopting current immutable action revisions."
+
+[[events.conflicts]]
+path = "Cython/Compiler/CmdLine.py"
+classification = "backend-neutral"
+decision = "Keep runtime-backend parsing inside the upstream shared-parser boundary so shared utility invocations cannot receive an unsupported option."
+
+[[events.conflicts]]
+path = "Cython/Compiler/ExprNodes.py"
+classification = "backend-neutral"
+decision = "Adopt the upstream call-generation and exception-helper refactor while preserving typed runtime services for memoryview errors and exception matching."
+
+[[events.conflicts]]
+path = "Cython/Compiler/Nodes.py"
+classification = "backend-neutral"
+decision = "Adopt upstream exception utility changes and route newly introduced list, tuple, fetch, restore, and matching operations through the typed runtime API."
+
+[[events.conflicts]]
+path = "tests/run/shared_utility_module.srctree"
+classification = "ahpy-specific"
+decision = "Retain serialized inner extension builds to preserve the validated Windows and constrained-runner reliability contract."

@@ -20,8 +20,8 @@ class RebaseLogTest(unittest.TestCase):
         self.assertEqual(self.log["current_base"], rebase_log.CYTHON_BASE_COMMIT)
         text = rebase_log.render_text(self.log)
         self.assertIn("aHPy Cython rebase log: valid", text)
-        self.assertIn("events: 1", text)
-        self.assertIn("baseline accepted", text)
+        self.assertIn("events: 2", text)
+        self.assertIn("rebase accepted", text)
 
     def test_baseline_contract_rejects_invalid_shapes_and_values(self):
         mutations = []

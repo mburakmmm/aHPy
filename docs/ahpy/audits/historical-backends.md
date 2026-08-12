@@ -1,7 +1,7 @@
 # Historical Cython/HPy backend audit
 
 - Audit date: 2026-07-14
-- Current Cython baseline: `b99cb0e3b5425e11414cadd24168a6cc850e8000`
+- Current Cython baseline: `86b94cef002aa23aea0b390335ea3d9e9b62c19e`
 - Purpose: evidence and regression-test mining only
 
 No historical backend branch is merged into aHPy. Each is retained under
@@ -18,8 +18,8 @@ References:
 - Head: `f69934f250970173982546ed14b57bb02afab2dc`
 - Development dates: 2021-05-26 through 2022-02-07
 - Unique commits: 177
-- Difference from the 2026-07-13 Cython baseline: 177 commits on the historical
-  side and 3,733 commits on the current side
+- Difference from the 2026-08-12 Cython baseline: 177 commits on the historical
+  side and 3,853 commits on the current side
 - Patch size: 31 files, 3,338 additions, 742 deletions
 
 The only new dedicated HPy runtime test was `tests/run/hpy_basic.py`. It tested

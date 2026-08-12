@@ -136,6 +136,8 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             "Cython.Compiler.Optimize",
             ])
 
+    shared_utility_module = 'Cython._shared'
+
     from shutil import which
     from sysconfig import get_path
     pgen = which(
@@ -170,6 +172,10 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     if sysconfig.get_config_var('Py_GIL_DISABLED') and platform.system() == "Windows":
         defines.append(('Py_GIL_DISABLED', 1))
 
+    if is_cpython:
+        # Reduce module sizes.
+        defines.append(('CYTHON_USE_TYPE_SPECS', '1'))
+
     extra_defines = []
     if cython_with_refnanny:
         extra_defines.append(('CYTHON_REFNANNY', '1'))
@@ -198,11 +204,24 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     # optimise build parallelism by starting with the largest modules
     extensions.sort(key=lambda ext: os.path.getsize(ext.sources[0]), reverse=True)
 
+    # Add the shared utility module.
+    extensions.append(Extension(
+        shared_utility_module, sources=[shared_utility_module.replace('.', '/') + '.c'],
+        # Cannot build this with refnanny because 'refnanny' depends on '_shared' as well.
+        define_macros=defines,
+        **extra_extension_args,
+    ))
+
+    unused_features = ['MemoryView']
+    for ext in extensions:
+        ext.shared_utility_qualified_name = shared_utility_module
+        ext.shared_utility_features_disabled = unused_features
+
     # Set up Cython directives.
     cython_directives = dict(
         language_level=3,
-        auto_pickle=False,
-        #binding=False,
+        auto_pickle=False,  # activated in FlowControl.py
+        #binding=False,  # used via @functools.wraps()
         always_allow_keywords=False,
         autotestdict=False,
     )

@@ -108,7 +108,7 @@ if [[ $PYTHON_VERSION != *"-dev" ]]; then
     $PYTHON -m pip install --no-cache-dir pythran || exit 1
   fi
 
-  if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* ]]; then
+  if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* && $PYTHON_VERSION != "3.13t" ]]; then
     $PYTHON -m pip install --no-cache-dir mypy || exit 1
   fi
 
@@ -193,7 +193,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   fi
 
   echo "Extension modules created during the build:"
-  find Cython -name "*.so" -ls | sort -k11
+  find Cython -name "*.so" -ls -o -name "*.pyd" -ls | sort -k11
 fi
 
 if [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" && $OSTYPE != "cygwin" ]]; then

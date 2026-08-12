@@ -7,6 +7,12 @@ Unreleased
 Bootstrap
 ~~~~~~~~~
 
+* Merged 120 upstream Cython commits through
+  ``86b94cef002aa23aea0b390335ea3d9e9b62c19e`` (Cython ``3.3.0b1``), recorded
+  all six conflict decisions in the append-only rebase log, adopted upstream's
+  ``except *`` generation refactor, and routed its newly introduced list,
+  tuple, exception-fetch, exception-restore, and matching calls through the
+  typed runtime boundary while preserving CPython behavior.
 * Added exact source/GitHub-run provenance to every new aHPy performance
   artifact and a proposal-only release calibration gate that requires five
   unique successful hosted reports from one commit and measurement cohort;

@@ -22,9 +22,9 @@ the same CLI explicitly; a green parser alone does not publish the preview.
 ## Exact compiler and dependency baseline
 
 - Distribution: `aHPy-compiler==3.3.0.1.dev0`.
-- Embedded Cython version: `3.3.0a2.dev0`.
+- Embedded Cython version: `3.3.0b1`.
 - Exact Cython base:
-  `b99cb0e3b5425e11414cadd24168a6cc850e8000`.
+  `86b94cef002aa23aea0b390335ea3d9e9b62c19e`.
 - Supported HPy release: exactly `0.9.0`.
 - Required HPy 0.9 build companion: exactly `setuptools==83.0.0`; the shipped
   `ahpy_hpy_compat` hook rewrites only HPy 0.9's recognized legacy loader
