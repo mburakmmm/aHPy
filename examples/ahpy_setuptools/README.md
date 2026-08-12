@@ -7,6 +7,9 @@ The `hpy-universal` cythonize seam automatically applies aHPy's fail-closed
 HPy 0.9 loader compatibility hook, so the generated stub resolves its adjacent
 `.hpy0` binary without the removed `pkg_resources` module under the pinned
 Setuptools 83 toolchain.
+Installed `aHPy-compiler` wheels expose this through a namespaced build-hook
+entry point; the explicit helper import in this source-checkout example keeps
+the same behavior available before the frontend is installed.
 It also links `ahpy_external.c` and exposes its Python-independent scalar C API
 from `ahpy_external.h`; this is the maintained external-C example rather than
 an inline or CPython C-API wrapper.

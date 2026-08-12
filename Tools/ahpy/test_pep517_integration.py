@@ -15,6 +15,13 @@ import pep517_integration as integration
 from pep517_integration import EXAMPLE, _copy_frontend_source, _frontend_metadata
 
 
+HOOK_ENTRY_POINTS = (
+    "[cython.runtime_backend_build_hooks]\n"
+    "hpy-universal = "
+    "ahpy_hpy_compat:install_hpy_universal_loader_compat\n"
+)
+
+
 class Pep517IntegrationDefinitionTest(unittest.TestCase):
     def test_example_pins_ahpy_frontend_not_upstream_cython(self):
         pyproject = (EXAMPLE / "pyproject.toml").read_text(encoding="utf8")
@@ -76,6 +83,10 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
             with zipfile.ZipFile(wheel, "w") as archive:
                 archive.writestr(
                     "ahpy_compiler.dist-info/METADATA", metadata)
+                archive.writestr(
+                    "ahpy_compiler.dist-info/entry_points.txt",
+                    HOOK_ENTRY_POINTS,
+                )
                 archive.writestr("ahpy_build_backend.py", "")
                 archive.writestr("ahpy_build_config.py", "")
                 archive.writestr("ahpy_hpy_compat.py", "")
@@ -89,6 +100,8 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
                     "wrong.dist-info/METADATA",
                     "Metadata-Version: 2.4\nName: Cython\nVersion: 0\n",
                 )
+                archive.writestr(
+                    "wrong.dist-info/entry_points.txt", HOOK_ENTRY_POINTS)
             with self.assertRaisesRegex(AssertionError, "not the aHPy"):
                 _frontend_metadata(wrong)
 
@@ -96,6 +109,10 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
             with zipfile.ZipFile(incomplete, "w") as archive:
                 archive.writestr(
                     "ahpy_compiler.dist-info/METADATA", metadata)
+                archive.writestr(
+                    "ahpy_compiler.dist-info/entry_points.txt",
+                    HOOK_ENTRY_POINTS,
+                )
             with self.assertRaisesRegex(AssertionError, "missing ahpy_build"):
                 _frontend_metadata(incomplete)
 
@@ -103,12 +120,39 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
             with zipfile.ZipFile(no_cython, "w") as archive:
                 archive.writestr(
                     "ahpy_compiler.dist-info/METADATA", metadata)
+                archive.writestr(
+                    "ahpy_compiler.dist-info/entry_points.txt",
+                    HOOK_ENTRY_POINTS,
+                )
                 archive.writestr("ahpy_build_backend.py", "")
                 archive.writestr("ahpy_build_config.py", "")
                 archive.writestr("ahpy_hpy_compat.py", "")
                 archive.writestr("ahpy_version.py", "")
             with self.assertRaisesRegex(AssertionError, "missing the Cython"):
                 _frontend_metadata(no_cython)
+
+            no_hook = Path(temp_dir) / "no-hook.whl"
+            with zipfile.ZipFile(no_hook, "w") as archive:
+                archive.writestr(
+                    "ahpy_compiler.dist-info/METADATA", metadata)
+                archive.writestr(
+                    "ahpy_compiler.dist-info/entry_points.txt",
+                    "[console_scripts]\ncython = Cython.Compiler.Main:main\n",
+                )
+                archive.writestr("ahpy_build_backend.py", "")
+                archive.writestr("ahpy_build_config.py", "")
+                archive.writestr("ahpy_hpy_compat.py", "")
+                archive.writestr("ahpy_version.py", "")
+                archive.writestr("Cython/__init__.py", "")
+            with self.assertRaisesRegex(AssertionError, "build hook"):
+                _frontend_metadata(no_hook)
+
+            no_entry_points = Path(temp_dir) / "no-entry-points.whl"
+            with zipfile.ZipFile(no_entry_points, "w") as archive:
+                archive.writestr(
+                    "ahpy_compiler.dist-info/METADATA", metadata)
+            with self.assertRaisesRegex(AssertionError, "one entry_points"):
+                _frontend_metadata(no_entry_points)
 
     def test_frontend_wheel_metadata_rejects_version_and_provenance_drift(self):
         commit = "1" * 40
@@ -152,6 +196,10 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
                 with zipfile.ZipFile(wheel, "w") as archive:
                     archive.writestr(
                         "ahpy_compiler.dist-info/METADATA", metadata)
+                    archive.writestr(
+                        "ahpy_compiler.dist-info/entry_points.txt",
+                        HOOK_ENTRY_POINTS,
+                    )
                     for member in required:
                         archive.writestr(member, "")
                 with self.subTest(name=name):

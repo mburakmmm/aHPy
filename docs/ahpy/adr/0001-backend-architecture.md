@@ -32,8 +32,9 @@ copies of generated user code.
 8. The existing CPython backend remains the regression oracle throughout the
    implementation.
 9. Build-system preparation uses a backend-neutral callable registry exported
-   by `Cython.Build`; backend distributions own registration and Cython core
-   never imports an `ahpy_*` packaging module.
+   by `Cython.Build` plus a namespaced installed entry-point group; backend
+   distributions own registration and Cython core never names or imports an
+   `ahpy_*` packaging module.
 
 ## Consequences
 

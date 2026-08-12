@@ -60,6 +60,59 @@ class TestRuntimeBackendBuildHooks(TimedTest):
         universal_hook.assert_called_once_with()
         cpython_hook.assert_not_called()
 
+    def test_installed_hook_discovery_is_unique_and_fail_closed(self):
+        hook = mock.Mock()
+        entry_point = mock.Mock()
+        entry_point.load.return_value = hook
+        entry_points = mock.Mock()
+        entry_points.select.return_value = (entry_point,)
+        with (
+            mock.patch.dict(
+                Dependencies._runtime_backend_build_hooks, {}, clear=True),
+            mock.patch(
+                "importlib.metadata.entry_points",
+                return_value=entry_points,
+            ),
+        ):
+            self.assertIs(
+                Dependencies._load_runtime_backend_build_hook(
+                    "hpy-universal"),
+                hook,
+            )
+            self.assertIs(
+                Dependencies._runtime_backend_build_hooks["hpy-universal"],
+                hook,
+            )
+        entry_points.select.assert_called_once_with(
+            group="cython.runtime_backend_build_hooks",
+            name="hpy-universal",
+        )
+
+        entry_points.select.return_value = (entry_point, entry_point)
+        with (
+            mock.patch.dict(
+                Dependencies._runtime_backend_build_hooks, {}, clear=True),
+            mock.patch(
+                "importlib.metadata.entry_points",
+                return_value=entry_points,
+            ),
+            self.assertRaisesRegex(RuntimeError, "2 installed build hooks"),
+        ):
+            Dependencies._load_runtime_backend_build_hook("hpy-universal")
+
+        entry_points.select.return_value = (entry_point,)
+        entry_point.load.side_effect = ImportError("broken integration")
+        with (
+            mock.patch.dict(
+                Dependencies._runtime_backend_build_hooks, {}, clear=True),
+            mock.patch(
+                "importlib.metadata.entry_points",
+                return_value=entry_points,
+            ),
+            self.assertRaisesRegex(RuntimeError, "cannot load build hook"),
+        ):
+            Dependencies._load_runtime_backend_build_hook("hpy-universal")
+
 
 class TestGlobbing(TimedTest):
     @classmethod

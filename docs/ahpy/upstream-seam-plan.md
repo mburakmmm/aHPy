@@ -26,8 +26,12 @@ Duplicate registration of the same callable is harmless, while competing
 callables, unknown backends, and non-callables fail closed.
 
 `ahpy_hpy_compat` owns the HPy 0.9 loader-template workaround and registers it
-for `hpy-universal`. Thus `Cython/Build/Dependencies.py` contains no aHPy import
-or HPy loader knowledge. CPython builds execute no registered HPy hook.
+for `hpy-universal`. Installed frontend wheels also publish exactly one
+`cython.runtime_backend_build_hooks` entry point, so a plain installed
+`Cython.Build.cythonize()` call discovers the integration without requiring a
+user import. Duplicate installed providers and loading failures are rejected.
+Thus `Cython/Build/Dependencies.py` contains no aHPy import or HPy loader
+knowledge. CPython builds execute no HPy hook.
 
 ## Proposed independent upstream changes
 
@@ -37,9 +41,10 @@ without accepting Universal HPy support.
 1. **Runtime backend option validation.** Introduce a validated module-wide
    runtime-backend identity in compilation options and preserve `cpython` as
    the default. No HPy emitter is part of this slice.
-2. **Build preparation registry.** Add the callable registration seam exported
-   by `Cython.Build`, with idempotence/conflict/invalid-input tests. No backend
-   package is imported and an empty registry is behaviorally inert.
+2. **Build preparation registry.** Add the callable registration and installed
+   entry-point discovery seam exported by `Cython.Build`, with
+   idempotence/conflict/invalid-input/duplicate-provider/load-failure tests. No
+   backend package is named by core and an empty registry is behaviorally inert.
 3. **Context-owned Runtime API service.** Attach an immutable runtime service
    to each compilation context instead of mutable global backend state. Begin
    with CPython behavior only.
@@ -73,7 +78,8 @@ otherwise:
 
 ## Required evidence before opening a PR
 
-- `Cython.Build` imports successfully without any `ahpy_*` module loaded.
+- `Cython.Build` imports successfully without any `ahpy_*` module loaded; a
+  clean installed wheel then discovers exactly one HPy Universal provider.
 - Default and explicit CPython `cythonize()` output is unchanged.
 - The neutral hook registry covers identical registration, conflicting
   registration, unknown backend, non-callable hook and backend isolation.

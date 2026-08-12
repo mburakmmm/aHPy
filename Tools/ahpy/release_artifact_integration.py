@@ -128,6 +128,20 @@ def _assert_frontend(python, present, cwd):
             (AHPY_DISTRIBUTION, AHPY_VERSION) +
             "from Cython.Compiler.RuntimeAPI import HPY_UNIVERSAL_BACKEND\n"
             "assert HPY_UNIVERSAL_BACKEND == 'hpy-universal'\n"
+            "hooks = tuple(metadata.entry_points("
+            "group='cython.runtime_backend_build_hooks', "
+            "name='hpy-universal'))\n"
+            "assert len(hooks) == 1\n"
+            "assert hooks[0].value == ("
+            "'ahpy_hpy_compat:'"
+            "'install_hpy_universal_loader_compat')\n"
+            "from Cython.Build import Dependencies, cythonize\n"
+            "assert 'hpy-universal' not in ("
+            "Dependencies._runtime_backend_build_hooks)\n"
+            "assert cythonize([], runtime_backend='hpy-universal') == []\n"
+            "hook = Dependencies._runtime_backend_build_hooks["
+            "'hpy-universal']\n"
+            "assert hook.__module__ == 'ahpy_hpy_compat'\n"
             "import ahpy_build_backend, ahpy_build_config, ahpy_hpy_compat\n"
         )
     else:

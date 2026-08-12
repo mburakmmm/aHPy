@@ -130,9 +130,9 @@ Last verified local gates:
   skips on macOS).
 - Focused coverage (2026-08-12): 944 tests traced on both interpreters.
   - CPython 3.11: backend 9565/9565 (100.00%), frontend_seam 53.33%,
-    quality_tools 8694/8694 (100.00%).
+    quality_tools 8706/8706 (100.00%).
   - CPython 3.14.2: backend 9451/9451 (100.00%), frontend_seam 53.45%,
-    quality_tools 8701/8701 (100.00%).
+    quality_tools 8713/8713 (100.00%).
   - CI floors are 100%, 45%, and 100%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
@@ -815,11 +815,12 @@ implementation.
    reproductions.
    The first build-layer dependency inversion is implemented locally:
    `Cython.Build.register_runtime_backend_build_hook()` owns a neutral,
-   fail-closed registry and `ahpy_hpy_compat` registers from the integration
-   side, so Cython build core no longer imports an aHPy module. The proposed
-   independent upstream slices, evidence requirements and maintainer questions
-   are frozen in `docs/ahpy/upstream-seam-plan.md`; no upstream acceptance or
-   PR is claimed yet.
+   fail-closed registry and installed entry-point discovery; `ahpy_hpy_compat`
+   registers from the integration side, so Cython build core no longer imports
+   or names an aHPy module. Clean wheels must expose exactly one provider. The
+   proposed independent upstream slices, evidence requirements and maintainer
+   questions are frozen in `docs/ahpy/upstream-seam-plan.md`; no upstream
+   acceptance or PR is claimed yet.
 8. Complete security, support, contributor, debugging, release, provenance,
    limitation, and maintenance-cadence documentation before a release candidate.
    Local PRD-9 preparation now includes a strict machine-readable maintenance

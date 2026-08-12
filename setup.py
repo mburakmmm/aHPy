@@ -84,7 +84,11 @@ if 'setuptools' in sys.modules:
             'cython = Cython.Compiler.Main:setuptools_main',
             'cythonize = Cython.Build.Cythonize:main',
             'cygdb = Cython.Debugger.Cygdb:main',
-        ]
+        ],
+        'cython.runtime_backend_build_hooks': [
+            'hpy-universal = '
+            'ahpy_hpy_compat:install_hpy_universal_loader_compat',
+        ],
     }
     scripts = []
 else:

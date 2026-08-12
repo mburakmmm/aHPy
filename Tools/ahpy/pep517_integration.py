@@ -65,6 +65,14 @@ def _frontend_metadata(wheel, expected_commit=None):
         metadata_name = next(
             name for name in names if name.endswith(".dist-info/METADATA"))
         metadata_text = archive.read(metadata_name).decode("utf8")
+        entry_point_names = [
+            name for name in names
+            if name.endswith(".dist-info/entry_points.txt")
+        ]
+        if len(entry_point_names) != 1:
+            raise AssertionError(
+                "frontend wheel must contain exactly one entry_points.txt")
+        entry_points_text = archive.read(entry_point_names[0]).decode("utf8")
     if "Name: %s\n" % AHPY_DISTRIBUTION not in metadata_text:
         raise AssertionError("frontend wheel is not the aHPy distribution")
     if "Version: %s\n" % AHPY_VERSION not in metadata_text:
@@ -81,6 +89,14 @@ def _frontend_metadata(wheel, expected_commit=None):
     ):
         if required not in names:
             raise AssertionError("frontend wheel is missing %s" % required)
+    hook_entry = (
+        "[cython.runtime_backend_build_hooks]\n"
+        "hpy-universal = "
+        "ahpy_hpy_compat:install_hpy_universal_loader_compat\n"
+    )
+    if hook_entry not in entry_points_text:
+        raise AssertionError(
+            "frontend wheel lacks the Universal backend build hook")
     if not any(name.startswith("Cython/") for name in names):
         raise AssertionError("frontend wheel is missing the Cython package")
 

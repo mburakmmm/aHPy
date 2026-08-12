@@ -229,6 +229,8 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
             self.assertIn("HPY_UNIVERSAL_BACKEND", command[2])
             self.assertIn("ahpy_build_backend, ahpy_build_config", command[2])
             self.assertIn("ahpy_hpy_compat", command[2])
+            self.assertIn(
+                "cythonize([], runtime_backend='hpy-universal')", command[2])
             self.assertEqual(clean_cwd, run.call_args.kwargs["cwd"])
 
     def test_venv_python_rejects_incomplete_environment(self):

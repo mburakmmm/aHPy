@@ -555,8 +555,9 @@ hosted kanıt / prepared report / filed issue ayrımıyla merkezileştiriyor;
 owner onayı olmadan hiçbir yeni upstream issue yayımlanmadı.
 İlk backend-neutral dependency inversion da yerelde uygulanmıştır:
 `Cython.Build` backend adıyla idempotent/fail-closed bir build hazırlık hook'u
-kaydeder; HPy 0.9 loader uyumluluğunu `ahpy_hpy_compat` entegrasyon tarafından
-kaydeder ve Cython build core artık hiçbir `ahpy_*` modülü import etmez.
+kaydeder ve installed entry point'ten tek provider keşfeder; HPy 0.9 loader
+uyumluluğunu `ahpy_hpy_compat` entegrasyon tarafından kaydeder ve Cython build
+core artık hiçbir `ahpy_*` modülünü adlandırmaz veya import etmez.
 `docs/ahpy/upstream-seam-plan.md` bu değişikliği altı bağımsız upstream dilimine,
 downstream-only politikalara, kanıt kapılarına ve maintainer sorularına ayırır;
 görüşme veya açılmış upstream PR olmadığı için ilgili checkbox'lar açık kalır.

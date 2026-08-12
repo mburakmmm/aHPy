@@ -877,6 +877,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
 # This is the user-exposed entry point.
 _runtime_backend_build_hooks = {}
+_RUNTIME_BACKEND_BUILD_HOOK_ENTRY_POINT = "cython.runtime_backend_build_hooks"
 
 
 def register_runtime_backend_build_hook(runtime_backend, hook):
@@ -899,6 +900,43 @@ def register_runtime_backend_build_hook(runtime_backend, hook):
             runtime_backend)
     _runtime_backend_build_hooks[runtime_backend] = hook
     return hook
+
+
+def _load_runtime_backend_build_hook(runtime_backend):
+    """Load at most one installed preparation hook for ``runtime_backend``."""
+    from importlib import metadata
+    from ..Compiler.RuntimeAPI import validate_runtime_backend_name
+
+    runtime_backend = validate_runtime_backend_name(runtime_backend)
+    hook = _runtime_backend_build_hooks.get(runtime_backend)
+    if hook is not None:
+        return hook
+
+    entry_points = metadata.entry_points()
+    if hasattr(entry_points, "select"):
+        candidates = tuple(entry_points.select(
+            group=_RUNTIME_BACKEND_BUILD_HOOK_ENTRY_POINT,
+            name=runtime_backend,
+        ))
+    else:  # pragma: no cover - Python/importlib_metadata compatibility path
+        candidates = tuple(
+            entry_point for entry_point in entry_points.get(
+                _RUNTIME_BACKEND_BUILD_HOOK_ENTRY_POINT, ())
+            if entry_point.name == runtime_backend
+        )
+    if not candidates:
+        return None
+    if len(candidates) != 1:
+        raise RuntimeError(
+            "runtime backend %r has %d installed build hooks; expected one" %
+            (runtime_backend, len(candidates)))
+    try:
+        hook = candidates[0].load()
+    except Exception as exc:
+        raise RuntimeError(
+            "cannot load build hook for runtime backend %r" %
+            runtime_backend) from exc
+    return register_runtime_backend_build_hook(runtime_backend, hook)
 
 
 def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, force=None, language=None,
@@ -984,7 +1022,10 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     if exclude is None:
         exclude = []
     runtime_backend = options.get('runtime_backend')
-    build_hook = _runtime_backend_build_hooks.get(runtime_backend)
+    build_hook = (
+        _load_runtime_backend_build_hook(runtime_backend)
+        if runtime_backend is not None else None
+    )
     if build_hook is not None:
         build_hook()
     if 'include_path' not in options:
