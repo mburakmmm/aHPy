@@ -2,7 +2,9 @@ import contextlib
 import os
 import tempfile
 from os.path import join as pjoin
+from unittest import mock
 
+from .. import Dependencies
 from ..Dependencies import extended_iglob
 from ...TestUtils import TimedTest
 
@@ -11,6 +13,52 @@ from ...TestUtils import TimedTest
 def writable_file(dir_path, filename):
     with open(pjoin(dir_path, filename), "w", encoding="utf8") as f:
         yield f
+
+
+class TestRuntimeBackendBuildHooks(TimedTest):
+    def test_registration_is_idempotent_and_conflicts_fail_closed(self):
+        hook = mock.Mock()
+        with mock.patch.dict(
+                Dependencies._runtime_backend_build_hooks, {}, clear=True):
+            self.assertIs(
+                Dependencies.register_runtime_backend_build_hook(
+                    "hpy-universal", hook),
+                hook,
+            )
+            self.assertIs(
+                Dependencies.register_runtime_backend_build_hook(
+                    "hpy-universal", hook),
+                hook,
+            )
+            with self.assertRaisesRegex(ValueError, "different build hook"):
+                Dependencies.register_runtime_backend_build_hook(
+                    "hpy-universal", mock.Mock())
+            with self.assertRaisesRegex(TypeError, "must be callable"):
+                Dependencies.register_runtime_backend_build_hook(
+                    "cpython", None)
+            with self.assertRaisesRegex(Exception, "unknown runtime backend"):
+                Dependencies.register_runtime_backend_build_hook(
+                    "unknown-backend", hook)
+
+    def test_cythonize_invokes_only_the_selected_backend_hook(self):
+        universal_hook = mock.Mock()
+        cpython_hook = mock.Mock()
+        hooks = {
+            "hpy-universal": universal_hook,
+            "cpython": cpython_hook,
+        }
+        with (
+            mock.patch.dict(
+                Dependencies._runtime_backend_build_hooks, hooks, clear=True),
+            mock.patch.object(
+                Dependencies, "CompilationOptions",
+                side_effect=RuntimeError("stop after build hook"),
+            ),
+            self.assertRaisesRegex(RuntimeError, "after build hook"),
+        ):
+            Dependencies.cythonize([], runtime_backend="hpy-universal")
+        universal_hook.assert_called_once_with()
+        cpython_hook.assert_not_called()
 
 
 class TestGlobbing(TimedTest):

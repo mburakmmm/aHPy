@@ -1,4 +1,6 @@
 import sys
+import subprocess
+from pathlib import Path
 from types import ModuleType, SimpleNamespace
 import unittest
 from unittest import mock
@@ -64,11 +66,13 @@ class HPyCompatTest(unittest.TestCase):
             ahpy_hpy_compat.install_hpy_universal_loader_compat()
 
     def test_cythonize_installs_loader_compat_only_for_universal_hpy(self):
+        install = mock.Mock()
         with (
-            mock.patch.object(
-                ahpy_hpy_compat,
-                "install_hpy_universal_loader_compat",
-            ) as install,
+            mock.patch.dict(
+                Dependencies._runtime_backend_build_hooks,
+                {"hpy-universal": install},
+                clear=True,
+            ),
             mock.patch.object(
                 Dependencies, "CompilationOptions",
                 side_effect=RuntimeError("stop after compatibility hook"),
@@ -78,11 +82,13 @@ class HPyCompatTest(unittest.TestCase):
             Dependencies.cythonize([], runtime_backend="hpy-universal")
         install.assert_called_once_with()
 
+        install = mock.Mock()
         with (
-            mock.patch.object(
-                ahpy_hpy_compat,
-                "install_hpy_universal_loader_compat",
-            ) as install,
+            mock.patch.dict(
+                Dependencies._runtime_backend_build_hooks,
+                {"hpy-universal": install},
+                clear=True,
+            ),
             mock.patch.object(
                 Dependencies, "CompilationOptions",
                 side_effect=RuntimeError("stop before extension discovery"),
@@ -91,6 +97,55 @@ class HPyCompatTest(unittest.TestCase):
         ):
             Dependencies.cythonize([])
         install.assert_not_called()
+
+    def test_neutral_build_hook_registration_is_idempotent_and_fail_closed(self):
+        hook = mock.Mock()
+        with mock.patch.dict(
+                Dependencies._runtime_backend_build_hooks, {}, clear=True):
+            self.assertIs(
+                Dependencies.register_runtime_backend_build_hook(
+                    "hpy-universal", hook),
+                hook,
+            )
+            self.assertIs(
+                Dependencies.register_runtime_backend_build_hook(
+                    "hpy-universal", hook),
+                hook,
+            )
+            with self.assertRaisesRegex(ValueError, "different build hook"):
+                Dependencies.register_runtime_backend_build_hook(
+                    "hpy-universal", mock.Mock())
+            with self.assertRaisesRegex(TypeError, "must be callable"):
+                Dependencies.register_runtime_backend_build_hook(
+                    "cpython", None)
+            with self.assertRaisesRegex(Exception, "unknown runtime backend"):
+                Dependencies.register_runtime_backend_build_hook(
+                    "unknown-backend", hook)
+
+    def test_ahpy_helper_is_registered_without_core_import_dependency(self):
+        self.assertIs(
+            Dependencies._runtime_backend_build_hooks["hpy-universal"],
+            ahpy_hpy_compat.install_hpy_universal_loader_compat,
+        )
+        with open(Dependencies.__file__, encoding="utf8") as dependency_source:
+            self.assertNotIn("ahpy_hpy_compat", dependency_source.read())
+
+        root = str(Path(Dependencies.__file__).resolve().parents[2])
+        program = (
+            "import sys\n"
+            "sys.path.insert(0, %r)\n"
+            "from Cython.Build import (cythonize, "
+            "register_runtime_backend_build_hook)\n"
+            "assert callable(cythonize)\n"
+            "assert callable(register_runtime_backend_build_hook)\n"
+            "assert not any(name.startswith('ahpy_') for name in sys.modules)\n"
+        ) % root
+        subprocess.run(
+            [sys.executable, "-I", "-c", program],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
 
 
 if __name__ == "__main__":

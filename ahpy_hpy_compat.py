@@ -45,3 +45,17 @@ def install_hpy_universal_loader_compat(hpy_devel=None):
     template = template.replace(_LEGACY_RESOLVE, _PATH_RESOLVE, 1)
     setattr(hpy_devel, attribute, template)
     return True
+
+
+def register_hpy_universal_loader_compat():
+    """Register loader preparation through Cython's backend-neutral seam."""
+    from Cython.Build import register_runtime_backend_build_hook
+    from Cython.Compiler.RuntimeAPI import HPY_UNIVERSAL_BACKEND
+
+    return register_runtime_backend_build_hook(
+        HPY_UNIVERSAL_BACKEND,
+        install_hpy_universal_loader_compat,
+    )
+
+
+register_hpy_universal_loader_compat()

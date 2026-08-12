@@ -70,8 +70,8 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 438 compiler/seam testi, 504 quality-tool testi ve
-  iki yorumlayıcıda 942 coverage testi.
+- Mevcut odaklı doğrulama: 438 compiler/seam testi, 506 quality-tool testi ve
+  iki yorumlayıcıda 944 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Quality-tool Python satır kapsamı CPython 3.11 ve 3.14'te %100; ayrı native,
   subprocess, portability ve hosted kapıları bu orana dahil edilmez.
@@ -553,6 +553,13 @@ veriyor. `upstream-dependencies.md` ise HPy 3.14 handwritten reproducer'ı, HPy
 #488 bağlantısını, PyPy/GraalPy bridge/loader ve diğer public-API boşluklarını
 hosted kanıt / prepared report / filed issue ayrımıyla merkezileştiriyor;
 owner onayı olmadan hiçbir yeni upstream issue yayımlanmadı.
+İlk backend-neutral dependency inversion da yerelde uygulanmıştır:
+`Cython.Build` backend adıyla idempotent/fail-closed bir build hazırlık hook'u
+kaydeder; HPy 0.9 loader uyumluluğunu `ahpy_hpy_compat` entegrasyon tarafından
+kaydeder ve Cython build core artık hiçbir `ahpy_*` modülü import etmez.
+`docs/ahpy/upstream-seam-plan.md` bu değişikliği altı bağımsız upstream dilimine,
+downstream-only politikalara, kanıt kapılarına ve maintainer sorularına ayırır;
+görüşme veya açılmış upstream PR olmadığı için ilgili checkbox'lar açık kalır.
 PyPy/GraalPy taslakları artık Cython frontend'inden bağımsız
 `minimal_universal.c` oracle'sını artifact'in ilk iki izole aşamasında çalıştırır;
 CPython 3.11/HPy 0.9 yerel semantik ve iki-clean-build reproducibility kanıtı

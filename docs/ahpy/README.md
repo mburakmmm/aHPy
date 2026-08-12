@@ -50,6 +50,7 @@ Design and implementation references:
 - [Validation matrix and release gates](validation-matrix.md)
 - [Machine-readable CI policy](ci-policy.md)
 - [Maintenance, support lifetime, and change policy](maintenance.md)
+- [Backend-neutral upstream seam plan](upstream-seam-plan.md)
 - [Cython upstream baseline and rebase log](upstream-rebase-log.md)
 - [Debugging Universal failures](debugging.md)
 - [Upstream dependency and reproducer inventory](upstream-dependencies.md)

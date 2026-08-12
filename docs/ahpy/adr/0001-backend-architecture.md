@@ -31,6 +31,9 @@ copies of generated user code.
    do not carry a second CPython implementation behind preprocessor branches.
 8. The existing CPython backend remains the regression oracle throughout the
    implementation.
+9. Build-system preparation uses a backend-neutral callable registry exported
+   by `Cython.Build`; backend distributions own registration and Cython core
+   never imports an `ahpy_*` packaging module.
 
 ## Consequences
 
@@ -38,3 +41,6 @@ copies of generated user code.
 - Handle storage and ownership must be modeled before broad feature support.
 - Unsupported operations are capability errors, never implicit ABI changes.
 - The design can be proposed upstream in small, independently testable changes.
+- The proposed patch boundaries and downstream-only policy are recorded in
+  [`upstream-seam-plan.md`](../upstream-seam-plan.md); local implementation is
+  not upstream acceptance.

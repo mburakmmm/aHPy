@@ -876,6 +876,31 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
 
 # This is the user-exposed entry point.
+_runtime_backend_build_hooks = {}
+
+
+def register_runtime_backend_build_hook(runtime_backend, hook):
+    """Register one idempotent preparation hook for a runtime backend.
+
+    Runtime integrations own their packaging and toolchain preparation.
+    Cython invokes the registered callable without importing a backend
+    distribution itself. Re-registering the same callable is harmless;
+    competing hooks fail closed so import order cannot change the contract.
+    """
+    from ..Compiler.RuntimeAPI import validate_runtime_backend_name
+
+    runtime_backend = validate_runtime_backend_name(runtime_backend)
+    if not callable(hook):
+        raise TypeError("runtime backend build hook must be callable")
+    existing = _runtime_backend_build_hooks.get(runtime_backend)
+    if existing is not None and existing is not hook:
+        raise ValueError(
+            "runtime backend %r already has a different build hook" %
+            runtime_backend)
+    _runtime_backend_build_hooks[runtime_backend] = hook
+    return hook
+
+
 def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, force=None, language=None,
               exclude_failures=False, show_all_warnings=False, **options):
     """
@@ -958,9 +983,10 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     """
     if exclude is None:
         exclude = []
-    if options.get('runtime_backend') == 'hpy-universal':
-        from ahpy_hpy_compat import install_hpy_universal_loader_compat
-        install_hpy_universal_loader_compat()
+    runtime_backend = options.get('runtime_backend')
+    build_hook = _runtime_backend_build_hooks.get(runtime_backend)
+    if build_hook is not None:
+        build_hook()
     if 'include_path' not in options:
         options['include_path'] = ['.']
     if 'common_utility_include_dir' in options:
