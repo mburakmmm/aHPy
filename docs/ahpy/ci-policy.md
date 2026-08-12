@@ -67,6 +67,14 @@ the versioned budget, publish a package, or obtain OIDC credentials. The
 evidence and review contract is in
 [`performance-release-gate.md`](performance-release-gate.md).
 
+`.github/workflows/ahpy-security.yml` runs a pull-request dependency review
+and fail-closed CodeQL `security-extended` analysis for Python and C/C++ on
+pull requests, `main`, release branches, manual dispatches and a weekly
+schedule. Security-event write permission is scoped only to the CodeQL job;
+dependency review and checkout remain read-only. The first hosted results must
+be reviewed before a stable branch-protection context is added. See
+[`maintenance.md`](maintenance.md) for ownership, cadence and triage policy.
+
 The live repository ruleset is
 [`19886870`](https://github.com/mburakmmm/aHPy/rules/19886870). GitHub reports
 it as active with `current_user_can_bypass: never`; both `main` and a

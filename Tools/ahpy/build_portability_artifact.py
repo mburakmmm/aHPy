@@ -15,13 +15,18 @@ from tempfile import TemporaryDirectory
 
 from artifact_utils import find_universal_binaries
 from test_generated_hpy import run, verify_binary_boundary, verify_source_boundary
+from test_minimal_hpy import verify_source_boundary as verify_minimal_source_boundary
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCES = (
+GENERATED_SOURCES = (
     ("bootstrap_answer", ROOT / "tests" / "ahpy" / "bootstrap_answer.pyx"),
     ("bootstrap_types", ROOT / "tests" / "ahpy" / "bootstrap_types.pyx"),
 )
+HANDWRITTEN_SOURCES = (
+    ("ahpy_minimal", ROOT / "tests" / "ahpy" / "minimal_universal.c"),
+)
+SOURCES = GENERATED_SOURCES + HANDWRITTEN_SOURCES
 SMOKE = ROOT / "Tools" / "ahpy" / "portability_smoke.py"
 
 
@@ -56,7 +61,7 @@ def build_artifact(python, output):
         _append_flag(environment, "CFLAGS", reproducible_paths)
         _append_flag(environment, "CXXFLAGS", reproducible_paths)
         generated_sources = []
-        for module_name, source in SOURCES:
+        for module_name, source in GENERATED_SOURCES:
             generated = temp / (module_name + ".c")
             run([
                 python,
@@ -77,13 +82,27 @@ def build_artifact(python, output):
             )
             generated_sources.append(generated)
 
+        for _module_name, source in HANDWRITTEN_SOURCES:
+            verify_minimal_source_boundary()
+            copied = temp / source.name
+            shutil.copy2(source, copied)
+
         setup = temp / "setup.py"
+        setup_sources = (
+            tuple((module_name, module_name + ".c")
+                  for module_name, _source in GENERATED_SOURCES) +
+            tuple((module_name, source.name)
+                  for module_name, source in HANDWRITTEN_SOURCES)
+        )
+        extensions = "\n".join(
+            "    Extension(%r, [%r])," % (module_name, source_name)
+            for module_name, source_name in setup_sources
+        )
         setup.write_text(
             "from setuptools import Extension, setup\n"
             "setup(name='ahpy-portability', version='0.0.0', "
             "packages=[], py_modules=[], hpy_ext_modules=[\n"
-            "    Extension('bootstrap_answer', ['bootstrap_answer.c']),\n"
-            "    Extension('bootstrap_types', ['bootstrap_types.c']),\n"
+            + extensions + "\n"
             "])\n",
             encoding="utf8",
         )

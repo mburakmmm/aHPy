@@ -60,7 +60,7 @@ publications are recorded once and rolled back in reverse order after a
 positively matched allocation failure. Since HPy 0.9 cleanup deletion may
 clear the current error and offers no public fetch/restore operation, the
 emitter re-establishes only the already matched `MemoryError`; other error
-classes retain the ordinary non-speculative propagation path. All 128 isolated
+classes retain the ordinary non-speculative propagation path. All 150 isolated
 normal/Debug processes pass with exact exception identity and clean handles.
 
 The source scanner requires `HPyDef_SLOT`, `HPy_mod_exec`, module attribute
@@ -90,7 +90,7 @@ remain rejected or planned. See `docs/ahpy/module-state.md` for the exact
 safety boundary.
 
 The 2026-07-29 PRD-2 closure reran the generated corpus in
-normal/Trace/Debug, all 128 isolated allocation/API fault selectors, and the
+normal/Trace/Debug, all 150 isolated allocation/API fault selectors, and the
 38-case CPython C/C++ semantic oracle. Together with the previously green
 subinterpreter, concurrent-import, reload, failed-import collection/retry,
 teardown, generated-source, and binary-symbol gates, this leaves no mutable

@@ -49,8 +49,16 @@ Design and implementation references:
 - [PRD-5 portability and native-memory audit](audits/prd5-portability-native-memory.md)
 - [Validation matrix and release gates](validation-matrix.md)
 - [Machine-readable CI policy](ci-policy.md)
+- [Maintenance, support lifetime, and change policy](maintenance.md)
+- [Cython upstream baseline and rebase log](upstream-rebase-log.md)
+- [Debugging Universal failures](debugging.md)
+- [Upstream dependency and reproducer inventory](upstream-dependencies.md)
 - [Production branch ruleset](../../.github/rulesets/production-branches.json)
 - [Source compatibility scanner](migration-scanner.md)
+- [Pinned third-party pilot matrix](pilot-matrix.md)
+- [Third-party compatibility dashboard](compatibility-dashboard.md)
+- [Library-author porting guide](porting-guide.md)
+- [Frontend-neutral HPy conformance corpus](conformance-corpus.md)
 - [Universal diagnostics catalog](diagnostics.md)
 - [Setuptools/cythonize example](../../examples/ahpy_setuptools/README.md)
 - [Direct non-setuptools build contract](direct-build.md)
@@ -71,9 +79,11 @@ The implemented subset now covers module-level functions, the documented
 expression/container/call/control-flow surface, module state and imports,
 restricted current-error handlers, pure HPy extension types with HPy fields,
 native scalar fields, GC, strict same-module single inheritance, supported
-slots/properties, one-level closures, Python-independent external C calls, and
-a strict native-only `with nogil` slice. Generators, coroutines, buffer
-consumers and typed memoryviews, broad C++, and CPython-only third-party APIs
+slots/properties, one-level closures, writable one-dimensional native-scalar
+and fixed native C-array buffer exporters, Python-independent external C calls,
+and a strict native-only
+`with nogil` slice. Generators, coroutines, buffer consumers and typed
+memoryviews, broader exporters, broad C++, and CPython-only third-party APIs
 remain blocked, planned, or rejected as recorded in the support matrix.
 
 The project does not claim that arbitrary Cython code is automatically

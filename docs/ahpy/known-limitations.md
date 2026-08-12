@@ -26,8 +26,13 @@ larger Cython family an exact preview status and migration path.
   destruction are blocked by missing layout/offset or context-bearing destroy
   APIs.
 - Typed memoryviews and buffer consumers are blocked because HPy 0.9 does not
-  expose public buffer acquire/release consumer operations; a pure-type buffer
-  producer remains planned behind its own ownership gate.
+  expose public buffer acquire/release consumer operations. Pure-type buffer
+  producers support only the validated writable one-dimensional fixed native
+  scalar or private, positive, compile-time-sized native C-array subset and
+  ordinary derived-type slot inheritance. Readonly
+  exporters remain blocked because HPy 0.9 provides no named public
+  writable-request flag; multidimensional/general array-field,
+  auxiliary-allocation, and custom-release exporters still fail closed.
 - Arbitrary `prange`/`parallel()` workers are blocked because HPy 0.9 has no
   public worker attach and error-transport contract.
 - Immediate retry after a failed module initialization requires an explicit
@@ -45,7 +50,9 @@ larger Cython family an exact preview status and migration path.
 - Broad C++ output, C++ exceptions, and RAII cleanup are planned and are not
   part of the preview.
 - `cpython.*` cimports, `PyObject *`, HPy legacy conversions, Hybrid fallback,
-  and CPython-only third-party C APIs are rejected or blocked.
+  and CPython-only third-party C APIs are rejected or blocked, except that the
+  exact `from cpython.buffer cimport Py_buffer` frontend spelling is accepted
+  only inside the validated producer contract and never appears in Universal C.
 - NumPy's CPython C API is not a supported Universal boundary.
 
 ## Runtime and distribution limits

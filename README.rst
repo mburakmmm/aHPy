@@ -42,6 +42,9 @@ Core guarantees
 * Mutable module/type state is interpreter-owned rather than process-global.
 * A supported feature needs semantic, HPy Debug, failure-path, and ABI evidence.
 * Existing Cython C/C++ generation retains a separate regression oracle.
+* The buffer-export subset translates canonical Cython descriptor syntax for
+  writable native scalars and private fixed native C arrays to public Universal
+  HPy producer slots without emitting ``Py_buffer``.
 
 Quick start for contributors
 ----------------------------
@@ -94,16 +97,25 @@ Validation snapshot
 
 The current local M9 snapshot records:
 
-* 433 focused compiler tests and 245 quality-tool tests (two expected
+* 438 focused compiler tests and 498 quality-tool tests (two expected
   platform skips);
-* 678 focused coverage tests on CPython 3.11 and 3.14;
+* 936 focused coverage tests on CPython 3.11 and 3.14;
 * 100% executable Python-line coverage for the three Universal backend
   implementation modules on both interpreters, with separate 45% frontend-seam
-  and 50% quality-tool floors;
+  and 100% quality-tool floors (current quality-tool coverage is 100%);
 * normal, HPy Trace, and HPy Debug execution;
-* 128 isolated allocation/API fault selectors;
-* ten generated-versus-handwritten Universal HPy performance budgets;
+* 150 isolated allocation/API fault selectors;
+* ten generated-versus-handwritten Universal HPy regression ceilings, marked
+  machine-readably as non-release until same-HEAD hosted calibration;
 * reproducible frontend wheel/sdist and portability artifacts;
+* pinned real-world cypack, murmurhash and frozenlist pilots: cypack locally passes
+  Universal source/binary audits, host-tagged wheel install, installed
+  normal/Trace/Debug execution and comparable performance measurement, while
+  murmurhash passes an explicitly partial fixed-width scalar adapter over its
+  exact upstream C++ implementation without claiming its bytes API, and
+  frozenlist passes an explicit extension-type/GC/inheritance subset; their
+  reports merge locally with the exact four-project checkout/scan matrix into
+  a fail-closed dashboard, while hosted artifact proof remains pending;
 * sdist and frontend-wheel metadata bound to the exact aHPy source commit,
   embedded Cython base commit, and HPy compatibility contract;
 * a retained release bundle with artifact checksums, SPDX 2.3 SBOM, license
@@ -113,7 +125,10 @@ The CPython 3.11/HPy 0.9 stable baseline is green on hosted Linux x86-64 and
 ARM64, macOS Intel and ARM64, and Windows x64.  Same-binary PyPy and GraalPy
 executions are recorded as allowed-failure early warnings: their selected
 runtimes currently fail before aHPy's Universal module semantics can run, so
-neither interpreter is a support claim.  See
+neither interpreter is a support claim.  The next portability artifact starts
+with a handwritten public-HPy oracle before generated aHPy modules, allowing a
+hosted rerun to distinguish runtime bridge/loader failures from frontend output.
+See
 `the validation matrix <docs/ahpy/validation-matrix.md>`_ and
 `the focused-coverage audit
 <docs/ahpy/audits/m8-focused-backend-coverage.md>`_; performance evidence
@@ -140,11 +155,19 @@ Documentation map
 * `Preview support contract <docs/ahpy/release-contract.md>`_
 * `Support matrix <docs/ahpy/support-matrix.md>`_
 * `Known limitations <docs/ahpy/known-limitations.md>`_
+* `Pinned third-party pilot matrix <docs/ahpy/pilot-matrix.md>`_
+* `Third-party compatibility dashboard <docs/ahpy/compatibility-dashboard.md>`_
+* `Library-author porting guide <docs/ahpy/porting-guide.md>`_
+* `Frontend-neutral HPy conformance corpus <docs/ahpy/conformance-corpus.md>`_
 * `Validation and release gates <docs/ahpy/validation-matrix.md>`_
 * `Release performance budget calibration <docs/ahpy/performance-release-gate.md>`_
 * `Release signing and verification <docs/ahpy/release-signing.md>`_
 * `TestPyPI and PyPI publication policy <docs/ahpy/publishing.md>`_
 * `Machine-readable CI policy <docs/ahpy/ci-policy.md>`_
+* `Maintenance, support lifetime, and change policy <docs/ahpy/maintenance.md>`_
+* `Cython upstream baseline and rebase log <docs/ahpy/upstream-rebase-log.md>`_
+* `Debugging Universal failures <docs/ahpy/debugging.md>`_
+* `Upstream dependency and reproducer inventory <docs/ahpy/upstream-dependencies.md>`_
 * `Production branch ruleset <.github/rulesets/production-branches.json>`_
 * `Handle ownership model <docs/ahpy/handle-model.md>`_
 * `Runtime API seam <docs/ahpy/runtime-api.md>`_

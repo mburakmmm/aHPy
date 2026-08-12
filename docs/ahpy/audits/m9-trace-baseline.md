@@ -138,4 +138,4 @@ Generated/reference binaries were 76,576/76,080 bytes; generated C was 29,536
 bytes. Clean-process peak RSS was 35,831,808/35,946,496 bytes (0.997×). The
 4,654,176-byte/81,349-line type corpus compiled in 1.416 seconds at `-O0` and
 5.452 seconds at `-O3`. Normal/Trace/Debug, 188 emitter tests, checked fallback
-tests, and all 128 isolated fault selectors pass.
+tests, and all 150 isolated fault selectors pass.

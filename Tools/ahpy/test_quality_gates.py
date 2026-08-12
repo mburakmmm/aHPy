@@ -137,6 +137,18 @@ class QualityGateTest(unittest.TestCase):
         self.assertIn("-fsanitize=address,undefined", environment["CFLAGS"])
         self.assertIn("halt_on_error=1", environment["UBSAN_OPTIONS"])
 
+    @mock.patch.object(run_sanitized_hpy.sys, "platform", "linux")
+    @mock.patch.object(run_sanitized_hpy.subprocess, "run")
+    def test_sanitizer_environment_rejects_missing_linux_runtime(self, run):
+        for reported in ("", "libasan.so", "/missing/libasan.so"):
+            with self.subTest(reported=reported):
+                run.return_value.stdout = reported + "\n"
+                with (
+                    mock.patch.object(Path, "is_file", return_value=False),
+                    self.assertRaisesRegex(RuntimeError, "existing libasan"),
+                ):
+                    run_sanitized_hpy.sanitizer_environment("gcc", "address")
+
     @mock.patch.object(
         run_sanitized_hpy.platform, "machine", return_value="arm64")
     @mock.patch.object(run_sanitized_hpy.sys, "platform", "darwin")
@@ -154,6 +166,28 @@ class QualityGateTest(unittest.TestCase):
         )
         self.assertNotIn("DYLD_INSERT_LIBRARIES", environment)
         self.assertEqual(environment["ARCHFLAGS"], "-arch arm64")
+
+    def test_sanitizer_environment_rejects_apple_arch_and_runtime_drift(self):
+        with (
+            mock.patch.object(run_sanitized_hpy.sys, "platform", "darwin"),
+            mock.patch.object(
+                run_sanitized_hpy.platform, "machine", return_value="riscv64"),
+            self.assertRaisesRegex(RuntimeError, "unsupported macOS"),
+        ):
+            run_sanitized_hpy.sanitizer_environment("clang", "address")
+
+        with (
+            mock.patch.object(run_sanitized_hpy.sys, "platform", "darwin"),
+            mock.patch.object(
+                run_sanitized_hpy.platform, "machine", return_value="arm64"),
+            mock.patch.object(
+                run_sanitized_hpy.subprocess, "run",
+                return_value=mock.Mock(
+                    stdout="libclang_rt.asan_osx_dynamic.dylib\n")),
+            mock.patch.object(Path, "is_file", return_value=False),
+            self.assertRaisesRegex(RuntimeError, "existing Apple ASan"),
+        ):
+            run_sanitized_hpy.sanitizer_environment("clang", "address")
 
     def test_apple_launcher_replaces_program_name_before_python_init(self):
         source = run_sanitized_hpy.APPLE_SANITIZER_LAUNCHER
@@ -198,6 +232,58 @@ class QualityGateTest(unittest.TestCase):
         self.assertIn("-fsanitize=address,undefined", compile_command)
         self.assertEqual(environment["AHPY_REAL_PYTHON"], "/selected/python")
 
+    def test_macos_launcher_requires_config_otool_and_selected_runtime_link(self):
+        runtime = "/toolchain/libclang_rt.asan_osx_dynamic.dylib"
+        environment = {
+            "ARCHFLAGS": "-arch arm64",
+            "AHPY_ASAN_RUNTIME": runtime,
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            bindir = Path(temp)
+            metadata = mock.Mock(stdout=json.dumps({
+                "bindir": str(bindir), "version": "3.11"}))
+            with (
+                mock.patch.object(
+                    run_sanitized_hpy.subprocess, "run",
+                    return_value=metadata),
+                self.assertRaisesRegex(RuntimeError, "no python-config"),
+            ):
+                with run_sanitized_hpy.macos_sanitizer_python(
+                        "/python", "clang", "address", dict(environment)):
+                    pass
+
+            config = bindir / "python3.11-config"
+            config.touch()
+            common = (
+                metadata,
+                mock.Mock(stdout="-I/include -L/lib -lpython3.11"),
+                mock.Mock(stdout=""),
+            )
+            with (
+                mock.patch.object(
+                    run_sanitized_hpy.subprocess, "run",
+                    side_effect=common),
+                mock.patch.object(
+                    run_sanitized_hpy.shutil, "which", return_value=None),
+                self.assertRaisesRegex(RuntimeError, "otool is required"),
+            ):
+                with run_sanitized_hpy.macos_sanitizer_python(
+                        "/python", "clang", "address", dict(environment)):
+                    pass
+
+            with (
+                mock.patch.object(
+                    run_sanitized_hpy.subprocess, "run",
+                    side_effect=common + (mock.Mock(stdout="launcher:\n"),)),
+                mock.patch.object(
+                    run_sanitized_hpy.shutil, "which",
+                    return_value="/usr/bin/otool"),
+                self.assertRaisesRegex(RuntimeError, "does not link"),
+            ):
+                with run_sanitized_hpy.macos_sanitizer_python(
+                        "/python", "clang", "address", dict(environment)):
+                    pass
+
     @mock.patch.object(run_sanitized_hpy.subprocess, "run")
     def test_macos_preload_probe_requires_selected_runtime(self, run):
         run.return_value = mock.Mock(returncode=0, stdout="preloaded\n", stderr="")
@@ -212,6 +298,76 @@ class QualityGateTest(unittest.TestCase):
                 environment["AHPY_ASAN_RUNTIME"],
             )
         self.assertEqual(run.call_args.kwargs["env"], environment)
+
+    @mock.patch.object(run_sanitized_hpy.subprocess, "run")
+    def test_macos_preload_probe_reports_child_failure(self, run):
+        run.return_value = mock.Mock(
+            returncode=9, stdout="", stderr="preload failed\n")
+        environment = {
+            "AHPY_ASAN_RUNTIME": "/toolchain/libasan.dylib",
+            "ARCHFLAGS": "-arch arm64",
+        }
+        with self.assertRaisesRegex(
+                RuntimeError, "failed with exit 9: preload failed"):
+            run_sanitized_hpy.verify_macos_preload(
+                "/tmp/asan-python", environment)
+
+    def test_sanitizer_main_dispatches_native_and_macos_launchers(self):
+        environment = {
+            "ARCHFLAGS": "-arch arm64",
+            "AHPY_ASAN_RUNTIME": "/toolchain/libasan.dylib",
+        }
+        with (
+            mock.patch.object(sys, "argv", [
+                "run_sanitized_hpy.py", "--python", "reviewed-python",
+                "--cc", "clang", "--sanitizers", "undefined"]),
+            mock.patch.object(run_sanitized_hpy.sys, "platform", "linux"),
+            mock.patch.object(
+                run_sanitized_hpy.shutil, "which",
+                return_value="/tool/python"),
+            mock.patch.object(
+                run_sanitized_hpy, "sanitizer_environment",
+                return_value=environment),
+            mock.patch.object(
+                run_sanitized_hpy.subprocess, "run") as run,
+            mock.patch("builtins.print"),
+        ):
+            run_sanitized_hpy.main()
+        run.assert_called_once_with(
+            ["/tool/python", str(run_sanitized_hpy.GENERATED_TEST),
+             "--python", "/tool/python"],
+            cwd=run_sanitized_hpy.ROOT, env=environment, check=True)
+
+        context = mock.MagicMock()
+        context.__enter__.return_value = "/asan/python"
+        with (
+            mock.patch.object(sys, "argv", [
+                "run_sanitized_hpy.py", "--python", "reviewed-python",
+                "--cc", "clang", "--sanitizers", "address"]),
+            mock.patch.object(run_sanitized_hpy.sys, "platform", "darwin"),
+            mock.patch.object(
+                run_sanitized_hpy.shutil, "which",
+                return_value="/tool/python"),
+            mock.patch.object(
+                run_sanitized_hpy, "sanitizer_environment",
+                return_value=environment),
+            mock.patch.object(
+                run_sanitized_hpy, "macos_sanitizer_python",
+                return_value=context) as launcher,
+            mock.patch.object(
+                run_sanitized_hpy, "verify_macos_preload") as preload,
+            mock.patch.object(
+                run_sanitized_hpy.subprocess, "run") as run,
+            mock.patch("builtins.print"),
+        ):
+            run_sanitized_hpy.main()
+        launcher.assert_called_once_with(
+            "/tool/python", "clang", "address", environment)
+        preload.assert_called_once_with("/asan/python", environment)
+        run.assert_called_once_with(
+            ["/asan/python", str(run_sanitized_hpy.GENERATED_TEST),
+             "--python", "/asan/python"],
+            cwd=run_sanitized_hpy.ROOT, env=environment, check=True)
 
     def test_hpy_revisions_are_exactly_pinned(self):
         manifest = tomllib.loads(VERSION_MANIFEST.read_text(encoding="utf8"))
@@ -684,17 +840,43 @@ class QualityGateTest(unittest.TestCase):
             {target["status"] for target in targets.values()},
             {"allowed-failure-early-warning"},
         )
-        self.assertEqual(targets["PyPy"]["evidence_run"], 29685285138)
-        self.assertEqual(targets["PyPy"]["evidence_job"], 88188460273)
-        self.assertEqual(targets["GraalPy"]["evidence_run"], 29685285138)
-        self.assertEqual(targets["GraalPy"]["evidence_job"], 88188460282)
-
+        self.assertEqual(targets["PyPy"]["evidence_run"], 30428968553)
+        self.assertEqual(targets["PyPy"]["evidence_job"], 90501653601)
+        self.assertEqual(targets["GraalPy"]["evidence_run"], 30428968553)
+        self.assertEqual(targets["GraalPy"]["evidence_job"], 90501653614)
         workflow = (ROOT / ".github" / "workflows" /
                     "ahpy-universal.yml").read_text(encoding="utf8")
         job = workflow.split("  cross-interpreter:\n", 1)[1].split(
             "  nightly-interpreter:\n", 1)[0]
+        for target in targets.values():
+            self.assertEqual(target["minimal_hosted_confirmation"], "pending")
+            self.assertTrue((ROOT / target["reproducer"]).is_file())
+            self.assertTrue((ROOT / target["handwritten_source"]).is_file())
+            report = ROOT / target["prepared_report"]
+            self.assertTrue(report.is_file())
+            report_text = report.read_text(encoding="utf8")
+            self.assertIn(target["setup_python"], report_text)
+            self.assertIn(str(target["evidence_run"]), report_text)
+            self.assertIn(str(target["evidence_job"]), report_text)
+            self.assertIn(target["reproducer"], report_text)
+            self.assertIn(target["handwritten_source"], report_text)
+            self.assertIn("- name: %s" % target["matrix_name"], job)
+            self.assertEqual(
+                target["next_evidence_artifact"],
+                "ahpy-portability-" + target["matrix_name"],
+            )
+            self.assertEqual(
+                target["next_evidence_report"],
+                "portability-result-" + target["matrix_name"] + ".json",
+            )
         self.assertIn("portability_smoke.py", job)
+        self.assertIn("--report portability-result-${{ matrix.name }}.json", job)
         self.assertIn("Execute staged unchanged Universal binaries", job)
+        self.assertIn("Upload cross-interpreter evidence", job)
+        self.assertIn("if: always()", job)
+        self.assertIn("name: ahpy-portability-${{ matrix.name }}", job)
+        self.assertIn("path: portability-result-${{ matrix.name }}.json", job)
+        self.assertIn("if-no-files-found: error", job)
         self.assertNotIn("import platform, hpy.universal", job)
         self.assertIn("continue-on-error: true", job)
 
@@ -820,7 +1002,7 @@ class QualityGateTest(unittest.TestCase):
                     "ahpy-universal.yml").read_text(encoding="utf8")
         self.assertIn("--fail-under backend=100", workflow)
         self.assertIn("--fail-under frontend_seam=45", workflow)
-        self.assertIn("--fail-under quality_tools=50", workflow)
+        self.assertIn("--fail-under quality_tools=100", workflow)
 
     def test_windows_native_memory_lane_is_promoted_and_fail_closed(self):
         workflow = (ROOT / ".github" / "workflows" /

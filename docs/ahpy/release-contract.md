@@ -6,6 +6,19 @@ machine-readable source is
 The product level is **preview**, not beta, release candidate, or stable.
 The `aHPy-compiler` distribution is not published yet.
 
+Validate the complete machine contract and its repository bindings with:
+
+```console
+python3 Tools/ahpy/release_contract.py
+python3 Tools/ahpy/release_contract.py --json
+```
+
+The validator requires exact distribution/Cython/HPy/Python pins, positive
+hosted run identities, the six declared platform lanes, seven frontend scopes,
+matching Universal workflow entries, and the identity/evidence values in this
+document. Unknown or missing fields fail closed. The Universal workflow invokes
+the same CLI explicitly; a green parser alone does not publish the preview.
+
 ## Exact compiler and dependency baseline
 
 - Distribution: `aHPy-compiler==3.3.0.1.dev0`.

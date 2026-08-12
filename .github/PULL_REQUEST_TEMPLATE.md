@@ -16,6 +16,13 @@ List exact commands and results. Include normal, HPy Debug/Trace,
 fault-injection, binary-boundary, and CPython regression evidence where
 applicable.
 
+## Maintenance and security
+
+- Upstream/rebase or backport source commit and conflict decisions:
+- Dependency/license/security impact:
+- Private advisory coordination required: yes/no
+- Release/support/deprecation impact:
+
 ## Documentation
 
 - [ ] Support matrix updated or confirmed unchanged
@@ -28,4 +35,5 @@ applicable.
 - [ ] Unsupported Universal behavior fails closed with a source-located diagnostic
 - [ ] No `Python.h`, `PyObject *`, CPython symbol, or HPy Hybrid fallback entered generated Universal code
 - [ ] New external GitHub Actions are pinned to full 40-character commit SHAs
+- [ ] CODEOWNERS, maintenance policy, supported-version lifetime, and security channel remain accurate
 - [ ] Generated files, build outputs, environments, and unrelated changes are excluded

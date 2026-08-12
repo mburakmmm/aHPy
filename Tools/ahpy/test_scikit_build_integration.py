@@ -132,6 +132,57 @@ class ScikitBuildDefinitionTest(unittest.TestCase):
         ):
             integration.build_and_run("missing-python")
 
+    def test_build_and_run_rejects_isolated_artifact_shape_drift(self):
+        cases = (
+            ("frontend", "expected one aHPy-compiler wheel"),
+            ("example", "expected one scikit-build-core example wheel"),
+            ("members", "lacks .hpy0 binary/stub"),
+            ("source", "did not retain generated C"),
+        )
+        for failure, message in cases:
+            def copy_frontend(destination):
+                destination.mkdir()
+
+            def fake_run(command, **options):
+                if command[1:4] != ["-m", "pip", "wheel"]:
+                    return
+                wheel_dir = Path(command[command.index("--wheel-dir") + 1])
+                if any("frontend-source" in argument for argument in command):
+                    if failure != "frontend":
+                        (wheel_dir / "ahpy_compiler-0-any.whl").touch()
+                    return
+                if "hpy==0.9.0" in command:
+                    return
+                if failure == "example":
+                    return
+                project = Path(command[-1])
+                if failure != "source":
+                    (project / (integration.MODULE + ".c")).touch()
+                wheel = wheel_dir / "ahpy_scikit_build_example-0-any.whl"
+                with zipfile.ZipFile(wheel, "w") as archive:
+                    archive.writestr(integration.MODULE + ".hpy0.so", b"binary")
+                    if failure != "members":
+                        archive.writestr(integration.MODULE + ".py", "# loader\n")
+                    archive.writestr(
+                        "ahpy_scikit_build_example-0.dist-info/WHEEL",
+                        "Wheel-Version: 1.0\nTag: py3-none-any\n",
+                    )
+
+            with self.subTest(failure=failure), TemporaryDirectory() as temp_dir:
+                python = Path(temp_dir) / "python"
+                python.touch()
+                with (
+                    mock.patch.object(
+                        integration, "_copy_frontend_source",
+                        side_effect=copy_frontend,
+                    ),
+                    mock.patch.object(integration, "_run", side_effect=fake_run),
+                    mock.patch.object(integration, "_frontend_metadata"),
+                    mock.patch.object(integration, "verify_binary_boundary"),
+                    self.assertRaisesRegex(AssertionError, message),
+                ):
+                    integration.build_and_run(str(python))
+
     def test_main_reports_built_wheel(self):
         argv = [
             "scikit_build_integration.py",

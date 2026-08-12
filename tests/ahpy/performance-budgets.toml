@@ -1,5 +1,16 @@
 schema_version = 1
 
+[policy]
+# These ceilings catch gross regressions; they are deliberately not release
+# budgets until five same-HEAD hosted samples produce and a maintainer approves
+# a calibration proposal.
+classification = "regression"
+release_enforced = false
+calibration_status = "hosted-history-pending"
+minimum_hosted_reports = 5
+candidate_binding = "unbound"
+calibration_source_commit = ""
+
 [environment]
 abi = "universal"
 hpy = "0.9.0"

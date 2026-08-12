@@ -50,6 +50,18 @@ class ArtifactUtilsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "must start with .hpy0"):
             find_universal_binaries(".", extension_suffix=".so")
 
+    def test_required_binary_rejects_missing_and_ambiguous_artifacts(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            with self.assertRaisesRegex(AssertionError, "expected one demo"):
+                require_universal_binary(root, "demo", os_name="posix")
+            (root / "demo.hpy0.so").touch()
+            nested = root / "nested"
+            nested.mkdir()
+            (nested / "demo.hpy0.so").touch()
+            with self.assertRaisesRegex(AssertionError, "got"):
+                require_universal_binary(root, "demo", os_name="posix")
+
 
 if __name__ == "__main__":
     unittest.main()

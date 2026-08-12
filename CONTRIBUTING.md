@@ -12,6 +12,9 @@ Start with:
 - [Support matrix](docs/ahpy/support-matrix.md)
 - [Validation matrix](docs/ahpy/validation-matrix.md)
 - [Onboarding](docs/ahpy/onboarding.md)
+- [Maintenance and backport policy](docs/ahpy/maintenance.md)
+- [Debugging Universal failures](docs/ahpy/debugging.md)
+- [Upstream dependency inventory](docs/ahpy/upstream-dependencies.md)
 
 ## Development workflow
 

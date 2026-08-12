@@ -59,6 +59,8 @@ def verify_source_boundary(generated, required=None):
         "HPyMember_OBJECT",
     )
     found = [name for name in forbidden if name in source]
+    if re.search(r"\bPy_buffer\b", source):
+        found.append("Py_buffer")
     if found:
         raise AssertionError(
             "forbidden source-boundary spellings found: %s" %
@@ -200,6 +202,9 @@ def build_and_run(python, runtime_prefix=()):
             type_generated,
             required=(
                 "#include <hpy.h>",
+                "HPy_buffer",
+                "HPy_bf_getbuffer",
+                "HPy_bf_releasebuffer",
                 "HPyType_HELPERS",
                 "HPyDef_METH",
                 "HPyField",
@@ -493,6 +498,49 @@ def build_and_run(python, runtime_prefix=()):
             "    pass\n"
             "else:\n"
             "    raise AssertionError('native bitwise method accepted overflow')\n"
+            "scalar_buffer = bootstrap_types.ScalarBuffer(41); "
+            "scalar_view = memoryview(scalar_buffer); "
+            "assert scalar_view.format == 'l'; "
+            "assert scalar_view.shape == (1,); "
+            "assert scalar_view.strides == (ctypes.sizeof(ctypes.c_long),); "
+            "assert scalar_view.itemsize == ctypes.sizeof(ctypes.c_long); "
+            "assert scalar_view.nbytes == ctypes.sizeof(ctypes.c_long); "
+            "assert scalar_view.readonly is False; "
+            "assert scalar_view[0] == 41; "
+            "scalar_view[0] = -17; "
+            "assert scalar_buffer.value == -17; "
+            "del scalar_buffer; gc.collect(); "
+            "assert scalar_view[0] == -17; "
+            "scalar_view.release(); "
+            "derived_buffer = bootstrap_types.DerivedScalarBuffer(73); "
+            "derived_view = memoryview(derived_buffer); "
+            "assert derived_view.format == 'l'; "
+            "assert derived_view.shape == (1,); "
+            "derived_view[0] = -29; "
+            "assert derived_buffer.value == -29; "
+            "derived_view.release(); "
+            "double_buffer = bootstrap_types.DoubleBuffer(1.25); "
+            "double_view = memoryview(double_buffer); "
+            "assert double_view.format == 'd'; "
+            "assert double_view.shape == (1,); "
+            "assert double_view.itemsize == ctypes.sizeof(ctypes.c_double); "
+            "double_view[0] = -2.5; "
+            "assert double_buffer.value == -2.5; "
+            "double_view.release(); "
+            "array_buffer = bootstrap_types.FixedArrayBuffer(); "
+            "array_view = memoryview(array_buffer); "
+            "assert array_view.format == 'l'; "
+            "assert array_view.shape == (4,); "
+            "assert array_view.strides == (ctypes.sizeof(ctypes.c_long),); "
+            "assert array_view.itemsize == ctypes.sizeof(ctypes.c_long); "
+            "assert array_view.nbytes == 4 * ctypes.sizeof(ctypes.c_long); "
+            "assert array_view.readonly is False; "
+            "array_view[0] = 11; array_view[1] = -7; "
+            "array_view[2] = 23; array_view[3] = 5; "
+            "assert list(array_view) == [11, -7, 23, 5]; "
+            "del array_buffer; gc.collect(); "
+            "assert list(array_view) == [11, -7, 23, 5]; "
+            "array_view.release(); "
             "bint_box = bootstrap_types.BintBox([]); "
             "assert bint_box.enabled is False; assert bint_box.frozen is False; "
             "\ntry:\n"
@@ -987,6 +1035,9 @@ def build_and_run(python, runtime_prefix=()):
             "else:\n"
             "    raise AssertionError('__len__ accepted an overflowing result')\n"
             "assert hash(bootstrap_types.HashBox(5)) == hash(5); "
+            "within_hash_range = (1 << 62) + 123; "
+            "assert hash(bootstrap_types.HashBox(within_hash_range)) == "
+            "within_hash_range; "
             "assert hash(bootstrap_types.HashBox(1 << 100)) == hash(1 << 100); "
             "assert hash(bootstrap_types.HashBox(-1)) == -2; "
             "\ntry:\n"

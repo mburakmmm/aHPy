@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 from datetime import datetime, timezone
 import importlib
 import importlib.metadata
@@ -12,6 +13,7 @@ import math
 import os
 from pathlib import Path
 import platform
+import re
 import shlex
 import shutil
 import statistics
@@ -39,12 +41,24 @@ EXTERNAL_SOURCE = ROOT / "tests" / "ahpy" / "benchmark_external.c"
 BENCHMARK_INCLUDE = ROOT / "tests" / "ahpy"
 LARGE_TYPE_SOURCE = ROOT / "tests" / "ahpy" / "bootstrap_types.pyx"
 DEFAULT_BUDGETS = ROOT / "tests" / "ahpy" / "performance-budgets.toml"
-BENCHMARK_SCHEMA_VERSION = 2
+BENCHMARK_SCHEMA_VERSION = 3
 OPERATIONS = (
     "identity", "arithmetic", "container", "attribute", "call", "exception",
     "type_create", "type_method", "iteration", "external_c",
 )
 TRACE_ITERATIONS = 1000
+COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
+RELEASE_ABSOLUTE_METRICS = {
+    "cython_seconds": ("build", "cython_seconds"),
+    "native_build_seconds": ("build", "native_build_seconds"),
+    "generated_peak_rss_bytes": (
+        "peak_memory", "generated", "peak_rss_bytes"),
+    "generated_to_reference_peak_rss_ratio": (
+        "peak_memory", "generated_to_reference_ratio"),
+    "large_type_frontend_seconds": (
+        "large_type_compile", "frontend_seconds"),
+    "large_type_o0_seconds": ("large_type_compile", "o0", "seconds"),
+}
 
 
 def benchmark_provenance(environment=None):
@@ -92,35 +106,155 @@ def benchmark_provenance(environment=None):
     return result
 
 
-def load_budgets(path):
-    data = tomllib.loads(Path(path).read_text(encoding="utf8"))
+def validate_budgets(data):
+    """Validate and return one parsed performance-budget contract."""
+    if not isinstance(data, dict):
+        raise ValueError("performance budget document must be a table")
     if data.get("schema_version") != 1:
         raise ValueError("performance budget schema_version must be 1")
+    policy = data.get("policy")
+    policy_keys = {
+        "classification", "release_enforced", "calibration_status",
+        "minimum_hosted_reports", "candidate_binding",
+        "calibration_source_commit",
+    }
+    if not isinstance(policy, dict) or set(policy) != policy_keys:
+        raise ValueError(
+            "performance budget policy must contain exactly %s" %
+            ", ".join(sorted(policy_keys)))
+    classification = policy["classification"]
+    release_enforced = policy["release_enforced"]
+    calibration_status = policy["calibration_status"]
+    minimum_reports = policy["minimum_hosted_reports"]
+    candidate_binding = policy["candidate_binding"]
+    calibration_commit = policy["calibration_source_commit"]
+    if classification not in ("regression", "release"):
+        raise ValueError(
+            "performance budget policy.classification must be regression or release")
+    if not isinstance(release_enforced, bool):
+        raise ValueError(
+            "performance budget policy.release_enforced must be boolean")
+    if not isinstance(minimum_reports, int) or isinstance(minimum_reports, bool) or \
+            minimum_reports < 5:
+        raise ValueError(
+            "performance budget policy.minimum_hosted_reports must be at least 5")
+    if not isinstance(candidate_binding, str):
+        raise ValueError(
+            "performance budget policy.candidate_binding must be a string")
+    if not isinstance(calibration_commit, str):
+        raise ValueError(
+            "performance budget policy.calibration_source_commit must be a string")
+    if classification == "regression":
+        if release_enforced or \
+                calibration_status != "hosted-history-pending" or \
+                candidate_binding != "unbound" or calibration_commit:
+            raise ValueError(
+                "regression budgets must remain non-release, hosted-history-pending, "
+                "unbound, and without a calibration source commit")
+    elif not release_enforced or calibration_status != "approved" or \
+            candidate_binding != "hosted-checkout" or \
+            not COMMIT_RE.fullmatch(calibration_commit):
+        raise ValueError(
+            "release budgets must be enforced, approved, bound to the hosted "
+            "checkout, and cite a full calibration source commit")
+    release_absolute = data.get("release_absolute")
+    if classification == "regression":
+        if release_absolute is not None:
+            raise ValueError(
+                "regression budgets must not declare release_absolute limits")
+    elif not isinstance(release_absolute, dict) or \
+            set(release_absolute) != set(RELEASE_ABSOLUTE_METRICS):
+        raise ValueError(
+            "release budgets must declare exactly these release_absolute "
+            "limits: %s" % ", ".join(sorted(RELEASE_ABSOLUTE_METRICS)))
+    else:
+        for name, value in release_absolute.items():
+            if not isinstance(value, (int, float)) or isinstance(value, bool) or \
+                    not math.isfinite(value) or value <= 0:
+                raise ValueError(
+                    "release_absolute.%s must be a positive finite number" %
+                    name)
+    expected_top_level = {
+        "schema_version", "policy", "environment", "measurement",
+        "large_type_compile", "runtime_ratio", "footprint",
+    }
+    if classification == "release":
+        expected_top_level.add("release_absolute")
+    if set(data) != expected_top_level:
+        raise ValueError(
+            "performance budget top-level keys differ: missing=%r unknown=%r" %
+            (sorted(expected_top_level - set(data)),
+             sorted(set(data) - expected_top_level)))
+
+    environment = data.get("environment")
+    environment_keys = {"abi", "hpy", "python_implementation"}
+    if not isinstance(environment, dict) or set(environment) != environment_keys:
+        raise ValueError(
+            "performance budget environment must contain exactly %s" %
+            ", ".join(sorted(environment_keys)))
+    if environment["abi"] != "universal":
+        raise ValueError("performance budget environment.abi must be universal")
+    for name in ("hpy", "python_implementation"):
+        if not isinstance(environment[name], str) or not environment[name]:
+            raise ValueError(
+                "performance budget environment.%s must be a non-empty string" %
+                name)
+
     runtime = data.get("runtime_ratio", {})
+    if not isinstance(runtime, dict):
+        raise ValueError("performance budget runtime_ratio must be a table")
     missing = sorted(set(OPERATIONS) - set(runtime))
     unknown = sorted(set(runtime) - set(OPERATIONS))
     if missing or unknown:
         raise ValueError(
             "runtime ratio keys differ: missing=%r unknown=%r" %
             (missing, unknown))
-    for group in (runtime, data.get("footprint", {})):
+    footprint = data.get("footprint")
+    footprint_keys = {
+        "generated_c_bytes", "generated_binary_bytes",
+        "binary_to_reference_ratio",
+    }
+    if not isinstance(footprint, dict) or set(footprint) != footprint_keys:
+        raise ValueError(
+            "performance budget footprint must contain exactly %s" %
+            ", ".join(sorted(footprint_keys)))
+    for group in (runtime, footprint):
         for name, value in group.items():
-            if not isinstance(value, (int, float)) or value <= 0:
-                raise ValueError("budget %s must be positive" % name)
+            if not isinstance(value, (int, float)) or isinstance(value, bool) or \
+                    not math.isfinite(value) or value <= 0:
+                raise ValueError(
+                    "budget %s must be positive and finite" % name)
     large_type = data.get("large_type_compile", {})
+    if not isinstance(large_type, dict) or set(large_type) != {
+            "timeout_seconds", "enforce_o3"}:
+        raise ValueError(
+            "performance budget large_type_compile must contain exactly "
+            "enforce_o3, timeout_seconds")
     if not isinstance(large_type.get("timeout_seconds"), (int, float)) or \
+            isinstance(large_type["timeout_seconds"], bool) or \
+            not math.isfinite(large_type["timeout_seconds"]) or \
             large_type["timeout_seconds"] <= 0:
         raise ValueError("large_type_compile.timeout_seconds must be positive")
     if not isinstance(large_type.get("enforce_o3"), bool):
         raise ValueError("large_type_compile.enforce_o3 must be boolean")
     measurement = data.get("measurement", {})
+    if not isinstance(measurement, dict) or set(measurement) != {
+            "iterations", "warmups", "repeats"}:
+        raise ValueError(
+            "performance budget measurement must contain exactly "
+            "iterations, repeats, warmups")
     for name in ("iterations", "warmups", "repeats"):
         value = measurement.get(name)
-        if not isinstance(value, int) or value < 0:
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
             raise ValueError("measurement %s must be a non-negative integer" % name)
     if measurement["iterations"] == 0 or measurement["repeats"] < 3:
         raise ValueError("measurement requires iterations > 0 and repeats >= 3")
     return data
+
+
+def load_budgets(path):
+    return validate_budgets(
+        tomllib.loads(Path(path).read_text(encoding="utf8")))
 
 
 def check_thresholds(report, budgets):
@@ -154,6 +288,54 @@ def check_thresholds(report, budgets):
         violations.append("large_type_compile.o3 exceeded timeout budget")
     if large_type["o0"]["timed_out"]:
         violations.append("large_type_compile.o0 exceeded timeout budget")
+    if budgets["policy"]["classification"] == "release":
+        for name, path in RELEASE_ABSOLUTE_METRICS.items():
+            value = report
+            for part in path:
+                if not isinstance(value, dict) or part not in value:
+                    value = None
+                    break
+                value = value[part]
+            limit = budgets["release_absolute"][name]
+            if not isinstance(value, (int, float)) or isinstance(value, bool) or \
+                    not math.isfinite(value):
+                violations.append(
+                    "release_absolute.%s evidence is missing or invalid" % name)
+            elif value > limit:
+                violations.append(
+                    "release_absolute.%s %.6g exceeds %.6g" %
+                    (name, value, limit))
+    return violations
+
+
+def check_budget_policy(report, budgets):
+    """Bind approved release ceilings to one hosted exact-commit run."""
+    policy = budgets["policy"]
+    classification = policy["classification"]
+    if classification == "regression":
+        return []
+    if classification != "release":
+        return [
+            "budget policy classification %r is not recognized" %
+            classification
+        ]
+
+    provenance = report.get("provenance")
+    if not isinstance(provenance, dict):
+        return ["release budget requires complete benchmark provenance"]
+    violations = []
+    if provenance.get("execution") != "github-actions":
+        violations.append(
+            "release budget requires hosted GitHub Actions execution")
+    source_commit = provenance.get("source_commit")
+    if not isinstance(source_commit, str) or not COMMIT_RE.fullmatch(source_commit):
+        violations.append(
+            "release budget requires a full benchmark source commit")
+    github = provenance.get("github")
+    if not isinstance(github, dict) or github.get("sha") != source_commit:
+        violations.append(
+            "release budget requires hosted GitHub SHA matching the benchmark "
+            "source commit")
     return violations
 
 
@@ -536,6 +718,13 @@ def _find_extension(build_root, module_name, universal=None):
     return candidates[0]
 
 
+def _require_shared_build_root(first, second, message):
+    """Return the shared build directory or reject split benchmark outputs."""
+    if first.parent != second.parent:
+        raise AssertionError(message)
+    return first.parent
+
+
 def _native_compile_command(compiler, optimization, include_dir, source, output):
     parts = shlex.split(compiler)
     if os.name == "nt" and Path(parts[0]).name.lower() in ("cl", "cl.exe"):
@@ -654,9 +843,11 @@ def build_and_measure(python, budgets, budget_path, output):
         reference_binary = _find_extension(build_root, REFERENCE_NAME, True)
         verify_binary_boundary(generated_binary)
         verify_binary_boundary(reference_binary)
-        build_lib = generated_binary.parent
-        if reference_binary.parent != build_lib:
-            raise AssertionError("benchmark modules were built into different roots")
+        build_lib = _require_shared_build_root(
+            generated_binary,
+            reference_binary,
+            "benchmark modules were built into different roots",
+        )
 
         child = _run([
             python, str(Path(__file__).resolve()),
@@ -692,11 +883,14 @@ def build_and_measure(python, budgets, budget_path, output):
             hpy_cpython_root, GENERATED_NAME, False)
         hpy_cpython_reference = _find_extension(
             hpy_cpython_root, REFERENCE_NAME, False)
-        if hpy_cpython_generated.parent != hpy_cpython_reference.parent:
-            raise AssertionError("HPy CPython benchmark modules use different roots")
+        hpy_cpython_build_lib = _require_shared_build_root(
+            hpy_cpython_generated,
+            hpy_cpython_reference,
+            "HPy CPython benchmark modules use different roots",
+        )
         hpy_cpython_child = _run([
             python, str(Path(__file__).resolve()),
-            "--run-built", str(hpy_cpython_generated.parent),
+            "--run-built", str(hpy_cpython_build_lib),
             "--iterations", str(measurement["iterations"]),
             "--warmups", str(measurement["warmups"]),
             "--repeats", str(measurement["repeats"]),
@@ -706,7 +900,7 @@ def build_and_measure(python, budgets, budget_path, output):
         for implementation in ("generated", "reference"):
             peak_child = _run([
                 python, str(Path(__file__).resolve()),
-                "--peak-memory", str(hpy_cpython_generated.parent),
+                "--peak-memory", str(hpy_cpython_build_lib),
                 "--implementation", implementation,
                 "--iterations", str(peak_iterations),
             ], cwd=temp, env=environment, capture_output=True, text=True)
@@ -830,10 +1024,14 @@ def build_and_measure(python, budgets, budget_path, output):
                     generated_binary.stat().st_size / reference_size, 6),
             },
             "budget_source": str(Path(budget_path).resolve()),
+            "budget_policy": dict(budgets["policy"]),
+            "budget_contract": copy.deepcopy(budgets),
             "debug_leak_check": "passed",
         })
         report["violations"] = (
-            check_environment(report, budgets) + check_thresholds(report, budgets))
+            check_budget_policy(report, budgets) +
+            check_environment(report, budgets) +
+            check_thresholds(report, budgets))
         output = Path(output)
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(
@@ -910,12 +1108,17 @@ def main():
     report = build_and_measure(python, budgets, args.budgets, args.output)
     if report["violations"]:
         for violation in report["violations"]:
-            print("performance regression: " + violation, file=sys.stderr)
+            print("performance gate violation: " + violation, file=sys.stderr)
         raise SystemExit(1)
     ratios = ", ".join(
         "%s=%.2fx" % (name, report["runtime"][name]["ratio"])
         for name in OPERATIONS)
-    print("Universal HPy performance budgets passed: " + ratios)
+    gate_name = (
+        "release performance budgets"
+        if budgets["policy"]["classification"] == "release"
+        else "regression ceilings"
+    )
+    print("Universal HPy %s passed: %s" % (gate_name, ratios))
     print("History record: %s" % args.output)
 
 

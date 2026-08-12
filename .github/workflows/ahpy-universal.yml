@@ -42,6 +42,23 @@ jobs:
         run: python -m pip install -r tests/ahpy/requirements-build-systems.txt
       - name: Diagnose Universal toolchain
         run: python Tools/ahpy/doctor.py --python python --strict
+      - name: Validate preview release contract
+        run: python Tools/ahpy/release_contract.py --json
+      - name: Validate pinned third-party pilot matrix
+        run: python Tools/ahpy/pilot_matrix.py --json
+      - name: Validate frontend-neutral HPy conformance contract
+        run: >-
+          python Tools/ahpy/run_conformance.py
+          --validate-only
+          --output packaging-results/conformance-contract.json
+      - name: Checkout and scan all pinned third-party pilots
+        run: >-
+          python Tools/ahpy/run_pilots.py
+          --checkout-root "${RUNNER_TEMP}/ahpy-pilots"
+          --checkout
+          --scan
+          --python python
+          --output packaging-results/pilot-matrix.json
       - name: Source compatibility self-scan
         run: >-
           python Tools/ahpy/scan_compatibility.py
@@ -52,6 +69,31 @@ jobs:
           --json
       - name: Setuptools and cythonize Universal integration
         run: python Tools/ahpy/setuptools_integration.py --python python
+      - name: Pinned pure-Cython third-party pilot
+        run: >-
+          python Tools/ahpy/cypack_pilot_integration.py
+          --python python
+          --output packaging-results/cypack-pilot.json
+      - name: Pinned external-C murmurhash scalar pilot
+        run: >-
+          python Tools/ahpy/murmurhash_pilot_integration.py
+          --python python
+          --checkout "${RUNNER_TEMP}/ahpy-pilots/murmurhash-external-c"
+          --output packaging-results/murmurhash-pilot.json
+      - name: Pinned frozenlist extension-type and GC pilot
+        run: >-
+          python Tools/ahpy/frozenlist_pilot_integration.py
+          --python python
+          --checkout "${RUNNER_TEMP}/ahpy-pilots/frozenlist-extension-type"
+          --output packaging-results/frozenlist-pilot.json
+      - name: Build merged third-party compatibility dashboard
+        run: >-
+          python Tools/ahpy/build_pilot_dashboard.py
+          --evidence packaging-results/pilot-matrix.json
+          --evidence packaging-results/cypack-pilot.json
+          --evidence packaging-results/murmurhash-pilot.json
+          --evidence packaging-results/frozenlist-pilot.json
+          --output packaging-results/compatibility-dashboard.md
       - name: Direct non-setuptools Universal integration
         run: python Tools/ahpy/direct_build_integration.py --python python
       - name: Isolated PEP 517 Universal integration
@@ -80,6 +122,12 @@ jobs:
             packaging-results/release-artifacts.json
             packaging-results/release-bundle
             packaging-results/package-reproducibility.json
+            packaging-results/pilot-matrix.json
+            packaging-results/cypack-pilot.json
+            packaging-results/murmurhash-pilot.json
+            packaging-results/frozenlist-pilot.json
+            packaging-results/compatibility-dashboard.md
+            packaging-results/conformance-contract.json
           if-no-files-found: error
       - name: CMake and Meson Universal integrations
         run: >-
@@ -116,7 +164,7 @@ jobs:
           python Tools/ahpy/report_coverage.py
           --fail-under backend=100
           --fail-under frontend_seam=45
-          --fail-under quality_tools=50
+          --fail-under quality_tools=100
       - name: Universal HPy performance regression budgets
         run: >-
           python Tools/ahpy/benchmark_hpy.py
@@ -428,7 +476,16 @@ jobs:
           python -c "import platform;
           print(platform.python_implementation(), platform.python_version())"
       - name: Execute staged unchanged Universal binaries
-        run: python portability-artifact/portability_smoke.py
+        run: >-
+          python portability-artifact/portability_smoke.py
+          --report portability-result-${{ matrix.name }}.json
+      - name: Upload cross-interpreter evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ahpy-portability-${{ matrix.name }}
+          path: portability-result-${{ matrix.name }}.json
+          if-no-files-found: error
 
   required-success:
     name: aHPy required checks

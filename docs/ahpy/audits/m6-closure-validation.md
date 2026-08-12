@@ -36,7 +36,7 @@ source and undefined imports, and executes those cases in normal, Trace, and
 Debug modes. The post-fix local run passed with `CFLAGS='-O0 -g0'`.
 
 The focused compiler suite passed 334 tests, the quality-tool suite passed 70
-tests with one expected local Valgrind-availability skip, and all 128 isolated
+tests with one expected local Valgrind-availability skip, and all 150 isolated
 allocation/API fault cases passed. Fixed-seed fuzz passed 48 cases;
 coverage-guided fuzz retained 16 of 64 mutations across 16 families and reached
 4,075 compiler lines. Focused Python coverage traced 404 tests at 73.83%

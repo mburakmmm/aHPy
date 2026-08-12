@@ -1,4 +1,5 @@
 ctypedef unsigned short LocalCode
+from cpython.buffer cimport Py_buffer
 
 TYPE_MODULE_VALUE = 47
 TYPE_SLOT_TEXT = "module-slot"
@@ -197,6 +198,88 @@ cdef class NumericBox:
         self.hidden_ratio = initial
         self.hidden_ratio /= value
         return self.hidden_ratio
+
+
+cdef class ScalarBuffer:
+    cdef public long value
+    cdef Py_ssize_t shape
+    cdef Py_ssize_t stride
+
+    def __init__(self, value):
+        self.value = value
+
+    def __getbuffer__(self, Py_buffer *view, int flags):
+        self.shape = 1
+        self.stride = sizeof(long)
+        view.buf = &self.value
+        view.obj = self
+        view.len = sizeof(long)
+        view.itemsize = sizeof(long)
+        view.readonly = 0
+        view.ndim = 1
+        view.format = "l"
+        view.shape = &self.shape
+        view.strides = &self.stride
+        view.suboffsets = NULL
+        view.internal = NULL
+
+    def __releasebuffer__(self, Py_buffer *view):
+        pass
+
+
+cdef class DerivedScalarBuffer(ScalarBuffer):
+    pass
+
+
+cdef class DoubleBuffer:
+    cdef public double value
+    cdef Py_ssize_t shape
+    cdef Py_ssize_t stride
+
+    def __init__(self, value):
+        self.value = value
+
+    def __getbuffer__(self, Py_buffer *view, int flags):
+        self.shape = 1
+        self.stride = sizeof(double)
+        view.buf = &self.value
+        view.obj = self
+        view.len = sizeof(double)
+        view.itemsize = sizeof(double)
+        view.readonly = 0
+        view.ndim = 1
+        view.format = "d"
+        view.shape = &self.shape
+        view.strides = &self.stride
+        view.suboffsets = NULL
+        view.internal = NULL
+
+    def __releasebuffer__(self, Py_buffer *view):
+        pass
+
+
+cdef class FixedArrayBuffer:
+    cdef long values[4]
+    cdef Py_ssize_t shape
+    cdef Py_ssize_t stride
+
+    def __getbuffer__(self, Py_buffer *view, int flags):
+        self.shape = 4
+        self.stride = sizeof(long)
+        view.buf = self.values
+        view.obj = self
+        view.len = sizeof(self.values)
+        view.itemsize = sizeof(long)
+        view.readonly = 0
+        view.ndim = 1
+        view.format = "l"
+        view.shape = &self.shape
+        view.strides = &self.stride
+        view.suboffsets = NULL
+        view.internal = NULL
+
+    def __releasebuffer__(self, Py_buffer *view):
+        pass
 
 
 cdef class BintBox:

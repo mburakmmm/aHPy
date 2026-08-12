@@ -92,6 +92,42 @@ class UniversalHPyEmitterContractTest(TestCase):
             AssertionError, "unvalidated pure HPy extension field"
         ):
             _extension_field_storage(PyrexTypes.c_void_type, "field")
+        fixed_array = PyrexTypes.CArrayType(PyrexTypes.c_long_type, 4)
+        self.assertFalse(_supports_extension_field_storage(fixed_array))
+        self.assertEqual(
+            _extension_field_storage(fixed_array, "values"),
+            ("long values[4]", None, "fixed-array:signed-long"),
+        )
+        with self.assertRaisesRegex(
+            AssertionError, "unvalidated pure HPy extension array"
+        ):
+            _extension_field_storage(
+                PyrexTypes.CArrayType(fixed_array, 2), "matrix")
+        with self.assertRaisesRegex(
+            AssertionError, "unvalidated pure HPy extension array element"
+        ):
+            _extension_field_storage(
+                PyrexTypes.CArrayType(PyrexTypes.c_void_type, 4), "items")
+
+    def test_buffer_metadata_layout_must_share_exported_field_struct(self):
+        runtime_api = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+        module_writer = UniversalHPyModuleWriter(
+            SimpleNamespace(pos=None), runtime_api)
+        field = object()
+        shape = object()
+        stride = object()
+        with self.assertRaisesRegex(
+            AssertionError, "buffer metadata must share the field layout"
+        ):
+            module_writer._render_extension_buffer_slots(
+                ((field, shape, stride, "l", 1),
+                 "getbuffer", "releasebuffer"),
+                {
+                    id(field): ("Exporter", "value", "signed-long"),
+                    id(shape): ("Other", "shape", "py-ssize"),
+                    id(stride): ("Exporter", "stride", "py-ssize"),
+                },
+            )
 
     def test_closure_registry_layouts_are_identity_stable(self):
         entry = SimpleNamespace(name="captured")
@@ -6318,7 +6354,15 @@ class UniversalHPyModuleWriterTest(TestCase):
         )
         self.assertIn("HPy_TypeCheck(ctx,", generated)
         self.assertIn("ctx->h_LongType", generated)
+        self.assertIn("HPyLong_AsSsize_t(ctx,", generated)
+        self.assertIn(
+            "HPyErr_ExceptionMatches(ctx, ctx->h_OverflowError)", generated)
+        self.assertIn("HPyErr_Clear(ctx)", generated)
         self.assertIn("HPy_Hash(ctx,", generated)
+        self.assertRegex(
+            generated,
+            r"if \(__pyx_hpy_hash_\d+ == -1\) "
+            r"__pyx_hpy_hash_\d+ = -2;")
         self.assertIn("__hash__ method should return an integer", generated)
 
     def test_bool_uses_inquiry_slot_and_c_int_conversion(self):
@@ -6473,11 +6517,11 @@ class UniversalHPyModuleWriterTest(TestCase):
                 "pure Universal HPy metaclass customization is not implemented",
             ),
             (
-                "variable-size-layout",
+                "general-array-layout",
                 "cdef class VarSizeBox:\n"
                 "    cdef int items[4]\n",
-                "pure Universal HPy variable-size extension layout is not "
-                "implemented",
+                "C array extension fields are only implemented as the private "
+                "storage of the canonical one-dimensional fixed-array buffer",
             ),
             (
                 "deallocator",
@@ -6992,6 +7036,354 @@ class UniversalHPyModuleWriterTest(TestCase):
         self.assertIn("HPy_buffer producer slots", diagnostics)
         self.assertIn("no public buffer acquire/release consumer API", diagnostics)
         self.assertIn("cannot use CPython Py_buffer utilities", diagnostics)
+
+    def test_scalar_buffer_producer_uses_public_hpy_slots(self):
+        result, generated, diagnostics = self.compile_source(
+            "from cpython.buffer cimport Py_buffer\n\n"
+            "cdef class ScalarBuffer:\n"
+            "    cdef public long value\n"
+            "    cdef Py_ssize_t shape\n"
+            "    cdef Py_ssize_t stride\n"
+            "    def __getbuffer__(self, Py_buffer *view, int flags):\n"
+            "        self.shape = 1\n"
+            "        self.stride = sizeof(long)\n"
+            "        view.buf = &self.value\n"
+            "        view.obj = self\n"
+            "        view.len = sizeof(long)\n"
+            "        view.itemsize = sizeof(long)\n"
+            "        view.readonly = 0\n"
+            "        view.ndim = 1\n"
+            "        view.format = 'l'\n"
+            "        view.shape = &self.shape\n"
+            "        view.strides = &self.stride\n"
+            "        view.suboffsets = NULL\n"
+            "        view.internal = NULL\n"
+            "    def __releasebuffer__(self, Py_buffer *view):\n"
+            "        pass\n"
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertIn("HPy_bf_getbuffer", generated)
+        self.assertIn("HPy_bf_releasebuffer", generated)
+        self.assertIn("HPy_buffer *view", generated)
+        self.assertIn("view->obj = HPy_Dup(ctx, self);", generated)
+        self.assertIn("view->shape = &data->", generated)
+        self.assertIn("view->strides = &data->", generated)
+        self.assertNotRegex(generated, r"\bPy_buffer\b")
+        self.assertNotIn("Python.h", generated)
+
+        for c_type, format_string in (
+            ("char", "c"),
+            ("signed char", "b"),
+            ("unsigned char", "B"),
+            ("short", "h"),
+            ("unsigned short", "H"),
+            ("int", "i"),
+            ("unsigned int", "I"),
+            ("long", "l"),
+            ("unsigned long", "L"),
+            ("long long", "q"),
+            ("unsigned long long", "Q"),
+            ("float", "f"),
+            ("double", "d"),
+        ):
+            with self.subTest(c_type=c_type):
+                scalar_result, scalar_generated, scalar_diagnostics = (
+                    self.compile_source(
+                        "from cpython.buffer cimport Py_buffer\n\n"
+                        "cdef class ScalarBuffer:\n"
+                        "    cdef %s value\n"
+                        "    cdef Py_ssize_t shape\n"
+                        "    cdef Py_ssize_t stride\n"
+                        "    def __getbuffer__(self, Py_buffer *view, "
+                        "int flags):\n"
+                        "        self.shape = 1\n"
+                        "        self.stride = sizeof(%s)\n"
+                        "        view.buf = &self.value\n"
+                        "        view.obj = self\n"
+                        "        view.len = sizeof(%s)\n"
+                        "        view.itemsize = sizeof(%s)\n"
+                        "        view.readonly = 0\n"
+                        "        view.ndim = 1\n"
+                        "        view.format = %r\n"
+                        "        view.shape = &self.shape\n"
+                        "        view.strides = &self.stride\n"
+                        "        view.suboffsets = NULL\n"
+                        "        view.internal = NULL\n"
+                        "    def __releasebuffer__(self, Py_buffer *view):\n"
+                        "        pass\n" % (
+                            c_type, c_type, c_type, c_type, format_string),
+                    )
+                )
+                self.assertEqual(
+                    scalar_result.num_errors, 0, scalar_diagnostics)
+                self.assertIn(
+                    'view->format = (char *)"%s";' % format_string,
+                    scalar_generated,
+                )
+                self.assertNotRegex(scalar_generated, r"\bPy_buffer\b")
+
+        with TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "cpython_buffer.pyx"
+            output = Path(temp_dir) / "cpython_buffer.c"
+            source.write_text(
+                "from cpython.buffer cimport Py_buffer\n\n"
+                "cdef class ScalarBuffer:\n"
+                "    cdef public long value\n"
+                "    cdef Py_ssize_t shape\n"
+                "    cdef Py_ssize_t stride\n"
+                "    def __getbuffer__(self, Py_buffer *view, int flags):\n"
+                "        self.shape = 1\n"
+                "        self.stride = sizeof(long)\n"
+                "        view.buf = &self.value\n"
+                "        view.obj = self\n"
+                "        view.len = sizeof(long)\n"
+                "        view.itemsize = sizeof(long)\n"
+                "        view.readonly = 0\n"
+                "        view.ndim = 1\n"
+                "        view.format = 'l'\n"
+                "        view.shape = &self.shape\n"
+                "        view.strides = &self.stride\n"
+                "        view.suboffsets = NULL\n"
+                "        view.internal = NULL\n"
+                "    def __releasebuffer__(self, Py_buffer *view):\n"
+                "        pass\n",
+                encoding="utf8",
+            )
+            cpython_result = Main.compile(
+                str(source),
+                Options.CompilationOptions(
+                    output_file=str(output), language_level=3),
+            )
+            self.assertEqual(cpython_result.num_errors, 0)
+            self.assertIn("Py_buffer", output.read_text(encoding="utf8"))
+
+    def test_scalar_buffer_producer_fails_closed_outside_contract(self):
+        body = (
+            "    def __getbuffer__(self, Py_buffer *view, int flags):\n"
+            "        self.shape = 1\n"
+            "        self.stride = sizeof(long)\n"
+            "        view.buf = &self.value\n"
+            "        view.obj = self\n"
+            "        view.len = sizeof(long)\n"
+            "        view.itemsize = sizeof(long)\n"
+            "        view.readonly = 0\n"
+            "        view.ndim = 1\n"
+            "        view.format = {format!r}\n"
+            "        view.shape = &self.shape\n"
+            "        view.strides = &self.stride\n"
+            "        view.suboffsets = NULL\n"
+            "        view.internal = NULL\n"
+        )
+        cases = (
+            (
+                "from cpython.buffer cimport Py_buffer as BufferDescriptor\n",
+                "only the exact Py_buffer frontend type is translated",
+            ),
+            (
+                "from cpython.buffer cimport Py_buffer\n"
+                "cdef class ScalarBuffer:\n"
+                "    cdef public long value\n"
+                "    cdef Py_ssize_t shape\n"
+                "    cdef Py_ssize_t stride\n" + body.format(format="l"),
+                "both methods must be declared exactly once",
+            ),
+            (
+                "from cpython.buffer cimport Py_buffer\n"
+                "cdef class ScalarBuffer:\n"
+                "    cdef public long value\n"
+                "    cdef Py_ssize_t shape\n"
+                "    cdef Py_ssize_t stride\n" + body.format(format="i") +
+                "    def __releasebuffer__(self, Py_buffer *view):\n"
+                "        pass\n",
+                "view.format must match the exported native field",
+            ),
+            (
+                "from cpython.buffer cimport Py_buffer\n"
+                "cdef class ScalarBuffer:\n"
+                "    cdef readonly long value\n"
+                "    cdef Py_ssize_t shape\n"
+                "    cdef Py_ssize_t stride\n" + body.format(format="l") +
+                "    def __releasebuffer__(self, Py_buffer *view):\n"
+                "        pass\n",
+                "producer slice supports writable fixed C",
+            ),
+            (
+                "from cpython.buffer cimport Py_buffer\n"
+                "cdef class ScalarBuffer:\n"
+                "    cdef bint value\n"
+                "    cdef Py_ssize_t shape\n"
+                "    cdef Py_ssize_t stride\n" +
+                body.replace("sizeof(long)", "sizeof(bint)").format(
+                    format="?") +
+                "    def __releasebuffer__(self, Py_buffer *view):\n"
+                "        pass\n",
+                "excluding bint, Py_ssize_t, and long double",
+            ),
+        )
+        for source, expected in cases:
+            with self.subTest(expected=expected):
+                result, generated, diagnostics = self.compile_source(source)
+                self.assertEqual(result.num_errors, 1)
+                self.assertFalse(generated)
+                self.assertIn(expected, diagnostics)
+
+    def test_fixed_array_buffer_producer_uses_public_hpy_slots(self):
+        source_text = (
+            "from cpython.buffer cimport Py_buffer\n\n"
+            "cdef class FixedArrayBuffer:\n"
+            "    cdef long values[4]\n"
+            "    cdef Py_ssize_t shape\n"
+            "    cdef Py_ssize_t stride\n"
+            "    def __getbuffer__(self, Py_buffer *view, int flags):\n"
+            "        self.shape = 4\n"
+            "        self.stride = sizeof(long)\n"
+            "        view.buf = self.values\n"
+            "        view.obj = self\n"
+            "        view.len = sizeof(self.values)\n"
+            "        view.itemsize = sizeof(long)\n"
+            "        view.readonly = 0\n"
+            "        view.ndim = 1\n"
+            "        view.format = 'l'\n"
+            "        view.shape = &self.shape\n"
+            "        view.strides = &self.stride\n"
+            "        view.suboffsets = NULL\n"
+            "        view.internal = NULL\n"
+            "    def __releasebuffer__(self, Py_buffer *view):\n"
+            "        pass\n"
+        )
+        result, generated, diagnostics = self.compile_source(source_text)
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertRegex(generated, r"long __pyx_hpy_field_\d+_values\[4\]")
+        self.assertRegex(
+            generated,
+            r"data->__pyx_hpy_field_\d+_shape = 4;",
+        )
+        self.assertRegex(
+            generated,
+            r"view->buf = \(void \*\)data->__pyx_hpy_field_\d+_values;",
+        )
+        self.assertRegex(
+            generated,
+            r"view->len = \(HPy_ssize_t\)sizeof\(data->"
+            r"__pyx_hpy_field_\d+_values\);",
+        )
+        self.assertRegex(
+            generated,
+            r"view->itemsize = \(HPy_ssize_t\)sizeof\(data->"
+            r"__pyx_hpy_field_\d+_values\[0\]\);",
+        )
+        self.assertNotRegex(generated, r"\bPy_buffer\b")
+        self.assertNotIn("Python.h", generated)
+
+        for c_type, format_string in (
+            ("char", "c"),
+            ("signed char", "b"),
+            ("unsigned char", "B"),
+            ("short", "h"),
+            ("unsigned short", "H"),
+            ("int", "i"),
+            ("unsigned int", "I"),
+            ("unsigned long", "L"),
+            ("long long", "q"),
+            ("unsigned long long", "Q"),
+            ("float", "f"),
+            ("double", "d"),
+        ):
+            with self.subTest(c_type=c_type):
+                typed_source = source_text.replace(
+                    "cdef long values[4]", "cdef %s values[4]" % c_type,
+                ).replace(
+                    "sizeof(long)", "sizeof(%s)" % c_type,
+                ).replace(
+                    "view.format = 'l'",
+                    "view.format = %r" % format_string,
+                )
+                typed_result, typed_generated, typed_diagnostics = (
+                    self.compile_source(typed_source))
+                self.assertEqual(
+                    typed_result.num_errors, 0, typed_diagnostics)
+                self.assertIn(
+                    'view->format = (char *)"%s";' % format_string,
+                    typed_generated,
+                )
+                self.assertNotRegex(typed_generated, r"\bPy_buffer\b")
+
+        typedef_source = source_text.replace(
+            "from cpython.buffer cimport Py_buffer\n\n",
+            "from cpython.buffer cimport Py_buffer\n\n"
+            "ctypedef long buffer_value_t\n\n",
+        ).replace(
+            "cdef long values[4]", "cdef buffer_value_t values[4]",
+        ).replace(
+            "sizeof(long)", "sizeof(buffer_value_t)",
+        )
+        typedef_result, typedef_generated, typedef_diagnostics = (
+            self.compile_source(typedef_source))
+        self.assertEqual(typedef_result.num_errors, 0, typedef_diagnostics)
+        self.assertRegex(
+            typedef_generated, r"long __pyx_hpy_field_\d+_values\[4\]")
+        self.assertNotIn("buffer_value_t", typedef_generated)
+
+        with TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "cpython_array_buffer.pyx"
+            output = Path(temp_dir) / "cpython_array_buffer.c"
+            source.write_text(source_text, encoding="utf8")
+            cpython_result = Main.compile(
+                str(source),
+                Options.CompilationOptions(
+                    output_file=str(output), language_level=3),
+            )
+            self.assertEqual(cpython_result.num_errors, 0)
+            self.assertIn("Py_buffer", output.read_text(encoding="utf8"))
+
+    def test_fixed_array_buffer_producer_fails_closed_outside_contract(self):
+        source_template = (
+            "from cpython.buffer cimport Py_buffer\n\n"
+            "cdef class FixedArrayBuffer:\n"
+            "    cdef {field_type} values{dimensions}\n"
+            "    cdef Py_ssize_t shape\n"
+            "    cdef Py_ssize_t stride\n"
+            "    def __getbuffer__(self, Py_buffer *view, int flags):\n"
+            "        self.shape = {shape}\n"
+            "        self.stride = sizeof({field_type})\n"
+            "        view.buf = self.values\n"
+            "        view.obj = self\n"
+            "        view.len = sizeof(self.values)\n"
+            "        view.itemsize = sizeof({field_type})\n"
+            "        view.readonly = 0\n"
+            "        view.ndim = 1\n"
+            "        view.format = {format!r}\n"
+            "        view.shape = &self.shape\n"
+            "        view.strides = &self.stride\n"
+            "        view.suboffsets = NULL\n"
+            "        view.internal = NULL\n"
+            "    def __releasebuffer__(self, Py_buffer *view):\n"
+            "        pass\n"
+        )
+        cases = (
+            (
+                dict(field_type="long", dimensions="[4]", shape=3,
+                     format="l"),
+                "shape field must match the exported element count",
+            ),
+            (
+                dict(field_type="long", dimensions="[2][2]", shape=2,
+                     format="l"),
+                "one-dimensional C array",
+            ),
+            (
+                dict(field_type="bint", dimensions="[4]", shape=4,
+                     format="?"),
+                "excluding bint, Py_ssize_t, and long double",
+            ),
+        )
+        for values, expected in cases:
+            with self.subTest(expected=expected):
+                result, generated, diagnostics = self.compile_source(
+                    source_template.format(**values))
+                self.assertEqual(result.num_errors, 1, diagnostics)
+                self.assertFalse(generated)
+                self.assertIn(expected, diagnostics)
 
     def test_fused_functions_require_pure_hpy_dispatch(self):
         for declaration in ("def", "cpdef"):

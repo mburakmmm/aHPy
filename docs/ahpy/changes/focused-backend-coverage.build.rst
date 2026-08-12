@@ -22,3 +22,64 @@ audits, install, normal/Debug execution, evidence output, and CLI reporting.
 The setuptools/cythonize integration now has focused coverage for Universal
 generation, external-C boundaries, normal/Trace/Debug execution, wheel
 contents/tags, target installation, and interpreter CLI resolution.
+The HPy-development closure reproducer now has focused coverage for
+handwritten/generated source and binary audits, loader stubs, all six
+normal/Trace/Debug runtime checks, crash classification, and CLI selection.
+The Linux LSan/Valgrind gate now has focused control-flow coverage above 98%
+for platform/tool rejection, reviewed suppressions and environment evidence,
+the mandatory leaking positive control, generated-corpus runtime prefixes,
+and exact per-process log cardinality.
+The per-process Windows AppVerifier wrapper now has focused control-flow
+coverage above 98% for tokenized marker environments, runtime timeouts,
+stdout/stderr and JSON evidence, XML export, child failures, and fail-closed
+export validation.
+The isolated PEP 517 frontend build now has focused control-flow coverage above
+96% for exact frontend and dependency wheels, offline isolation, Universal
+wheel/source/binary audits, normal/Debug installation checks, provenance
+metadata, hashes, report output, and CLI selection.
+The unchanged-artifact portability smoke now has focused control-flow coverage
+above 98% for manifest safety, size/hash integrity, native-binary staging,
+source-path isolation, all four semantic stages, signal/exit diagnostics, and
+both Python-stub and native loader selection.
+The clean release-artifact integration now has focused control-flow coverage
+above 96% for the reproducible sdist, exact offline wheelhouse, isolated
+frontend install/uninstall/reinstall, example rebuild and runtime modes,
+dependency provenance, immutable bundle assembly, hashes, reports, and CLI.
+The Windows AppVerifier orchestration now has focused control-flow coverage
+above 95% for SDK tool discovery, full-page-heap configuration, injection
+probes, positive-control compilation and XML validation, five-process runtime
+cardinality, dirty-log detection, raw evidence, cleanup, and failure paths.
+The deterministic supported-surface fuzz driver now has focused control-flow
+coverage above 99% for all generated templates, rejected diagnostic/crash
+contracts, Universal source/binary audits, normal/Debug semantic oracles,
+interpreter selection, and CLI validation.
+The compiler-coverage-guided fuzz driver now has focused control-flow coverage
+above 99% for all mutation families, measured-line filtering, incremental
+greedy selection, traced compilation failures, Universal source/binary audits,
+normal/Debug semantic oracles, interpreter selection, and CLI validation.
+The release benchmark's focused control-flow coverage is now above 95%,
+including budget/environment validation, every semantic mismatch, debug leak
+checks, native compiler profiles and timeouts, extension discovery, subprocess
+failure diagnostics, peak RSS, all internal/public CLI dispatch paths, and
+the complete Universal/HPy-CPython/classic multi-ABI report assembly.
+The compatibility scanner now has focused control-flow coverage above 99% for
+lexical masking, static CPython/PyObject rules, compiler diagnostics,
+Universal generated-header validation, status aggregation, text/JSON reports,
+interpreter/source validation, allow-rejected policy, and CLI exit codes.
+The dual-interpreter quality-tool suite now contains 498 tests and covers
+8623/8623 executable lines on CPython 3.11 and 8630/8630 on CPython 3.14
+(100% on both), while the Universal backend remains at 100% and the frontend
+seam remains above its 45% floor.
+Nightly environment provenance, diagnostic catalogs, publish preparation,
+doctor reports, coverage reporting, bounded stress orchestration,
+reproducibility checks, sanitizer launchers, and external build contracts now
+include their fail-closed schema, subprocess, platform, and CLI branches.
+The quality-tool CI floor is raised from 50% to 100% so the expanded control-flow
+coverage cannot silently regress while retaining interpreter-specific headroom.
+Release, PEP 517, scikit-build-core, setuptools, provenance, portability,
+AppVerifier, process cleanup, and Windows peak-RSS artifact/cardinality failure
+paths now have deterministic focused tests instead of relying on hosted
+failures to exercise their validation contracts.
+Coverage excludes only ellipsis interface stubs and behavior-free top-level
+repository-path/``__main__`` dispatch wiring; real imported behavior and every
+CLI ``main()`` body remain measured, with subprocess entrypoint tests retained.

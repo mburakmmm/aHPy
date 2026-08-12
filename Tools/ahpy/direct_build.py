@@ -228,7 +228,10 @@ def create_build_plan(
             "/OUT:%s" % artifact,
         ])
     else:
-        base = compiler_command
+        # Keep compile-only flags out of the fallback linker command.  Mutating
+        # compiler_command here silently leaked optimization/PIC/definitions/
+        # includes into the link driver whenever LDSHARED was unavailable.
+        base = list(compiler_command)
         base += _split_flags(probe["config"].get("CFLAGS"))
         base += _split_flags(probe["config"].get("CCSHARED"))
         base += ["-O2", "-fPIC", "-DHPY", "-DHPY_ABI_UNIVERSAL"]

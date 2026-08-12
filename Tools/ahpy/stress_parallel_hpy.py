@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import signal
 import subprocess
@@ -24,7 +25,10 @@ DEFAULT_ROUNDS = 5
 DEFAULT_TIMEOUT_SECONDS = 600.0
 DEFAULT_GRACE_SECONDS = 5.0
 DEFAULT_POLL_SECONDS = 0.05
-FAULT_CASES_PER_ROUND = 128
+_FAULT_RESULT = re.compile(
+    r"Generated Universal HPy module: (\d+) isolated "
+    r"API/allocation fault injection cases passed"
+)
 
 
 @dataclass(frozen=True)
@@ -287,6 +291,41 @@ def run_stress(commands, rounds, timeout_seconds, output,
                 base_environment=base_environment,
             ))
     passed = all(result["passed"] for result in round_results)
+    fault_case_counts = []
+    fault_output_valid = True
+    for round_result in round_results:
+        fault_commands = [
+            command for command in round_result["commands"]
+            if command["name"] == "fault"
+        ]
+        if not fault_commands:
+            continue
+        if len(fault_commands) != 1 or fault_commands[0]["status"] != "passed":
+            fault_output_valid = False
+            continue
+        stdout_path = Path(fault_commands[0]["stdout"]["path"])
+        matches = _FAULT_RESULT.findall(
+            stdout_path.read_text(encoding="utf8", errors="replace"))
+        if len(matches) != 1:
+            fault_output_valid = False
+            continue
+        fault_case_counts.append(int(matches[0]))
+    has_fault_command = any(
+        command.name == "fault" for command in commands)
+    if has_fault_command and (
+        not fault_output_valid
+        or len(fault_case_counts) != rounds
+        or len(set(fault_case_counts)) != 1
+    ):
+        passed = False
+        fault_cases_per_round = 0
+        expected_fault_cases = 0
+    elif fault_case_counts:
+        fault_cases_per_round = fault_case_counts[0]
+        expected_fault_cases = sum(fault_case_counts)
+    else:
+        fault_cases_per_round = 0
+        expected_fault_cases = 0
     report = {
         "schema_version": 1,
         "created_utc": datetime.now(timezone.utc).isoformat(),
@@ -303,8 +342,9 @@ def run_stress(commands, rounds, timeout_seconds, output,
             "grace_seconds": grace_seconds,
             "poll_seconds": poll_seconds,
             "native_optimization": native_optimization,
-            "fault_cases_per_round": FAULT_CASES_PER_ROUND,
-            "expected_fault_cases": rounds * FAULT_CASES_PER_ROUND,
+            "fault_cases_per_round": fault_cases_per_round,
+            "expected_fault_cases": expected_fault_cases,
+            "fault_case_counts": fault_case_counts,
         },
         "passed": passed,
         "duration_seconds": round(time.monotonic() - started, 6),
@@ -367,7 +407,7 @@ def main():
         raise SystemExit(1)
     print(
         "Parallel HPy stress passed: %d rounds, %d fault selectors" %
-        (args.rounds, args.rounds * FAULT_CASES_PER_ROUND))
+        (args.rounds, report["configuration"]["expected_fault_cases"]))
 
 
 if __name__ == "__main__":

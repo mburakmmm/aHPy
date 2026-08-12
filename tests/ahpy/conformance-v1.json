@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "protocol": "ahpy-universal-conformance-v1",
+  "fixtures": {
+    "marker": {"kind": "fresh-object"}
+  },
+  "cases": [
+    {"id": "module.add-positive", "surface": "module-functions", "callable": "add_ints", "args": [20, 22], "kwargs": {}, "expect": {"return": 42}},
+    {"id": "module.add-negative", "surface": "module-functions", "callable": "add_ints", "args": [-10, 3], "kwargs": {}, "expect": {"return": -7}},
+    {"id": "module.identity", "surface": "module-functions", "callable": "echo", "args": [{"$ref": "marker"}], "kwargs": {}, "expect": {"identity": "marker"}},
+    {"id": "module.keyword-defaults", "surface": "module-functions", "callable": "keyword_mix", "args": [1], "kwargs": {}, "expect": {"return": {"$tuple": [1, 2, 3]}}},
+    {"id": "module.keyword-override", "surface": "module-functions", "callable": "keyword_mix", "args": [1], "kwargs": {"third": 5}, "expect": {"return": {"$tuple": [1, 2, 5]}}},
+    {"id": "module.keyword-only", "surface": "module-functions", "callable": "keyword_mix", "args": [], "kwargs": {"first": 1, "second": 4, "third": 6}, "expect": {"return": {"$tuple": [1, 4, 6]}}},
+    {"id": "containers.build", "surface": "containers", "callable": "build_containers", "args": ["a", "b"], "kwargs": {}, "expect": {"return": {"$tuple": [{"$list": ["a", "b"]}, {"$tuple": ["a", "b"]}, {"$dict": [["first", "a"], ["second", "b"]]}, {"$set": ["a", "b"]}]}}},
+    {"id": "containers.mutate", "surface": "containers", "callable": "mutate_containers", "args": [5], "kwargs": {}, "expect": {"return": {"$tuple": [{"$list": [5, 6]}, {"$dict": [["value", 6]]}, 5]}}},
+    {"id": "exceptions.divide", "surface": "exceptions", "callable": "divide_or_none", "args": [8, 2], "kwargs": {}, "expect": {"return": 4}},
+    {"id": "exceptions.divide-zero", "surface": "exceptions", "callable": "divide_or_none", "args": [8, 0], "kwargs": {}, "expect": {"return": null}},
+    {"id": "exceptions.payload", "surface": "exceptions", "callable": "raise_with_payload", "args": ["payload"], "kwargs": {}, "expect": {"raises": {"type": "builtins.ValueError", "args": {"$tuple": [{"$list": ["payload"]}]}}}},
+    {"id": "exceptions.chain", "surface": "exceptions", "callable": "chained_error", "args": ["bad"], "kwargs": {}, "expect": {"raises": {"type": "builtins.RuntimeError", "args": {"$tuple": ["converted"]}, "cause": {"type": "builtins.ValueError", "args": {"$tuple": ["bad"]}}}}},
+    {"id": "imports.sqrt", "surface": "imports-globals", "callable": "use_import", "args": [9.0], "kwargs": {}, "expect": {"return": 3.0}},
+    {"id": "imports.global", "surface": "imports-globals", "callable": "read_global", "args": [2], "kwargs": {}, "expect": {"return": {"$tuple": ["aHPy", 42]}}},
+    {"id": "imports.builtins", "surface": "imports-globals", "callable": "builtin_lookup", "args": [{"$list": [1, 2, 3]}], "kwargs": {}, "expect": {"return": {"$tuple": [3, 6]}}},
+    {"id": "cleanup.success", "surface": "cleanup", "callable": "consume_or_raise", "args": ["ok", false], "kwargs": {}, "expect": {"return": "ok"}},
+    {"id": "cleanup.failure", "surface": "cleanup", "callable": "consume_or_raise", "args": ["bad", true], "kwargs": {}, "expect": {"raises": {"type": "builtins.RuntimeError", "args": {"$tuple": [{"$list": ["bad"]}]}}}},
+    {"id": "cleanup.early-return", "surface": "cleanup", "callable": "nested_early_return", "args": [true, 10], "kwargs": {}, "expect": {"return": 10}},
+    {"id": "cleanup.no-return", "surface": "cleanup", "callable": "nested_early_return", "args": [false, 10], "kwargs": {}, "expect": {"return": null}},
+    {"id": "cleanup.loop-return", "surface": "cleanup", "callable": "loop_cleanup", "args": [{"$list": [1, 2, 3]}, 2], "kwargs": {}, "expect": {"return": 2}},
+    {"id": "cleanup.loop-exhausted", "surface": "cleanup", "callable": "loop_cleanup", "args": [{"$list": [1, 2, 3]}, 5], "kwargs": {}, "expect": {"return": null}}
+  ]
+}

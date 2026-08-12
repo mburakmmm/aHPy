@@ -138,7 +138,7 @@ Bootstrap
   runtime and footprint budgets, and retains run-specific JSON history in CI.
 * Replaced unsafe ad-hoc parallel HPy validation with a bounded process-group
   stress gate that isolates temporary roots, preserves hashed child logs,
-  recursively cleans up timeouts, and passed five rounds/640 fault selectors.
+  recursively cleans up timeouts, and passed five rounds/750 fault selectors.
 * Added isolated schedule/manual-only CPython prerelease and HPy branch-tip
   allowed-failure jobs with exact installed interpreter/package/VCS provenance.
 * Recorded the first fully green required hosted matrix across Linux x64/ARM64,
@@ -167,6 +167,18 @@ Bootstrap
 * Split HPy buffer producer capability from the missing 0.9 consumer API and
   added an early typed-memoryview rejection before CPython buffer utilities can
   contaminate Universal diagnostics.
+* Added the first pure-type Universal buffer producer: the exact canonical
+  Cython frontend descriptor for a writable one-dimensional native scalar is
+  translated to ``HPy_buffer`` producer slots with object-owned shape/stride
+  storage, a runtime-owned exporter handle, retained-view mutation oracles, and
+  normal/Trace/Debug execution; the accepted format matrix now covers all 13
+  enabled integer/float scalar types and derived classes inherit the producer
+  slots, while readonly and broader exporters still fail closed.
+* Extended that producer to private positive compile-time-sized
+  one-dimensional native C arrays without exposing general array fields: all
+  13 scalar formats compile in array layout, a retained four-element ``long``
+  view passes writable Normal/Trace/Debug execution, and deterministic
+  ``HPy_Dup`` failure now covers both scalar and array exporters.
 * Restored the CPython ``EarlyReplaceBuiltinCalls`` helper/handler ownership
   after the HPy filter class had accidentally captured the base methods; all 38
   focused C/C++ CPython semantic oracle tests pass again.

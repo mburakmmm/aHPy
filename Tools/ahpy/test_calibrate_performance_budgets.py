@@ -19,11 +19,47 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
             operation: {"ratio": round(1.0 + run_id / 1000, 6)}
             for operation in calibration.OPERATIONS
         }
+        budget_policy = {
+            "classification": "regression",
+            "release_enforced": False,
+            "calibration_status": "hosted-history-pending",
+            "minimum_hosted_reports": 5,
+            "candidate_binding": "unbound",
+            "calibration_source_commit": "",
+        }
+        budget_contract = {
+            "schema_version": 1,
+            "policy": dict(budget_policy),
+            "environment": {
+                "abi": "universal",
+                "hpy": "0.9.0",
+                "python_implementation": "CPython",
+            },
+            "measurement": {
+                "iterations": 100000,
+                "warmups": 2,
+                "repeats": 7,
+            },
+            "large_type_compile": {
+                "timeout_seconds": 60,
+                "enforce_o3": False,
+            },
+            "runtime_ratio": {
+                operation: 2.0 for operation in calibration.OPERATIONS
+            },
+            "footprint": {
+                "generated_c_bytes": 100000,
+                "generated_binary_bytes": 200000,
+                "binary_to_reference_ratio": 2.0,
+            },
+        }
         report = {
             "schema_version": calibration.BENCHMARK_SCHEMA_VERSION,
             "created_utc": "2026-07-29T00:00:%02d+00:00" % run_id,
             "violations": [],
             "debug_leak_check": "passed",
+            "budget_policy": budget_policy,
+            "budget_contract": budget_contract,
             "provenance": {
                 "source_commit": COMMIT,
                 "execution": "github-actions",
@@ -91,6 +127,7 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
                 "compiler": "gcc 13.3.0",
                 "o0": {"seconds": 5.0 + run_id / 100, "timed_out": False},
                 "o3": {"seconds": 60.0, "timed_out": True},
+                "enforced_profiles": ["o0"],
             },
         }
         for dotted_name, value in updates.items():
@@ -142,10 +179,25 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
             35005000,
         )
         self.assertEqual(
+            result["footprint"]["generated_c_bytes_proposed_maximum"],
+            36000,
+        )
+        self.assertEqual(
+            result["footprint"][
+                "generated_binary_bytes_proposed_maximum"],
+            91200,
+        )
+        self.assertEqual(
             result["large_type_compile"]["o0_seconds"]["proposed_maximum"],
             6.06,
         )
         self.assertEqual(result["large_type_compile"]["o3_timeout_count"], 5)
+        self.assertEqual(
+            result["input_budget_policy"]["classification"], "regression")
+        self.assertEqual(
+            result["input_budget_contract"]["runtime_ratio"]["identity"],
+            2.0,
+        )
 
     def test_report_order_does_not_change_proposal(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -210,6 +262,8 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
             ("environment__python_version", "3.14.6", "cohort"),
             ("environment__platform", "Other-Linux", "cohort"),
             ("build__configuration__cflags", "-march=native", "cohort"),
+            ("budget_contract__runtime_ratio__identity", 2.1,
+             "one input budget contract"),
             ("peak_memory__generated__iterations_per_operation", 9000,
              "iteration counts differ"),
             ("footprint__generated_c_bytes", 30001, "byte-stable"),
@@ -241,6 +295,15 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
             ("debug_leak_check", "failed", "Debug"),
             ("large_type_compile__o0__timed_out", True, "timed out"),
             ("provenance__github__sample_id", "", "sample_id"),
+            ("budget_policy__release_enforced", True, "non-release"),
+            ("budget_policy__calibration_status", "approved", "non-release"),
+            ("budget_contract__schema_version", 2, "embedded budget contract"),
+            ("budget_contract__policy__minimum_hosted_reports", 6,
+             "policy differs"),
+            ("measurement__iterations", 99999, "measurement differs"),
+            ("environment__hpy_version", "0.10.0", "environment differs"),
+            ("large_type_compile__enforced_profiles", ["o0", "o3"],
+             "enforcement differs"),
         )
         for field, value, message in cases:
             with self.subTest(field=field):
@@ -309,6 +372,20 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, message):
                         calibration.load_hosted_report(path)
 
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = self._write_reports(temp_dir, count=1)[0]
+            report = json.loads(path.read_text())
+            report["budget_contract"]["large_type_compile"][
+                "enforce_o3"] = True
+            report["large_type_compile"]["enforced_profiles"] = ["o0", "o3"]
+            report["large_type_compile"]["o3"]["timed_out"] = False
+            path.write_text(json.dumps(report), encoding="utf8")
+            self.assertEqual(
+                calibration.load_hosted_report(path)["budget_contract"][
+                    "large_type_compile"]["enforce_o3"],
+                True,
+            )
+
     def test_calibration_arguments_are_fail_closed(self):
         cases = (
             ({"expected_commit": "short"}, "full lowercase"),
@@ -328,6 +405,23 @@ class PerformanceBudgetCalibrationTest(unittest.TestCase):
                 arguments.update(changes)
                 with self.assertRaisesRegex(ValueError, message):
                     calibration.calibrate([], **arguments)
+
+    def test_cli_minimum_cannot_weaken_budget_policy(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            reports = self._write_reports(temp_dir)
+            for path in reports:
+                report = json.loads(path.read_text())
+                report["budget_policy"]["minimum_hosted_reports"] = 6
+                report["budget_contract"]["policy"][
+                    "minimum_hosted_reports"] = 6
+                path.write_text(json.dumps(report), encoding="utf8")
+            with self.assertRaisesRegex(ValueError, "below the budget policy"):
+                calibration.calibrate(
+                    reports,
+                    expected_commit=COMMIT,
+                    repository=REPOSITORY,
+                    minimum_reports=5,
+                )
 
     def test_main_writes_machine_readable_proposal(self):
         with tempfile.TemporaryDirectory() as temp_dir:

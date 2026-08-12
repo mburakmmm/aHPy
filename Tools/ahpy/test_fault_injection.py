@@ -35,6 +35,7 @@ RUNTIME_CASES = (
     ("delete-attribute", 1),
     ("set-item", 1),
     ("delete-item", 1),
+    ("buffer-dup", 2),
 )
 
 INJECTION = r'''
@@ -185,6 +186,17 @@ static HPy __pyx_hpy_fault_get_item(
     return __pyx_hpy_real_get_item(ctx, obj, key);
 }
 
+static HPy __pyx_hpy_real_dup(HPyContext *ctx, HPy value) {
+    return HPy_Dup(ctx, value);
+}
+
+static HPy __pyx_hpy_fault_dup(HPyContext *ctx, HPy value) {
+    static long call_index = 0;
+    if (__pyx_hpy_fault_selected("buffer-dup", &call_index))
+        return HPyErr_NoMemory(ctx);
+    return __pyx_hpy_real_dup(ctx, value);
+}
+
 static HPy __pyx_hpy_real_type_from_spec(
         HPyContext *ctx, HPyType_Spec *spec, HPyType_SpecParam *params) {
     return HPyType_FromSpec(ctx, spec, params);
@@ -265,6 +277,8 @@ static int __pyx_hpy_fault_del_item(
     __pyx_hpy_fault_get_attr_s((ctx), (obj), (name))
 #define HPy_GetItem(ctx, obj, key) \
     __pyx_hpy_fault_get_item((ctx), (obj), (key))
+#define HPy_Dup(ctx, value) \
+    __pyx_hpy_fault_dup((ctx), (value))
 #define HPyType_FromSpec(ctx, spec, params) \
     __pyx_hpy_fault_type_from_spec((ctx), (spec), (params))
 #define HPy_SetAttr_s(ctx, obj, name, value) \
@@ -339,6 +353,8 @@ def _runtime_program(debug, operation, target, should_fail):
         "    'delete-attribute': lambda: fault_injection.delete_attribute(SimpleNamespace(answer=marker)),\n"
         "    'set-item': lambda: fault_injection.write_item({}, marker),\n"
         "    'delete-item': lambda: fault_injection.delete_item({'answer': marker}),\n"
+        "    'buffer-dup': lambda: (memoryview(fault_injection.FaultBuffer()), "
+        "memoryview(fault_injection.FaultArrayBuffer())),\n"
         "}\n"
         "if %r:\n" % should_fail +
         "    try:\n"
@@ -364,6 +380,10 @@ def _runtime_program(debug, operation, target, should_fail):
         "        assert result is marker\n"
         "    elif operation == 'call-method':\n"
         "        assert result == 'HPY'\n"
+        "    elif operation == 'buffer-dup':\n"
+        "        assert [view.format for view in result] == ['l', 'l']\n"
+        "        assert [view.shape for view in result] == [(1,), (4,)]\n"
+        "        for view in result: view.release()\n"
         "    else:\n"
         "        assert result is None\n" +
         suffix
@@ -446,6 +466,9 @@ def build_and_run(python):
                 "HPy_GetAttr_s",
                 "HPy_DelAttr_s",
                 "HPy_GetItem",
+                "HPy_Dup",
+                "HPy_buffer",
+                "HPy_bf_getbuffer",
                 "HPyType_FromSpec",
                 "HPy_SetAttr_s",
                 "HPy_MODINIT",
@@ -512,6 +535,7 @@ class FaultInjectionToolTest(unittest.TestCase):
             inject_failure_wrapper(generated)
             output = generated.read_text(encoding="utf8")
         self.assertEqual(output.count("#define HPyLong_FromLongLong"), 1)
+        self.assertEqual(output.count("#define HPy_Dup"), 1)
         self.assertLess(
             output.index("#include <hpy.h>"),
             output.index("#define HPyLong_FromLongLong"),
@@ -532,10 +556,10 @@ class FaultInjectionToolTest(unittest.TestCase):
             module_exec_call_count(source, "HPy_SetAttr_s(ctx,"), 2)
 
     def test_runtime_case_counts_cover_every_boundary(self):
-        self.assertEqual(len({name for name, _ in RUNTIME_CASES}), 13)
+        self.assertEqual(len({name for name, _ in RUNTIME_CASES}), 14)
         self.assertTrue(all(call_count > 0 for _, call_count in RUNTIME_CASES))
         self.assertEqual(
-            sum(call_count + 1 for _, call_count in RUNTIME_CASES), 41)
+            sum(call_count + 1 for _, call_count in RUNTIME_CASES), 44)
 
 
 def main():

@@ -62,6 +62,10 @@ class ReleaseEvidenceTest(unittest.TestCase):
             duplicate["frontend_wheel"]["name"] = duplicate["sdist"]["name"]
             with self.assertRaisesRegex(ValueError, "must be unique"):
                 artifact_records(duplicate)
+            nested = deepcopy(report)
+            nested["sdist"]["name"] = "nested/artifact.tar.gz"
+            with self.assertRaisesRegex(ValueError, "plain filenames"):
+                artifact_records(nested)
 
     def test_checksum_manifest_is_sorted_and_complete(self):
         with TemporaryDirectory() as temp_dir:
@@ -95,6 +99,10 @@ class ReleaseEvidenceTest(unittest.TestCase):
                     "setuptools",
                 },
             )
+            unknown = deepcopy(report)
+            unknown["build_dependencies"][0]["name"] = "unknown-1.whl"
+            with self.assertRaisesRegex(ValueError, "unclassified"):
+                spdx_document(unknown)
 
     def test_release_bundle_contains_artifacts_and_all_evidence(self):
         with TemporaryDirectory() as temp_dir:
@@ -128,6 +136,8 @@ class ReleaseEvidenceTest(unittest.TestCase):
                 write_release_bundle(root / "mismatch", report, paths)
             with self.assertRaisesRegex(ValueError, "must be empty"):
                 write_release_bundle(bundle, report, paths)
+            with self.assertRaisesRegex(ValueError, "set does not match"):
+                write_release_bundle(root / "incomplete", report, paths[:-1])
 
 
 if __name__ == "__main__":

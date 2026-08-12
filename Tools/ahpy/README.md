@@ -81,11 +81,91 @@ official repository/ref to a full 40-character commit recorded by pip's
 pip's install report and remain allowed-failure; neither can expand the pinned
 support matrix.
 
+`maintenance_policy.py` validates the machine-readable ownership, supported
+line, EOL, branch/backport, deprecation, security-channel and update-cadence
+contract. It also requires the named CODEOWNERS, policy documents, Dependabot
+configuration and CodeQL/dependency-review workflow to exist. The contract
+records the current one-person bus factor honestly; it does not infer a larger
+support organization from automation.
+
+`rebase_log.py` validates the append-only Cython baseline chain against
+`ahpy_version.py` and the release contract. Baseline selection and actual
+rebases are distinct event kinds; every rebase must continue the previous full
+commit, record path-specific conflict classifications/decisions, cite existing
+validation documents, and finish at the packaged Cython base.
+
+`release_contract.py` independently validates the exact preview product
+contract. It rejects schema or publication drift, mismatched distribution/
+Cython/HPy/Python pins, incomplete hosted run identities, changed platform or
+frontend sets, missing Universal workflow lanes, and machine/document
+disagreement. Text and schema-versioned JSON output use the same validator;
+the main Universal workflow runs the JSON form before build/test evidence.
+
 `scan_compatibility.py` compile-scans one or more sources with no ABI fallback,
 checks successful generated header boundaries, and emits text or schema-versioned
 JSON. Direct `cpython.*`/`Python.h` dependencies and backend diagnostics receive
 stable migration action IDs; expected rejections and unclassified compiler
 errors have distinct exit codes. See `docs/ahpy/migration-scanner.md`.
+
+`pilot_matrix.py` validates the four PRD-8 third-party selections in
+`tests/ahpy/pilots.toml`. It fails closed on floating/non-40-hex revisions,
+unsafe checkout paths, duplicate projects/categories, incomplete licenses,
+missing expected diagnostics, or unrecorded port changes. `run_pilots.py`
+creates detached, depth-one checkouts at those exact commits, verifies the
+origin, clean worktree, license, and selected sources, then can compare the
+initial strict compatibility scan with the recorded rejection contract. It
+never changes ABI mode and removes a partial checkout after an infrastructure
+failure. See `docs/ahpy/pilot-matrix.md` and `docs/ahpy/porting-guide.md`.
+Repeated `--pilot <exact-id>` filters select a manifest-ordered subset without
+weakening provenance; an unknown ID fails before checkout.
+For the deliberately blocked bezier pilot the manifest additionally requires
+the two exact upstream `numpy-c-api` locations (`_speedup.pyx:37:1` and
+`:38:1`); matching only the broad action ID is insufficient.
+
+`build_pilot_dashboard.py` consumes retained `run_pilots.py` checkout/scan JSON
+and the cypack, murmurhash, and frozenlist integration reports. It validates
+exact manifest provenance and port contracts, merges the newest evidence for
+each pilot gate, rejects equal-timestamp conflicts, and renders the compact
+compatibility dashboard. Missing evidence remains `not-run`; an expected
+initial rejection is `blocked`, not a library pass, and malformed or unknown
+gate states fail closed. The compact table omits but still enforces port-patch,
+source-audit, and binary-audit phases before an overall pass.
+
+`cypack_pilot_integration.py` builds the maintained port of the pinned
+`cython-package-example` 0.1.7 sources as three package-scoped Universal HPy
+extensions through setuptools. It audits every generated C file and binary,
+then runs the selected upstream answer, Fibonacci, scalar helper, and data-hash
+semantics in normal, Trace, and Debug `LeakDetector` modes. It builds and
+audits exactly one host-tagged wheel, installs it without dependencies into an
+isolated target, and repeats all three runtime modes from that target. Its JSON
+also records environment-bound seven-repeat median `axpy` and Fibonacci ratios
+against equivalent Python functions; these are comparable measurements, not
+enforced release ceilings or portable-wheel claims.
+
+`murmurhash_pilot_integration.py` verifies the pinned murmurhash checkout,
+copies exact upstream MurmurHash3 C++ sources, and builds a Universal C module
+linked to a fixed-width scalar C++ shim. It proves normal/Trace/Debug semantics
+against an independent Python oracle and checks that unsigned conversion
+failures occur before native entry. Its result is explicitly a partial scalar
+adapter: pointers never enter the Universal translation unit and the upstream
+`hash(str | bytes)` API remains unsupported.
+
+`frozenlist_pilot_integration.py` verifies the pinned frozenlist source and
+license, then builds a maintained extension-type subset with an object-valued
+HPy field and same-module derived type. It proves mutation/freeze/hash,
+constructor-failure cleanup, inherited behavior, and cyclic GC collection in
+normal/Trace/Debug. Its report explicitly excludes upstream atomic
+free-threading, iterator, rich-comparison, copying, and MutableSequence
+surfaces. The pilot also guards the corrected direct/overflow conversion
+semantics of the Universal `__hash__` slot.
+
+`run_conformance.py` validates the checksummed, frontend-neutral
+`ahpy-universal-conformance-v1` protocol and executes its 21 semantic cases
+against an explicit surface-to-module map. It imports no Cython package and
+requires no `.pyx` source, so another language frontend can provide the same
+five Python-callable surfaces and retain normal/Trace/Debug JSON separately.
+Source/binary ABI audits, same-binary portability and fault injection remain
+mandatory companion gates rather than being inferred from semantic results.
 
 `build_diagnostic_catalog.py` inventories every strict Universal
 `unsupported(...)` call site across module, statement, expression, and emitter
@@ -100,7 +180,7 @@ It reports the Universal backend, touched Cython frontend seam, and aHPy
 quality tools separately, while also running ownership-model, Runtime API,
 emitter, compiler-seam, and quality-tool test families independently. Schema 2
 JSON and Markdown output include exact missing lines and compact missing
-ranges. The CI command enforces floors of 100%, 45%, and 50% respectively.
+ranges. The CI command enforces floors of 100%, 45%, and 100% respectively.
 Generated C, native execution, and child-process coverage deliberately remain
 the responsibility of the real HPy, fault-injection, sanitizer, and C/C++
 oracle gates rather than being misreported as Python line coverage.
@@ -161,10 +241,12 @@ is insufficient. Standardized Universal extension-wheel reproducibility stays
 open.
 
 `test_fault_injection.py` generates one dedicated Universal module and
-interposes test-only wrappers after the public HPy header. Its 128 isolated
+interposes test-only wrappers after the public HPy header. Its 150 isolated
 normal/Debug processes cover scalar allocation; nested list/tuple builder
 builds; dictionary insertion; direct/expanded calls; attribute/item
-read/write/delete; every generated type creation; and every module/type
+read/write/delete; two ordered scalar/fixed-array buffer-exporter `HPy_Dup`
+transfers; every generated type creation;
+and every module/type
 publication position. Each injected boundary must raise exact `MemoryError`,
 every one-past selector must succeed, partial builders and independently owned
 intermediates must clean up, and the binary must remain CPython-symbol-free.
@@ -179,8 +261,10 @@ profile preserves the same HPy semantic/failure paths while excluding the
 pathological Apple Clang time spent optimizing the large type corpus at `-O3`.
 Hosted semantic jobs likewise use `-O0` (or MSVC `/Od`); direct-build and
 performance gates retain their own explicit optimization flags. The local
-acceptance run completed five full 48-case rounds and all 640 fault selectors;
-CI repeats one bounded round and uploads the JSON plus hashed logs.
+acceptance run completed five full 48-case rounds and all 750 fault selectors;
+the count is parsed from each fault child and inconsistent/stale output fails
+the run closed. CI repeats one bounded round and uploads the JSON plus hashed
+logs.
 
 `coverage_guided_fuzz.py` deterministically generates 64 candidates across 16
 supported feature families. It warms the compiler, traces five frontend/backend
@@ -211,11 +295,37 @@ repository, workflow, job, run ID, run attempt, and GitHub SHA. Release-budget
 promotion uses `calibrate_performance_budgets.py`, which accepts at least five
 unique successful reports for one exact commit and cohort, rejects local or
 mixed evidence, and emits a proposal without editing the versioned budget.
+Schema-v3 reports also embed the complete budget policy. The checked-in policy
+is machine-classified as non-release regression protection with hosted history
+pending; inconsistent policy combinations and attempts to lower its five-run
+minimum fail closed.
+Each report additionally embeds the entire validated budget contract rather
+than only its repository path: exact operation/footprint ceilings, environment,
+measurement, and large-type settings. Calibration rejects policy/contract,
+measurement, environment, enforcement, or cross-sample contract drift and
+copies the exact input contract into its proposal.
+If a future policy is promoted to `release`, the benchmark additionally
+requires `hosted-checkout` candidate binding, a full calibration-source commit,
+hosted GitHub Actions provenance, and equality between the checked-out source
+commit and GitHub SHA. The current candidate hash lives in the immutable report
+rather than self-referentially inside the versioned policy; a local or stale
+checkout cannot satisfy the release gate.
 The cohort includes platform, compiler identity, CC/CFLAGS/CPPFLAGS/LDFLAGS/
 ARCHFLAGS, measurement settings, peak-memory iterations, and native timeout.
 The proposal retains runtime, frontend/native build-time, peak-RSS, footprint,
 and large-type frontend/O0 distributions; absolute values are never pooled
 across unlike hosted cohorts.
+Regression policy forbids a `release_absolute` table. A future approved release
+contract must provide the six calibrated frontend/native time, generated peak
+RSS/ratio, and large-type frontend/O0 ceilings; missing, non-finite, or exceeded
+runtime evidence fails the benchmark gate.
+`validate_performance_budget_promotion.py` is the separate review verifier. It
+requires a schema-v3 proposal-only artifact, validates its embedded regression
+contract, and proves exact equality for all ten runtime ratios, three footprint
+ceilings, and six absolute release ceilings. It also rejects environment,
+measurement, large-type policy, report-floor, or calibration-source drift. The
+tool only reports validity; it neither edits the TOML file nor approves a
+release, and the promoted checkout must still pass the hosted same-HEAD gate.
 The manual `ahpy-performance-calibration.yml` workflow collects five isolated
 runner samples for the selected commit and invokes that proposal gate only
 after every matrix entry succeeds.
@@ -267,23 +377,31 @@ the 4.98 MB, 87,259-line C file. Ubuntu GCC 13 exceeded both 60- and 180-second
 O3 trials while O0 completed near 5 seconds, so O3 duration is recorded without
 misclassifying optimizer cost as a backend correctness regression.
 
-`build_portability_artifact.py` builds `bootstrap_answer` and
-`bootstrap_types` once with the CPython 3.11/HPy 0.9 builder, rejects forbidden
-binary imports, copies the `.hpy0` files and loader stubs without rebuilding,
-and writes sizes plus SHA-256 digests to `artifact-manifest.json`. Its hosted
+`build_portability_artifact.py` builds the handwritten `ahpy_minimal` oracle
+plus generated `bootstrap_answer` and `bootstrap_types` once with the CPython
+3.11/HPy 0.9 builder, rejects forbidden source/binary imports, copies the
+`.hpy0` files and loader stubs without rebuilding, and writes sizes plus
+SHA-256 digests to `artifact-manifest.json`. Its hosted
 correctness build uses `-O0`; cross-interpreter portability does not depend on
 optimizer throughput.
 `portability_smoke.py` revalidates every digest and runs imports/semantics in
-four isolated subprocess stages. Python `hpy.universal` runtimes use the
+six isolated subprocess stages, with the handwritten oracle first. Python
+`hpy.universal` runtimes use the
 unchanged stubs; native HPy runtimes use a temporary directory containing only
 the unchanged binaries so CPython stubs cannot shadow native loading. The
 pinned PyPy and GraalPy jobs remain allowed-failure early warnings until both
 first runs are green.
+Every top-level run can also write a schema-versioned JSON report with
+`--report`. The report embeds the verified manifest hash/file records, builder
+and target provenance, loader selection, ordered stage stdout/stderr and exact
+exit-or-signal termination. The cross-interpreter workflow uploads this report
+with `if: always()`, so an expected crash remains inspectable evidence rather
+than only an ephemeral job log.
 
 `verify_reproducible_artifact.py` performs two independent builds with a fixed
 `SOURCE_DATE_EPOCH`, deterministic archive mode, and compiler
 file/debug-prefix maps. It requires identical file sets and byte content,
-including both `.hpy0` binaries and their SHA-256 manifest. This is the
+including all three `.hpy0` binaries and their SHA-256 manifest. This is the
 Universal portability-artifact gate; future sdist/wheel archive reproducibility
 was split into the now-green frontend archive gate and the still-open future
 standardized Universal extension-wheel gate.

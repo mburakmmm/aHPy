@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.machinery
 import importlib.util
 import json
 import os
@@ -17,11 +18,19 @@ from tempfile import TemporaryDirectory
 
 
 STAGES = (
+    "import-minimal",
+    "minimal-semantics",
     "import-answer",
     "answer-semantics",
     "import-types",
     "type-semantics",
 )
+
+
+class PortabilityStageError(RuntimeError):
+    def __init__(self, message, records):
+        super().__init__(message)
+        self.records = records
 
 
 def _sha256(path):
@@ -81,6 +90,16 @@ def _activate_artifact_path(artifact_dir):
 
 def run_stage(stage, artifact_dir):
     _activate_artifact_path(artifact_dir)
+    if stage == "import-minimal":
+        import ahpy_minimal  # noqa: F401
+        return
+    if stage == "minimal-semantics":
+        import ahpy_minimal as module
+
+        assert module.answer() == 42
+        assert module.return_none() is None
+        assert module.make_pair() == [1, 2]
+        return
     if stage == "import-answer":
         import bootstrap_answer  # noqa: F401
         return
@@ -119,6 +138,7 @@ def run_stage(stage, artifact_dir):
 def execute_stages(artifact_dir, loader_mode):
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(artifact_dir)
+    records = []
     for stage in STAGES:
         print("portability stage start: %s" % stage, flush=True)
         result = subprocess.run(
@@ -137,21 +157,45 @@ def execute_stages(artifact_dir, loader_mode):
             print(result.stdout, end="", flush=True)
         if result.stderr:
             print(result.stderr, end="", file=sys.stderr, flush=True)
+        record = {
+            "name": stage,
+            "returncode": result.returncode,
+            "status": "passed" if result.returncode == 0 else "failed",
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+        }
+        records.append(record)
         if result.returncode != 0:
             if result.returncode < 0:
                 detail = "signal %d" % -result.returncode
+                record["termination"] = "signal"
+                record["signal"] = -result.returncode
             else:
                 detail = "exit %d" % result.returncode
-            raise RuntimeError(
+                record["termination"] = "exit"
+                record["exit_code"] = result.returncode
+            raise PortabilityStageError(
                 "portability stage %s failed via %s loader with %s" %
-                (stage, loader_mode, detail))
+                (stage, loader_mode, detail),
+                records,
+            )
         print("portability stage passed: %s" % stage, flush=True)
+    return records
+
+
+def write_report(path, report):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n",
+        encoding="utf8",
+    )
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--artifact-dir", type=Path)
     parser.add_argument("--stage", choices=STAGES)
+    parser.add_argument("--report", type=Path)
     args = parser.parse_args()
     artifact_dir = (
         args.artifact_dir.resolve()
@@ -162,33 +206,67 @@ def main():
         run_stage(args.stage, artifact_dir)
         return 0
 
-    manifest = verify_manifest(artifact_dir)
-    loader_mode = "python-stub" if has_python_hpy_loader() else "native"
-    provenance = {
-        "implementation": platform.python_implementation(),
-        "python": platform.python_version(),
-        "executable": sys.executable,
-        "loader_mode": loader_mode,
-        "builder": manifest["builder"],
+    report = {
+        "schema_version": 1,
+        "status": "failed",
+        "artifact_dir": str(artifact_dir),
+        "stages": [],
     }
-    print(
-        "portability provenance: %s" %
-        json.dumps(provenance, sort_keys=True),
-        flush=True,
-    )
+    try:
+        manifest = verify_manifest(artifact_dir)
+        report["artifact_manifest_sha256"] = _sha256(
+            artifact_dir / "artifact-manifest.json")
+        report["artifact_files"] = manifest["files"]
+        loader_mode = "python-stub" if has_python_hpy_loader() else "native"
+        provenance = {
+            "implementation": platform.python_implementation(),
+            "python": platform.python_version(),
+            "executable": sys.executable,
+            "loader_mode": loader_mode,
+            "hpy_universal_loader": loader_mode == "python-stub",
+            "extension_suffixes": list(importlib.machinery.EXTENSION_SUFFIXES),
+            "builder": manifest["builder"],
+        }
+        report["provenance"] = provenance
+        print(
+            "portability provenance: %s" %
+            json.dumps(provenance, sort_keys=True),
+            flush=True,
+        )
 
-    if loader_mode == "python-stub":
-        execute_stages(artifact_dir, loader_mode)
-    else:
-        with TemporaryDirectory(prefix="ahpy-native-portability-") as temp:
-            native_dir = Path(temp)
-            binaries = prepare_native_directory(
-                artifact_dir, manifest, native_dir)
-            print(
-                "native Universal binaries: %s" % ", ".join(binaries),
-                flush=True,
-            )
-            execute_stages(native_dir, loader_mode)
+        if loader_mode == "python-stub":
+            report["stages"] = execute_stages(artifact_dir, loader_mode)
+        else:
+            with TemporaryDirectory(prefix="ahpy-native-portability-") as temp:
+                native_dir = Path(temp)
+                binaries = prepare_native_directory(
+                    artifact_dir, manifest, native_dir)
+                report["native_binaries"] = binaries
+                print(
+                    "native Universal binaries: %s" % ", ".join(binaries),
+                    flush=True,
+                )
+                report["stages"] = execute_stages(native_dir, loader_mode)
+        report["status"] = "passed"
+    except PortabilityStageError as failure:
+        report["stages"] = failure.records
+        report["failure"] = {
+            "kind": type(failure).__name__,
+            "message": str(failure),
+        }
+        if args.report is not None:
+            write_report(args.report.resolve(), report)
+        raise
+    except Exception as failure:
+        report["failure"] = {
+            "kind": type(failure).__name__,
+            "message": str(failure),
+        }
+        if args.report is not None:
+            write_report(args.report.resolve(), report)
+        raise
+    if args.report is not None:
+        write_report(args.report.resolve(), report)
     print("Prebuilt Universal HPy artifact: portability smoke passed")
     return 0
 

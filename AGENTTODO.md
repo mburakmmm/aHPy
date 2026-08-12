@@ -7,8 +7,10 @@ agent must keep all three synchronized when implementation status changes.
 
 ## 1. Snapshot and source of truth
 
-- Snapshot date: 2026-07-28 (Cursor/Codex continuation and local coverage
-  audited and reconciled).
+- Snapshot date: 2026-08-12 (Cursor/Codex continuation, writable scalar and
+  fixed-array buffer producer slices, handwritten-first cross-interpreter
+  evidence, dynamic fault-count reporting, and local coverage audited and
+  reconciled).
 - Workspace: `/Users/melihburakmemis/Documents/aHPy`.
 - Branch: `codex/ahpy-bootstrap`.
 - Upstream Cython baseline: `b99cb0e3b5425e11414cadd24168a6cc850e8000`.
@@ -115,26 +117,28 @@ and the first performance regression gate.
 
 Last verified local gates:
 
-- Focused compiler suite: 433 tests pass (includes U1 closable surface and
+- Focused compiler suite: 438 tests pass (includes U1 closable surface,
+  writable scalar/fixed-array buffer producers, and
   closure-registry regressions:
   `dir()`/`globals()`/`__dict__`, reject-duplicates keywords, imag constant
   cache, richer terminal try, sequence-safe inlined genexps, slot early
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 245 tests pass (two expected platform/tool availability
+- Quality-tool suite: 498 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-07-29): 678 tests traced on both interpreters.
-  - CPython 3.11: backend 9417/9417 (100.00%), frontend_seam 45.80%,
-    quality_tools 65.79%.
-  - CPython 3.14.6: backend 9304/9304 (100.00%), frontend_seam 45.94%,
-    quality_tools 65.82%.
-  - CI floors are 100%, 45%, and 50%; do not lower them to hide new code.
+- Focused coverage (2026-08-12): 936 tests traced on both interpreters.
+  - CPython 3.11: backend 9565/9565 (100.00%), frontend_seam 53.33%,
+    quality_tools 8623/8623 (100.00%).
+  - CPython 3.14.6: backend 9451/9451 (100.00%), frontend_seam 53.45%,
+    quality_tools 8630/8630 (100.00%).
+  - CI floors are 100%, 45%, and 100%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
     generated-C behavior remains governed by its dedicated gates.
-- Fault injection: 128 isolated normal/Debug cases pass sequentially.
-- Bounded parallel HPy stress: five full rounds, 640 fault selectors, twenty
+- Fault injection: 150 isolated normal/Debug cases pass sequentially, including
+  scalar and fixed-array buffer exporter `HPy_Dup` failure/one-past boundaries.
+- Bounded parallel HPy stress: five full rounds, 750 fault selectors, twenty
   child gates, no timeout or `SystemError`; recursive descendant cleanup is
   unit-tested and one round recurs in CI.
 - Fixed-seed supported-surface fuzz: 48 cases pass (`dir()`/`globals()` side
@@ -146,6 +150,13 @@ Last verified local gates:
   checks. CI writes a timestamped JSON history artifact.
 - Diagnostic catalog, Python compileall, CI YAML parsing, and `git diff
   --check` pass.
+- The build-once portability artifact now contains the frontend-independent
+  handwritten `ahpy_minimal` oracle before both generated corpora. All six
+  isolated stages and two clean byte-reproducibility builds pass locally on
+  CPython 3.11/HPy 0.9. The smoke writes verified hashes, provenance, ordered
+  stdout/stderr and exit/signal classification to JSON even on failure; CI
+  uploads it with `if: always()`. Pinned PyPy/GraalPy hosted confirmation is
+  pending.
 - Clean release artifact: the warning-free, self-contained
   `ahpy_compiler-3.3.0.1.dev0.tar.gz` passes safety/completeness; the no-index
   wheel installs in a new venv with exact HPy 0.9.0/setuptools 80.9.0; the
@@ -353,10 +364,13 @@ platform/compiler lanes. The compiler CLI is supported within the documented
 source subset; direct build, setuptools/cythonize, PEP 517, CMake, Meson, and
 scikit-build-core retain exact partial scopes. The separate
 known-limitations document locks HPy 0.9 gaps, and a quality test prevents
-manifest/code/CI/document drift. Verify the documentation-only evidence
+manifest/code/CI/document drift. `release_contract.py` now exposes the same
+exact schema, repository-pin, six-platform, seven-frontend, hosted-evidence and
+documentation checks as a standalone JSON/text CLI that is explicitly invoked
+by the Universal workflow. Verify the documentation-only evidence
 commit's required contexts without creating a recursive evidence commit.
 PRD-2 is closed for the preview scope: 432 compiler/seam tests, 159 quality
-tests, generated normal/Trace/Debug execution, all 128 isolated fault
+tests, generated normal/Trace/Debug execution, all 150 isolated fault
 selectors, and 38 CPython C/C++ oracle executions pass; source/binary audits
 show no CPython/Hybrid leakage, and M2/M3/M4 records assign every excluded
 family a fail-closed non-supported status. PRD-3 is also closed for the
@@ -417,7 +431,7 @@ Required next implementation:
   evidence. Update `TODO.md`, the validation matrix, and an M8 audit together.
 
 Acceptance result: five bounded rounds finished with every child exit code
-zero, no timeout, and all 640 fault selectors. The subsequent sequential
+zero, no timeout, and all 750 fault selectors. The subsequent sequential
 128-case fault gate passed. The generated corpus also passed five times in the
 stress profile. A post-stress ordinary O3 retry remained inside Apple Clang's
 `bootstrap_types.c` optimization beyond 15 minutes and was terminated/reaped;
@@ -455,6 +469,9 @@ platform job from commit `02d9f8cdd`.
 - Resolve failures before removing `continue-on-error`.
 - Update `tests/ahpy/interpreters.toml`, support/validation matrices, and an
   audit with hosted URLs. A rebuilt target artifact does not satisfy this gate.
+- Preserve the handwritten-first `import-minimal`/`minimal-semantics` stages;
+  publish neither prepared upstream report until a hosted run records the
+  exact minimal binary digest and failure classification.
 
 ### A4. Nightly early-warning lanes
 
@@ -563,8 +580,14 @@ Implement one independently gated family at a time:
 4. Buffer acquire/release and typed memoryviews.
    **(ADR 0008 separates HPy 0.9's available producer slots from its missing
    public consumer API. Typed buffer/memoryview arguments now fail early with
-   one actionable diagnostic before CPython MemoryView utilities run; producer
-   implementation remains open.)**
+   one actionable diagnostic before CPython MemoryView utilities run. The
+   writable one-dimensional fixed native-scalar/private fixed-array producer is implemented with
+   object-owned shape/stride storage, one runtime-owned duplicated exporter
+   handle, public HPy slots, all 13 enabled format mappings for both layouts,
+   `long`/`double` scalar and four-element `long` array retained-view mutation,
+   ordinary derived-type slot inheritance, Normal/Trace/Debug execution, and
+   both Dup failure paths. Readonly, broader exporters, and all consumers
+   remain gated.)**
 5. Fused types and specialization dispatch.
    **(ADR 0009 defines neutral specialization descriptors, a pure-HPy
    callable/subscriptable dispatcher, typed conversion, and interpreter-owned
@@ -665,14 +688,14 @@ implementation.
    contracts are genuinely positional-only on both sides, and direct live Name
    handles are borrowed for attribute receivers and zero-argument callables.
    Both paths now match the reference at 1 API call/iteration with zero
-   Dup/Close churn; normal/Trace/Debug and 128 fault selectors are green.)**
+   Dup/Close churn; normal/Trace/Debug and 150 fault selectors are green.)**
    **(The second ownership-proven optimization is complete: two-or-more
    required positional-only functions use `HPyFunc_VARARGS` without a keyword
    parser/tracker; direct live Names feed borrowing binary and fixed sequence
    builder APIs under a left-to-right evaluation proof. Arithmetic/container
    now match the references at 1/4 API calls with zero Dup/Close churn and
    0.97×/1.07× tightened-budget ratios. Their ceilings are 1.5×; 185 emitter tests,
-   normal/Trace/Debug, and 128 fault selectors are green. Closure call slots
+   normal/Trace/Debug, and 150 fault selectors are green. Closure call slots
    accept empty `**{}` but reject non-empty keywords for no-, one-, and
    multi-argument positional-only nested functions.)**
    **(The third ownership-proven optimization is complete: extension-field
@@ -680,7 +703,7 @@ implementation.
    type/module owners load lazily; positional-only initializers bypass keyword
    trackers. Type creation/method ratios are 1.02×/0.96× under new 1.5×
    ceilings, Trace is 3/2 and 2.003/2.002 calls with zero generated Dup/Close,
-   and 186 emitter tests plus normal/Trace/Debug and 128 fault selectors are
+   and 186 emitter tests plus normal/Trace/Debug and 150 fault selectors are
    green. Lazy owner names are part of branch lifetime snapshots; the isolated
    4.65 MB large-type C corpus compiles at O0/O3.)**
    **(The fourth ownership-proven optimization is complete: representable
@@ -689,7 +712,7 @@ implementation.
    out-of-portable-range values retain checked HPy conversion. External-C
    Trace is now 1/1 call with zero Dup/Close churn, Universal/HPy-CPython
    ratios are 0.99×/1.00×, its ceiling is 1.5×, and 188 emitter tests plus
-   normal/Trace/Debug and 128 fault selectors are green.)**
+   normal/Trace/Debug and 150 fault selectors are green.)**
    **(The large-type compile is now isolated in this gate: current Apple Clang
    21 evidence is 1.59 seconds `-O0`, 5.29 seconds `-O3`, ratio 3.32×, under a
    60-second per-profile ceiling. O0 is required; O3 is diagnostic because
@@ -697,9 +720,13 @@ implementation.
    near 5 seconds. Preserve further hosted history before changing policy.)**
 4. Turn the current conservative regression ceilings into release budgets only
    after hosted history exists. Every new report now records exact source and
-   GitHub run provenance; `calibrate_performance_budgets.py` rejects local,
+   GitHub run provenance plus its complete machine-readable budget policy.
+   Schema-v3 evidence classifies the checked-in ceilings as regression-only,
+   non-release, hosted-history-pending, and `candidate_binding = "unbound"`;
+   inconsistent states fail closed. `calibrate_performance_budgets.py` rejects local,
    mixed, duplicate, failing, or byte-unstable evidence and requires five
-   same-commit hosted records before emitting a proposal. The manual read-only
+   same-commit hosted records before emitting a proposal; a CLI minimum cannot
+   weaken the policy minimum. The manual read-only
    `ahpy-performance-calibration.yml` workflow collects five isolated samples
    for one selected commit and aggregates only after all pass. Dispatch it on
    an approved release-candidate commit, review the proposed headroom, then
@@ -708,17 +735,99 @@ implementation.
    large-type frontend/O0 evidence; absolute values remain cohort-bound.
    Platform, compiler command/flags, peak iterations, and native timeout are
    cohort identity and may not be pooled.
+   A future approved release policy records its reviewed calibration-source
+   commit and uses `candidate_binding = "hosted-checkout"`. Do not try to place
+   a commit's own hash inside the versioned file that determines that hash.
+   Candidate identity belongs to the immutable schema-v3 report; release mode
+   passes only in GitHub Actions when source commit equals hosted GitHub SHA.
+   Local, invalid, or stale-checkout evidence fails before ratios can be
+   treated as a release result.
+   The report now embeds the complete validated budget contract, not just its
+   path and compact policy. Calibration rejects policy/contract, environment,
+   measurement, large-type enforcement, or cross-sample contract drift and
+   retains the exact input contract in the proposal. Never infer an applied
+   ceiling from a mutable repository path alone.
+   Regression policy must not contain `release_absolute`. A future approved
+   release contract requires exactly six calibrated limits for frontend/native
+   build time, generated peak RSS and ratio, and large-type frontend/O0 time;
+   missing, non-finite, or exceeded evidence fails closed. Do not populate
+   these fields from local samples.
+   `validate_performance_budget_promotion.py` now verifies that all ten runtime,
+   three footprint, and six absolute ceilings exactly match the reviewed
+   schema-v3 proposal and rejects input-contract, calibration-source,
+   environment/measurement/native-policy, or sample-floor drift. It is
+   read-only and does not replace maintainer review or same-HEAD hosted proof.
    Document interpreter/HPy overhead separately from backend overhead.
-5. Select and report four pilots: pure Cython, Python-independent C wrapper,
-   extension type with GC/inheritance, and deliberately blocked CPython/NumPy
-   API project. Convert recurring changes into support or migration rules.
-6. Publish a compatibility dashboard, porting guide, and issue template; share
-   the conformance corpus with the user's language without coupling frontends.
+5. The four pilot categories are selected and pinned in
+   `tests/ahpy/pilots.toml`: cython-package-example, murmurhash, frozenlist, and the
+   deliberately blocked NumPy C-API bezier source. `pilot_matrix.py` validates
+   exact commits, licenses, source paths, expected initial diagnostics, and
+   recorded port changes; `run_pilots.py` verifies pristine detached checkouts
+   and produces strict initial-scan evidence. The dashboard now merges that
+   matrix with per-pilot integration reports gate by gate, validates port
+   contracts, and fails on equal-timestamp conflicts. The full local merge
+   reports cypack `pass`, murmurhash and frozenlist as their declared partial
+   contracts, and bezier `blocked`; the workflow retains all four JSON inputs
+   plus the rendered dashboard. Hosted proof is still open. Convert recurring
+   changes into support or migration rules.
+   The maintained cypack 0.1.7 port fixture already passes three-module
+   setuptools Universal generation/build, source/binary audits, selected
+   upstream semantics, and normal/Trace/Debug locally. Its exact-one-wheel
+   audit, no-dependency isolated install, installed normal/Trace/Debug modes,
+   and provenance-bound comparable `axpy`/Fibonacci measurement also pass
+   locally; the hosted workflow artifact remains open and no performance
+   ceiling is inferred from the local sample.
+   The deliberately blocked bezier source now has an exact manifest contract
+   for `numpy-c-api` diagnostics at upstream `_speedup.pyx:37:1` and `:38:1`;
+   `run_pilots.py` rejects missing or shifted locations, not just a matching
+   action label.
+   The murmurhash manifest header paths were corrected against its pinned Git
+   tree. A maintained scalar adapter now links the exact upstream
+   `MurmurHash3.cpp`/header, keeps pointers inside a C++ shim, and passes
+   generate/build, source/binary audit, normal/Trace/Debug, semantic-reference,
+   and pre-native conversion-failure checks locally. The full upstream
+   `hash(str | bytes)` API remains explicitly unsupported; CI retains the
+   complete exact checkout matrix plus this pilot's execution JSON.
+   The frozenlist supported-subset fixture now passes object-field cyclic GC,
+   same-module inheritance, mutation/freeze/hash, constructor-failure cleanup,
+   source/binary audit, and normal/Trace/Debug. It exposed and drove a real
+   `__hash__` emitter fix: fitting `HPy_hash_t` values are converted directly,
+   overflow alone falls back to `HPy_Hash`, and `-1` maps to `-2`. Atomic
+   free-threading, iterators, rich comparison, copying, and MutableSequence
+   registration remain explicitly outside the result; checkout/run JSON is
+   wired into CI.
+   Recurring pilot changes are now stable scanner rules instead of generic
+   advice: `compiled-entry-point`, `cython-module-cimport`, and
+   `cpp-runtime-boundary` join the existing pointer, CPython, and NumPy boundary
+   actions. Cypack and frozenlist manifests require these precise IDs and the
+   exact pinned rescans pass.
+6. Publish a compatibility dashboard, porting guide, and issue template. The
+   checksummed `ahpy-universal-conformance-v1` JSON now shares 21 semantic
+   cases through a standard-library runner and explicit surface-to-module
+   mappings, without Cython imports, `.pyx` paths, or frontend nodes. Preserve
+   that boundary when adding language-specific adapters; hosted pilot dashboard
+   evidence remains open.
 7. Coordinate the backend seam with Cython/HPy maintainers, submit neutral
    refactors as small PRs, maintain a rebase log, and file HPy gaps with minimal
    reproductions.
 8. Complete security, support, contributor, debugging, release, provenance,
    limitation, and maintenance-cadence documentation before a release candidate.
+   Local PRD-9 preparation now includes a strict machine-readable maintenance
+   policy, explicit `@mburakmmm` CODEOWNERS and one-person bus-factor disclosure,
+   supported-line/EOL/backport/deprecation/cadence procedures, expanded
+   Dependabot coverage, and immutable CodeQL v4.36.0 plus Dependency Review
+   v5.0.0 workflow pins. Keep the publication/automation tasks open until the
+   first hosted security scans are retained on the pushed commit.
+   The append-only `rebase-log.toml` now records the initial exact Cython base
+   without mislabeling it as a transition; its validator chains future rebases,
+   requires per-path conflict classifications and decisions, and matches the
+   final commit to package/release metadata. No newer upstream base has been
+   accepted yet.
+   `debugging.md` now preserves the first failing source/compiler/generated-C/
+   native/import/runtime/ownership boundary, and `upstream-dependencies.md`
+   distinguishes hosted evidence, handwritten reproductions, prepared reports,
+   filed links, and unsupported/blocked status. Do not publish the prepared HPy
+   crash report or new PyPy/GraalPy reports without owner authorization.
 9. Tag no stable release until every declared support-tier gate is green.
 
 ## 9. Validation commands
@@ -743,7 +852,7 @@ git diff --check
 .venv-hpy09/bin/python Tools/ahpy/report_coverage.py \
     --fail-under backend=100 \
     --fail-under frontend_seam=45 \
-    --fail-under quality_tools=50
+    --fail-under quality_tools=100
 
 .venv-hpy09/bin/python Tools/ahpy/test_generated_hpy.py \
     --python .venv-hpy09/bin/python

@@ -33,6 +33,14 @@ class PackageProvenanceTest(unittest.TestCase):
             with patch("ahpy_version.subprocess.run", return_value=completed):
                 self.assertEqual(source_commit(root), commit)
 
+    def test_missing_archive_and_unreadable_git_head_fail_closed(self):
+        with TemporaryDirectory() as temp_dir:
+            completed = subprocess.CompletedProcess(
+                args=["git"], returncode=128, stdout="", stderr="not a repo")
+            with patch("ahpy_version.subprocess.run", return_value=completed):
+                with self.assertRaisesRegex(RuntimeError, "neither .gitrev"):
+                    source_commit(temp_dir)
+
     def test_invalid_revision_fails_closed(self):
         for commit in ("", "abc", "A" * 40, "g" * 40):
             with self.subTest(commit=commit):

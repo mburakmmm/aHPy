@@ -122,7 +122,11 @@ def executable_lines(path):
             value for value in current.co_consts
             if isinstance(value, CodeType)
         )
-    return lines - excluded_stub_lines(source, str(path))
+    return (
+        lines
+        - excluded_stub_lines(source, str(path))
+        - excluded_bootstrap_lines(source, str(path))
+    )
 
 
 def excluded_stub_lines(source, filename="<coverage-source>"):
@@ -152,6 +156,49 @@ def excluded_stub_lines(source, filename="<coverage-source>"):
             excluded.update(range(
                 node.lineno + 1,
                 getattr(node, "end_lineno", statement.lineno) + 1,
+            ))
+    return excluded
+
+
+def excluded_bootstrap_lines(source, filename="<coverage-source>"):
+    """Exclude behavior-free CLI dispatch and repository import bootstraps.
+
+    The called ``main()`` functions and repository imports remain measured;
+    only top-level wiring that the in-process tracer cannot observe when
+    subprocess entrypoint tests run is excluded.
+    """
+    tree = ast.parse(source, filename=filename)
+    excluded = set()
+    for node in tree.body:
+        if not isinstance(node, ast.If) or node.orelse or len(node.body) != 1:
+            continue
+        statement = node.body[0]
+        main_guard = (
+            isinstance(node.test, ast.Compare)
+            and isinstance(node.test.left, ast.Name)
+            and node.test.left.id == "__name__"
+            and len(node.test.ops) == 1
+            and isinstance(node.test.ops[0], ast.Eq)
+            and len(node.test.comparators) == 1
+            and isinstance(node.test.comparators[0], ast.Constant)
+            and node.test.comparators[0].value == "__main__"
+        )
+        call = statement.value if isinstance(statement, ast.Expr) else None
+        if isinstance(statement, ast.Raise):
+            call = statement.exc
+        repository_path_insert = (
+            isinstance(call, ast.Call)
+            and isinstance(call.func, ast.Attribute)
+            and call.func.attr == "insert"
+            and isinstance(call.func.value, ast.Attribute)
+            and isinstance(call.func.value.value, ast.Name)
+            and call.func.value.value.id == "sys"
+            and call.func.value.attr == "path"
+        )
+        if (main_guard and isinstance(call, ast.Call)) or repository_path_insert:
+            excluded.update(range(
+                statement.lineno,
+                getattr(statement, "end_lineno", statement.lineno) + 1,
             ))
     return excluded
 

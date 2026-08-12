@@ -41,8 +41,8 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 | 4 | PRD-4 — Advanced Cython aileleri | **TAMAMLANDI** | Implement veya fail-closed sonucu |
 | 5 | PRD-5 — Portability/native memory | **DIŞ BAĞIMLILIK** | Universal binary ve platform kanıtı |
 | 6 | PRD-6 — Paketleme/dağıtım | **DIŞ BAĞIMLILIK** | Kurulabilir ve doğrulanabilir artifact |
-| 7 | PRD-7 — Performans/footprint | **AKTİF** | Sürüm bütçeleri ve regresyon kapısı |
-| 8 | PRD-8 — Gerçek kütüphane pilotları | **SIRADAKİ** | Kullanıcı dünyasında çalışma kanıtı |
+| 7 | PRD-7 — Performans/footprint | **DIŞ BAĞIMLILIK** | Hosted örnekler sonrası sürüm bütçeleri |
+| 8 | PRD-8 — Gerçek kütüphane pilotları | **AKTİF** | GitHub beklerken ilerleyen yerel çalışma kanıtı |
 | 9 | PRD-9 — Upstream/güvenlik/bakım | **BEKLİYOR** | Sürdürülebilir production işletimi |
 | 10 | PRD-10 — RC/stable yayın | **BEKLİYOR** | İmzalı ve kanıtlı production release |
 
@@ -57,7 +57,9 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 4. Aynı release-candidate commit'inde en az beş benzersiz hosted performans
    raporu topla, fail-closed kalibrasyon önerisini incele ve eşikleri yeniden
    same-HEAD doğrula.
-5. Release bütçeleri kilitlenince dört gerçek kütüphane pilotuna geç.
+5. Hosted release bütçeleri kilitlenmeyi beklerken dört gerçek kütüphane
+   pilotunun bağımsız yerel build/test/diagnostic işlerini ilerlet; yalnız
+   hosted kanıt isteyen çıkış kapılarını açık bırak.
 
 ## Başlangıç durumu
 
@@ -68,9 +70,11 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 433 compiler/seam testi, 245 quality-tool testi ve
-  iki yorumlayıcıda 678 coverage testi.
+- Mevcut odaklı doğrulama: 438 compiler/seam testi, 498 quality-tool testi ve
+  iki yorumlayıcıda 936 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
+- Quality-tool Python satır kapsamı CPython 3.11 ve 3.14'te %100; ayrı native,
+  subprocess, portability ve hosted kapıları bu orana dahil edilmez.
 - Bu oran generated C, native runtime, binary portability veya bütün Cython
   özelliklerinin %100 desteklendiği anlamına gelmez.
 - Mevcut uygun sınıflandırma: unpublished preview.
@@ -378,6 +382,24 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
   - [x] Frontend/native build süresi, generated/reference peak RSS oranı ve
         large-type frontend/O0 ölçümlerini aynı hosted kohort içinde
         fail-closed doğrula ve proposal-only tavanlar üret.
+  - [x] Geçici tavanları machine-readable `regression`/non-release policy olarak
+        sınıflandır; schema-v3 benchmark/proposal kanıtında policy'yi taşı ve
+        hosted minimumunu CLI ile zayıflatmayı reddet.
+  - [x] Gelecekteki approved release policy'sini `hosted-checkout` modeline
+        bağla; calibration-source commit'ini policy'de, exact current candidate
+        commit'ini immutable raporda tut ve source commit / GitHub SHA
+        uyuşmazlığını oranlara bakmadan reddet.
+  - [x] Her schema-v3 rapora yalnız budget path/policy değil exact validated
+        runtime, footprint, environment, measurement ve native compile
+        contract'ını göm; cohort contract drift'ini reddet ve proposal'a taşı.
+  - [x] Regression policy'de uncalibrated absolute limitleri yasakla; approved
+        release policy için frontend/native build time, generated peak RSS ve
+        oranı, large-type frontend/O0 sürelerinden oluşan exact altı positive
+        finite ceiling'i zorunlu ve fail-closed uygula.
+  - [x] Schema-v3 proposal'daki on runtime, üç footprint ve altı absolute
+        tavanı release TOML ile birebir karşılaştıran; input contract,
+        calibration-source, environment/measurement/native policy veya sample
+        floor drift'ini reddeden read-only promotion validator ekle.
   - [ ] Aynı release-candidate HEAD'i için hosted geçmişi topla, headroom
         önerisini incele ve release eşiklerini ayrı bir same-HEAD koşuyla
         doğrula.
@@ -387,6 +409,30 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
       lifetime kanıtı yalnız incoming sequence argümanını borrow eder, rebind
       edilebilir owned local kaynakları materialize etmeye devam eder.
 
+Mevcut `performance-budgets.toml` artık açıkça yalnız regresyon korumasıdır:
+`release_enforced = false`, calibration hosted geçmişi bekliyor,
+`candidate_binding = "unbound"` ve calibration source boştur. Loader bu
+alanların çelişkili
+kombinasyonunu; kalibratör ise farklı policy'leri veya beşten düşük bir CLI
+minimumunu reddeder. Bu hazırlık release eşiği uydurmaz; gerçek hosted history,
+maintainer incelemesi ve same-HEAD doğrulaması açık kalır.
+Approved duruma geçirilecek gelecekteki policy de tek başına yeterli değildir:
+policy reviewed calibration-source commit'ini kaydeder; mevcut candidate hash'i
+öz-referanslı biçimde policy'ye yazmak yerine immutable benchmark raporu taşır.
+Gate hosted execution ile source commit / `GITHUB_SHA` eşitliğini zorunlu tutar;
+local veya stale-checkout kanıtı release sonucu olamaz.
+Artifact ayrıca uygulanan tavanların tamamını içerir; repository dosyası daha
+sonra değişse bile hangi contract'ın geçtiği doğrulanabilir. Kalibratör compact
+policy ile embedded contract, runtime ortamı/measurement/enforcement ve beş
+sample arasındaki exact contract eşitliğini fail-closed denetler.
+Mevcut regression contract'ı kasıtlı olarak `release_absolute` içermez. Bu
+tablo yalnız hosted proposal incelenip policy release'e geçirildiğinde altı
+zorunlu ölçümle eklenebilir; eksik, non-finite veya aşılmış evidence release
+gate'ini kapatır.
+Promotion validator bu altı alanla birlikte on runtime ve üç footprint
+tavanının proposal'dan aynen geldiğini ispatlar; budget dosyasını değiştirmez,
+maintainer onayı veya current-candidate same-HEAD hosted kanıtı yerine geçmez.
+
 ### PRD-7 çıkış kapısı
 
 - [ ] Bütün yayımlanan bütçeler aynı release candidate üzerinde yeşil.
@@ -395,27 +441,75 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
 
 ## PRD-8 — Gerçek kütüphane pilotlarını tamamla
 
-- [ ] Doğrudan Python C API kullanmayan saf Cython pilotunu seç.
-- [ ] Python-independent C kütüphanesini saran pilotu seç.
-- [ ] Extension type, GC ve inheritance kullanan pilotu seç.
-- [ ] CPython/NumPy C API nedeniyle bilerek blocked olacak pilotu seç.
-- [ ] Her pilot için upstream sürüm/commit ve lisans kaydı tut.
-- [ ] Her pilot için gereken kaynak değişikliklerini kaydet.
+- [x] Doğrudan Python C API kullanmayan saf Cython pilotunu seç.
+- [x] Python-independent C kütüphanesini saran pilotu seç.
+- [x] Extension type, GC ve inheritance kullanan pilotu seç.
+- [x] CPython/NumPy C API nedeniyle bilerek blocked olacak pilotu seç.
+- [x] Her pilot için upstream sürüm/commit ve lisans kaydı tut.
+- [x] Her pilot için gereken kaynak değişikliklerini kaydet.
 - [ ] Her pilotun build, test, normal/Trace/Debug ve performance sonuçlarını
       kaydet.
-- [ ] Ortak portlama değişikliklerini backend desteğine veya migration
+- [x] Ortak portlama değişikliklerini backend desteğine veya migration
       kuralına dönüştür.
-- [ ] Blocked pilotun source-located diagnostics kalitesini doğrula.
+- [x] Blocked pilotun source-located diagnostics kalitesini doğrula.
 - [ ] CI artifact'lerinden compatibility dashboard üret.
-- [ ] Library-author porting guide yayımla.
-- [ ] Bug/compatibility issue template ekle.
-- [ ] HPy conformance corpus'unu kullanıcının programlama diliyle paylaşırken
+- [x] Library-author porting guide yayımla.
+- [x] Bug/compatibility issue template ekle.
+- [x] HPy conformance corpus'unu kullanıcının programlama diliyle paylaşırken
       Cython frontend internallerine bağımlılık oluşturma.
+
+Yerel ara kanıt: pinned `cython-package-example` 0.1.7 port fixture'ının üç
+modülü ilan edilen setuptools Universal yolunda generate/native-build,
+source/binary audit, seçili upstream semantiği ve normal/Trace/Debug
+`LeakDetector` kapılarını geçiyor. Host-tagged wheel içerik audit'i, dependency
+olmadan isolated target kurulumu, kurulu normal/Trace/Debug çalıştırmaları ve
+aynı süreçteki eşdeğer Python fonksiyonlarına karşı provenance-bound yedi
+tekrarlı `axpy`/Fibonacci ölçümü de yerelde geçiyor; hosted artifact gelmeden
+PRD-8 çıkış kapısı işaretlenmeyecek ve yerel ölçüm release bütçesi sayılmayacak.
+Pinned bezier `_speedup.pyx` kaynağının SHA-256 değeri
+`f99e5053f1c942bbc443fa3399c1c67243c46cf078c664a00cc9433ae2993a05` olarak
+doğrulandı; NumPy C-API kuralı exact upstream satırlarında `37:1` ve `38:1`
+konumlarını üretir ve runner bu iki konumdan biri kayarsa expectation'ı
+fail-closed kapatır.
+Pinned murmurhash commit'inin fiziksel header yolları
+`murmurhash/include/murmurhash/` olarak düzeltildi ve pristine checkout ile
+doğrulandı. Exact upstream `MurmurHash3.cpp`/header kullanan fixed-width scalar
+adapter generate/native-build, source/binary audit, normal/Trace/Debug ve
+conversion-failure kapılarını yerelde geçiyor; pointer yalnız C++ shim içinde
+kalır ve upstream `hash(str | bytes)` API'si destekleniyor diye işaretlenmez.
+Pinned frozenlist kaynağından türetilen supported-subset port; object-valued
+HPy field GC döngüsü, same-module inheritance, mutation/freeze/hash semantiği
+ve constructor failure cleanup kapılarını normal/Trace/Debug altında geçiyor.
+C++ atomic/free-threading, iterator, rich-compare, copy/deepcopy ve
+MutableSequence registration kapsam dışı olarak raporlanıyor. Pilot ayrıca
+Universal `__hash__` slotunda fitting büyük tamsayıların ikinci kez hash'lendiği
+gerçek emitter hatasını ortaya çıkardı; direct `HPy_hash_t` conversion,
+overflow fallback ve `-1`→`-2` davranışı düzeltilip regresyonlandı.
+Tam dört-pilot pristine checkout/scan matrisi ile üç port integration raporu
+yerelde tek dashboard'a kapı bazında birleştirildi: cypack `pass`, murmurhash
+`partial-scalar-adapter`, frozenlist `supported-subset`, bezier ise beklenen
+`blocked` sonucunu veriyor. Workflow aynı dört JSON girdisini ve üretilen
+Markdown dashboard'u immutable artifact grubuna ekliyor; GitHub yazma limiti
+nedeniyle hosted artifact kanıtı ve ilgili checkbox açık kalıyor.
+Frontend-independent `ahpy-universal-conformance-v1` sözleşmesi 21 semantik
+vakayı checksummed JSON'a ayırıyor; standart-kütüphane runner'ı yalnız açık
+surface→module eşlemesi kullanıyor ve hiçbir Cython import'u, `.pyx` yolu veya
+frontend node'u gerektirmiyor. Aynı modül(ler) normal/Trace/Debug raporlarına
+bağlanabilir; ABI audit, cross-interpreter ve fault-injection kapıları ayrıca
+zorunlu kalıyor.
+Pilotlarda tekrar eden port adımları artık genel migration sözleşmesidir:
+module-level `cdef`/`cpdef` için `compiled-entry-point`, relative Cython C-API
+importları için `cython-module-cimport`, `libcpp` state için
+`cpp-runtime-boundary`; mevcut `native-pointer-boundary`,
+`direct-cpython-cimport` ve `numpy-c-api` kuralları diğer üç pilotu kapsar.
+Cypack ve frozenlist pinned initial-scan beklentileri bu kesin action ID'lerini
+zorunlu tutar; generic `unsupported-source-node` sonucu artık bu geçişleri
+gizleyemez.
 
 ### PRD-8 çıkış kapısı
 
 - [ ] Dört pilotun raporu ve yeniden çalıştırılabilir CI kanıtı yayımlandı.
-- [ ] En az bir gerçek üçüncü taraf proje ilan edilen production yolunda
+- [x] En az bir gerçek üçüncü taraf proje ilan edilen production yolunda
       source/binary/Debug kapılarını geçiyor.
 
 ## PRD-9 — Upstream, güvenlik ve sürdürülebilir bakım
@@ -436,6 +530,41 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
 - [ ] Periyodik Cython/HPy/interpreter/compiler/platform update cadence'i
       tanımla.
 - [ ] Maintainer ownership, issue triage ve release sorumlularını belirle.
+
+Yerel PRD-9 hazırlığı: `maintenance-policy.toml` artık tek maintainer/bus-factor
+riskini, preview destek/EOL sınırını, release/backport kurallarını, en az bir
+stable release-cycle deprecation süresini ve aylık/çeyreklik update cadence'ini
+machine-readable biçimde sabitliyor; `maintenance_policy.py` referans belgeleri
+ve otomasyon dosyalarını fail-closed doğruluyor. `CODEOWNERS` mevcut project,
+security ve release sahibini açıkça kaydediyor. Yeni `ahpy-security.yml`,
+Dependency Review v5.0.0 ve CodeQL v4.36.0 `security-extended` Python/C++
+taramalarını immutable SHA'larla PR/push/weekly kapılarına bağlıyor; Dependabot
+Actions ile üç Python dependency kökünü aylık izliyor. Hosted ilk taramalar ve
+push gelmeden yukarıdaki publication/automation checkbox'ları açık kalır.
+Append-only `rebase-log.toml`, mevcut
+`b99cb0e3b5425e11414cadd24168a6cc850e8000` baseline seçimini gerçek bir rebase
+gibi göstermeden kaydediyor. `rebase_log.py` gelecekteki accepted geçişlerin
+önceki commit'ten zincirlenmesini, conflict dosyası/sınıfı/kararını, kanıt
+belgelerini ve final base'in package/release metadata'sıyla eşleşmesini zorunlu
+tutuyor; henüz yeni upstream base kabul edilmediği için rebase checkbox'ı açık.
+`debugging.md`, source diagnostic'ten generated C/native link/import/runtime ve
+ownership sınırına kadar ilk bozulan aşamayı koruyan tek troubleshooting akışını
+veriyor. `upstream-dependencies.md` ise HPy 3.14 handwritten reproducer'ı, HPy
+#488 bağlantısını, PyPy/GraalPy bridge/loader ve diğer public-API boşluklarını
+hosted kanıt / prepared report / filed issue ayrımıyla merkezileştiriyor;
+owner onayı olmadan hiçbir yeni upstream issue yayımlanmadı.
+PyPy/GraalPy taslakları artık Cython frontend'inden bağımsız
+`minimal_universal.c` oracle'sını artifact'in ilk iki izole aşamasında çalıştırır;
+CPython 3.11/HPy 0.9 yerel semantik ve iki-clean-build reproducibility kanıtı
+yeşildir. Smoke, hata halinde dahi doğrulanmış hash/provenance, sıralı stage
+çıktıları ve exit/signal sınıfını JSON'a yazar; workflow bunu `if: always()` ile
+saklar. İlk hosted minimal sonuç ve exact hata sınıfı gelmeden bu raporlar
+yayıma hazır veya upstream'e taşınmış sayılmaz.
+`release_contract.py` machine-readable preview sözleşmesinin exact şemasını;
+dağıtım/Cython/HPy/Python pinlerini; altı platform, yedi frontend ve hosted run
+kimliklerini; workflow ile kullanıcı belgesindeki karşılıklarını fail-closed
+doğruluyor. Universal CI bu CLI'yi doğrudan çalıştırır; böylece sözleşme drift'i
+yalnız monolitik test assertion'larına veya tek kişinin bilgisine bağlı değildir.
 
 ### PRD-9 çıkış kapısı
 

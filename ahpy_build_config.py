@@ -86,9 +86,6 @@ def select_universal_runtime(probe, runtime="auto"):
     use_static = runtime == "static" or (
         runtime == "auto" and len(static_libraries) == 1)
     inputs = static_libraries if use_static else list(probe["runtime_sources"])
-    if use_static and len(inputs) != 1:
-        raise RuntimeError(
-            "Universal runtime selection requires exactly one static library")
     for item in inputs:
         if not Path(item).is_file():
             raise ValueError("Universal runtime input does not exist: %s" % item)

@@ -10,6 +10,10 @@ Cython base, platform/compiler, and frontend status contract is defined in
 [`release-contract.md`](release-contract.md) and machine-readable
 `tests/ahpy/release-contract.toml`; PyPy, GraalPy, Python 3.14, and moving
 dependency lanes remain outside that contract.
+`Tools/ahpy/release_contract.py` validates the exact schema against package and
+dependency pins, all six platform workflow lanes, seven frontend scopes,
+positive hosted evidence IDs, and the documented identity; the Universal
+workflow runs it before producing new build evidence.
 
 ## Required branch protection
 
@@ -181,14 +185,16 @@ warnings with unconditional evidence upload.
 
 ## Same-binary interpreter gate
 
-The builder job uses CPython 3.11 and HPy 0.9 exactly once. It generates and
-builds the module-function and pure-extension-type corpora, audits both
-binaries, copies each `.hpy0` file and Python loader unchanged, and records
-SHA-256 plus size metadata. PyPy 7.3.23 (Python 3.11.15 compatible) and GraalPy
+The builder job uses CPython 3.11 and HPy 0.9 exactly once. It builds a
+handwritten public-HPy oracle before generating and building the module-function
+and pure-extension-type corpora, audits all three binaries, copies each `.hpy0`
+file and Python loader unchanged, and records SHA-256 plus size metadata. PyPy
+7.3.23 (Python 3.11.15 compatible) and GraalPy
 25.1.3 (Python 3.12 compatible) download that one artifact rather than
 rebuilding it. The smoke driver verifies every manifest digest before running
-four isolated stages (module import and semantics for functions and pure HPy
-types). A signal or nonzero exit therefore identifies the exact failing stage.
+six isolated stages (handwritten import/semantics followed by generated module
+and type import/semantics). A signal or nonzero exit therefore identifies the
+exact failing stage and whether the fault exists without generated aHPy code.
 Interpreters exposing `hpy.universal` use the unchanged Python stubs; native
 HPy interpreters receive a temporary directory containing only byte-identical
 `.hpy0` binaries so a CPython loader stub cannot shadow their native importer.
@@ -197,7 +203,14 @@ Their exact setup identifiers and evidence job IDs live in
 module-import stage on both targets: PyPy terminated through its bundled HPy
 bridge, while GraalPy exposed neither that bridge nor a native `.hpy0` import
 hook. Both therefore remain allowed-failure early warnings. Only a future
-green hosted execution may remove `continue-on-error` or alter support.
+green hosted execution may remove `continue-on-error` or alter support. The
+new handwritten-first artifact passes all six stages locally on CPython
+3.11.15/HPy 0.9.0; PyPy/GraalPy classification awaits its first hosted run.
+The smoke driver writes `portability-result-<target>.json` even when manifest
+verification, a normal exit, or a signal terminates the gate. Each report
+contains the complete verified file list, manifest SHA-256, loader/provenance,
+ordered stage records and captured output. CI uploads the target-specific JSON
+with `if: always()` and treats a missing report as an artifact error.
 
 The artifact builder [job 88188395887](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395887)
 recorded CPython 3.11.15 and byte-for-byte verified these principal binaries:
@@ -276,13 +289,15 @@ generated source. It independently fails all three `HPyLong_FromLongLong`
 conversions, every nested list/tuple builder build, three dictionary inserts,
 four direct call layouts, expanded tuple/dict calls, three attribute and item
 reads, attribute/item set/delete, and `HPy_CallMethod` direct method calls. Every selected failure must remain an
-exact `MemoryError`; every one-past selector must succeed; all independently
+exact `MemoryError`; the scalar and fixed-array buffer exporters additionally
+exercise two ordered `HPy_Dup` transfers. Every one-past selector must succeed;
+all independently
 owned intermediates, builder consumption/cancellation, the undefined-symbol
 ABI audit, and Debug `LeakDetector` must remain clean. The import lane counts
-and fails all three `HPyType_FromSpec` calls and every generated
+and fails all five `HPyType_FromSpec` calls and every generated
 `HPy_SetAttr_s` publication position, requiring exact `MemoryError`, removal
 from `sys.modules`, collection, and successful one-past imports. The resulting
-matrix passes 128 isolated normal/Debug processes.
+matrix passes 150 isolated normal/Debug processes.
 
 This expansion exposed partial module initialization losing its active error
 after rollback. The emitter now records successful module publications,
@@ -580,14 +595,14 @@ coverage remains in the repository's existing `ci.yml`; the aHPy workflow adds
 the focused C/C++ semantic oracle so backend changes receive a fast, explicit
 parity signal.
 
-The allocation/API fault-injection gate passes all 128 isolated normal/Debug
+The allocation/API fault-injection gate passes all 150 isolated normal/Debug
 processes. An early ad-hoc stress run once produced an import `SystemError`
 without an exception, while a later orchestration cancellation demonstrably
 left two compiler process trees alive. The replacement bounded runner gives all
 four gates independent temporary roots and process groups, retains hashed
 stdout/stderr, recursively terminates descendants, and records timeout,
 exit/signal, command, and duration evidence. Five full local rounds completed
-without the `SystemError`: 640 fault selectors plus the generated corpus,
+without the `SystemError`: 750 fault selectors plus the generated corpus,
 setuptools integration, and 48-case fuzz all passed. CI repeats one bounded
 round. The stress-only O0 profile matches the hosted semantic matrix while
 remaining separate from explicitly optimized direct-build and performance
@@ -596,17 +611,19 @@ paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 678 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 936 focused tests under Python's built-in
 line-event tracer, derives executable lines from nested code-object line
 tables, and forces measured modules through a source-first finder so stale
 compiled extensions cannot hide Python lines. It reports the Universal
 backend, touched Cython frontend seam, and quality tools independently, plus
 ownership, Runtime API, emitter, compiler-seam, and quality-tool feature
-families. The current Python 3.11 validation records 100.00%, 45.80%, and
-65.79%; Python 3.14.6 records 100.00%, 45.94%, and 65.82%. CI keeps
-cross-version floors of 100%, 45%, and 50%. Schema 2 JSON and Markdown reports
+families. The current Python 3.11 validation records 100.00%, 53.33%, and
+100.00%; Python 3.14.6 records 100.00%, 53.45%, and 100.00%. CI keeps
+cross-version floors of 100%, 45%, and 100%. Schema 2 JSON and Markdown reports
 include exact missing lines and compact missing ranges for actionable
-follow-up.
+follow-up. Ellipsis-only interface stubs plus top-level repository-import and
+``__main__`` dispatch wiring are excluded; imported behavior and every
+``main()`` body remain measured, while subprocess gates validate CLI wiring.
 
 Every external `uses:` entry in the aHPy workflow is pinned to a full
 40-character commit SHA. A quality regression parses the complete workflow and
@@ -628,7 +645,8 @@ and C/C++ oracle gates; they are not folded into an inflated Python percentage.
 `Tools/ahpy/benchmark_hpy.py` compiles the same ten operations as generated
 Universal HPy and as a handwritten public-HPy reference, validates semantics
 and Debug handle cleanup, then alternates both modules across seven repeats.
-The versioned budget file rejects relative runtime regressions in identity,
+The versioned budget file is machine-classified as regression-only and rejects
+relative runtime regressions in identity,
 arithmetic, container, attribute, nested-call, and exception paths, plus large
 extension-type construction/method calls, a shared Python-independent
 external-C function, and generated-C or binary growth. Relative same-process comparisons are mandatory;
@@ -660,7 +678,7 @@ Arithmetic now matches the reference at 1 API call and container construction
 at 4, both with zero Dup/Close churn. Their tightened-budget Universal ratios
 were 0.97× and 1.07×, so both runtime ceilings are 1.5×. Normal/Trace/Debug,
 186 emitter tests, side-effectful-right evaluation regressions, closure and
-extension-method signature checks, and all 128 fault selectors pass.
+extension-method signature checks, and all 150 fault selectors pass.
 
 The extension-type follow-up borrows incoming field owners and direct Name
 field-store values, loads type/module owners only for actual constant/default/
@@ -678,7 +696,7 @@ type. Dynamic, non-finite, ambiguous plain-`char`, and out-of-range values stay
 on the checked conversion path. External-C Trace is now exactly 1 generated
 and 1 reference API call per iteration with zero Dup/Close churn; the measured
 Universal ratio is 0.99× and its ceiling is now 1.5×. Normal/Trace/Debug,
-188 emitter tests, the checked-fallback regressions, and all 128 fault selectors
+188 emitter tests, the checked-fallback regressions, and all 150 fault selectors
 pass.
 
 The expanded local run measured 4.57× for extension-type construction, 5.89×
@@ -714,23 +732,49 @@ ratio is treated as a release threshold. The initial evidence and exact
 measurement contract are in `audits/m9-abi-performance-baseline.md`.
 
 Each new benchmark history record also contains exact source-commit and GitHub
-Actions run provenance. `Tools/ahpy/calibrate_performance_budgets.py` requires
+Actions run provenance plus the complete schema-v3 budget policy. The current
+policy is non-release, hosted-history-pending, and unbound to a candidate
+commit, so these conservative ceilings cannot satisfy a release gate.
+When a reviewed policy is eventually promoted to release, the benchmark gate
+requires a recorded calibration-source commit, `hosted-checkout` candidate
+binding, hosted execution, and equality between source commit and GitHub SHA.
+The exact current candidate is recorded in the immutable report rather than
+self-referentially inside its own versioned policy; local or stale-checkout
+results fail independently of timing ratios.
+The same artifact embeds the complete validated budget contract: every
+operation/footprint ceiling, environment pin, measurement setting, and
+large-type compile rule. Calibration rejects compact-policy mismatch, runtime
+environment/measurement/enforcement drift, or any contract difference among
+samples, then retains the exact input contract in the proposal.
+The regression contract deliberately contains no absolute host ceiling. A
+release contract must add exactly six proposal-backed limits covering
+frontend/native build time, generated peak RSS and ratio, and large-type
+frontend/O0 time. Missing, non-finite, or over-limit evidence is independently
+release-blocking.
+`Tools/ahpy/calibrate_performance_budgets.py` requires
 at least five unique successful records from the same commit, repository,
 workflow, Python/HPy/platform/compiler/build-configuration identity, resource
 settings, and measurement contract. It rejects
 local reports, duplicate attempts, mixed cohorts, existing violations, failed
-Debug evidence, resource-schema gaps, and footprint/large-source byte drift.
+Debug evidence, resource-schema gaps, mixed/invalid budget policies, attempts
+to lower the policy's hosted-report minimum, and footprint/large-source byte
+drift.
 Its output includes runtime, frontend/native build-time, peak-RSS, footprint,
 and large-type frontend/O0 distributions, is explicitly proposal-only, and
 cannot rewrite the versioned budget. The collection and
 maintainer review procedure is documented in
 `performance-release-gate.md`; hosted same-HEAD history is still required
 before the current conservative ceilings become release budgets.
+`Tools/ahpy/validate_performance_budget_promotion.py` then verifies exact
+proposal equality for the ten runtime, three footprint, and six absolute
+release ceilings and rejects embedded-contract, calibration-source,
+environment/measurement/native-policy, or report-floor drift. Its result is a
+read-only review artifact, not release approval or current-candidate evidence.
 
 The sequence-index iteration follow-up borrows its loop source only when the
 source is an incoming call-scoped argument. Rebindable owned locals retain
 materialization, and a body that rebinds the original argument name passes
-normal/Trace/Debug plus all 128 fault selectors. Generated Trace falls from 38
+normal/Trace/Debug plus all 150 fault selectors. Generated Trace falls from 38
 to 36 calls per iteration (9 Dup/17 Close versus the reference's 1/8); the
 temporary runtime ceiling remains unchanged pending hosted calibration.
 The manual-only `ahpy-performance-calibration.yml` workflow provides the

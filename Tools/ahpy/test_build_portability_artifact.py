@@ -23,6 +23,7 @@ class BuildPortabilityArtifactTest(unittest.TestCase):
 
     def test_build_artifact_copies_binaries_loaders_and_writes_manifest(self):
         environments = []
+        setup_texts = []
 
         def fake_run(command, **options):
             environment = options["env"]
@@ -31,6 +32,7 @@ class BuildPortabilityArtifactTest(unittest.TestCase):
                 generated = Path(command[command.index("-o") + 1])
                 generated.write_text("generated Universal source\n")
                 return
+            setup_texts.append(Path(command[1]).read_text(encoding="utf8"))
             build_root = Path(command[command.index("--build-base") + 1])
             build_lib = build_root / "lib"
             build_lib.mkdir(parents=True)
@@ -57,6 +59,8 @@ class BuildPortabilityArtifactTest(unittest.TestCase):
                 (output / "artifact-manifest.json").read_text())
 
             expected_names = {
+                "ahpy_minimal.hpy0.so",
+                "ahpy_minimal.py",
                 "bootstrap_answer.hpy0.so",
                 "bootstrap_answer.py",
                 "bootstrap_types.hpy0.so",
@@ -74,6 +78,19 @@ class BuildPortabilityArtifactTest(unittest.TestCase):
                                  portability.file_sha256(artifact))
         self.assertEqual(manifest["schema_version"], 1)
         self.assertEqual(manifest["builder"], "CPython 3.11.15")
+        self.assertEqual(len(setup_texts), 1)
+        self.assertIn(
+            "Extension('bootstrap_answer', ['bootstrap_answer.c'])",
+            setup_texts[0],
+        )
+        self.assertIn(
+            "Extension('bootstrap_types', ['bootstrap_types.c'])",
+            setup_texts[0],
+        )
+        self.assertIn(
+            "Extension('ahpy_minimal', ['minimal_universal.c'])",
+            setup_texts[0],
+        )
         self.assertEqual(len(environments), 3)
         for environment in environments:
             self.assertEqual(environment["SOURCE_DATE_EPOCH"], "946684800")
@@ -88,6 +105,37 @@ class BuildPortabilityArtifactTest(unittest.TestCase):
             (output / "existing").touch()
             with self.assertRaisesRegex(RuntimeError, "not empty"):
                 portability.build_artifact("python", output)
+
+    def test_build_artifact_rejects_incomplete_or_split_build_outputs(self):
+        binary_root = Path("/definitely/missing/ahpy-build")
+        cases = (
+            (([],), "expected 3 Universal binaries"),
+            (([
+                binary_root / "one" / "bootstrap_answer.hpy0.so",
+                binary_root / "two" / "bootstrap_types.hpy0.so",
+                binary_root / "three" / "ahpy_minimal.hpy0.so",
+            ],), "different build dirs"),
+            (([
+                binary_root / "bootstrap_answer.hpy0.so",
+                binary_root / "bootstrap_types.hpy0.so",
+                binary_root / "ahpy_minimal.hpy0.so",
+            ], []), "missing artifact file"),
+        )
+        for find_results, message in cases:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                output = Path(temp_dir) / "artifact"
+                with (
+                    self.subTest(message=message),
+                    mock.patch.object(portability, "run"),
+                    mock.patch.object(portability, "verify_source_boundary"),
+                    mock.patch.object(portability, "verify_binary_boundary"),
+                    mock.patch.object(
+                        portability, "find_universal_binaries",
+                        side_effect=find_results,
+                    ),
+                    self.assertRaisesRegex(AssertionError, message),
+                ):
+                    portability.build_artifact("python", output)
 
     def test_main_accepts_an_existing_interpreter_path(self):
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -1,5 +1,5 @@
 schema_version = 1
-validated_on = "2026-07-19"
+validated_on = "2026-07-29"
 
 [builder]
 implementation = "CPython"
@@ -8,18 +8,32 @@ hpy = "0.9.0"
 
 [[targets]]
 name = "PyPy"
+matrix_name = "PyPy-7.3.23"
 setup_python = "pypy3.11-v7.3.23"
 python_compatibility = "3.11.15"
 status = "allowed-failure-early-warning"
-evidence_run = 29685285138
-evidence_job = 88188460273
+evidence_run = 30428968553
+evidence_job = 90501653601
 failure_stage = "first module import through the interpreter HPy bridge"
+reproducer = "Tools/ahpy/portability_smoke.py"
+handwritten_source = "tests/ahpy/minimal_universal.c"
+prepared_report = "docs/ahpy/audits/prd5-pypy-bridge-upstream-report.md"
+minimal_hosted_confirmation = "pending"
+next_evidence_artifact = "ahpy-portability-PyPy-7.3.23"
+next_evidence_report = "portability-result-PyPy-7.3.23.json"
 
 [[targets]]
 name = "GraalPy"
+matrix_name = "GraalPy-25.1.3"
 setup_python = "graalpy-25.1.3"
 python_compatibility = "3.12"
 status = "allowed-failure-early-warning"
-evidence_run = 29685285138
-evidence_job = 88188460282
+evidence_run = 30428968553
+evidence_job = 90501653614
 failure_stage = "first module import without an interpreter HPy bridge"
+reproducer = "Tools/ahpy/portability_smoke.py"
+handwritten_source = "tests/ahpy/minimal_universal.c"
+prepared_report = "docs/ahpy/audits/prd5-graalpy-loader-upstream-report.md"
+minimal_hosted_confirmation = "pending"
+next_evidence_artifact = "ahpy-portability-GraalPy-25.1.3"
+next_evidence_report = "portability-result-GraalPy-25.1.3.json"

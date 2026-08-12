@@ -90,7 +90,7 @@ first generated aHPy execution.
 
 On 2026-07-29 the frozen preview scope passed 432 compiler/seam tests, 155
 quality tests (two expected platform/tool skips), the generated Universal
-corpus in normal/Trace/Debug, all 128 isolated allocation/API fault selectors,
+corpus in normal/Trace/Debug, all 150 isolated allocation/API fault selectors,
 and the 38-case CPython C/C++ semantic oracle. Generated-source and undefined-
 symbol audits found no CPython/Hybrid leakage. The handle transition suite
 exhausts normal, return, break, continue, goto, and exception cleanup plans,

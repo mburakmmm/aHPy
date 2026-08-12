@@ -26,11 +26,48 @@ DIAGNOSTIC_RE = re.compile(
 
 STATIC_RULES = (
     (
+        "cpp-runtime-boundary",
+        re.compile(
+            r"(?m)^[ \t]*(?:from\s+libcpp(?:\.[A-Za-z_]\w*)?\s+cimport\b|"
+            r"cimport\s+libcpp(?:\.|\s|$))"),
+        "C++ runtime-library dependency detected by source scan",
+        "Keep libcpp/C++ runtime types outside the Universal translation unit. "
+        "Use a supported native scalar field only when its semantics are "
+        "equivalent, or isolate the C++ behavior behind a Python-independent "
+        "C-compatible shim.",
+    ),
+    (
+        "cython-module-cimport",
+        re.compile(r"(?m)^[ \t]*from\s+\.+[A-Za-z_][\w.]*\s+cimport\b"),
+        "relative Cython module C-API dependency detected by source scan",
+        "Replace cross-module cimport calls with an ordinary Python import "
+        "and Python-callable boundary; Universal modules cannot exchange "
+        "Cython's generated module C API.",
+    ),
+    (
         "direct-cpython-cimport",
         re.compile(r"(?m)^\s*(?:from\s+cpython(?:\.|\s)|cimport\s+cpython(?:\.|\s))"),
         "direct cpython.* dependency detected by source scan",
         "Replace direct cpython.* declarations with Python-independent C APIs "
         "or an explicitly designed public HPy boundary.",
+    ),
+    (
+        "numpy-c-api",
+        re.compile(
+            r"(?m)^[ \t]*(?:from\s+numpy(?:\.\S+)?\s+cimport\b|"
+            r"cimport\s+numpy(?:\.|\s|$))"),
+        "NumPy C API dependency detected by source scan",
+        "Keep NumPy values behind the ordinary Python object boundary or "
+        "replace the C-API dependency with a Python-independent scalar C "
+        "shim; HPy 0.9 Universal mode cannot expose NumPy's CPython C API.",
+    ),
+    (
+        "native-pointer-boundary",
+        re.compile(r"\bvoid\s*\*"),
+        "native void pointer detected by source scan",
+        "Keep pointer and buffer ownership outside the Universal translation "
+        "unit; expose a reviewed Python-independent scalar C shim or wait for "
+        "a selected public HPy buffer acquisition and release contract.",
     ),
     (
         "python-header",
@@ -58,6 +95,26 @@ STATIC_RULES = (
 )
 
 ACTION_RULES = (
+    (
+        "direct-cpython-cimport",
+        ("cpython.* cimports expose the CPython C API",),
+        "Replace direct cpython.* declarations with Python-independent C APIs "
+        "or an explicitly designed public HPy boundary.",
+    ),
+    (
+        "cython-module-cimport",
+        ("FromCImportStatNode is not implemented",),
+        "Replace a cross-module Cython cimport with an ordinary Python "
+        "boundary. For a Python-independent external C declaration, keep the "
+        "native ABI behind the reviewed scalar rules in external-c.md.",
+    ),
+    (
+        "compiled-entry-point",
+        ("CFuncDefNode is not implemented",),
+        "Expose the Python-visible entry point as def. Keep a native-only "
+        "helper outside the Universal translation unit or express its proven "
+        "scalar behavior through a supported Python/HPy boundary.",
+    ),
     (
         "parallel-worker-contract",
         (

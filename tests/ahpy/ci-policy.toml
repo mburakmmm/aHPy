@@ -41,6 +41,11 @@ trigger_class = "release-tags"
 release_or_build_jobs = ["attest-release"]
 
 [[workflows]]
+path = ".github/workflows/ahpy-security.yml"
+trigger_class = "pr-main-release-schedule-manual"
+required_jobs = ["dependency-review", "codeql"]
+
+[[workflows]]
 path = ".github/workflows/ahpy-testpypi.yml"
 trigger_class = "manual-publication"
 manual_required_jobs = ["build-testpypi-candidate"]

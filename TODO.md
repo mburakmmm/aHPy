@@ -1008,11 +1008,23 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         HPy 0.9 public-slot/exception-state diagnostics.
   - [ ] Enable only after the selected public HPy surface can publish and drive
         awaitable/async-iterator objects without CPython coroutine utilities.
-- [ ] Buffer protocol acquisition and release.
+- [x] Buffer protocol producer acquisition and release.
   - [x] Record ADR 0008's producer-versus-consumer split, owned `HPy_buffer.obj`
         lifecycle, rollback, and neutral frontend seam requirements.
-  - [ ] Implement and validate pure-type producer slots through public
-        `HPy_bf_getbuffer`/`HPy_bf_releasebuffer` without `Py_buffer` wrappers.
+  - [x] Implement the strict writable one-dimensional fixed native-scalar or
+        private positive compile-time-sized native C-array producer through
+        public `HPy_bf_getbuffer`/`HPy_bf_releasebuffer`:
+        translate only the exact canonical Cython frontend descriptor, keep
+        shape/stride storage object-owned, transfer one duplicated exporter
+        handle to the runtime, and emit no `Py_buffer`/`Python.h` dependency.
+        All 13 enabled integer/float format mappings compile for scalar and
+        array layouts; writable `long`/`double`, a four-element `long` array,
+        retained views, ordinary derived-type slot inheritance, and both
+        exporter Dup failure paths pass Normal/Trace/Debug or fault gates.
+        Readonly exporters remain blocked on HPy 0.9's missing named public
+        writable-request flag; multidimensional/general array-field,
+        auxiliary-allocation, and custom-release exporters remain explicitly
+        outside this completed subset.
 - [ ] Typed memoryviews and memoryview utility types.
   - [x] Reject typed buffer/memoryview arguments immediately after declaration
         analysis with one HPy 0.9 consumer-API diagnostic, before CPython
@@ -1274,7 +1286,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         `sys.modules`, collection, clean Debug state, and successful
         one-past/unselected imports.
   - [x] Classify the one macOS transient `SystemError`: it did not reproduce in
-        five bounded concurrent rounds covering 640 fault selectors, generated
+        five bounded concurrent rounds covering 750 fault selectors, generated
         corpus, setuptools, and full fixed fuzz. Replace the unsafe ad-hoc
         orchestration that left compiler descendants behind with isolated
         process groups, recursive timeout cleanup, retained logs, and a
@@ -1284,7 +1296,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         three dictionary insertions, direct and expanded call shapes,
         three attribute/item reads, attribute/item set/delete, all three type
         creations, every generated module/type publication position, and
-        independently owned intermediate cleanup; run 128 isolated
+        independently owned intermediate cleanup; run 150 isolated
         normal/Debug cases and fix the exposed transactional init rollback.
 - [x] Fuzz compiler inputs and selected runtime operation sequences.
   - [x] Generate a fixed-seed 48-function corpus spanning nested containers,
@@ -1358,13 +1370,13 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         direct live Name handles for `HPy_GetAttr_s` receivers and zero-argument
         `HPy_Call` callables. Trace proves attribute/call fell from 7 to 1 API
         call per iteration and from 2 Dup/1 Close to zero churn; normal,
-        Trace, Debug, 179 emitter tests, and all 128 fault selectors pass.
+        Trace, Debug, 179 emitter tests, and all 150 fault selectors pass.
   - [x] Route two-or-more required positional-only arguments through
         `HPyFunc_VARARGS`, then borrow direct live Name operands for binary APIs
         and fixed sequence-builder items under an evaluation-order proof.
         Arithmetic/container now match the handwritten references at 1/4 API
         calls with zero Dup/Close churn; normal, Trace, Debug, 185 emitter
-        tests, and all 128 fault selectors pass.
+        tests, and all 150 fault selectors pass.
   - [x] Borrow call-scoped extension-field owners and direct field-store Name
         values, load type/module owners only at their first actual use, and bind
         positional-only initializer slot arrays without a tracker. Type method
@@ -1380,7 +1392,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
   - [x] Borrow dynamic sequence-loop sources only for incoming call-scoped
         arguments; retain owned materialization for rebindable locals. Trace
         drops from 38 to 36 calls/iteration while normal/Trace/Debug and all
-        128 fault selectors remain green.
+        150 fault selectors remain green.
 - [ ] Define and enforce release performance budgets.
   - [x] Record exact source/GitHub-run provenance in every new benchmark
         artifact and add a fail-closed proposal generator requiring at least
@@ -1396,7 +1408,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
   - [x] Borrow a dynamic sequence-loop source only when it is an incoming
         call-scoped argument; retain owned materialization for rebindable
         locals, prove source-name rebinding in normal/Trace/Debug, and pass all
-        128 fault selectors. Trace drops from 38 to 36 calls per iteration.
+        150 fault selectors. Trace drops from 38 to 36 calls per iteration.
   - [x] Include frontend/native build time, generated/reference peak RSS, and
         large-type frontend/O0 distributions in the fail-closed hosted
         proposal without auto-applying absolute cross-host limits.

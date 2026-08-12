@@ -1,0 +1,64 @@
+schema_version = 1
+policy_version = 1
+project_status = "preview"
+required_documents = [
+  ".github/CODEOWNERS",
+  "CONTRIBUTING.md",
+  "SECURITY.md",
+  "docs/ahpy/maintenance.md",
+  "docs/ahpy/debugging.md",
+  "docs/ahpy/release-contract.md",
+  "docs/ahpy/support-matrix.md",
+  "docs/ahpy/upstream-dependencies.md",
+  "docs/ahpy/upstream-rebase-log.md",
+]
+
+[ownership]
+project_maintainers = ["@mburakmmm"]
+security_maintainers = ["@mburakmmm"]
+release_maintainers = ["@mburakmmm"]
+bus_factor = 1
+release_approval_minimum = 1
+
+[branches]
+integration = "main"
+release_pattern = "ahpy/<cython-major>.<cython-minor>"
+topic_prefix = "codex/"
+backport_categories = ["compatibility", "correctness", "packaging", "security"]
+direct_push = false
+history_rewrite = false
+
+[support]
+preview_branch = "main"
+stable_release_lines = 0
+maximum_simultaneous_stable_lines = 1
+eol_requires_public_record = true
+unpublished_preview_has_sla = false
+
+[cadence]
+dependency_updates = "monthly"
+cython_upstream_review = "monthly"
+hpy_review = "monthly"
+python_review = "monthly"
+platform_compiler_review = "quarterly"
+security_scanning = "continuous-and-weekly"
+
+[deprecation]
+preview_notice_required = true
+stable_minimum_release_cycles = 1
+migration_document_required = true
+silent_abi_fallback_allowed = false
+emergency_exceptions = ["correctness", "security"]
+
+[security]
+private_advisory_url = "https://github.com/mburakmmm/aHPy/security/advisories/new"
+public_vulnerability_issues = false
+pre_stable_response_sla = false
+coordinated_upstream_disclosure = true
+
+[automation]
+security_workflow = ".github/workflows/ahpy-security.yml"
+dependabot = ".github/dependabot.yml"
+codeql_languages = ["c-cpp", "python"]
+dependency_review = true
+immutable_action_pins = true

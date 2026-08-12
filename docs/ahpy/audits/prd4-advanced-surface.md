@@ -15,7 +15,7 @@ fallback.
 | Generic iterator protocol and pure-type iterator slots | blocked | HPy 0.9 lacks public generic iterator operations and iterator-next slots; use sequence-index loops or documented inlined consumers |
 | Generators and `yield` protocols | blocked | ADR 0006 records the missing iterator/exception-state prerequisites; keep suspension in Python |
 | Native coroutine and async generators | blocked | ADR 0007 records missing async slots and error-state ownership; keep orchestration in Python |
-| Buffer producer | rejected | A future implementation is designed in ADR 0008, but the preview rejects it until the neutral producer seam has exactly-once exporter/object cleanup |
+| Buffer producer | partial | ADR 0008's writable one-dimensional fixed native-scalar or private fixed native C-array subset emits public HPy producer slots, compiles all 13 enabled integer/float format mappings for both layouts, and passes `long`/`double`, four-element `long` array, derived-slot, retained-view Normal/Trace/Debug and scalar-plus-array duplication-failure oracles. HPy 0.9 has no named public writable-request flag for readonly exporters; multidimensional/general array-field, auxiliary-allocation, and custom-release exporters remain rejected |
 | Buffer consumer and typed memoryview | blocked | HPy 0.9 has no public acquire/release consumer API; acquire in Python or a non-Universal boundary |
 | Fused types | rejected | The preview compiler rejects CPython fused dispatch; publish explicit non-fused entry points |
 | General `nogil` and re-entry | partial | Only ADR 0010's external scalar calls and explicit `with gil` islands are enabled |
@@ -40,13 +40,19 @@ fallback.
 - The enabled ADR 0010 slice passes source/binary audits, normal/Trace/Debug,
   installed-wheel execution, conversion/errno failures, and explicit GIL-
   island callback success/failure.
+- ADR 0008's enabled fixed native producer translates the exact Cython frontend
+  descriptor to `HPy_buffer`, keeps shape/stride storage object-owned, transfers
+  one exporter handle to the runtime, and passes all 13 formats for scalar and
+  private fixed-array layouts plus writable `long`/`double`, four-element
+  `long` array, derived-slot, retained-view Normal/Trace/Debug and both Dup
+  failure paths without `Python.h` or `Py_buffer` in output.
 - `TestHPyModuleWriter` rejects C++ output, annotation, `profile`, `linetrace`,
   `embedsignature`, and C-line traceback instrumentation before output.
 - The diagnostic catalog and support matrix assign all remaining source
   families a stable fail-closed boundary; the manifest test prevents an
   advanced family from becoming unclassified.
 
-The local closure gates pass 432 compiler/seam tests, 155 quality tests (two
-expected platform/tool skips), generated normal/Trace/Debug execution, 128
-isolated fault selectors, the diagnostic catalog, and the 38-case CPython C/C++
-oracle.
+The current focused gates pass 438 compiler/seam tests and 498 quality-tool
+tests (two expected platform/tool skips), generated normal/Trace/Debug
+execution, 150 isolated fault selectors, the diagnostic catalog, and the
+38-case CPython C/C++ oracle.

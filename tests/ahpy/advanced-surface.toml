@@ -20,9 +20,9 @@ migration = "Keep async orchestration in Python and call supported synchronous U
 
 [[families]]
 id = "buffer-producer"
-status = "rejected"
+status = "partial"
 evidence = "docs/ahpy/adr/0008-buffer-ownership-model.md"
-migration = "Expose a Python-independent external C scalar API until the neutral producer seam is implemented."
+migration = "Use the validated writable one-dimensional native-scalar or private positive compile-time-sized native C-array exporter contract, including ordinary derived-type slot inheritance; keep multidimensional/general array fields, readonly exporters, auxiliary allocations, and consumers outside the current subset."
 
 [[families]]
 id = "buffer-consumer-memoryview"

@@ -10,13 +10,17 @@ from pathlib import Path
 import re
 import statistics
 
-from benchmark_hpy import BENCHMARK_SCHEMA_VERSION, OPERATIONS
+from benchmark_hpy import (
+    BENCHMARK_SCHEMA_VERSION,
+    OPERATIONS,
+    validate_budgets,
+)
 
 
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 DEFAULT_MINIMUM_REPORTS = 5
 DEFAULT_MARGIN = 0.20
-CALIBRATION_SCHEMA_VERSION = 2
+CALIBRATION_SCHEMA_VERSION = 3
 
 
 def _require(condition, message):
@@ -55,6 +59,30 @@ def load_hosted_report(path):
              "%s contains benchmark violations" % path)
     _require(report.get("debug_leak_check") == "passed",
              "%s lacks a passing HPy Debug check" % path)
+    policy = report.get("budget_policy")
+    _require(
+        isinstance(policy, dict) and
+        policy.get("classification") == "regression" and
+        policy.get("release_enforced") is False and
+        policy.get("calibration_status") == "hosted-history-pending" and
+        isinstance(policy.get("minimum_hosted_reports"), int) and
+        not isinstance(policy.get("minimum_hosted_reports"), bool) and
+        policy["minimum_hosted_reports"] >= DEFAULT_MINIMUM_REPORTS and
+        policy.get("candidate_binding") == "unbound" and
+        policy.get("calibration_source_commit") == "",
+        "%s does not declare a pending non-release regression budget" % path,
+    )
+    contract = report.get("budget_contract")
+    try:
+        validate_budgets(contract)
+    except ValueError as error:
+        raise ValueError(
+            "%s contains an invalid embedded budget contract: %s" %
+            (path, error)) from None
+    _require(
+        contract["policy"] == policy,
+        "%s budget policy differs from its embedded contract" % path,
+    )
     _require(
         isinstance(report.get("created_utc"), str) and report["created_utc"],
         "%s lacks a creation timestamp" % path,
@@ -99,6 +127,13 @@ def load_hosted_report(path):
             isinstance(environment.get(field), str) and environment[field],
             "%s environment.%s is missing" % (path, field),
         )
+    _require(
+        contract["environment"]["abi"] == "universal" and
+        contract["environment"]["hpy"] == environment["hpy_version"] and
+        contract["environment"]["python_implementation"] ==
+        environment["python_implementation"],
+        "%s environment differs from its embedded budget contract" % path,
+    )
 
     measurement = report.get("measurement")
     _require(isinstance(measurement, dict),
@@ -111,6 +146,10 @@ def load_hosted_report(path):
         not isinstance(measurement["warmups"], bool) and
         measurement["warmups"] >= 0,
         "%s measurement.warmups must be a non-negative integer" % path,
+    )
+    _require(
+        measurement == contract["measurement"],
+        "%s measurement differs from its embedded budget contract" % path,
     )
 
     build = report.get("build")
@@ -247,6 +286,17 @@ def load_hosted_report(path):
         o3.get("seconds"),
         "%s large_type_compile.o3.seconds" % path,
     )
+    _require(
+        large_type["timeout_seconds"] ==
+        contract["large_type_compile"]["timeout_seconds"] and
+        large_type.get("enforced_profiles") == (
+            ["o0", "o3"]
+            if contract["large_type_compile"]["enforce_o3"]
+            else ["o0"]
+        ),
+        "%s large-type enforcement differs from its embedded budget contract" %
+        path,
+    )
     return report
 
 
@@ -321,6 +371,29 @@ def calibrate(
     )
 
     reports = [load_hosted_report(path) for path in report_paths]
+    _require(
+        len({
+            json.dumps(report["budget_policy"], sort_keys=True)
+            for report in reports
+        }) <= 1,
+        "hosted reports do not share one input budget policy",
+    )
+    _require(
+        len({
+            json.dumps(report["budget_contract"], sort_keys=True)
+            for report in reports
+        }) <= 1,
+        "hosted reports do not share one input budget contract",
+    )
+    declared_minimum = max(
+        report["budget_policy"]["minimum_hosted_reports"]
+        for report in reports
+    ) if reports else DEFAULT_MINIMUM_REPORTS
+    _require(
+        minimum_reports >= declared_minimum,
+        "minimum_reports %d is below the budget policy requirement %d" %
+        (minimum_reports, declared_minimum),
+    )
     _require(
         len(reports) >= minimum_reports,
         "release calibration requires at least %d hosted reports; got %d" %
@@ -438,6 +511,8 @@ def calibrate(
         "report_count": len(reports),
         "minimum_reports": minimum_reports,
         "headroom_fraction": margin,
+        "input_budget_policy": dict(reports[0]["budget_policy"]),
+        "input_budget_contract": reports[0]["budget_contract"],
         "runs": run_evidence,
         "runtime_ratio": runtime,
         "build_time": {
@@ -459,6 +534,12 @@ def calibrate(
             field: reports[0]["footprint"][field]
             for field in deterministic_fields
         } | {
+            "generated_c_bytes_proposed_maximum": math.ceil(
+                reports[0]["footprint"]["generated_c_bytes"] *
+                (1 + margin)),
+            "generated_binary_bytes_proposed_maximum": math.ceil(
+                reports[0]["footprint"]["generated_binary_bytes"] *
+                (1 + margin)),
             "binary_to_reference_ratio_maximum": round(
                 max(binary_ratios), 6),
             "binary_to_reference_ratio_proposed_maximum": _ceil_limit(

@@ -1,3 +1,5 @@
+import io
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -141,6 +143,100 @@ class DirectBuildTest(unittest.TestCase):
             environment,
         )
 
+    def test_environment_helpers_and_missing_msvc_tools_fail_closed(self):
+        environment = {"Path": "first", "PATH": "second", "OTHER": "ok"}
+        self.assertEqual(
+            direct_build._environment_value(environment, "path"), "first")
+        self.assertIsNone(
+            direct_build._environment_value(environment, "missing"))
+        direct_build._replace_environment_value(environment, "PATH", "new")
+        self.assertEqual(environment, {"OTHER": "ok", "PATH": "new"})
+
+        with mock.patch.object(direct_build.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(RuntimeError, "does not expose cl.exe"):
+                direct_build._resolve_msvc_executable(environment)
+            with self.assertRaisesRegex(RuntimeError, "cannot locate vswhere"):
+                direct_build.discover_msvc_environment(
+                    "x86_64", {"PATH": "empty"})
+        with mock.patch.object(
+            direct_build.shutil, "which", return_value="C:\\msvc\\cl.exe"
+        ):
+            self.assertEqual(
+                direct_build._resolve_msvc_executable(environment),
+                "C:\\msvc\\cl.exe",
+            )
+
+    def test_msvc_discovery_rejects_incomplete_installations(self):
+        with TemporaryDirectory() as temp:
+            installation = Path(temp) / "Visual Studio"
+            base_environment = {"PATH": "tools"}
+
+            with (
+                mock.patch.object(
+                    direct_build.shutil, "which",
+                    side_effect=(None, "vswhere.exe"),
+                ),
+                mock.patch.object(
+                    direct_build.subprocess, "run",
+                    return_value=mock.Mock(stdout=""),
+                ),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "found no Visual"):
+                    direct_build.discover_msvc_environment(
+                        "x86_64", base_environment)
+
+            with (
+                mock.patch.object(
+                    direct_build.shutil, "which",
+                    side_effect=(None, "vswhere.exe"),
+                ),
+                mock.patch.object(
+                    direct_build.subprocess, "run",
+                    return_value=mock.Mock(stdout=str(installation)),
+                ),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "vcvarsall.bat"):
+                    direct_build.discover_msvc_environment(
+                        "x86_64", base_environment)
+
+            vcvarsall = (
+                installation / "VC" / "Auxiliary" / "Build" /
+                "vcvarsall.bat"
+            )
+            vcvarsall.parent.mkdir(parents=True)
+            vcvarsall.touch()
+            with (
+                mock.patch.object(
+                    direct_build.shutil, "which",
+                    side_effect=(None, "vswhere.exe"),
+                ),
+                mock.patch.object(
+                    direct_build.subprocess, "run",
+                    return_value=mock.Mock(stdout=str(installation)),
+                ),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "unsupported Visual"):
+                    direct_build.discover_msvc_environment(
+                        "sparc", base_environment)
+
+            with (
+                mock.patch.object(
+                    direct_build.shutil, "which",
+                    side_effect=(None, "vswhere.exe", None),
+                ),
+                mock.patch.object(
+                    direct_build.subprocess,
+                    "run",
+                    side_effect=(
+                        mock.Mock(stdout=str(installation)),
+                        mock.Mock(stdout="PATH=C:\\tools\n"),
+                    ),
+                ),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "did not expose cl"):
+                    direct_build.discover_msvc_environment(
+                        "arm64", base_environment)
+
     def test_msvc_execution_uses_the_resolved_executable(self):
         resolved = "C:\\msvc\\bin\\cl.exe"
         commands = []
@@ -197,6 +293,128 @@ class DirectBuildTest(unittest.TestCase):
                 Path(temp) / "build", runtime="auto")
             self.assertEqual(plan["runtime_mode"], "sources")
             self.assertEqual(plan["runtime_inputs"], [str(helper)])
+
+    def test_input_and_compiler_plan_validation(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = self._source(temp)
+            probe = _probe(root=temp)
+            shared = root / "shared"
+            with self.assertRaisesRegex(ValueError, "existing .c file"):
+                create_build_plan(
+                    probe, "demo", root / "missing.pyx", root / "out",
+                    root / "build")
+            with self.assertRaisesRegex(ValueError, "must differ"):
+                create_build_plan(
+                    probe, "demo", source, shared, shared)
+            with self.assertRaisesRegex(ValueError, "source does not exist"):
+                create_build_plan(
+                    probe, "demo", source, root / "out", root / "build",
+                    extra_sources=[root / "missing.c"])
+
+            probe["config"]["CC"] = ""
+            probe["config"]["LDSHARED"] = ""
+            fallback = create_build_plan(
+                probe, "demo", source, root / "out", root / "build")
+            self.assertEqual(fallback["compile_commands"][0][0], "cc")
+            self.assertEqual(fallback["link_command"][:2], ["cc", "-shared"])
+
+            probe["config"]["LDSHARED"] = "system-cc -bundle"
+            overridden = create_build_plan(
+                probe, "demo", source, root / "out2", root / "build2",
+                compiler="clang -arch arm64")
+            self.assertEqual(
+                overridden["link_command"][:4],
+                ["clang", "-arch", "arm64", "-bundle"],
+            )
+
+    def test_execution_rejects_dirty_paths_and_missing_link_output(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            plan = create_build_plan(
+                _probe(root=temp), "demo", self._source(temp), root / "out",
+                root / "build", runtime="static")
+            artifact = Path(plan["artifact"])
+            artifact.parent.mkdir(parents=True)
+            artifact.touch()
+            with mock.patch.object(direct_build, "verify_source_boundary"):
+                with self.assertRaisesRegex(RuntimeError, "refusing to overwrite"):
+                    direct_build.execute_build_plan(plan)
+
+            artifact.unlink()
+            build_dir = Path(plan["build_dir"])
+            build_dir.mkdir(parents=True)
+            (build_dir / "dirty.o").touch()
+            with mock.patch.object(direct_build, "verify_source_boundary"):
+                with self.assertRaisesRegex(RuntimeError, "is not empty"):
+                    direct_build.execute_build_plan(plan)
+
+            (build_dir / "dirty.o").unlink()
+            with (
+                mock.patch.object(direct_build, "verify_source_boundary"),
+                mock.patch.object(direct_build.subprocess, "run"),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "did not create"):
+                    direct_build.execute_build_plan(plan)
+
+    def test_main_supports_plan_files_stdout_and_build_reporting(self):
+        plan = {
+            "artifact": "/dist/demo.hpy0.so",
+            "module_name": "demo",
+        }
+        base_argv = [
+            "direct_build.py", "--module", "demo", "--source", "demo.c",
+            "--output-dir", "dist", "--build-dir", "build",
+        ]
+        stdout = io.StringIO()
+        with (
+            mock.patch("sys.argv", base_argv + ["--plan-only"]),
+            mock.patch.object(
+                direct_build, "probe_toolchain", return_value={"probe": True}
+            ) as probe,
+            mock.patch.object(
+                direct_build, "create_build_plan", return_value=plan
+            ) as create,
+            mock.patch.object(direct_build.sys, "stdout", stdout),
+        ):
+            self.assertEqual(direct_build.main(), 0)
+        self.assertEqual(json.loads(stdout.getvalue()), plan)
+        probe.assert_called_once_with(sys.executable)
+        self.assertEqual(create.call_args.kwargs["runtime"], "auto")
+
+        with TemporaryDirectory() as temp:
+            output = Path(temp) / "nested" / "plan.json"
+            with (
+                mock.patch(
+                    "sys.argv",
+                    base_argv + ["--plan-only", "--json-output", str(output)],
+                ),
+                mock.patch.object(
+                    direct_build, "probe_toolchain", return_value={}
+                ),
+                mock.patch.object(
+                    direct_build, "create_build_plan", return_value=plan
+                ),
+            ):
+                self.assertEqual(direct_build.main(), 0)
+            self.assertEqual(json.loads(output.read_text()), plan)
+
+        stdout = io.StringIO()
+        with (
+            mock.patch("sys.argv", base_argv),
+            mock.patch.object(direct_build, "probe_toolchain", return_value={}),
+            mock.patch.object(
+                direct_build, "create_build_plan", return_value=plan
+            ),
+            mock.patch.object(
+                direct_build, "execute_build_plan",
+                return_value={"sha256": "abc123"},
+            ) as execute,
+            mock.patch.object(direct_build.sys, "stdout", stdout),
+        ):
+            self.assertEqual(direct_build.main(), 0)
+        execute.assert_called_once_with(plan)
+        self.assertIn("abc123", stdout.getvalue())
 
     def test_cli_imports_repository_modules_from_clean_working_directory(self):
         with TemporaryDirectory() as temp:

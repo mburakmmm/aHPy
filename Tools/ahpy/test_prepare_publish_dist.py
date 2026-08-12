@@ -1,8 +1,10 @@
 import hashlib
 import json
 from pathlib import Path
+import sys
 from tempfile import TemporaryDirectory
 import unittest
+from unittest import mock
 
 import prepare_publish_dist
 
@@ -129,6 +131,116 @@ class PreparePublishDistTest(unittest.TestCase):
                 prepare_publish_dist.prepare_publish_directory(
                     temp, Path(temp) / "publish",
                     repository="mirror", expected_commit=COMMIT)
+
+    def test_rejects_invalid_provenance_schema_versions_and_gates(self):
+        mutations = (
+            (lambda report: report.update(schema_version=1), "schema must be 2"),
+            (
+                lambda report: report["provenance"].update(
+                    installed_hpy="0.10.0"),
+                "supported HPy version",
+            ),
+            (
+                lambda report: report["provenance"].update(
+                    installed_setuptools="0"),
+                "supported setuptools version",
+            ),
+            (
+                lambda report: report.update(offline_install=False),
+                "gate is not green: offline_install",
+            ),
+        )
+        for mutate, message in mutations:
+            with self.subTest(message=message):
+                with TemporaryDirectory() as temp:
+                    root = Path(temp)
+                    bundle = root / "bundle"
+                    bundle.mkdir()
+                    report = _bundle(bundle)
+                    mutate(report)
+                    (bundle / "provenance.json").write_text(
+                        json.dumps(report), encoding="utf8")
+                    with self.assertRaisesRegex(ValueError, message):
+                        prepare_publish_dist.prepare_publish_directory(
+                            bundle, root / "publish", expected_commit=COMMIT)
+
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            bundle = root / "bundle"
+            bundle.mkdir()
+            (bundle / "provenance.json").write_text(
+                "not-json", encoding="utf8")
+            with self.assertRaisesRegex(ValueError, "valid provenance.json"):
+                prepare_publish_dist.prepare_publish_directory(
+                    bundle, root / "publish", expected_commit=COMMIT)
+
+    def test_rejects_nonfrontend_publish_identity(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            bundle = root / "bundle"
+            bundle.mkdir()
+            report = _bundle(bundle)
+            report["frontend_wheel"]["name"] = "wrong.whl"
+            (bundle / "provenance.json").write_text(
+                json.dumps(report), encoding="utf8")
+            with self.assertRaisesRegex(ValueError, "exact frontend"):
+                prepare_publish_dist.prepare_publish_directory(
+                    bundle, root / "publish", expected_commit=COMMIT)
+
+    def test_default_source_commit_and_pypi_repository_are_recorded(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            bundle = root / "bundle"
+            bundle.mkdir()
+            _bundle(bundle)
+            with mock.patch.object(
+                    prepare_publish_dist, "source_commit",
+                    return_value=COMMIT) as commit:
+                report = prepare_publish_dist.prepare_publish_directory(
+                    bundle, root / "publish", repository="pypi")
+            commit.assert_called_once_with(prepare_publish_dist.ROOT)
+            self.assertEqual(report["repository"], "pypi")
+            self.assertEqual(
+                report["repository_url"],
+                prepare_publish_dist.REPOSITORIES["pypi"],
+            )
+
+    def test_main_writes_or_prints_no_upload_report(self):
+        report = {
+            "files": [{"name": "frontend.whl", "sha256": "a" * 64}],
+        }
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            output = root / "nested" / "publish.json"
+            base = [
+                "prepare_publish_dist.py",
+                "--bundle-dir", str(root / "bundle"),
+                "--publish-dir", str(root / "publish"),
+            ]
+            with (
+                mock.patch.object(sys, "argv", base + [
+                    "--repository", "pypi", "--output", str(output)]),
+                mock.patch.object(
+                    prepare_publish_dist, "prepare_publish_directory",
+                    return_value=report) as prepare,
+                mock.patch("builtins.print") as printed,
+            ):
+                prepare_publish_dist.main()
+            prepare.assert_called_once_with(
+                root / "bundle", root / "publish", repository="pypi")
+            self.assertEqual(json.loads(output.read_text()), report)
+            self.assertIn("no-upload rehearsal passed", printed.call_args.args[0])
+
+            with (
+                mock.patch.object(sys, "argv", base),
+                mock.patch.object(
+                    prepare_publish_dist, "prepare_publish_directory",
+                    return_value=report),
+                mock.patch("builtins.print") as printed,
+            ):
+                prepare_publish_dist.main()
+            self.assertEqual(printed.call_count, 2)
+            self.assertEqual(json.loads(printed.call_args_list[0].args[0]), report)
 
 
 if __name__ == "__main__":

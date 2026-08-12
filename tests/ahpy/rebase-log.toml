@@ -1,0 +1,19 @@
+schema_version = 1
+upstream_repository = "https://github.com/cython/cython.git"
+current_base = "b99cb0e3b5425e11414cadd24168a6cc850e8000"
+
+[[events]]
+sequence = 1
+date = "2026-07-13"
+kind = "baseline"
+from_commit = "b99cb0e3b5425e11414cadd24168a6cc850e8000"
+to_commit = "b99cb0e3b5425e11414cadd24168a6cc850e8000"
+strategy = "baseline-selection"
+result = "accepted"
+conflicts = []
+validation_documents = [
+  "docs/ahpy/audits/current-cython-surface.md",
+  "docs/ahpy/audits/historical-backends.md",
+  "docs/ahpy/release-contract.md",
+]
+notes = "Initial modern Cython baseline selected before the aHPy backend topic series; no upstream transition or conflict resolution was performed in this event."

@@ -86,6 +86,29 @@ def _extension_field_storage(field_type, field_cname):
         PyrexTypes.c_longdouble_type:
             ("long double", None, "long-double"),
     }
+    if field_type is not None and field_type.is_array:
+        if (
+            not isinstance(field_type.size, int)
+            or field_type.size <= 0
+            or field_type.base_type.is_array
+        ):
+            raise AssertionError(
+                "unvalidated pure HPy extension array field type: %r" %
+                field_type)
+        element_type = _resolve_extension_field_storage_type(
+            field_type.base_type)
+        element_storage = native_types.get(element_type)
+        if element_storage is None:
+            raise AssertionError(
+                "unvalidated pure HPy extension array element type: %r" %
+                element_type)
+        element_declaration, _, element_storage_kind = element_storage
+        return (
+            "%s %s[%d]" % (
+                element_declaration, field_cname, field_type.size),
+            None,
+            "fixed-array:%s" % element_storage_kind,
+        )
     storage = native_types.get(field_type)
     if storage is not None:
         declaration, member_kind, storage_kind = storage
@@ -94,6 +117,11 @@ def _extension_field_storage(field_type, field_cname):
 
 
 def _supports_extension_field_storage(field_type):
+    resolved_type = _resolve_extension_field_storage_type(field_type)
+    if resolved_type is not None and resolved_type.is_array:
+        # Fixed arrays are admitted only by the stricter buffer-producer
+        # validator; general field load/store and member exposure stay closed.
+        return False
     try:
         _extension_field_storage(field_type, "field")
     except AssertionError:
@@ -5096,7 +5124,31 @@ class UniversalHPyFunctionWriter:
             self.putln("}")
             hash_cname = "__pyx_hpy_hash_%d" % self._next_status
             self._next_status += 1
-            self.putln("HPy_hash_t %s = %s;" % (
+            converted_cname = "__pyx_hpy_hash_value_%d" % self._next_status
+            self._next_status += 1
+            self.putln("HPy_ssize_t %s = %s;" % (
+                converted_cname,
+                self.runtime_api.ssize_t_from_python(
+                    value_cname, context_cname=self.context_cname),
+            ))
+            self.putln("HPy_hash_t %s;" % hash_cname)
+            self.putln("if ((%s == -1) && %s) {" % (
+                converted_cname,
+                self.runtime_api.python_error_occurred(
+                    context_cname=self.context_cname),
+            ))
+            self.indent()
+            overflow_error = self.runtime_api.builtin_exception(
+                "OverflowError", context_cname=self.context_cname)
+            self.putln("if (!%s) {" % self.runtime_api.exception_matches(
+                overflow_error, context_cname=self.context_cname))
+            self.indent()
+            self._emit_failure_exit()
+            self.dedent()
+            self.putln("}")
+            self.putln("%s;" % self.runtime_api.error_clear(
+                context_cname=self.context_cname))
+            self.putln("%s = %s;" % (
                 hash_cname,
                 self.runtime_api.object_hash(
                     value_cname, context_cname=self.context_cname),
@@ -5107,6 +5159,15 @@ class UniversalHPyFunctionWriter:
                     self.runtime_api.python_error_occurred(
                         context_cname=self.context_cname),
                 ))
+            self.dedent()
+            self.putln("} else {")
+            self.indent()
+            self.putln("%s = (HPy_hash_t)%s;" % (
+                hash_cname, converted_cname))
+            self.dedent()
+            self.putln("}")
+            self.putln("if (%s == -1) %s = -2;" % (
+                hash_cname, hash_cname))
             self.close_owned_handle(value_cname)
             self._close_remaining_owned_handles()
             self._close_argument_tracker()
@@ -5372,8 +5433,9 @@ class UniversalHPyModuleWriter:
                     ))
                 ):
                     reserved_type_names.append(method.name)
-                method.hpy_bootstrap_signature(
-                    self, receiver_argument=method.args[0])
+                if method.name not in ("__getbuffer__", "__releasebuffer__"):
+                    method.hpy_bootstrap_signature(
+                        self, receiver_argument=method.args[0])
             if reserved_type_names:
                 self.unsupported(
                     extension_type,
@@ -5421,8 +5483,11 @@ class UniversalHPyModuleWriter:
 
         self._collect_referenced_names(methods)
         for extension_type in extension_types:
-            self._collect_referenced_names(
-                self._extension_type_methods(extension_type))
+            self._collect_referenced_names([
+                method
+                for method in self._extension_type_methods(extension_type)
+                if method.name not in ("__getbuffer__", "__releasebuffer__")
+            ])
             self._collect_referenced_names([
                 accessor
                 for _, accessors in self._extension_type_properties(
@@ -5447,6 +5512,7 @@ class UniversalHPyModuleWriter:
          type_contains_slot_definitions,
          type_richcompare_slot_definitions,
          type_finalize_slot_definitions,
+         type_buffer_slot_definitions,
          type_field_layouts) = (
             self._render_extension_type_declarations(
             extension_types, module_name)
@@ -5652,6 +5718,12 @@ class UniversalHPyModuleWriter:
                 method_lines.extend(self._render_extension_finalize_slot(
                     method,
                     definition_cname,
+                    type_field_layouts[id(extension_type)],
+                ))
+            buffer_slot = type_buffer_slot_definitions[id(extension_type)]
+            if buffer_slot is not None:
+                method_lines.extend(self._render_extension_buffer_slots(
+                    buffer_slot,
                     type_field_layouts[id(extension_type)],
                 ))
 
@@ -6273,6 +6345,7 @@ class UniversalHPyModuleWriter:
         type_contains_slot_definitions = {}
         type_richcompare_slot_definitions = {}
         type_finalize_slot_definitions = {}
+        type_buffer_slot_definitions = {}
         type_field_layouts = {}
         type_struct_cnames = {}
         type_traverse_cnames = {}
@@ -6294,6 +6367,11 @@ class UniversalHPyModuleWriter:
                 if not getattr(field, "is_inherited", False)
             ]
             methods = self._extension_type_methods(extension_type)
+            buffer_get_method = next(
+                (method for method in methods
+                 if hasattr(method, "ahpy_universal_buffer_spec")),
+                None,
+            )
             properties = self._extension_type_properties(extension_type)
             type_cname = "__pyx_hpy_type_%s" % class_name
             struct_cname = "%s_object" % type_cname
@@ -6489,6 +6567,30 @@ class UniversalHPyModuleWriter:
                 ])
                 lines.extend(new_lines)
                 definition_cnames.append(new_definition_cname)
+            if buffer_get_method is not None:
+                get_definition_cname = (
+                    "__pyx_hpy_type_%d_%s_bf_getbuffer" %
+                    (type_index, class_name))
+                release_definition_cname = (
+                    "__pyx_hpy_type_%d_%s_bf_releasebuffer" %
+                    (type_index, class_name))
+                lines.append(self.runtime_api.type_slot_definition(
+                    "bf_getbuffer",
+                    get_definition_cname,
+                    "%s_impl" % get_definition_cname,
+                ))
+                lines.append(self.runtime_api.type_slot_definition(
+                    "bf_releasebuffer",
+                    release_definition_cname,
+                    "%s_impl" % release_definition_cname,
+                ))
+                definition_cnames.extend((
+                    get_definition_cname, release_definition_cname))
+                type_buffer_slot_definitions[id(extension_type)] = (
+                    buffer_get_method.ahpy_universal_buffer_spec,
+                    get_definition_cname,
+                    release_definition_cname,
+                )
             if initializer_method is not None:
                 definition_cname = "__pyx_hpy_type_%d_%s_init" % (
                     type_index, class_name)
@@ -6540,6 +6642,8 @@ class UniversalHPyModuleWriter:
                 property_definitions.append((
                     property_node, accessors, definition_cname))
             for method_index, method in enumerate(methods):
+                if method.name in ("__getbuffer__", "__releasebuffer__"):
+                    continue
                 if method.name in ("__cinit__", "__init__"):
                     continue
                 if method.name == "__call__":
@@ -6821,6 +6925,7 @@ class UniversalHPyModuleWriter:
             type_richcompare_slot_definitions.setdefault(
                 id(extension_type), None)
             type_finalize_slot_definitions.setdefault(id(extension_type), None)
+            type_buffer_slot_definitions.setdefault(id(extension_type), None)
             object_field_cnames = [
                 field_cname
                 for field_cname, storage in zip(field_cnames, field_storages)
@@ -6934,8 +7039,69 @@ class UniversalHPyModuleWriter:
             type_contains_slot_definitions,
             type_richcompare_slot_definitions,
             type_finalize_slot_definitions,
+            type_buffer_slot_definitions,
             type_field_layouts,
         )
+
+    def _render_extension_buffer_slots(
+            self, buffer_slot, extension_field_layout):
+        """Render an allocation-free one-dimensional native producer."""
+        ((field, shape_field, stride_field, format_string, element_count),
+         get_definition_cname, release_definition_cname) = buffer_slot
+        struct_cname, field_cname, _ = extension_field_layout[id(field)]
+        shape_struct_cname, shape_field_cname, _ = (
+            extension_field_layout[id(shape_field)])
+        stride_struct_cname, stride_field_cname, _ = (
+            extension_field_layout[id(stride_field)])
+        if (
+            shape_struct_cname != struct_cname
+            or stride_struct_cname != struct_cname
+        ):
+            raise AssertionError("buffer metadata must share the field layout")
+        return [
+            "static int %s_impl(HPyContext *ctx, HPy self, "
+            "HPy_buffer *view, int flags)" % get_definition_cname,
+            "{",
+            "    %s *data;" % struct_cname,
+            "    (void)flags;",
+            "    if (view == NULL) {",
+            "        HPyErr_SetString(ctx, ctx->h_BufferError, "
+            "%s);" % self._c_string("buffer view must not be NULL"),
+            "        return -1;",
+            "    }",
+            "    data = %s_AsStruct(ctx, self);" % struct_cname,
+            "    data->%s = %d;" % (shape_field_cname, element_count),
+            "    data->%s = " % stride_field_cname +
+            "(HPy_ssize_t)sizeof(data->%s%s);" % (
+                field_cname, "[0]" if element_count != 1 else ""),
+            "    view->buf = (void *)%sdata->%s;" % (
+                "" if element_count != 1 else "&", field_cname),
+            "    view->obj = HPy_NULL;",
+            "    view->len = (HPy_ssize_t)sizeof(data->%s);" % field_cname,
+            "    view->itemsize = (HPy_ssize_t)sizeof(data->%s%s);" % (
+                field_cname, "[0]" if element_count != 1 else ""),
+            "    view->readonly = 0;",
+            "    view->ndim = 1;",
+            "    view->format = (char *)%s;" % self._c_string(format_string),
+            "    view->shape = &data->%s;" % shape_field_cname,
+            "    view->strides = &data->%s;" % stride_field_cname,
+            "    view->suboffsets = NULL;",
+            "    view->internal = NULL;",
+            "    view->obj = HPy_Dup(ctx, self);",
+            "    if (HPy_IsNull(view->obj))",
+            "        return -1;",
+            "    return 0;",
+            "}",
+            "",
+            "static void %s_impl(HPyContext *ctx, HPy self, "
+            "HPy_buffer *view)" % release_definition_cname,
+            "{",
+            "    (void)ctx;",
+            "    (void)self;",
+            "    (void)view;",
+            "}",
+            "",
+        ]
 
     def _render_extension_call_slot(
             self, method, definition_cname, extension_field_layout):

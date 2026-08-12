@@ -121,6 +121,64 @@ class SetuptoolsIntegrationDefinitionTest(unittest.TestCase):
         self.assertEqual(runtime_calls[2][1]["env"]["HPY"], "debug")
         self.assertNotIn("HPY", runtime_calls[3][1]["env"])
 
+    def test_build_and_run_rejects_wheel_shape_and_tag_drift(self):
+        cases = (
+            ("wheel", "expected one wheel"),
+            ("members", "one .hpy0 binary and loader stub"),
+            ("tags", "no compatibility tag"),
+        )
+        for failure, message in cases:
+            binary_box = {}
+
+            def fake_run(command, **options):
+                if "--build-base" in command:
+                    temp = Path(options["cwd"])
+                    (temp / (integration.MODULE_NAME + ".c")).touch()
+                    build_root = Path(
+                        command[command.index("--build-base") + 1]
+                    )
+                    build_lib = build_root / "lib"
+                    build_lib.mkdir(parents=True)
+                    binary = build_lib / (
+                        integration.MODULE_NAME + ".hpy0.so"
+                    )
+                    binary.touch()
+                    binary_box["path"] = binary
+                elif "bdist_wheel" in command:
+                    dist = Path(command[command.index("--dist-dir") + 1])
+                    dist.mkdir()
+                    if failure == "wheel":
+                        return
+                    wheel = dist / "ahpy_setuptools_example-0-any.whl"
+                    with zipfile.ZipFile(wheel, "w") as archive:
+                        archive.writestr(
+                            integration.MODULE_NAME + ".hpy0.so", b"binary"
+                        )
+                        if failure != "members":
+                            archive.writestr(
+                                integration.MODULE_NAME + ".py", "# loader\n"
+                            )
+                        metadata = "Wheel-Version: 1.0\n"
+                        if failure != "tags":
+                            metadata += "Tag: py3-none-any\n"
+                        archive.writestr(
+                            "ahpy_setuptools_example-0.dist-info/WHEEL",
+                            metadata,
+                        )
+
+            with (
+                self.subTest(failure=failure),
+                mock.patch.object(integration, "run", side_effect=fake_run),
+                mock.patch.object(integration, "verify_source_boundary"),
+                mock.patch.object(integration, "verify_binary_boundary"),
+                mock.patch.object(
+                    integration, "require_universal_binary",
+                    side_effect=lambda root, name: binary_box["path"],
+                ),
+                self.assertRaisesRegex(AssertionError, message),
+            ):
+                integration.build_and_run("/tool/python")
+
     def test_main_accepts_an_existing_interpreter_path(self):
         with TemporaryDirectory() as temp_dir:
             python = Path(temp_dir) / "python"

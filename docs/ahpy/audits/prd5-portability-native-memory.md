@@ -57,6 +57,18 @@ Both are listed as unsupported in the frozen release contract and remain
 allowed-failure CI signals. Their red results cannot broaden or weaken the
 required CPython support claim.
 
+The next artifact revision adds `tests/ahpy/minimal_universal.c`, a handwritten
+public-HPy module, before both generated corpora. Its isolated
+`import-minimal` and `minimal-semantics` stages pass locally on CPython
+3.11.15/HPy 0.9.0, followed by the four existing generated stages; two clean
+artifact builds are byte-identical. Prepared PyPy and GraalPy report drafts
+live beside this audit, but remain guarded until a new hosted run records the
+minimal binary digest and exact bridge/loader result.
+The cross-interpreter workflow now persists a schema-versioned JSON result with
+the verified manifest/file hashes, target and loader provenance, ordered stage
+stdout/stderr, and exact exit-or-signal classification under `if: always()`.
+Missing evidence is itself a workflow artifact failure.
+
 ## Python 3.14 minimal reproducer
 
 The full generated corpus still terminates with signal 11 on CPython 3.14.6 in

@@ -12,6 +12,18 @@ EXAMPLES = integration.EXAMPLES
 
 
 class BuildSystemIntegrationDefinitionTest(unittest.TestCase):
+    def test_checked_runner_preserves_cwd_and_environment(self):
+        with mock.patch.object(integration.subprocess, "run") as run:
+            integration._run(
+                ["tool", "--version"], cwd=Path("/work"), env={"A": "1"}
+            )
+        run.assert_called_once_with(
+            ["tool", "--version"],
+            cwd=Path("/work"),
+            env={"A": "1"},
+            check=True,
+        )
+
     def test_cmake_example_consumes_only_generated_universal_contract(self):
         source = (EXAMPLES["cmake"][0] / "CMakeLists.txt").read_text(
             encoding="utf8")

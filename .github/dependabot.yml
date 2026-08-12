@@ -26,3 +26,29 @@ updates:
       - dependency-name: "cibuildwheel"
     cooldown:
       default-days: 7
+
+  # Review the compiler frontend and release-build dependencies.
+  - package-ecosystem: "pip"
+    target-branch: "main"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      ahpy-root-dependencies:
+        patterns:
+          - "*"
+    cooldown:
+      default-days: 7
+
+  # Review the pinned HPy, packaging, and external build-system lanes.
+  - package-ecosystem: "pip"
+    target-branch: "main"
+    directory: "/tests/ahpy"
+    schedule:
+      interval: "monthly"
+    groups:
+      ahpy-validation-dependencies:
+        patterns:
+          - "*"
+    cooldown:
+      default-days: 7

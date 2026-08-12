@@ -128,10 +128,11 @@ REJECTED_CASES = (
         "pure Universal HPy __dealloc__ is not implemented",
     ),
     (
-        "variable-size-layout",
+        "general-array-layout",
         "cdef class RejectedVarSize:\n"
         "    cdef int items[4]\n",
-        "pure Universal HPy variable-size extension layout is not implemented",
+        "C array extension fields are only implemented as the private storage "
+        "of the canonical one-dimensional fixed-array buffer",
     ),
 )
 
