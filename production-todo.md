@@ -352,10 +352,16 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
 
 ### PRD-6 çıkış kapısı
 
-- [ ] Yeni kullanıcı checkout bağımlılığı olmadan ilan edilen yolu kurup
-      örneği build/import edebiliyor.
-- [ ] Artifact kimliği, kaynağı, hash'i ve destek kapsamı doğrulanabiliyor.
-- [ ] Dağıtım metadata'sı Universal destek konusunda yanıltıcı değil.
+- [x] Yeni kullanıcı checkout bağımlılığı olmadan ilan edilen yolu kurup
+      örneği build/import edebiliyor; `3f30148ca` clean-head bundle'ı fresh
+      venv/no-index frontend install ile örneği build edip normal/Debug
+      import, uninstall/reinstall ve tekrar çalıştırma kapılarını geçti.
+- [x] Artifact kimliği, kaynağı, hash'i ve destek kapsamı doğrulanabiliyor;
+      aynı clean-head koşusu 736 sdist üyesini tracked kaynaklara bağladı ve
+      beş artifact'in hash/provenance/license/SPDX kanıtını doğruladı.
+- [x] Dağıtım metadata'sı Universal destek konusunda yanıltıcı değil;
+      yalnız pure frontend sdist/wheel publish set'ine girer, host-tagged örnek
+      wheel ve `.hpy0` portability kanıtı açıkça yayın dışıdır.
 
 ## PRD-7 — Release performans ve footprint bütçelerini sabitle
 
@@ -532,7 +538,11 @@ gizleyemez.
 - [ ] Security policy ve özel vulnerability reporting kanalını yayımla.
 - [x] Desteklenen Cython, HPy, Python, OS ve compiler sürüm politikasını yayımla.
 - [ ] Dependency update ve security scanning otomasyonunu ekle.
-- [ ] Third-party license/provenance envanterini release artifact'e bağla.
+- [x] Third-party license/provenance envanterini release artifact'e bağla;
+      schema-2 envanter aHPy, exact embedded Cython, örnek, HPy, setuptools ve
+      PyPA build bileşenlerini artifact hash/revision'larına bağlar; SPDX
+      `CONTAINS`/`BUILD_TOOL_OF` ilişkileri ve no-upload byte doğrulaması
+      `3f30148ca` clean-head bundle'ında geçti.
 - [x] User, contributor, architecture, debugging ve release belgelerini
       tamamla.
 - [x] Deprecation, compatibility-break ve migration politikasını tanımla.

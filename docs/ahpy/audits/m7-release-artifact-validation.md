@@ -1,6 +1,6 @@
 # M7 clean release-artifact validation
 
-Date: 2026-07-16; Setuptools 83 local rerun: 2026-08-12
+Date: 2026-07-16; exact-source/Setuptools 83 local rerun: 2026-08-12
 Status: current local sdist/install/uninstall/reinstall green; replacement
 hosted evidence pending
 
@@ -59,6 +59,21 @@ malformed digests, and copied bytes that do not match the validated report.
 The no-upload publisher independently rehashes all five artifacts and requires
 byte-exact regeneration of all four evidence documents; altered or missing
 dependency wheels, checksums, licenses, provenance, or SBOM fail closed.
+
+The current authoritative local run used clean commit
+`3f30148cadf017072d1d306c00608fd373668afd` on macOS ARM64, CPython 3.11.15,
+HPy 0.9.0, setuptools 83.0.0, and PyPA build 1.5.0. It verified 736 sdist
+members, all fresh-environment runtime/reinstall gates, and the following
+frontend identities:
+
+- sdist SHA-256
+  `aa90427834e4ee0c1aee6810a383ef4f7a7972319aff9ed7203e1fdca851388d`;
+- pure frontend wheel SHA-256
+  `b66a86a3d792d7a37e9054359541b3842e147b744778bb2aeada94dbd1bee738`.
+
+The subsequent TestPyPI no-upload selection passed, copied exactly those two
+frontend files, and excluded the host-tagged example, HPy/setuptools wheels,
+and all evidence metadata from the publish directory.
 
 Local macOS ARM64/CPython 3.11 evidence is complemented by an earlier green
 clean sdist/onboarding step in hosted

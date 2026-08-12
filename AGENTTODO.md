@@ -167,7 +167,10 @@ Last verified local gates:
   independently required by the no-upload publisher. The no-index
   wheel installs in a new venv with exact HPy 0.9.0/setuptools 83.0.0; the
   frontend and maintained PEP 517 example pass normal/Debug plus verified
-  uninstall/reinstall. Hosted Linux execution is green in run `29685285138`.
+  uninstall/reinstall. Exact clean commit `3f30148ca` locally passed all 736
+  sdist-member checks and TestPyPI no-upload selection on 2026-08-12. Hosted
+  Linux execution is historical-green in run `29685285138`; current-HEAD
+  replacement evidence remains pending quota.
 
 The generated runtime, fault, fuzz, reproducibility, setuptools/wheel,
 portability, sanitizer declarations, and CPython semantic oracles have dedicated
