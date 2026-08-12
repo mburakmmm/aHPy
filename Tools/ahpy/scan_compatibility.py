@@ -94,6 +94,10 @@ STATIC_RULES = (
     ),
 )
 
+FRONTEND_ONLY_CPYTHON_DECLARATION = re.compile(
+    r"^[ \t]*from[ \t]+cpython\.buffer[ \t]+cimport[ \t]+Py_buffer[ \t]*$"
+)
+
 ACTION_RULES = (
     (
         "direct-cpython-cimport",
@@ -243,6 +247,21 @@ def static_findings(path, source_text):
         for match in pattern.finditer(source_text):
             if not code_mask[match.start():match.end()].strip():
                 continue
+            if action_id == "direct-cpython-cimport":
+                # The legacy rule starts with ``^\s*`` and can therefore
+                # consume preceding blank lines. Anchor the exemption to the
+                # declaration line containing the end of that match.
+                line_start = code_mask.rfind("\n", 0, match.end()) + 1
+                line_end = code_mask.find("\n", match.end())
+                if line_end < 0:
+                    line_end = len(code_mask)
+                if FRONTEND_ONLY_CPYTHON_DECLARATION.fullmatch(
+                        code_mask[line_start:line_end]):
+                    # Py_buffer is Cython's source-level spelling for the
+                    # canonical producer protocol. The Universal validator
+                    # remains authoritative and emits HPy_buffer without a
+                    # CPython source/binary dependency for the supported form.
+                    continue
             line = source_text.count("\n", 0, match.start()) + 1
             column = match.start() - source_text.rfind("\n", 0, match.start())
             findings.append({

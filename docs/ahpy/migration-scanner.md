@@ -52,7 +52,10 @@ Current action IDs are:
   equivalent supported native scalar, or isolate C++ state behind a
   Python-independent C-compatible shim;
 - `direct-cpython-cimport`: remove `cpython.*` declarations from the Universal
-  boundary;
+  boundary. The exact `from cpython.buffer cimport Py_buffer` declaration is a
+  permitted frontend-only marker for the canonical validated buffer producer;
+  its use remains compiler-validated and generated Universal output contains
+  public `HPy_buffer`, not CPython buffer APIs;
 - `numpy-c-api`: keep NumPy values behind an ordinary Python object boundary
   or replace the C-API dependency with a Python-independent scalar shim;
 - `native-pointer-boundary`: keep native pointer/buffer ownership outside the

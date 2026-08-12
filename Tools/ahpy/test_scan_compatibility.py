@@ -93,6 +93,32 @@ class CompatibilityScannerTest(unittest.TestCase):
             {"direct-cpython-cimport", "python-header"},
         )
 
+    def test_static_rule_allows_only_canonical_py_buffer_frontend_declaration(self):
+        supported = (
+            "\n\nfrom cpython.buffer cimport Py_buffer  # frontend protocol\n"
+            "cdef class Buffer:\n"
+            "    def __getbuffer__(self, Py_buffer *view, int flags):\n"
+            "        pass\n"
+        )
+        self.assertEqual(
+            static_findings(Path("buffer.pyx"), supported), [])
+        self.assertEqual(
+            static_findings(
+                Path("buffer.pyx"),
+                "from cpython.buffer cimport Py_buffer"),
+            [],
+        )
+
+        rejected = (
+            "from cpython.buffer cimport Py_buffer, getbuffer\n"
+            "cimport cpython.buffer\n"
+        )
+        findings = static_findings(Path("buffer.pyx"), rejected)
+        self.assertEqual(
+            [finding["action"]["id"] for finding in findings],
+            ["direct-cpython-cimport", "direct-cpython-cimport"],
+        )
+
     def test_static_rules_detect_numpy_c_api_cimports_only(self):
         source = (
             "import numpy as np\n"

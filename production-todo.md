@@ -70,8 +70,8 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 438 compiler/seam testi, 498 quality-tool testi ve
-  iki yorumlayıcıda 936 coverage testi.
+- Mevcut odaklı doğrulama: 438 compiler/seam testi, 499 quality-tool testi ve
+  iki yorumlayıcıda 937 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Quality-tool Python satır kapsamı CPython 3.11 ve 3.14'te %100; ayrı native,
   subprocess, portability ve hosted kapıları bu orana dahil edilmez.
