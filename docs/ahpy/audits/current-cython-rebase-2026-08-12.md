@@ -47,6 +47,26 @@ capacity reliability contract.
   after the merge commit is pushed, because both must bind to that immutable
   source commit rather than its pre-merge parent.
 
+## Immutable merge and artifact evidence
+
+- Merge commit: `a1dc62c0084cc426090b38137eefb3c9ef82dcab`.
+- Parents: aHPy `6b5f0878ecfa809156f377cc8ddd2362194adc9c` and Cython
+  `86b94cef002aa23aea0b390335ea3d9e9b62c19e`.
+- Clean sdist: `ahpy_compiler-3.3.0.1.dev0.tar.gz`, 739 members, SHA-256
+  `0c88f324e492ed805e524d8388dd4b86ac4a5baf7643279a2d98a06aecaefa2c`.
+- Frontend wheel SHA-256:
+  `23565b1146aeac20d69fc13c9072ce2f3bad4f8f3129acc5a63cbdec741ea444`.
+- Built example wheel SHA-256:
+  `0067fbd04c03bf74bd7a0718fb4a5c25b59d4e7e69b486b4828a8b2afc0d4534`.
+- The offline install, compiler uninstall/reinstall and example
+  uninstall/reinstall checks all passed with CPython 3.11.15, HPy 0.9.0,
+  setuptools 83.0.0 and build 1.5.0.
+- GitHub runs created for the immutable merge commit are Universal
+  `31590065924`, Benchmarks `31590065944`, Coverage `31590065930`, Sanitizers
+  `31590066370`, CI `31590066388`, and Security `31590065928`. They are
+  pending/queued under the repository's current Actions quota and must not be
+  described as green until their required aggregate jobs complete.
+
 Historical milestone audit documents retain the base on which their evidence
 was originally collected. Current product metadata, the support contract and
 the append-only rebase log identify only the accepted base above.

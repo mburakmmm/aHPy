@@ -14,6 +14,13 @@ agent must keep all three synchronized when implementation status changes.
 - Workspace: `/Users/melihburakmemis/Documents/aHPy`.
 - Branch: `codex/ahpy-bootstrap`.
 - Upstream Cython baseline: `86b94cef002aa23aea0b390335ea3d9e9b62c19e`.
+- The accepted base was merged as
+  `a1dc62c0084cc426090b38137eefb3c9ef82dcab` with the exact two parents and
+  six conflict decisions recorded in
+  `docs/ahpy/audits/current-cython-rebase-2026-08-12.md`; the clean release
+  artifact gate is green on that commit, while hosted runs `31590065924`,
+  `31590065944`, `31590065930`, `31590066370`, `31590066388`, and
+  `31590065928` remain pending/queued under the Actions quota.
 - Last fully green dedicated-aHPy reference:
   `20e401ca71a0440ed91e9b6f9d083f3d6a24ef25`; always obtain the live branch
   HEAD with `git rev-parse HEAD` before reporting or changing evidence.
