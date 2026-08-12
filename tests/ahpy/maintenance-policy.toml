@@ -56,6 +56,17 @@ public_vulnerability_issues = false
 pre_stable_response_sla = false
 coordinated_upstream_disclosure = true
 
+[recovery]
+standard_defect_action = "yank"
+replacement_version_required = true
+public_reason_required = true
+delete_allowed_for = ["credential-disclosure", "legal-demand", "malware"]
+unyank_requires_owner_approval = true
+security_coordination = "private-until-disclosure"
+backport_regression_test_required = true
+backport_mandatory_matrix_required = true
+support_expansion_allowed = false
+
 [automation]
 security_workflow = ".github/workflows/ahpy-security.yml"
 dependabot = ".github/dependabot.yml"

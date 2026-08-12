@@ -59,6 +59,12 @@ requires the boolean publish input plus the `testpypi` environment. The
 frontend-only selection and recovery policy are in
 [`publishing.md`](publishing.md).
 
+The Universal compiler-and-quality job also runs the isolated release recovery
+drill and retains its JSON beside packaging evidence. This validates backport
+source provenance, regression-test carriage, unchanged support scope, and the
+reasoned-yank/exceptional-delete/security-disclosure policy without performing
+any external publication action.
+
 `.github/workflows/ahpy-performance-calibration.yml` is manual-only and
 read-only. Five isolated matrix jobs benchmark one exact selected commit and
 upload distinct immutable sample artifacts. A dependent job can produce only

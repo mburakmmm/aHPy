@@ -44,6 +44,10 @@ jobs:
         run: python Tools/ahpy/doctor.py --python python --strict
       - name: Validate preview release contract
         run: python Tools/ahpy/release_contract.py --json
+      - name: Exercise release recovery and backport policy
+        run: >-
+          python Tools/ahpy/release_recovery_drill.py
+          --output packaging-results/release-recovery-drill.json
       - name: Validate pinned third-party pilot matrix
         run: python Tools/ahpy/pilot_matrix.py --json
       - name: Validate frontend-neutral HPy conformance contract
@@ -128,6 +132,7 @@ jobs:
             packaging-results/frozenlist-pilot.json
             packaging-results/compatibility-dashboard.md
             packaging-results/conformance-contract.json
+            packaging-results/release-recovery-drill.json
           if-no-files-found: error
       - name: CMake and Meson Universal integrations
         run: >-

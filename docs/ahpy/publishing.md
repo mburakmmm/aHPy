@@ -105,6 +105,14 @@ with attestations enabled. Long-lived tokens and local uploads are prohibited.
 - Never unyank without a new review of the original reason and recorded owner
   approval.
 
+These recovery choices are also frozen in
+`tests/ahpy/maintenance-policy.toml`. The local
+`Tools/ahpy/release_recovery_drill.py` rehearsal proves that ordinary defects
+select a reasoned yank plus a new immutable version, deletion remains limited
+to credential disclosure, malware, or legal demand, and security fixes remain
+private until coordinated disclosure. The rehearsal has no network or package
+index mutation path.
+
 Yanking changes installer selection; it does not make already downloaded bytes
 disappear. Security response follows `SECURITY.md`, while support and artifact
 claims remain bound to the exact immutable hashes.

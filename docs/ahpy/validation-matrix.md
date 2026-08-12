@@ -614,7 +614,7 @@ paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 948 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 953 focused tests under Python's built-in
 line-event tracer, applies the same tracer to test-created worker threads,
 derives executable lines from nested code-object line tables, and forces
 measured modules through a source-first finder so stale
@@ -792,6 +792,21 @@ The two-root package reproducibility gate retains only the first root's
 immutable sdist and wheel before starting the second build. This preserves the
 byte-for-byte comparison contract while preventing two complete copied
 source/build trees from becoming the gate's peak disk requirement.
+
+## Release recovery rehearsal
+
+`Tools/ahpy/release_recovery_drill.py` runs without network or publication
+credentials. Its isolated Git fixture creates a release line, a correctness
+source change with its original regression test, and a distinct topic-branch
+backport using `cherry-pick -x`. The retained schema-1 JSON proves the source
+commit is named, changed paths are exact, support scope is unchanged, direct
+push/history rewrite remain forbidden, and the mandatory release-line matrix
+is still required. The same record embeds the validated recovery policy:
+ordinary defects use a public-reason yank and new immutable version; deletion
+is limited to credential disclosure, malware, or legal demand; security fixes
+remain private until coordinated disclosure. This passes locally and is wired
+into Universal packaging evidence; it neither creates a real release branch
+nor mutates an index.
 
 The record additionally regenerates the large extension-type corpus and runs
 one isolated native compile at `-O0` and `-O3`, with a 60-second ceiling. O0 is

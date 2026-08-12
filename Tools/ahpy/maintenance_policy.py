@@ -49,7 +49,7 @@ def validate_policy(data, root=ROOT, source="maintenance policy"):
     _exact_keys(data, {
         "schema_version", "policy_version", "project_status", "ownership",
         "branches", "support", "cadence", "deprecation", "security",
-        "automation", "required_documents",
+        "recovery", "automation", "required_documents",
     }, source)
     _require(data["schema_version"] == 1 and data["policy_version"] == 1,
              f"{source}: unsupported schema or policy version")
@@ -141,6 +141,27 @@ def validate_policy(data, root=ROOT, source="maintenance policy"):
              security["coordinated_upstream_disclosure"] is True,
              "security policy must use private coordinated reporting")
 
+    recovery = data["recovery"]
+    _exact_keys(recovery, {
+        "standard_defect_action", "replacement_version_required",
+        "public_reason_required", "delete_allowed_for",
+        "unyank_requires_owner_approval", "security_coordination",
+        "backport_regression_test_required",
+        "backport_mandatory_matrix_required", "support_expansion_allowed",
+    }, "recovery")
+    _require(
+        recovery["standard_defect_action"] == "yank" and
+        recovery["replacement_version_required"] is True and
+        recovery["public_reason_required"] is True and
+        recovery["delete_allowed_for"] == [
+            "credential-disclosure", "legal-demand", "malware"] and
+        recovery["unyank_requires_owner_approval"] is True and
+        recovery["security_coordination"] == "private-until-disclosure" and
+        recovery["backport_regression_test_required"] is True and
+        recovery["backport_mandatory_matrix_required"] is True and
+        recovery["support_expansion_allowed"] is False,
+        "release recovery policy is incomplete or unsafe")
+
     automation = data["automation"]
     _exact_keys(automation, {
         "security_workflow", "dependabot", "codeql_languages",
@@ -186,6 +207,7 @@ def render_text(policy):
         f"bus factor: {owners['bus_factor']}\n"
         f"dependency updates: {cadence['dependency_updates']}\n"
         f"security scanning: {cadence['security_scanning']}\n"
+        f"standard recovery: {policy['recovery']['standard_defect_action']}\n"
     )
 
 

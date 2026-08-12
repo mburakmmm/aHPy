@@ -126,13 +126,13 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 508 tests pass (two expected platform/tool availability
+- Quality-tool suite: 513 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-08-12): 948 tests traced on both interpreters.
+- Focused coverage (2026-08-12): 953 tests traced on both interpreters.
   - CPython 3.11: backend 9609/9609 (100.00%), frontend_seam 53.29%,
-    quality_tools 8807/8807 (100.00%).
+    quality_tools 9003/9003 (100.00%).
   - CPython 3.14.2: backend 9495/9495 (100.00%), frontend_seam 53.42%,
-    quality_tools 8815/8815 (100.00%).
+    quality_tools 9011/9011 (100.00%).
   - CI floors are 100%, 45%, and 100%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
@@ -838,6 +838,13 @@ implementation.
    Dependabot coverage, and immutable CodeQL v4.36.0 plus Dependency Review
    v5.0.0 workflow pins. Keep the publication/automation tasks open until the
    first hosted security scans are retained on the pushed commit.
+   The machine-readable recovery policy and
+   `release_recovery_drill.py` exercise a no-publication correctness backport
+   with `cherry-pick -x`, its original regression test, unchanged support scope
+   and mandatory matrix. Ordinary defects require a reasoned yank plus a new
+   version; deletion is exceptional and security work remains private until
+   disclosure. Universal CI retains the JSON result, but the drill never
+   creates a real release branch or mutates a package index.
    The append-only `rebase-log.toml` now records the initial exact Cython base
    without mislabeling it as a transition; its validator chains future rebases,
    requires per-path conflict classifications and decisions, and matches the

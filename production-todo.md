@@ -70,8 +70,8 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 440 compiler/seam testi, 508 quality-tool testi ve
-  iki yorumlayıcıda 948 coverage testi.
+- Mevcut odaklı doğrulama: 440 compiler/seam testi, 513 quality-tool testi ve
+  iki yorumlayıcıda 953 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Quality-tool Python satır kapsamı CPython 3.11 ve 3.14'te %100; ayrı native,
   subprocess, portability ve hosted kapıları bu orana dahil edilmez.
@@ -620,9 +620,19 @@ yalnız monolitik test assertion'larına veya tek kişinin bilgisine bağlı de�
       yeşil gör.
 - [ ] Kullanıcı pilotlarından release candidate geri bildirimi topla.
 - [ ] Kritik ve yüksek öncelikli açık defect bırakma.
-- [ ] Geri çekme, security fix ve backport prosedürünü dry-run et.
+- [x] Geri çekme, security fix ve backport prosedürünü dry-run et.
 - [ ] Stable sürümü yalnızca bütün aşağıdaki definition-of-done maddeleri
       tamamlandığında tag'le.
+
+Yerel no-publication recovery drill; izole bir Git deposunda `ahpy/3.2`
+release-line fixture'ı, kaynak correctness commit'i ve ayrı backport topic
+branch'ı oluşturup `cherry-pick -x` provenance'ını, orijinal regresyon testini,
+değişmeyen support tier'ı ve mandatory-matrix zorunluluğunu doğruladı.
+Machine-readable politika normal defect için gerekçeli yank + yeni immutable
+version, delete için yalnız credential disclosure/malware/legal demand ve
+security fix için disclosure'a kadar private koordinasyon zorunluluğunu
+fail-closed uygular. Bu dry-run gerçek branch, tag, yank veya upload yapmaz;
+Universal CI JSON kaydını packaging artifact grubunda saklayacaktır.
 
 ## Production definition of done
 

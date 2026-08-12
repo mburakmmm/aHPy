@@ -61,6 +61,22 @@ includes the original regression test, and reruns that line's mandatory matrix.
 It must not broaden the documented feature or platform tier. A security
 backport follows private advisory coordination until disclosure.
 
+The no-publication recovery rehearsal is executable and retained as CI
+evidence:
+
+```console
+python3 Tools/ahpy/release_recovery_drill.py \
+  --output /tmp/ahpy-release-recovery-drill.json
+```
+
+It creates an isolated Git repository, branches an `ahpy/3.2` release-line
+fixture, makes a correctness fix with its original regression test on a topic
+branch, and cherry-picks it with source provenance onto a separate backport
+topic branch. The validator rejects direct-push/history-rewrite policy,
+support-tier expansion, missing regression tests, unnamed source commits, or a
+missing mandatory-matrix requirement. It does not create a real release branch
+or publish/yank/delete an artifact.
+
 ## Deprecation and compatibility breaks
 
 Preview status permits change but not surprise: every removed or narrowed

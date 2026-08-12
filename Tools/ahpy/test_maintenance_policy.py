@@ -23,6 +23,14 @@ class MaintenancePolicyTest(unittest.TestCase):
         self.assertIn("bus factor: 1", text)
         self.assertIn("dependency updates: monthly", text)
         self.assertIn("security scanning: continuous-and-weekly", text)
+        self.assertIn("standard recovery: yank", text)
+        workflow = (
+            maintenance_policy.ROOT / ".github" / "workflows" /
+            "ahpy-universal.yml"
+        ).read_text(encoding="utf8")
+        self.assertIn("Exercise release recovery and backport policy", workflow)
+        self.assertIn("Tools/ahpy/release_recovery_drill.py", workflow)
+        self.assertIn("packaging-results/release-recovery-drill.json", workflow)
 
     def test_policy_tables_fail_closed_on_inconsistent_contracts(self):
         mutations = []
@@ -73,6 +81,19 @@ class MaintenancePolicyTest(unittest.TestCase):
         data = copy.deepcopy(self.policy)
         data["security"]["public_vulnerability_issues"] = True
         mutations.append(data)
+        for field, value in (
+                ("standard_defect_action", "delete"),
+                ("replacement_version_required", False),
+                ("public_reason_required", False),
+                ("delete_allowed_for", ["ordinary-defect"]),
+                ("unyank_requires_owner_approval", False),
+                ("security_coordination", "public-immediately"),
+                ("backport_regression_test_required", False),
+                ("backport_mandatory_matrix_required", False),
+                ("support_expansion_allowed", True)):
+            data = copy.deepcopy(self.policy)
+            data["recovery"][field] = value
+            mutations.append(data)
         data = copy.deepcopy(self.policy)
         data["automation"]["codeql_languages"] = ["python"]
         mutations.append(data)

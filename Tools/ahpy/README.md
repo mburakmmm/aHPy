@@ -88,6 +88,13 @@ configuration and CodeQL/dependency-review workflow to exist. The contract
 records the current one-person bus factor honestly; it does not infer a larger
 support organization from automation.
 
+`release_recovery_drill.py` executes a no-network Git fixture for a release
+line, correctness source change and provenance-bearing backport. It verifies
+the original regression test, unchanged support contract, reviewed topic
+branch, mandatory-matrix requirement and machine-readable yank/delete/security
+recovery policy, then emits a retained schema-versioned JSON record. It never
+creates a repository release branch or mutates a package index.
+
 `rebase_log.py` validates the append-only Cython baseline chain against
 `ahpy_version.py` and the release contract. Baseline selection and actual
 rebases are distinct event kinds; every rebase must continue the previous full
