@@ -24,10 +24,19 @@ class MaintenancePolicyTest(unittest.TestCase):
         self.assertIn("dependency updates: monthly", text)
         self.assertIn("security scanning: continuous-and-weekly", text)
         self.assertIn("standard recovery: yank", text)
+        self.assertEqual(self.policy["deprecation"]["compatibility_surfaces"], [
+            "artifact", "cli", "diagnostic", "generated-source",
+            "runtime-semantics", "source",
+        ])
+        self.assertTrue(
+            self.policy["deprecation"]["emergency_owner_approval"])
         workflow = (
             maintenance_policy.ROOT / ".github" / "workflows" /
             "ahpy-universal.yml"
         ).read_text(encoding="utf8")
+        self.assertIn("Validate maintenance and compatibility policy", workflow)
+        self.assertIn("Tools/ahpy/maintenance_policy.py --json", workflow)
+        self.assertIn("packaging-results/maintenance-policy.json", workflow)
         self.assertIn("Exercise release recovery and backport policy", workflow)
         self.assertIn("Tools/ahpy/release_recovery_drill.py", workflow)
         self.assertIn("packaging-results/release-recovery-drill.json", workflow)
@@ -75,9 +84,20 @@ class MaintenancePolicyTest(unittest.TestCase):
         data = copy.deepcopy(self.policy)
         data["cadence"]["security_scanning"] = "monthly"
         mutations.append(data)
-        data = copy.deepcopy(self.policy)
-        data["deprecation"]["silent_abi_fallback_allowed"] = True
-        mutations.append(data)
+        for field, value in (
+                ("preview_notice_required", False),
+                ("stable_minimum_release_cycles", 0),
+                ("stable_removal_release_boundary", False),
+                ("migration_document_required", False),
+                ("silent_abi_fallback_allowed", True),
+                ("emergency_exceptions", ["security"]),
+                ("emergency_owner_approval", False),
+                ("compatibility_surfaces", ["source"]),
+                ("notice_channels", ["changelog"]),
+                ("required_evidence", ["tests"])):
+            data = copy.deepcopy(self.policy)
+            data["deprecation"][field] = value
+            mutations.append(data)
         data = copy.deepcopy(self.policy)
         data["security"]["public_vulnerability_issues"] = True
         mutations.append(data)
@@ -149,6 +169,13 @@ class MaintenancePolicyTest(unittest.TestCase):
         self.assertEqual(json.loads(stdout.getvalue())["schema_version"], 1)
 
         with TemporaryDirectory(prefix="ahpy-maintenance-cli-") as temp_dir:
+            output = Path(temp_dir) / "nested" / "maintenance.json"
+            self.assertEqual(maintenance_policy.main([
+                "--json", "--output", str(output),
+            ]), 0)
+            self.assertEqual(
+                json.loads(output.read_text(encoding="utf8"))["policy_version"],
+                1)
             missing = Path(temp_dir) / "missing.toml"
             with self.assertRaises(SystemExit), mock.patch.object(
                     sys, "stderr", io.StringIO()):

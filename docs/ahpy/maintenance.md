@@ -97,6 +97,30 @@ or false Universal wheel metadata. Source incompatibility should fail at the
 original location with a stable migration action. ABI or artifact-policy
 changes require an ADR and clean release-evidence regeneration.
 
+The compatibility classification is exhaustive for the production contract:
+
+| Surface | Breaking examples | Required migration evidence |
+| --- | --- | --- |
+| Source | accepted syntax becomes rejected, or ownership requirements narrow | source-located stable action ID, replacement or explicit rationale, old/new tests |
+| Runtime semantics | return, exception, cleanup, GC or module-state behavior changes | semantic and failure-path tests plus release note |
+| Generated source | public generated-C seam, header boundary or build input changes | ADR when architectural, source/binary audits and regenerated evidence |
+| Artifact | ABI, suffix, tag, metadata, loader or supported HPy version changes | support-matrix update, clean package evidence and installation migration |
+| CLI/configuration | option, default, exit status or machine schema changes | old/new CLI tests and replacement command or schema guidance |
+| Diagnostics | diagnostic/action ID disappears or changes meaning | replacement action ID, catalog update and migration guidance |
+
+During preview, a breaking change may ship only when the same commit updates
+the changelog, release notes, support matrix and migration guide, supplies a
+stable action ID, and carries old/new regression evidence. After a stable
+release, a deprecated surface remains functional through at least one complete
+subsequent release cycle on the same Cython line; if notice begins in release
+N, removal is no earlier than the release after N+1. Removal happens only at a
+release boundary, never in an unannounced patch artifact.
+
+Only a correctness or security emergency may shorten that stable interval. It
+still requires release-owner approval, an explicit rationale, replacement or
+containment guidance, old/new tests and release notes. Emergency handling never
+permits silent CPython/Hybrid fallback or private HPy API use.
+
 ## Review cadence
 
 | Input | Required review |

@@ -793,6 +793,19 @@ immutable sdist and wheel before starting the second build. This preserves the
 byte-for-byte comparison contract while preventing two complete copied
 source/build trees from becoming the gate's peak disk requirement.
 
+## Maintenance and compatibility contract
+
+`Tools/ahpy/maintenance_policy.py` validates the exact supported-line and EOL
+policy, named project/security/release ownership, branch/backport restrictions,
+monthly and quarterly update cadence, and security automation bindings. Its
+compatibility contract covers source, runtime semantics, generated source,
+artifact, CLI/configuration and diagnostic surfaces. It requires preview and
+stable notice/removal boundaries, changelog/migration/release-note/support-
+matrix updates, stable action IDs, old/new tests and a replacement or explicit
+rationale. Only correctness and security emergencies may shorten a stable
+cycle, and those require release-owner approval. Universal CI runs the policy
+directly and retains its schema-1 JSON in packaging evidence.
+
 ## Release recovery rehearsal
 
 `Tools/ahpy/release_recovery_drill.py` runs without network or publication

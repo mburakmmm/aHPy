@@ -7,6 +7,7 @@ required_documents = [
   "SECURITY.md",
   "docs/ahpy/maintenance.md",
   "docs/ahpy/debugging.md",
+  "docs/ahpy/porting-guide.md",
   "docs/ahpy/release-contract.md",
   "docs/ahpy/support-matrix.md",
   "docs/ahpy/upstream-dependencies.md",
@@ -46,9 +47,14 @@ security_scanning = "continuous-and-weekly"
 [deprecation]
 preview_notice_required = true
 stable_minimum_release_cycles = 1
+stable_removal_release_boundary = true
 migration_document_required = true
 silent_abi_fallback_allowed = false
 emergency_exceptions = ["correctness", "security"]
+emergency_owner_approval = true
+compatibility_surfaces = ["artifact", "cli", "diagnostic", "generated-source", "runtime-semantics", "source"]
+notice_channels = ["changelog", "migration-guide", "release-notes", "support-matrix"]
+required_evidence = ["action-id", "old-and-new-tests", "replacement-or-rationale"]
 
 [security]
 private_advisory_url = "https://github.com/mburakmmm/aHPy/security/advisories/new"

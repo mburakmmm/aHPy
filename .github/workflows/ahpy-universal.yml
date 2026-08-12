@@ -48,6 +48,10 @@ jobs:
         run: >-
           python Tools/ahpy/documentation_contract.py
           --output packaging-results/documentation-contract.json
+      - name: Validate maintenance and compatibility policy
+        run: >-
+          python Tools/ahpy/maintenance_policy.py --json
+          --output packaging-results/maintenance-policy.json
       - name: Exercise release recovery and backport policy
         run: >-
           python Tools/ahpy/release_recovery_drill.py
@@ -137,6 +141,7 @@ jobs:
             packaging-results/compatibility-dashboard.md
             packaging-results/conformance-contract.json
             packaging-results/documentation-contract.json
+            packaging-results/maintenance-policy.json
             packaging-results/release-recovery-drill.json
           if-no-files-found: error
       - name: CMake and Meson Universal integrations

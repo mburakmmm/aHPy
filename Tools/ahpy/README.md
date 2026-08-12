@@ -86,7 +86,8 @@ line, EOL, branch/backport, deprecation, security-channel and update-cadence
 contract. It also requires the named CODEOWNERS, policy documents, Dependabot
 configuration and CodeQL/dependency-review workflow to exist. The contract
 records the current one-person bus factor honestly; it does not infer a larger
-support organization from automation.
+support organization from automation. Universal CI retains the validated
+schema-versioned JSON beside the packaging evidence.
 
 `release_recovery_drill.py` executes a no-network Git fixture for a release
 line, correctness source change and provenance-bearing backport. It verifies

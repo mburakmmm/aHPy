@@ -530,15 +530,15 @@ gizleyemez.
 - [ ] Cython upstream rebase log'unu ve conflict kararlarını güncel tut.
 - [ ] Release branch/backport politikasını uygula.
 - [ ] Security policy ve özel vulnerability reporting kanalını yayımla.
-- [ ] Desteklenen Cython, HPy, Python, OS ve compiler sürüm politikasını yayımla.
+- [x] Desteklenen Cython, HPy, Python, OS ve compiler sürüm politikasını yayımla.
 - [ ] Dependency update ve security scanning otomasyonunu ekle.
 - [ ] Third-party license/provenance envanterini release artifact'e bağla.
 - [x] User, contributor, architecture, debugging ve release belgelerini
       tamamla.
-- [ ] Deprecation, compatibility-break ve migration politikasını tanımla.
-- [ ] Periyodik Cython/HPy/interpreter/compiler/platform update cadence'i
+- [x] Deprecation, compatibility-break ve migration politikasını tanımla.
+- [x] Periyodik Cython/HPy/interpreter/compiler/platform update cadence'i
       tanımla.
-- [ ] Maintainer ownership, issue triage ve release sorumlularını belirle.
+- [x] Maintainer ownership, issue triage ve release sorumlularını belirle.
 
 Yerel PRD-9 hazırlığı: `maintenance-policy.toml` artık tek maintainer/bus-factor
 riskini, preview destek/EOL sınırını, release/backport kurallarını, en az bir
@@ -549,7 +549,8 @@ security ve release sahibini açıkça kaydediyor. Yeni `ahpy-security.yml`,
 Dependency Review v5.0.0 ve CodeQL v4.36.0 `security-extended` Python/C++
 taramalarını immutable SHA'larla PR/push/weekly kapılarına bağlıyor; Dependabot
 Actions ile üç Python dependency kökünü aylık izliyor. Hosted ilk taramalar ve
-push gelmeden yukarıdaki publication/automation checkbox'ları açık kalır.
+security artifact kanıtı başarıyla tamamlanmadan ilgili publication/automation
+checkbox'ları açık kalır.
 Append-only `rebase-log.toml`, mevcut
 `b99cb0e3b5425e11414cadd24168a6cc850e8000` baseline seçimini gerçek bir rebase
 gibi göstermeden kaydediyor. `rebase_log.py` gelecekteki accepted geçişlerin
@@ -595,6 +596,15 @@ operational heading'leri, ana doküman index erişimini ve 72 yerel Markdown
 linkini fail-closed doğrular. Universal CI schema-versioned JSON'u packaging
 artifact grubunda saklar; eksilen, index dışına düşen veya kırık link taşıyan
 belge production kapısını kapatır.
+`maintenance-policy.toml` ve `maintenance.md` artık source, runtime semantics,
+generated source, artifact, CLI/configuration ve diagnostic uyumluluk
+yüzeylerinin tamamını sınıflandırır. Preview ve stable notice/removal sınırları,
+changelog/migration/release-note/support-matrix kanalları, stable action ID,
+old/new test ve replacement-or-rationale kanıtları ile yalnız
+correctness/security için owner-onaylı acil istisna fail-closed doğrulanır.
+Exact sürüm/OS/compiler desteği release/support contract'ında, aylık/çeyreklik
+update cadence'i ve project/security/release sahipliği aynı bakım sözleşmesinde
+tek kaynak olarak yayımlanır.
 
 ### PRD-9 çıkış kapısı
 

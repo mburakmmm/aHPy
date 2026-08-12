@@ -118,15 +118,27 @@ def validate_policy(data, root=ROOT, source="maintenance policy"):
     deprecation = data["deprecation"]
     _exact_keys(deprecation, {
         "preview_notice_required", "stable_minimum_release_cycles",
+        "stable_removal_release_boundary",
         "migration_document_required", "silent_abi_fallback_allowed",
-        "emergency_exceptions",
+        "emergency_exceptions", "emergency_owner_approval",
+        "compatibility_surfaces", "notice_channels", "required_evidence",
     }, "deprecation")
     _require(deprecation["preview_notice_required"] is True and
              type(deprecation["stable_minimum_release_cycles"]) is int and
              deprecation["stable_minimum_release_cycles"] >= 1 and
+             deprecation["stable_removal_release_boundary"] is True and
              deprecation["migration_document_required"] is True and
              deprecation["silent_abi_fallback_allowed"] is False and
-             deprecation["emergency_exceptions"] == ["correctness", "security"],
+             deprecation["emergency_exceptions"] == ["correctness", "security"] and
+             deprecation["emergency_owner_approval"] is True and
+             deprecation["compatibility_surfaces"] == [
+                 "artifact", "cli", "diagnostic", "generated-source",
+                 "runtime-semantics", "source"] and
+             deprecation["notice_channels"] == [
+                 "changelog", "migration-guide", "release-notes",
+                 "support-matrix"] and
+             deprecation["required_evidence"] == [
+                 "action-id", "old-and-new-tests", "replacement-or-rationale"],
              "deprecation and compatibility-break contract is incomplete")
 
     security = data["security"]
@@ -216,16 +228,21 @@ def main(argv=None):
     parser.add_argument("--policy", type=Path, default=DEFAULT_POLICY)
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--json", action="store_true", dest="as_json")
+    parser.add_argument("--output", type=Path)
     options = parser.parse_args(argv)
     try:
         policy = load_policy(options.policy, options.root)
     except MaintenancePolicyError as exc:
         parser.error(str(exc))
     if options.as_json:
-        json.dump(policy, sys.stdout, indent=2, sort_keys=True)
-        sys.stdout.write("\n")
+        rendered = json.dumps(policy, indent=2, sort_keys=True) + "\n"
     else:
-        sys.stdout.write(render_text(policy))
+        rendered = render_text(policy)
+    if options.output:
+        options.output.parent.mkdir(parents=True, exist_ok=True)
+        options.output.write_text(rendered, encoding="utf8")
+    else:
+        sys.stdout.write(rendered)
     return 0
 
 

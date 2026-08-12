@@ -49,7 +49,7 @@ The current local gates pass all 958 focused coverage tests: 65 ownership-model,
 58 Runtime API, 255 Universal-emitter, 62 compiler-seam, and 518 quality-tool
 tests (two expected platform/tool availability skips on macOS). CPython 3.11
 reports 9609/9609 backend lines (100.00%), 18250/34246 frontend-seam lines
-(53.29%), and 9198/9198 quality-tool lines (100.00%); CPython 3.14.2 independently
-reports 9495/9495 (100.00%), 18349/34351 (53.42%), and 9206/9206 (100.00%).
+(53.29%), and 9207/9207 quality-tool lines (100.00%); CPython 3.14.2 independently
+reports 9495/9495 (100.00%), 18349/34351 (53.42%), and 9215/9215 (100.00%).
 The linked external-C module additionally passes source, binary, normal-runtime,
 HPy Trace, HPy Debug, wheel-build, and installed-wheel execution gates.
