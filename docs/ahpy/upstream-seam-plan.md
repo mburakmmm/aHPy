@@ -55,9 +55,12 @@ without accepting Universal HPy support.
 5. **Ownership-aware reference seam.** Introduce explicit owned/borrowed/moved
    transitions without changing CPython reference output, then add alternate
    handle implementations separately.
-6. **Backend-specific module emitter registration.** Allow a complete module
-   emitter to be selected by runtime capability while retaining the existing
-   CPython writer as the default and oracle.
+6. **Backend-specific module emitter selection.** Allow a validated complete
+   module-emitter callback to be selected by the immutable runtime service
+   while retaining the existing CPython writer as the default and oracle.
+   The local implementation removes backend enums and HPy writer selection from
+   `ModuleNode`; the Universal callback owns its validation, rendering and
+   output transaction.
 
 Slices 1–2 are the smallest maintainer-discussion starting point. Slices 3–6
 need prior agreement on naming and long-term compiler architecture; they must

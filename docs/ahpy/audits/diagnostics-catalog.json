@@ -1293,8 +1293,8 @@
       "source": "Cython/Compiler/HPyModuleWriter.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:345",
-      "line": 345,
+      "id": "Cython/Compiler/ModuleNode.py:343",
+      "line": 343,
       "message_template": "pure Universal HPy native buffer producers require paired canonical __getbuffer__(self, Py_buffer *view, int flags) and __releasebuffer__(self, Py_buffer *view) methods for one writable native scalar or fixed-array field: %s",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1303,8 +1303,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:694",
-      "line": 694,
+      "id": "Cython/Compiler/ModuleNode.py:692",
+      "line": 692,
       "message_template": "cpython.* cimports expose the CPython C API and are not available in Universal HPy mode; only the exact Py_buffer frontend type is translated to a validated HPy_buffer producer descriptor; port the dependency to public HPy APIs",
       "migration_action": {
         "id": "direct-cpython-cimport",
@@ -1313,8 +1313,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:714",
-      "line": 714,
+      "id": "Cython/Compiler/ModuleNode.py:712",
+      "line": 712,
       "message_template": "external C declarations require a concrete header in Universal HPy mode; inline/from-* declarations cannot establish an independently audited ABI",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1323,8 +1323,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:727",
-      "line": 727,
+      "id": "Cython/Compiler/ModuleNode.py:725",
+      "line": 725,
       "message_template": "external C headers must use a literal safe path and must not inject verbatim C code in Universal HPy mode",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1333,8 +1333,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:734",
-      "line": 734,
+      "id": "Cython/Compiler/ModuleNode.py:732",
+      "line": 732,
       "message_template": "Python.h is the CPython C API and cannot cross the Universal HPy external-C boundary",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1343,8 +1343,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:748",
-      "line": 748,
+      "id": "Cython/Compiler/ModuleNode.py:746",
+      "line": 746,
       "message_template": "empty external C declaration blocks are not useful in the initial Universal HPy external-C lane",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1353,8 +1353,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:763",
-      "line": 763,
+      "id": "Cython/Compiler/ModuleNode.py:761",
+      "line": 761,
       "message_template": "external C blocks currently permit only direct function declarations; typedefs, variables, structs, unions, and enums remain ABI-owned and unsupported",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1363,8 +1363,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:780",
-      "line": 780,
+      "id": "Cython/Compiler/ModuleNode.py:778",
+      "line": 778,
       "message_template": "the initial external C lane does not support variadic or optional C function parameters",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1373,8 +1373,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:792",
-      "line": 792,
+      "id": "Cython/Compiler/ModuleNode.py:790",
+      "line": 790,
       "message_template": "external C parameters must be direct supported C integer, boolean, or floating scalars; pointers, Python objects, aggregates, and external typedefs are not portable in this lane",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1383,8 +1383,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:804",
-      "line": 804,
+      "id": "Cython/Compiler/ModuleNode.py:802",
+      "line": 802,
       "message_template": "external C functions must return a direct supported C integer, boolean, or floating scalar; void, pointers, Python objects, aggregates, and external typedefs are not portable in this lane",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1393,8 +1393,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:815",
-      "line": 815,
+      "id": "Cython/Compiler/ModuleNode.py:813",
+      "line": 813,
       "message_template": "external C exception checks require Python exception state; Universal HPy supports only noexcept or an exact except -1 errno sentinel contract",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1403,8 +1403,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:830",
-      "line": 830,
+      "id": "Cython/Compiler/ModuleNode.py:828",
+      "line": 828,
       "message_template": "Universal HPy external C errno contracts require a signed integer result and exact except -1; other sentinels remain unsupported",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1413,8 +1413,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:842",
-      "line": 842,
+      "id": "Cython/Compiler/ModuleNode.py:840",
+      "line": 840,
       "message_template": "external C function names must be plain C identifiers in the initial Universal HPy lane",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1423,8 +1423,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:867",
-      "line": 867,
+      "id": "Cython/Compiler/ModuleNode.py:865",
+      "line": 865,
       "message_template": "C enum declarations are not implemented in Universal HPy mode: enum size, signedness, and compiler ABI must be validated independently before selecting native storage or an HPy member descriptor",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1433,8 +1433,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:876",
-      "line": 876,
+      "id": "Cython/Compiler/ModuleNode.py:874",
+      "line": 874,
       "message_template": "fused functions require a pure HPy specialization dispatcher, typed argument conversion, and interpreter-owned signature metadata; CPython __Pyx_FusedFunction/PyCFunction dispatch is forbidden in Universal mode",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1443,8 +1443,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:894",
-      "line": 894,
+      "id": "Cython/Compiler/ModuleNode.py:892",
+      "line": 892,
       "message_template": "HPy 0.9 lacks the public async protocol type slots and exception-state surface required for Universal %s; CPython coroutine utilities are forbidden",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1453,8 +1453,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:902",
-      "line": 902,
+      "id": "Cython/Compiler/ModuleNode.py:900",
+      "line": 900,
       "message_template": "HPy 0.9 lacks the public iterator-next API and type slots required for Universal generator objects; generator functions, yield, and yield from remain unavailable without CPython emulation",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1463,8 +1463,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:912",
-      "line": 912,
+      "id": "Cython/Compiler/ModuleNode.py:910",
+      "line": 910,
       "message_template": "duplicate function names are not implemented by the bootstrap Universal HPy emitter",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1473,8 +1473,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:926",
-      "line": 926,
+      "id": "Cython/Compiler/ModuleNode.py:924",
+      "line": 924,
       "message_template": "Universal HPy mode supports only non-external local typedefs that resolve to an enabled scalar field type",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1483,8 +1483,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1102",
-      "line": 1102,
+      "id": "Cython/Compiler/ModuleNode.py:1100",
+      "line": 1100,
       "message_template": "pure Universal HPy multiple inheritance is not implemented: HPy 0.9 type publication currently supports exactly one generated pure HPy base via HPyType_SpecParam_Base",
       "migration_action": {
         "id": "unsupported-source-node",
@@ -1493,8 +1493,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1110",
-      "line": 1110,
+      "id": "Cython/Compiler/ModuleNode.py:1108",
+      "line": 1108,
       "message_template": "pure Universal HPy @cython.freelist is not implemented: CPython freelist allocation and module-state bookkeeping have no validated HPy 0.9 Universal ABI equivalent",
       "migration_action": {
         "id": "unsupported-source-node",
@@ -1503,8 +1503,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1118",
-      "line": 1118,
+      "id": "Cython/Compiler/ModuleNode.py:1116",
+      "line": 1116,
       "message_template": "pure Universal HPy C array extension fields are only implemented as the private storage of the canonical one-dimensional fixed-array buffer producer; general array field access/member exposure remains outside the validated type-layout contract",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1513,8 +1513,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1127",
-      "line": 1127,
+      "id": "Cython/Compiler/ModuleNode.py:1125",
+      "line": 1125,
       "message_template": "pure HPy type members use reserved runtime cache names: %s",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1523,8 +1523,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1133",
-      "line": 1133,
+      "id": "Cython/Compiler/ModuleNode.py:1131",
+      "line": 1131,
       "message_template": "external typedef extension fields are not implemented in Universal HPy mode: their width, signedness, alignment, and matching HPy member kind cannot be inferred portably",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1533,8 +1533,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1141",
-      "line": 1141,
+      "id": "Cython/Compiler/ModuleNode.py:1139",
+      "line": 1139,
       "message_template": "C enum extension fields are not implemented in Universal HPy mode: compiler-selected enum layout must not be treated as a guessed C int/HPyMember_INT",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1543,8 +1543,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1148",
-      "line": 1148,
+      "id": "Cython/Compiler/ModuleNode.py:1146",
+      "line": 1146,
       "message_template": "pure Universal HPy types cannot declare __dict__: HPy 0.9 provides no public portable instance-dict layout, offset, or type-spec API; a CPython tp_dictoffset would violate the Universal ABI",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1553,8 +1553,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1156",
-      "line": 1156,
+      "id": "Cython/Compiler/ModuleNode.py:1154",
+      "line": 1154,
       "message_template": "pure Universal HPy types cannot declare __weakref__: HPy 0.9 provides no public weak-reference layout, offset, or type-spec API; a CPython tp_weaklist offset would violate the Universal ABI",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1563,8 +1563,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1164",
-      "line": 1164,
+      "id": "Cython/Compiler/ModuleNode.py:1162",
+      "line": 1162,
       "message_template": "pure Universal HPy __dealloc__ is not implemented: HPy_tp_destroy receives only the raw instance storage pointer, without HPyContext or an HPy self handle; enable this only with a separately validated native-resource-only body (use __del__ for supported Python-level finalization)",
       "migration_action": {
         "id": "unsupported-source-node",
@@ -1573,8 +1573,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1174",
-      "line": 1174,
+      "id": "Cython/Compiler/ModuleNode.py:1172",
+      "line": 1172,
       "message_template": "pure Universal HPy iterator special methods are blocked by HPy 0.9: its public HPySlot_Slot enum exposes neither HPy_tp_iter nor HPy_tp_iternext; using CPython Py_tp_iter/Py_tp_iternext would violate the Universal ABI",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1583,8 +1583,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1183",
-      "line": 1183,
+      "id": "Cython/Compiler/ModuleNode.py:1181",
+      "line": 1181,
       "message_template": "pure Universal HPy attribute-hook special methods are blocked by HPy 0.9: its public HPySlot_Slot enum exposes neither HPy_tp_getattro nor HPy_tp_setattro; CPython Py_tp_getattro/Py_tp_setattro substitution would violate the Universal ABI",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1593,8 +1593,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1193",
-      "line": 1193,
+      "id": "Cython/Compiler/ModuleNode.py:1191",
+      "line": 1191,
       "message_template": "pure Universal HPy descriptor special methods are blocked by HPy 0.9: its public HPySlot_Slot enum exposes neither HPy_tp_descr_get nor HPy_tp_descr_set (extension-type property blocks remain supported through HPyDef_GET/SET/GETSET); CPython Py_tp_descr_* substitution would violate the Universal ABI",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1603,8 +1603,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1204",
-      "line": 1204,
+      "id": "Cython/Compiler/ModuleNode.py:1202",
+      "line": 1202,
       "message_template": "pure Universal HPy async protocol special methods are blocked by HPy 0.9: its public slot enum exposes no await/aiter/anext type slots; CPython Py_am_* substitution would violate the Universal ABI",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1613,8 +1613,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1212",
-      "line": 1212,
+      "id": "Cython/Compiler/ModuleNode.py:1210",
+      "line": 1210,
       "message_template": "pure Universal HPy custom __new__ is not implemented: the backend-owned HPy_tp_new currently guarantees HPy_New allocation, base-to-derived __cinit__, and partial-object cleanup; custom allocation requires its own constructor and layout validator",
       "migration_action": {
         "id": "unsupported-source-node",
@@ -1623,8 +1623,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1225",
-      "line": 1225,
+      "id": "Cython/Compiler/ModuleNode.py:1223",
+      "line": 1223,
       "message_template": "pure Universal HPy slotless protocol methods require __bytes__(self), __complex__(self), or __round__(self[, ndigits]); no synthetic HPy type slot or mismatched callable signature is permitted",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1633,8 +1633,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1233",
-      "line": 1233,
+      "id": "Cython/Compiler/ModuleNode.py:1231",
+      "line": 1231,
       "message_template": "pure Universal HPy synchronous context-manager methods require __enter__(self) and __exit__(self, exc_type, exc_value, traceback); asynchronous context methods remain separately gated",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1643,8 +1643,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1339",
-      "line": 1339,
+      "id": "Cython/Compiler/ModuleNode.py:1337",
+      "line": 1337,
       "message_template": "initial pure HPy cdef class support requires a private class with at most one earlier generated base, only generic object or supported fixed C numeric fields, and undecorated instance methods in the enabled ordinary, property, __cinit__/__init__/__call__, value, length, mapping, hash, bool, unary/conversion, contains, slotless protocol, rich-comparison, or __del__ families (unsupported entries: %s)",
       "migration_action": {
         "id": "unsupported-universal-construct",
@@ -1653,8 +1653,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1382",
-      "line": 1382,
+      "id": "Cython/Compiler/ModuleNode.py:1380",
+      "line": 1380,
       "message_template": "pure Universal HPy metaclass customization is not implemented: HPy 0.9 type publication uses HPyType_FromSpec with a fixed meta-layout; user-defined metaclasses require a separately validated type-creation and lifecycle contract",
       "migration_action": {
         "id": "unsupported-source-node",
@@ -1663,8 +1663,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1391",
-      "line": 1391,
+      "id": "Cython/Compiler/ModuleNode.py:1389",
+      "line": 1389,
       "message_template": "module-level %s is not implemented by the bootstrap Universal HPy emitter",
       "migration_action": {
         "id": "unsupported-source-node",
@@ -1673,8 +1673,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1397",
-      "line": 1397,
+      "id": "Cython/Compiler/ModuleNode.py:1395",
+      "line": 1395,
       "message_template": "module-level %s is not implemented by the bootstrap Universal HPy emitter",
       "migration_action": {
         "id": "unsupported-source-node",
@@ -1683,8 +1683,8 @@
       "source": "Cython/Compiler/ModuleNode.py"
     },
     {
-      "id": "Cython/Compiler/ModuleNode.py:1419",
-      "line": 1419,
+      "id": "Cython/Compiler/ModuleNode.py:1417",
+      "line": 1417,
       "message_template": "pure HPy inheritance currently requires one generated pure HPy base declared earlier in the same module",
       "migration_action": {
         "id": "unsupported-universal-construct",

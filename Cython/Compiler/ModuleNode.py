@@ -34,7 +34,7 @@ from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_ve
 from .Code import UtilityCode, IncludeCode, TempitaUtilityCode
 from .StringEncoding import EncodedString, bytes_literal, encoded_string_or_bytes_literal
 from .Pythran import has_np_pythran
-from .RuntimeAPI import RuntimeCodeGenerationKind, RuntimeSequenceKind
+from .RuntimeAPI import RuntimeSequenceKind
 
 
 def replace_suffix_encoded(path, newsuf):
@@ -312,11 +312,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.referenced_modules = []
         self.find_referenced_modules(env, self.referenced_modules, {})
         self.sort_cdef_classes(env)
-        if (
-            self.scope.context.runtime_api.code_generation_kind()
-            is RuntimeCodeGenerationKind.HPY_UNIVERSAL_BOOTSTRAP
-        ):
-            self.generate_hpy_universal_code(options, result)
+        module_emitter = self.scope.context.runtime_api.module_emitter()
+        if module_emitter is not None:
+            module_emitter.emit(self, options, result)
             return
         self.generate_c_code(env, options, result)
         self.generate_h_code(env, options, result)
@@ -1427,45 +1425,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         """Compatibility helper returning only strict bootstrap functions."""
         methods, _, _, _ = self.hpy_bootstrap_contents(diagnostics)
         return methods
-
-    def generate_hpy_universal_code(self, options, result):
-        if options.cplus:
-            raise CompileError(
-                self.pos,
-                "aHPy bootstrap backend: C++ output is not implemented yet",
-            )
-        if Options.annotate or options.annotate:
-            raise CompileError(
-                self.pos,
-                "aHPy bootstrap backend: annotated output is not implemented yet",
-            )
-        instrumentation = [
-            directive
-            for directive in ("profile", "linetrace", "embedsignature")
-            if self.directives.get(directive)
-        ]
-        if instrumentation:
-            raise CompileError(
-                self.pos,
-                "aHPy Universal preview does not implement generated %s "
-                "instrumentation; disable these directives or use a "
-                "separately selected CPython backend" %
-                "/".join(instrumentation),
-            )
-        if options.c_line_in_traceback:
-            raise CompileError(
-                self.pos,
-                "aHPy Universal preview does not implement generated C-line "
-                "traceback instrumentation; disable c_line_in_traceback or "
-                "use a separately selected CPython backend",
-            )
-        from .HPyModuleWriter import UniversalHPyModuleWriter
-        self.assure_safe_target(result.c_file, allow_failed=True)
-        output = UniversalHPyModuleWriter(
-            self, self.scope.context.runtime_api).render()
-        with open_new_file(result.c_file) as output_file:
-            output_file.write(output)
-        result.c_file_generated = 1
 
     def has_imported_c_functions(self):
         for module in self.referenced_modules:

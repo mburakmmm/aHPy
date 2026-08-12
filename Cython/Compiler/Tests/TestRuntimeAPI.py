@@ -28,6 +28,7 @@ from ..RuntimeAPI import (
     RuntimeInPlaceOperation,
     RuntimeMethodDefinition,
     RuntimeMethodSignature,
+    RuntimeModuleEmitter,
     RuntimeModuleInitializationKind,
     RuntimeNameLookup,
     RuntimeNameLookupKind,
@@ -43,6 +44,23 @@ from ..RuntimeAPI import (
 
 
 class RuntimeAPITest(TestCase):
+    def test_complete_module_emitter_is_runtime_selected_and_validated(self):
+        cpython = create_runtime_api(CPYTHON_BACKEND)
+        universal = create_runtime_api(HPY_UNIVERSAL_BACKEND)
+
+        self.assertIsNone(cpython.module_emitter())
+        emitter = universal.module_emitter()
+        self.assertIsInstance(emitter, RuntimeModuleEmitter)
+        self.assertEqual(emitter.backend, HPY_UNIVERSAL_BACKEND)
+        self.assertEqual(
+            emitter.emit.__module__, "Cython.Compiler.HPyModuleWriter")
+        self.assertEqual(emitter.emit.__name__, "emit_hpy_universal_module")
+
+        with self.assertRaisesRegex(ValueError, "backend must be non-empty"):
+            RuntimeModuleEmitter("", lambda module, options, result: None)
+        with self.assertRaisesRegex(TypeError, "must be callable"):
+            RuntimeModuleEmitter(CPYTHON_BACKEND, None)
+
     def test_handle_ownership_policy_is_runtime_semantics(self):
         cpython = create_runtime_api(CPYTHON_BACKEND)
         self.assertFalse(cpython.uses_handle_ownership())

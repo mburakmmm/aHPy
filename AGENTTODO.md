@@ -118,7 +118,7 @@ and the first performance regression gate.
 
 Last verified local gates:
 
-- Focused compiler suite: 439 tests pass (includes U1 closable surface,
+- Focused compiler suite: 440 tests pass (includes U1 closable surface,
   writable scalar/fixed-array buffer producers, and
   closure-registry regressions:
   `dir()`/`globals()`/`__dict__`, reject-duplicates keywords, imag constant
@@ -128,10 +128,10 @@ Last verified local gates:
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
 - Quality-tool suite: 507 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-08-12): 946 tests traced on both interpreters.
-  - CPython 3.11: backend 9565/9565 (100.00%), frontend_seam 53.33%,
+- Focused coverage (2026-08-12): 947 tests traced on both interpreters.
+  - CPython 3.11: backend 9609/9609 (100.00%), frontend_seam 53.29%,
     quality_tools 8718/8718 (100.00%).
-  - CPython 3.14.2: backend 9451/9451 (100.00%), frontend_seam 53.46%,
+  - CPython 3.14.2: backend 9495/9495 (100.00%), frontend_seam 53.42%,
     quality_tools 8725/8725 (100.00%).
   - CI floors are 100%, 45%, and 100%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
@@ -819,7 +819,10 @@ implementation.
    registers from the integration side, so Cython build core no longer imports
    or names an aHPy module. Clean wheels must expose exactly one provider.
    CPython and Universal compilations also start concurrently in a regression
-   test and retain disjoint generated-runtime boundaries. The
+   test and retain disjoint generated-runtime boundaries. `ModuleNode` now asks
+   the immutable runtime service for a validated complete-module emitter;
+   CPython keeps the established default writer and the Universal writer owns
+   its validation, rendering and output transaction. The
    proposed independent upstream slices, evidence requirements and maintainer
    questions are frozen in `docs/ahpy/upstream-seam-plan.md`; no upstream
    acceptance or PR is claimed yet.

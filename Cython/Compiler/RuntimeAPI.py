@@ -7,7 +7,7 @@ its ``CompilationOptions``.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import FrozenSet, Protocol
+from typing import Callable, FrozenSet, Optional, Protocol
 
 from .Errors import CompileError
 
@@ -308,6 +308,19 @@ class RuntimeSequenceFromArray:
     utility_code_file: str = ""
 
 
+@dataclass(frozen=True)
+class RuntimeModuleEmitter:
+    """Complete module-emission callback selected by one runtime service."""
+    backend: str
+    emit: Callable[[object, object, object], None]
+
+    def __post_init__(self):
+        if not isinstance(self.backend, str) or not self.backend:
+            raise ValueError("runtime module emitter backend must be non-empty")
+        if not callable(self.emit):
+            raise TypeError("runtime module emitter must be callable")
+
+
 class RuntimeAPI(Protocol):
     """Structural type implemented by runtime-specific code generators."""
 
@@ -318,6 +331,9 @@ class RuntimeAPI(Protocol):
         ...
 
     def code_generation_kind(self) -> RuntimeCodeGenerationKind:
+        ...
+
+    def module_emitter(self) -> Optional[RuntimeModuleEmitter]:
         ...
 
     def context_contract(self) -> RuntimeContextContract:
@@ -1101,6 +1117,9 @@ class _RuntimeAPIBase:
 
     def code_generation_kind(self):
         return RuntimeCodeGenerationKind.CPYTHON
+
+    def module_emitter(self):
+        return None
 
     def supports(self, capability):
         return capability in self.capabilities
@@ -3070,6 +3089,10 @@ class HPyUniversalRuntimeAPI(_HPyRuntimeAPIBase):
 
     def code_generation_kind(self):
         return RuntimeCodeGenerationKind.HPY_UNIVERSAL_BOOTSTRAP
+
+    def module_emitter(self):
+        from .HPyModuleWriter import emit_hpy_universal_module
+        return RuntimeModuleEmitter(self.name, emit_hpy_universal_module)
 
 
 class HPyCPythonRuntimeAPI(_HPyRuntimeAPIBase):

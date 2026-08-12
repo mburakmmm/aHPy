@@ -19,7 +19,9 @@ copies of generated user code.
 ## Decision
 
 1. aHPy is developed on the current Cython source tree, not as a postprocessor.
-2. Backend selection applies to a complete extension module.
+2. Backend selection applies to a complete extension module. `ModuleNode`
+   delegates alternate complete-module emission through an immutable runtime
+   contract while the established CPython writer remains the default oracle.
 3. Compiler nodes retain responsibility for syntax-specific code structure.
 4. Runtime-dependent operations use an immutable, compilation-context-owned
    typed `RuntimeAPI` service with explicit capabilities and ownership

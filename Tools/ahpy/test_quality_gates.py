@@ -548,16 +548,23 @@ class QualityGateTest(unittest.TestCase):
             ROOT / "docs" / "ahpy" / "audits" /
             "prd4-advanced-surface.md"
         ).read_text(encoding="utf8")
+        hpy_writer = (
+            ROOT / "Cython" / "Compiler" / "HPyModuleWriter.py"
+        ).read_text(encoding="utf8")
         module_node = (
             ROOT / "Cython" / "Compiler" / "ModuleNode.py"
         ).read_text(encoding="utf8")
         self.assertIn("No row below authorizes CPython, Hybrid, or private HPy",
                       closure)
         for directive in ("profile", "linetrace", "embedsignature"):
-            self.assertIn('"%s"' % directive, module_node)
-        self.assertIn("C++ output is not implemented", module_node)
-        self.assertIn("generated C-line ", module_node)
-        self.assertIn("traceback instrumentation; disable", module_node)
+            self.assertIn('"%s"' % directive, hpy_writer)
+        self.assertIn("C++ output is not implemented", hpy_writer)
+        self.assertIn("generated C-line ", hpy_writer)
+        self.assertIn("traceback instrumentation; disable", hpy_writer)
+        self.assertIn("runtime_api.module_emitter()", module_node)
+        self.assertNotIn("UniversalHPyModuleWriter", module_node)
+        self.assertNotIn("emit_hpy_universal_module", module_node)
+        self.assertNotIn("RuntimeCodeGenerationKind", module_node)
 
     def test_prd5_portability_scope_and_minimal_reproducer_are_locked(self):
         release = tomllib.loads(

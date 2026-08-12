@@ -9,7 +9,7 @@ import copy
 import math
 import re
 
-from . import ExprNodes, Nodes, PyrexTypes
+from . import ExprNodes, Nodes, Options, PyrexTypes
 from .Errors import CompileError
 from .HandleModel import (
     HandleBuilderManager,
@@ -27,7 +27,7 @@ from .RuntimeAPI import (
     RuntimeSequenceKind,
 )
 from .StringEncoding import EncodedString
-from ..Utils import GENERATED_BY_MARKER
+from ..Utils import GENERATED_BY_MARKER, open_new_file
 
 
 _C_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -8251,6 +8251,46 @@ class UniversalHPyModuleWriter:
             getattr(node, "pos", None),
             "aHPy bootstrap backend: %s" % message,
         )
+
+
+def emit_hpy_universal_module(module_node, options, result):
+    """Emit one complete Universal HPy module through the runtime contract."""
+    if options.cplus:
+        raise CompileError(
+            module_node.pos,
+            "aHPy bootstrap backend: C++ output is not implemented yet",
+        )
+    if Options.annotate or options.annotate:
+        raise CompileError(
+            module_node.pos,
+            "aHPy bootstrap backend: annotated output is not implemented yet",
+        )
+    instrumentation = [
+        directive
+        for directive in ("profile", "linetrace", "embedsignature")
+        if module_node.directives.get(directive)
+    ]
+    if instrumentation:
+        raise CompileError(
+            module_node.pos,
+            "aHPy Universal preview does not implement generated %s "
+            "instrumentation; disable these directives or use a "
+            "separately selected CPython backend" %
+            "/".join(instrumentation),
+        )
+    if options.c_line_in_traceback:
+        raise CompileError(
+            module_node.pos,
+            "aHPy Universal preview does not implement generated C-line "
+            "traceback instrumentation; disable c_line_in_traceback or "
+            "use a separately selected CPython backend",
+        )
+    module_node.assure_safe_target(result.c_file, allow_failed=True)
+    output = UniversalHPyModuleWriter(
+        module_node, module_node.scope.context.runtime_api).render()
+    with open_new_file(result.c_file) as output_file:
+        output_file.write(output)
+    result.c_file_generated = 1
 
 
 def _borrow_sequence_source(writer, sequence):
