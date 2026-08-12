@@ -1,0 +1,199 @@
+schema_version = 1
+status = "preview"
+categories = ["architecture", "contributor", "debugging", "release", "user"]
+
+[[documents]]
+id = "project-contract"
+category = "user"
+path = "docs/ahpy/README.md"
+indexed = false
+required_headings = ["aHPy project contract", "Non-negotiable behavior", "Implemented scope", "Current generated-code tier"]
+
+[[documents]]
+id = "onboarding"
+category = "user"
+path = "docs/ahpy/onboarding.md"
+indexed = true
+required_headings = ["Clean release-artifact onboarding", "Prerequisites", "What the gate proves", "Current boundary"]
+
+[[documents]]
+id = "support-matrix"
+category = "user"
+path = "docs/ahpy/support-matrix.md"
+indexed = true
+required_headings = ["aHPy support matrix", "Target validation dimensions"]
+
+[[documents]]
+id = "known-limitations"
+category = "user"
+path = "docs/ahpy/known-limitations.md"
+indexed = true
+required_headings = ["Known limitations of the aHPy preview", "HPy 0.9 public-API gaps", "Compiler and source-surface limits", "Runtime and distribution limits"]
+
+[[documents]]
+id = "porting-guide"
+category = "user"
+path = "docs/ahpy/porting-guide.md"
+indexed = true
+required_headings = ["Porting a Cython library to aHPy Universal HPy", "1. Freeze a reproducible input", "4. Generate and audit Universal source", "5. Prove runtime and ownership behavior", "7. Report a compatibility result"]
+
+[[documents]]
+id = "direct-build"
+category = "user"
+path = "docs/ahpy/direct-build.md"
+indexed = true
+required_headings = ["Direct Universal HPy build contract", "Command-line use", "Direct loading"]
+
+[[documents]]
+id = "pep517-build"
+category = "user"
+path = "docs/ahpy/pep517.md"
+indexed = true
+required_headings = ["Isolated PEP 517 builds"]
+
+[[documents]]
+id = "external-build-systems"
+category = "user"
+path = "docs/ahpy/build-systems.md"
+indexed = true
+required_headings = ["CMake, Meson, and scikit-build-core"]
+
+[[documents]]
+id = "contributing"
+category = "contributor"
+path = "CONTRIBUTING.md"
+indexed = false
+required_headings = ["Contributing to aHPy", "Development workflow", "Reporting defects and vulnerabilities"]
+
+[[documents]]
+id = "agent-handoff"
+category = "contributor"
+path = "AGENTTODO.md"
+indexed = false
+required_headings = ["aHPy agent handoff and ordered work queue", "2. Non-negotiable implementation rules", "4. Immediate queue — production-readiness closure order", "9. Validation commands", "10. Agent completion protocol"]
+
+[[documents]]
+id = "implementation-roadmap"
+category = "contributor"
+path = "TODO.md"
+indexed = false
+required_headings = ["aHPy implementation roadmap", "Project-wide rules", "M8 - Continuous integration and quality engineering", "M11 - Upstreaming, release, and maintenance"]
+
+[[documents]]
+id = "production-roadmap"
+category = "contributor"
+path = "production-todo.md"
+indexed = false
+required_headings = ["aHPy production yol haritası", "Her fazda korunan production kuralları", "PRD-10 — Release candidate ve stable yayın", "Production definition of done", "Her iş maddesi için tamamlama protokolü"]
+
+[[documents]]
+id = "runtime-api"
+category = "architecture"
+path = "docs/ahpy/runtime-api.md"
+indexed = true
+required_headings = ["Runtime API seam", "Typed contract", "Complete-module emission", "Exception state", "Name resolution and global storage boundary"]
+
+[[documents]]
+id = "handle-model"
+category = "architecture"
+path = "docs/ahpy/handle-model.md"
+indexed = true
+required_headings = ["HPy handle storage and ownership model", "Storage contracts", "Ownership and state transitions", "Control-flow planning"]
+
+[[documents]]
+id = "context-model"
+category = "architecture"
+path = "docs/ahpy/context-model.md"
+indexed = true
+required_headings = ["HPyContext propagation model", "Backend contract", "Generated-function classification"]
+
+[[documents]]
+id = "module-state"
+category = "architecture"
+path = "docs/ahpy/module-state.md"
+indexed = true
+required_headings = ["Universal HPy module state", "Implemented lifecycle", "Isolation and concurrency contract", "Deliberately unsupported or unsafe patterns"]
+
+[[documents]]
+id = "backend-architecture-adr"
+category = "architecture"
+path = "docs/ahpy/adr/0001-backend-architecture.md"
+indexed = true
+required_headings = ["ADR 0001: Backend architecture and selection", "Context", "Decision", "Consequences"]
+
+[[documents]]
+id = "external-c-contract"
+category = "architecture"
+path = "docs/ahpy/external-c.md"
+indexed = true
+required_headings = ["Python-independent external C contract", "Accepted boundary", "Rejected boundary", "Executable reference"]
+
+[[documents]]
+id = "debugging"
+category = "debugging"
+path = "docs/ahpy/debugging.md"
+indexed = true
+required_headings = ["Debugging aHPy Universal failures", "1. Freeze the environment", "2. Classify the failing stage", "5. Separate semantics from ownership", "6. Prove whether the fault belongs upstream", "7. Minimum report bundle"]
+
+[[documents]]
+id = "diagnostics"
+category = "debugging"
+path = "docs/ahpy/diagnostics.md"
+indexed = true
+required_headings = ["aHPy Universal diagnostics", "Action policy"]
+
+[[documents]]
+id = "migration-scanner"
+category = "debugging"
+path = "docs/ahpy/migration-scanner.md"
+indexed = true
+required_headings = ["aHPy source compatibility scanner", "JSON contract"]
+
+[[documents]]
+id = "upstream-dependencies"
+category = "debugging"
+path = "docs/ahpy/upstream-dependencies.md"
+indexed = true
+required_headings = ["Upstream dependency and reproducer inventory", "Ready-to-file report", "Prepared alternate-interpreter reports", "Routing rules"]
+
+[[documents]]
+id = "release-contract"
+category = "release"
+path = "docs/ahpy/release-contract.md"
+indexed = true
+required_headings = ["aHPy preview support contract", "Exact compiler and dependency baseline", "Status meanings for users", "Evidence and change control"]
+
+[[documents]]
+id = "maintenance"
+category = "release"
+path = "docs/ahpy/maintenance.md"
+indexed = true
+required_headings = ["Maintenance, support lifetime, and change policy", "Branch, rebase, and backport procedure", "Deprecation and compatibility breaks", "Issue triage and release responsibility"]
+
+[[documents]]
+id = "publishing"
+category = "release"
+path = "docs/ahpy/publishing.md"
+indexed = true
+required_headings = ["TestPyPI and PyPI publication policy", "No-upload rehearsal", "Production PyPI boundary", "Immutability, yanking, and recovery"]
+
+[[documents]]
+id = "release-signing"
+category = "release"
+path = "docs/ahpy/release-signing.md"
+indexed = true
+required_headings = ["Release signing and verification", "Signing policy", "Verify a downloaded bundle", "Offline verification", "PyPI boundary"]
+
+[[documents]]
+id = "performance-release-gate"
+category = "release"
+path = "docs/ahpy/performance-release-gate.md"
+indexed = true
+required_headings = ["Release performance budget calibration", "Evidence contract", "Collect and calibrate"]
+
+[[documents]]
+id = "validation-matrix"
+category = "release"
+path = "docs/ahpy/validation-matrix.md"
+indexed = true
+required_headings = ["Validation matrix and release gates", "Required branch protection", "Local commands", "Focused Python coverage", "Performance regression history", "Release recovery rehearsal"]

@@ -108,6 +108,14 @@ frontend sets, missing Universal workflow lanes, and machine/document
 disagreement. Text and schema-versioned JSON output use the same validator;
 the main Universal workflow runs the JSON form before build/test evidence.
 
+`documentation_contract.py` validates the exact production-facing user,
+contributor, architecture, debugging and release corpus. The machine-readable
+manifest requires 28 documents and their critical headings, enforces index
+reachability where declared, scans every Markdown local link for repository
+escape or missing targets, and emits
+schema-versioned CI evidence. A document cannot disappear, become unindexed or
+silently lose a required operational section.
+
 `scan_compatibility.py` compile-scans one or more sources with no ABI fallback,
 checks successful generated header boundaries, and emits text or schema-versioned
 JSON. Direct `cpython.*`/`Python.h` dependencies and backend diagnostics receive

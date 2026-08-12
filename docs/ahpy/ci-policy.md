@@ -65,6 +65,11 @@ source provenance, regression-test carriage, unchanged support scope, and the
 reasoned-yank/exceptional-delete/security-disclosure policy without performing
 any external publication action.
 
+The same job validates `tests/ahpy/documentation-contract.toml` and retains its
+JSON in the packaging artifact. The contract covers the complete user,
+contributor, architecture, debugging and release corpus, required operational
+headings, documentation-index reachability and every local Markdown link.
+
 `.github/workflows/ahpy-performance-calibration.yml` is manual-only and
 read-only. Five isolated matrix jobs benchmark one exact selected commit and
 upload distinct immutable sample artifacts. A dependent job can produce only

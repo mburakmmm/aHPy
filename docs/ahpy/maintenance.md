@@ -10,6 +10,12 @@ python3 Tools/ahpy/maintenance_policy.py
 python3 Tools/ahpy/maintenance_policy.py --json
 ```
 
+The production documentation surface is separately frozen in
+`tests/ahpy/documentation-contract.toml` and validated with
+`python3 Tools/ahpy/documentation_contract.py`. It prevents required user,
+contributor, architecture, debugging or release instructions from disappearing
+or becoming unreachable while the fork evolves.
+
 ## Ownership and current capacity
 
 `@mburakmmm` is the currently named project, security, and release maintainer.

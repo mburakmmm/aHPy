@@ -70,8 +70,8 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 440 compiler/seam testi, 513 quality-tool testi ve
-  iki yorumlayıcıda 953 coverage testi.
+- Mevcut odaklı doğrulama: 440 compiler/seam testi, 518 quality-tool testi ve
+  iki yorumlayıcıda 958 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Quality-tool Python satır kapsamı CPython 3.11 ve 3.14'te %100; ayrı native,
   subprocess, portability ve hosted kapıları bu orana dahil edilmez.
@@ -533,7 +533,7 @@ gizleyemez.
 - [ ] Desteklenen Cython, HPy, Python, OS ve compiler sürüm politikasını yayımla.
 - [ ] Dependency update ve security scanning otomasyonunu ekle.
 - [ ] Third-party license/provenance envanterini release artifact'e bağla.
-- [ ] User, contributor, architecture, debugging ve release belgelerini
+- [x] User, contributor, architecture, debugging ve release belgelerini
       tamamla.
 - [ ] Deprecation, compatibility-break ve migration politikasını tanımla.
 - [ ] Periyodik Cython/HPy/interpreter/compiler/platform update cadence'i
@@ -589,6 +589,12 @@ dağıtım/Cython/HPy/Python pinlerini; altı platform, yedi frontend ve hosted 
 kimliklerini; workflow ile kullanıcı belgesindeki karşılıklarını fail-closed
 doğruluyor. Universal CI bu CLI'yi doğrudan çalıştırır; böylece sözleşme drift'i
 yalnız monolitik test assertion'larına veya tek kişinin bilgisine bağlı değildir.
+`documentation-contract.toml` kullanıcı, contributor, architecture, debugging
+ve release için 28 zorunlu belgeyi beş exact kategoriye ayırır; gerekli
+operational heading'leri, ana doküman index erişimini ve 72 yerel Markdown
+linkini fail-closed doğrular. Universal CI schema-versioned JSON'u packaging
+artifact grubunda saklar; eksilen, index dışına düşen veya kırık link taşıyan
+belge production kapısını kapatır.
 
 ### PRD-9 çıkış kapısı
 

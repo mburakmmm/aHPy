@@ -126,13 +126,13 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 513 tests pass (two expected platform/tool availability
+- Quality-tool suite: 518 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-08-12): 953 tests traced on both interpreters.
+- Focused coverage (2026-08-12): 958 tests traced on both interpreters.
   - CPython 3.11: backend 9609/9609 (100.00%), frontend_seam 53.29%,
-    quality_tools 9003/9003 (100.00%).
+    quality_tools 9198/9198 (100.00%).
   - CPython 3.14.2: backend 9495/9495 (100.00%), frontend_seam 53.42%,
-    quality_tools 9011/9011 (100.00%).
+    quality_tools 9206/9206 (100.00%).
   - CI floors are 100%, 45%, and 100%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
@@ -855,6 +855,12 @@ implementation.
    distinguishes hosted evidence, handwritten reproductions, prepared reports,
    filed links, and unsupported/blocked status. Do not publish the prepared HPy
    crash report or new PyPy/GraalPy reports without owner authorization.
+   The production documentation contract now freezes 28 user, contributor,
+   architecture, debugging and release documents across five exact categories.
+   Its validator requires critical headings, index reachability and all local
+   Markdown link targets, and Universal CI retains the schema-versioned JSON.
+   Keep that manifest synchronized whenever a production-facing document moves
+   or gains a replacement.
 9. Tag no stable release until every declared support-tier gate is green.
 
 ## 9. Validation commands

@@ -11,6 +11,7 @@ Start with:
 - [Agent handoff](AGENTTODO.md)
 - [Support matrix](docs/ahpy/support-matrix.md)
 - [Validation matrix](docs/ahpy/validation-matrix.md)
+- [Production documentation contract](tests/ahpy/documentation-contract.toml)
 - [Onboarding](docs/ahpy/onboarding.md)
 - [Maintenance and backport policy](docs/ahpy/maintenance.md)
 - [Debugging Universal failures](docs/ahpy/debugging.md)

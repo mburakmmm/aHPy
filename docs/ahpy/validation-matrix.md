@@ -614,7 +614,7 @@ paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 953 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 958 focused tests under Python's built-in
 line-event tracer, applies the same tracer to test-created worker threads,
 derives executable lines from nested code-object line tables, and forces
 measured modules through a source-first finder so stale
@@ -807,6 +807,19 @@ is limited to credential disclosure, malware, or legal demand; security fixes
 remain private until coordinated disclosure. This passes locally and is wired
 into Universal packaging evidence; it neither creates a real release branch
 nor mutates an index.
+
+## Production documentation contract
+
+`Tools/ahpy/documentation_contract.py` validates the exact 28-document corpus
+in `tests/ahpy/documentation-contract.toml`: eight user, four contributor, six
+architecture, four debugging and six release documents. Every record has
+required operational headings; every production document must be reachable
+from the aHPy documentation index directly or through an indexed directory;
+and every local Markdown link must remain inside the repository and resolve to
+an existing file or directory. The current contract resolves 72 unique
+per-document local links. Universal CI retains the schema-1 JSON beside
+packaging evidence, so a missing, unindexed or structurally hollow document is
+a failed production gate rather than a documentation warning.
 
 The record additionally regenerates the large extension-type corpus and runs
 one isolated native compile at `-O0` and `-O3`, with a 60-second ceiling. O0 is
