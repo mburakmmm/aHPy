@@ -192,6 +192,9 @@ HPy's `hpy_ext_modules`, audits the emitted C and `.hpy0` binary, and runs the
 module-function plus pure-type semantics in normal and Debug modes. It also
 inspects and pip-installs the current wheel. ADR 0004 explains why its
 CPython-specific compatibility tag is not a Universal distribution claim.
+The maintained Universal setup paths install the packaged HPy 0.9 loader
+compatibility hook before stub emission, replacing only its recognized
+`pkg_resources` sibling lookup with `pathlib` under Setuptools 83.
 
 `direct_build.py` is the versioned non-setuptools build API/CLI. It probes the
 selected interpreter, creates an auditable Universal compile/link plan, uses

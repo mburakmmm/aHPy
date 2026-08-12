@@ -958,6 +958,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     """
     if exclude is None:
         exclude = []
+    if options.get('runtime_backend') == 'hpy-universal':
+        from ahpy_hpy_compat import install_hpy_universal_loader_compat
+        install_hpy_universal_loader_compat()
     if 'include_path' not in options:
         options['include_path'] = ['.']
     if 'common_utility_include_dir' in options:

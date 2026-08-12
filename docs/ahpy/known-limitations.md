@@ -60,8 +60,10 @@ larger Cython family an exact preview status and migration path.
 - CPython 3.11 is the only supported interpreter minor. Python 3.14 with the
   pinned HPy development revision, PyPy, GraalPy, and branch-tip nightlies are
   allowed-failure early warnings.
-- HPy 0.9.0 is the only supported HPy release and currently requires
-  `setuptools==80.9.0` for its generated loader.
+- HPy 0.9.0 is the only supported HPy release and is validated with
+  `setuptools==83.0.0`; aHPy patches its recognized legacy Universal loader
+  template to avoid the removed `pkg_resources` dependency and rejects an
+  unknown partial template.
 - The maintained frontend and example wheels currently carry host-specific
   CPython tags. They are not standardized Universal wheels and are not
   evidence of same-wheel cross-interpreter installation.

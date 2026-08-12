@@ -26,7 +26,9 @@ the same CLI explicitly; a green parser alone does not publish the preview.
 - Exact Cython base:
   `b99cb0e3b5425e11414cadd24168a6cc850e8000`.
 - Supported HPy release: exactly `0.9.0`.
-- Required HPy 0.9 build companion: exactly `setuptools==80.9.0`.
+- Required HPy 0.9 build companion: exactly `setuptools==83.0.0`; the shipped
+  `ahpy_hpy_compat` hook rewrites only HPy 0.9's recognized legacy loader
+  template from `pkg_resources` to an adjacent standard-library path lookup.
 - Every built sdist and frontend wheel carries Core Metadata `Project-URL`
   records for its exact aHPy source commit, this exact Cython base, and the
   HPy 0.9 compatibility contract; the sdist also carries a validated

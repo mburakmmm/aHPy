@@ -29,7 +29,7 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
         integration = Path(__file__).with_name(
             "pep517_integration.py").read_text(encoding="utf8")
         self.assertIn('isolated_environment["PIP_NO_INDEX"] = "1"', integration)
-        self.assertIn('"hpy==0.9.0", "setuptools==80.9.0"', integration)
+        self.assertIn('"hpy==0.9.0", "setuptools==83.0.0"', integration)
         dependency_materialization = integration.split(
             '"hpy==0.9.0"', 1)[0].rsplit("[", 1)[-1]
         self.assertNotIn("--no-build-isolation", dependency_materialization)
@@ -43,6 +43,7 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
                 ".gitrev",
                 "ahpy_build_backend.py",
                 "ahpy_build_config.py",
+                "ahpy_hpy_compat.py",
                 "Cython/Compiler/RuntimeAPI.py",
                 "Tools/ahpy/release_artifact_integration.py",
                 "tests/ahpy/requirements-hpy09.txt",
@@ -77,6 +78,7 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
                     "ahpy_compiler.dist-info/METADATA", metadata)
                 archive.writestr("ahpy_build_backend.py", "")
                 archive.writestr("ahpy_build_config.py", "")
+                archive.writestr("ahpy_hpy_compat.py", "")
                 archive.writestr("ahpy_version.py", "")
                 archive.writestr("Cython/__init__.py", "")
             _frontend_metadata(wheel)
@@ -103,6 +105,7 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
                     "ahpy_compiler.dist-info/METADATA", metadata)
                 archive.writestr("ahpy_build_backend.py", "")
                 archive.writestr("ahpy_build_config.py", "")
+                archive.writestr("ahpy_hpy_compat.py", "")
                 archive.writestr("ahpy_version.py", "")
             with self.assertRaisesRegex(AssertionError, "missing the Cython"):
                 _frontend_metadata(no_cython)
@@ -123,6 +126,7 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
         required = (
             "ahpy_build_backend.py",
             "ahpy_build_config.py",
+            "ahpy_hpy_compat.py",
             "ahpy_version.py",
             "Cython/__init__.py",
         )
@@ -180,7 +184,7 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
             elif "hpy==0.9.0" in command:
                 for name in (
                         "hpy-0.9.0-py3-none-any.whl",
-                        "setuptools-80.9.0-py3-none-any.whl"):
+                        "setuptools-83.0.0-py3-none-any.whl"):
                     (wheel_dir / name).write_bytes(name.encode("ascii"))
             else:
                 project = Path(command[-1])
@@ -305,7 +309,7 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
                 if "hpy==0.9.0" in command:
                     names = {
                         "hpy": (
-                            "setuptools-80.9.0-py3-none-any.whl",
+                            "setuptools-83.0.0-py3-none-any.whl",
                             "unrelated-1-py3-none-any.whl",
                         ),
                         "setuptools": (
@@ -314,7 +318,7 @@ class Pep517IntegrationDefinitionTest(unittest.TestCase):
                         ),
                     }.get(failure, (
                         "hpy-0.9.0-py3-none-any.whl",
-                        "setuptools-80.9.0-py3-none-any.whl",
+                        "setuptools-83.0.0-py3-none-any.whl",
                     ))
                     for name in names:
                         (wheel_dir / name).touch()

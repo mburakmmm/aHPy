@@ -331,6 +331,8 @@ def build_and_run(python, seed=DEFAULT_SEED, candidate_count=DEFAULT_CANDIDATES)
         setup = temp / "setup.py"
         setup.write_text(
             "from setuptools import Extension, setup\n"
+            "from ahpy_hpy_compat import install_hpy_universal_loader_compat\n"
+            "install_hpy_universal_loader_compat()\n"
             "setup(name='ahpy-guided-fuzz', version='0.0.0', "
             "packages=[], py_modules=[], "
             "hpy_ext_modules=[Extension('guided_surface', "

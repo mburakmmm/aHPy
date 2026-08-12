@@ -1,7 +1,8 @@
 # M7 external build-system validation
 
-Date: 2026-07-16
-Status: CMake, Meson, and isolated scikit-build-core locally and hosted green
+Date: 2026-07-16; Setuptools 83 scikit-build rerun: 2026-08-12
+Status: current isolated scikit-build-core locally green; replacement hosted
+evidence pending
 
 The complete local macOS ARM64/CPython 3.11/HPy 0.9 path was rerun on
 2026-07-29: direct build, setuptools/cythonize, CMake, Meson, and the
@@ -21,7 +22,7 @@ plus Debug LeakDetector execution.
 
 The scikit-build-core 1.0.3 gate built a fresh `aHPy-compiler` frontend wheel,
 then materialized a hashed wheelhouse containing exact HPy 0.9, CMake 4.3.4,
-Ninja 1.13.0, exact setuptools 80.9.0, and the scikit-build transitive
+Ninja 1.13.0, exact setuptools 83.0.0, and the scikit-build transitive
 dependencies. Dependency materialization honors declared PEP 517 build
 requirements; this prevents HPy 0.9's sdist from being misidentified as
 `0.0.0` when no compatible cached wheel exists. With `PIP_NO_INDEX=1`, a real
@@ -34,8 +35,10 @@ Current quality and coverage counts are recorded in
 [`m8-focused-backend-coverage.md`](m8-focused-backend-coverage.md); packaging
 modules remain part of the quality-tools denominator.
 
-All three Linux CI integrations are green in hosted
+All three Linux integrations were green on the prior toolchain in hosted
 [compiler-and-quality job 88188395921](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395921).
+The current Setuptools 83 scikit-build path is locally green; replacement
+current-HEAD hosted evidence remains required.
 Windows/MSVC execution of these external build systems, cross-compilation, and
 standardized Universal wheel metadata remain open.
 Clean sdist and uninstall/reinstall evidence is recorded separately in

@@ -13,7 +13,7 @@ that an unpublished preview is production-ready.
 `.github/workflows/ahpy-release-attestations.yml` runs only for tags named
 `ahpy-v<package-version>`. The workflow rejects a tag that does not exactly
 match `ahpy_version.AHPY_VERSION`, checks out that tag without persisted Git
-credentials, builds with the frozen CPython 3.11/HPy 0.9.0/setuptools 80.9.0
+credentials, builds with the frozen CPython 3.11/HPy 0.9.0/setuptools 83.0.0
 toolchain, and reruns both clean onboarding and two-root byte-reproducibility
 gates.
 

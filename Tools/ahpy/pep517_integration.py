@@ -51,7 +51,7 @@ def _copy_frontend_source(destination):
         "setup.py", "setup.cfg", "pyproject.toml", "README.rst",
         "CHANGES.rst", "COPYING.txt", "LICENSE.txt", "MANIFEST.in",
         "cython.py", "ahpy_version.py", "ahpy_build_backend.py",
-        "ahpy_build_config.py", "TODO.md", "AGENTTODO.md",
+        "ahpy_build_config.py", "ahpy_hpy_compat.py", "TODO.md", "AGENTTODO.md",
         "CONTRIBUTING.md", "SECURITY.md",
     ):
         shutil.copy2(ROOT / name, destination / name)
@@ -76,7 +76,8 @@ def _frontend_metadata(wheel, expected_commit=None):
             raise AssertionError(
                 "frontend wheel lacks exact provenance field %s" % label)
     for required in (
-        "ahpy_build_backend.py", "ahpy_build_config.py", "ahpy_version.py",
+        "ahpy_build_backend.py", "ahpy_build_config.py", "ahpy_hpy_compat.py",
+        "ahpy_version.py",
     ):
         if required not in names:
             raise AssertionError("frontend wheel is missing %s" % required)
@@ -134,7 +135,7 @@ def build_and_run(python, report_path=None):
         run([
             python, "-m", "pip", "wheel", "--no-deps",
             "--wheel-dir", str(wheelhouse),
-            "hpy==0.9.0", "setuptools==80.9.0",
+            "hpy==0.9.0", "setuptools==83.0.0",
         ], env=environment)
         dependency_wheels = sorted(
             path for path in wheelhouse.glob("*.whl")
@@ -146,9 +147,9 @@ def build_and_run(python, report_path=None):
         if not any(name.startswith("hpy-0.9.0-") for name in dependency_names):
             raise AssertionError("wheelhouse lacks exact HPy 0.9.0")
         if not any(
-                name.startswith("setuptools-80.9.0-")
+                name.startswith("setuptools-83.0.0-")
                 for name in dependency_names):
-            raise AssertionError("wheelhouse lacks exact setuptools 80.9.0")
+            raise AssertionError("wheelhouse lacks exact setuptools 83.0.0")
 
         project = temp / "project"
         shutil.copytree(EXAMPLE, project, ignore=shutil.ignore_patterns("__pycache__"))

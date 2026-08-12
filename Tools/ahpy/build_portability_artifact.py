@@ -107,6 +107,8 @@ def build_artifact(python, output):
         )
         setup.write_text(
             "from setuptools import Extension, setup\n"
+            "from ahpy_hpy_compat import install_hpy_universal_loader_compat\n"
+            "install_hpy_universal_loader_compat()\n"
             "setup(name='ahpy-portability', version='0.0.0', "
             "packages=[], py_modules=[], hpy_ext_modules=[\n"
             + extensions + "\n"

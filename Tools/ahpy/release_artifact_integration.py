@@ -66,6 +66,7 @@ def verify_sdist(sdist):
         "/ahpy_version.py",
         "/ahpy_build_backend.py",
         "/ahpy_build_config.py",
+        "/ahpy_hpy_compat.py",
         "/Cython/Compiler/RuntimeAPI.py",
         "/Tools/ahpy/release_artifact_integration.py",
         "/Tools/ahpy/release_evidence.py",
@@ -127,7 +128,7 @@ def _assert_frontend(python, present, cwd):
             (AHPY_DISTRIBUTION, AHPY_VERSION) +
             "from Cython.Compiler.RuntimeAPI import HPY_UNIVERSAL_BACKEND\n"
             "assert HPY_UNIVERSAL_BACKEND == 'hpy-universal'\n"
-            "import ahpy_build_backend, ahpy_build_config\n"
+            "import ahpy_build_backend, ahpy_build_config, ahpy_hpy_compat\n"
         )
     else:
         program = (
@@ -145,6 +146,7 @@ def _assert_frontend(python, present, cwd):
             "else:\n"
             "    raise AssertionError('aHPy compiler survived uninstall')\n"
             "assert util.find_spec('ahpy_build_config') is None\n"
+            "assert util.find_spec('ahpy_hpy_compat') is None\n"
         )
     _run([python, "-c", program], cwd=cwd)
 
@@ -228,7 +230,7 @@ def build_and_run(python, report_path=None, bundle_dir=None):
         _run([
             python, "-m", "pip", "wheel", "--no-deps",
             "--wheel-dir", str(wheelhouse),
-            "hpy==0.9.0", "setuptools==80.9.0",
+            "hpy==0.9.0", "setuptools==83.0.0",
         ], env=environment)
         dependency_wheels = sorted(wheelhouse.glob("*.whl"))
         dependency_names = [path.name.lower() for path in dependency_wheels]
@@ -237,9 +239,9 @@ def build_and_run(python, report_path=None, bundle_dir=None):
         if not any(name.startswith("hpy-0.9.0-") for name in dependency_names):
             raise AssertionError("wheelhouse lacks exact HPy 0.9.0")
         if not any(
-                name.startswith("setuptools-80.9.0-")
+                name.startswith("setuptools-83.0.0-")
                 for name in dependency_names):
-            raise AssertionError("wheelhouse lacks exact setuptools 80.9.0")
+            raise AssertionError("wheelhouse lacks exact setuptools 83.0.0")
         isolated = environment.copy()
         isolated["PIP_FIND_LINKS"] = str(wheelhouse)
         isolated["PIP_NO_INDEX"] = "1"
@@ -263,7 +265,7 @@ def build_and_run(python, report_path=None, bundle_dir=None):
             clean_python, "-m", "pip", "install", "--no-index",
             "--find-links", str(wheelhouse),
             "%s==%s" % (AHPY_DISTRIBUTION, AHPY_VERSION), "hpy==0.9.0",
-            "setuptools==80.9.0",
+            "setuptools==83.0.0",
         ], cwd=temp, env=install_environment)
         _assert_frontend(clean_python, True, temp)
 

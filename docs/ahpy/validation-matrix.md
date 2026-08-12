@@ -102,7 +102,7 @@ latest branch HEAD can be called fully green.
 
 ## Required stable lane
 
-The stable lane installs `hpy==0.9.0` and `setuptools==80.9.0` on Python 3.11.
+The stable lane installs `hpy==0.9.0` and `setuptools==83.0.0` on Python 3.11.
 Every platform job generates C directly through `hpy-universal`, compiles a
 `.hpy0` module, audits generated source and undefined binary imports, then runs
 the semantic corpus in HPy release, Trace, and Debug modes. Debug Mode uses
@@ -525,7 +525,7 @@ modes. Its CPython tag remains a host packaging smoke test under ADR 0004.
 clean source copy and audits every member before using it. Absolute/traversal
 paths, links, native binaries, bytecode, caches, VCS state, wrong metadata, and
 missing compiler/build/runtime/license files fail closed. Exact HPy 0.9.0 and
-setuptools 80.9.0 wheels are materialized first; index access is then disabled
+setuptools 83.0.0 wheels are materialized first; index access is then disabled
 for the wheel-from-sdist build and all clean-environment installations.
 
 The gate creates a new virtual environment, installs the frontend only from the
@@ -614,14 +614,15 @@ paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 937 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 942 focused tests under Python's built-in
 line-event tracer, derives executable lines from nested code-object line
 tables, and forces measured modules through a source-first finder so stale
 compiled extensions cannot hide Python lines. It reports the Universal
 backend, touched Cython frontend seam, and quality tools independently, plus
 ownership, Runtime API, emitter, compiler-seam, and quality-tool feature
 families. The current Python 3.11 validation records 100.00%, 53.33%, and
-100.00%; Python 3.14.6 records 100.00%, 53.45%, and 100.00%. CI keeps
+100.00%; the current local Python 3.14.2 rerun records 100.00%, 53.45%, and
+100.00%. CI keeps
 cross-version floors of 100%, 45%, and 100%. Schema 2 JSON and Markdown reports
 include exact missing lines and compact missing ranges for actionable
 follow-up. Ellipsis-only interface stubs plus top-level repository-import and

@@ -85,7 +85,7 @@ def build_and_run(python, report_path=None):
         _run([
             python, "-m", "pip", "wheel", "--wheel-dir", str(wheelhouse),
             "hpy==0.9.0", "scikit-build-core==1.0.3",
-            "cmake==4.3.4", "ninja==1.13.0", "setuptools==80.9.0",
+            "cmake==4.3.4", "ninja==1.13.0", "setuptools==83.0.0",
         ], env=environment)
 
         project = temp / "project"

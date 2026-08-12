@@ -1,7 +1,8 @@
 # M7 isolated PEP 517 validation
 
-Date: 2026-07-16
-Status: maintained isolated frontend/wheel path locally and hosted green
+Date: 2026-07-16; Setuptools 83 local rerun: 2026-08-12
+Status: current maintained isolated frontend/wheel path locally green;
+replacement hosted evidence pending
 
 The repository distribution is `aHPy-compiler==3.3.0.1.dev0`; this intentionally
 differs from both upstream `Cython` and the unrelated existing PyPI `ahpy`
@@ -13,11 +14,13 @@ checks the aHPy-only Universal backend marker, injects exactly one
 its pure-Python compiler wheel with self-compilation disabled, and verifies its
 name, version, backend modules, and Cython package. It then gives that local
 wheel to pip as the exact build dependency for `examples/ahpy_pep517`, while
-leaving build isolation enabled. Exact HPy 0.9 and setuptools 80.9.0 wheels are
+leaving build isolation enabled. Exact HPy 0.9 and setuptools 83.0.0 wheels are
 materialized into the same reviewed wheelhouse first, with HPy's declared PEP
 517 build requirements available so its source distribution cannot degrade to
 the invalid version `0.0.0`; the isolated resolver then uses `PIP_NO_INDEX=1`,
-so no same-name index candidate can substitute for the local frontend. It
+so no same-name index candidate can substitute for the local frontend. The
+backend applies the packaged, fail-closed HPy 0.9 loader-template compatibility
+hook before each delegated build hook. It
 compiles the separate `.pyx` and produces exactly one `.hpy0` binary and loader
 stub. The JSON report records every wheel's SHA-256.
 
@@ -35,7 +38,9 @@ compiler distribution name is not yet reserved or published, and this gate
 does not claim standardized Universal wheel tags or cross-interpreter package
 installation.
 
-The same isolated PEP 517 integration is green on hosted Linux in
+An earlier revision of the same isolated PEP 517 integration is green on
+hosted Linux in
 [compiler-and-quality job 88188395921](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395921).
-This adds a clean hosted packaging execution, not a standardized Universal
-wheel tag or cross-interpreter installation claim.
+That job predates the Setuptools 83 compatibility hook and is historical
+platform evidence; a current-HEAD hosted pass is still required. Neither run
+claims a standardized Universal wheel tag or cross-interpreter installation.

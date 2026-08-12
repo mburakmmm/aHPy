@@ -18,7 +18,8 @@ agent must keep all three synchronized when implementation status changes.
   `20e401ca71a0440ed91e9b6f9d083f3d6a24ef25`; always obtain the live branch
   HEAD with `git rev-parse HEAD` before reporting or changing evidence.
 - Stable local environment: `.venv-hpy09`, CPython 3.11.15, HPy 0.9.0.
-- Additional local coverage interpreter: `python3`, CPython 3.14.6.
+- Additional local coverage interpreter: `/tmp/ahpy-docdeps314/bin/python`,
+  CPython 3.14.2 with the current documentation dependency lock.
 - The dedicated aHPy and sanitizer sets are verified through `20e401ca7`;
   the last complete coverage set is verified through `b8dc12f67`. Preserve
   later user/agent work and do not reset, clean, overwrite, or discard it.
@@ -125,13 +126,13 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 499 tests pass (two expected platform/tool availability
+- Quality-tool suite: 504 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-08-12): 937 tests traced on both interpreters.
+- Focused coverage (2026-08-12): 942 tests traced on both interpreters.
   - CPython 3.11: backend 9565/9565 (100.00%), frontend_seam 53.33%,
-    quality_tools 8654/8654 (100.00%).
-  - CPython 3.14.6: backend 9451/9451 (100.00%), frontend_seam 53.45%,
-    quality_tools 8661/8661 (100.00%).
+    quality_tools 8687/8687 (100.00%).
+  - CPython 3.14.2: backend 9451/9451 (100.00%), frontend_seam 53.45%,
+    quality_tools 8694/8694 (100.00%).
   - CI floors are 100%, 45%, and 100%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
@@ -161,7 +162,7 @@ Last verified local gates:
   JSON even on failure; CI uploads it with `if: always()`.
 - Clean release artifact: the warning-free, self-contained
   `ahpy_compiler-3.3.0.1.dev0.tar.gz` passes safety/completeness; the no-index
-  wheel installs in a new venv with exact HPy 0.9.0/setuptools 80.9.0; the
+  wheel installs in a new venv with exact HPy 0.9.0/setuptools 83.0.0; the
   frontend and maintained PEP 517 example pass normal/Debug plus verified
   uninstall/reinstall. Hosted Linux execution is green in run `29685285138`.
 
@@ -361,7 +362,7 @@ the final evidence is published in the repository documentation and draft PR.
 PRD-0 is closed. PRD-1 freezes an unpublished `preview` in
 `tests/ahpy/release-contract.toml`: `aHPy-compiler==3.3.0.1.dev0`, Cython
 `3.3.0a2.dev0` at base `b99cb0e3b5425e11414cadd24168a6cc850e8000`,
-CPython 3.11, HPy 0.9.0/setuptools 80.9.0, and the six hosted
+CPython 3.11, HPy 0.9.0/setuptools 83.0.0, and the six hosted
 platform/compiler lanes. The compiler CLI is supported within the documented
 source subset; direct build, setuptools/cythonize, PEP 517, CMake, Meson, and
 scikit-build-core retain exact partial scopes. The separate

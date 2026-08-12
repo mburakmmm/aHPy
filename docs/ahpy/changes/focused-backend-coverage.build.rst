@@ -66,8 +66,8 @@ The compatibility scanner now has focused control-flow coverage above 99% for
 lexical masking, static CPython/PyObject rules, compiler diagnostics,
 Universal generated-header validation, status aggregation, text/JSON reports,
 interpreter/source validation, allow-rejected policy, and CLI exit codes.
-The dual-interpreter quality-tool suite now contains 499 tests and covers
-8654/8654 executable lines on CPython 3.11 and 8661/8661 on CPython 3.14
+The dual-interpreter quality-tool suite now contains 504 tests and covers
+8687/8687 executable lines on CPython 3.11 and 8694/8694 on CPython 3.14
 (100% on both), while the Universal backend remains at 100% and the frontend
 seam remains above its 45% floor.
 Nightly environment provenance, diagnostic catalogs, publish preparation,

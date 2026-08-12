@@ -2,6 +2,11 @@ from pathlib import Path
 
 from setuptools import Extension, setup
 
+from ahpy_hpy_compat import install_hpy_universal_loader_compat
+
+
+install_hpy_universal_loader_compat()
+
 
 HERE = Path(__file__).resolve().parent
 

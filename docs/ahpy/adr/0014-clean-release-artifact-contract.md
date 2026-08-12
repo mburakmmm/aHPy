@@ -9,7 +9,8 @@ A wheel built directly from a developer checkout does not prove that the
 published source archive contains the compiler, build backends, HPy runtime
 contract, or license. Imports executed from the checkout can also survive an
 uninstall and create a false success. HPy 0.9's current Python loader imports
-`pkg_resources`, which was removed from newer setuptools releases.
+`pkg_resources`, which was removed in setuptools 82. aHPy therefore has to
+carry and package a narrow, fail-closed loader-template compatibility hook.
 
 ## Decision
 
@@ -17,9 +18,10 @@ uninstall and create a false success. HPy 0.9's current Python loader imports
    safe member paths, regular-file provenance, required compiler/build modules,
    exact `aHPy-compiler` metadata, and absence of native/cache/VCS artifacts.
 2. The frontend wheel is built from that sdist with index access disabled. HPy
-   0.9.0 and setuptools 80.9.0 are exact wheelhouse inputs; the latter preserves
-   HPy 0.9 loader compatibility until HPy removes its `pkg_resources`
-   dependency.
+   0.9.0 and setuptools 83.0.0 are exact wheelhouse inputs. Before HPy emits a
+   Universal loader, the packaged compatibility hook replaces only HPy 0.9's
+   recognized `pkg_resources` lookup with an adjacent `pathlib` lookup;
+   unrecognized partial templates are rejected.
 3. Installation happens in a newly created virtual environment. Presence and
    absence probes run from a clean temporary directory rather than the
    repository root.
@@ -38,7 +40,8 @@ uninstall and create a false success. HPy 0.9's current Python loader imports
 
 ## Consequences
 
-Removing a required file from `MANIFEST.in`, relaxing a build dependency, or
-leaving an importable compiler behind after uninstall fails CI. Updating HPy or
-setuptools requires an explicit pin change and a complete rerun. A host-tagged
-green wheel still cannot be advertised as a portable Universal distribution.
+Removing a required file from `MANIFEST.in`, relaxing a build dependency,
+omitting the loader compatibility module, or leaving an importable compiler
+behind after uninstall fails CI. Updating HPy or setuptools requires an
+explicit pin change and a complete rerun. A host-tagged green wheel still
+cannot be advertised as a portable Universal distribution.

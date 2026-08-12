@@ -3,6 +3,10 @@
 This example proves the supported programmatic build seam: Cython's
 `cythonize()` selects `runtime_backend="hpy-universal"`, and HPy setuptools
 integration receives the resulting extension through `hpy_ext_modules`.
+The `hpy-universal` cythonize seam automatically applies aHPy's fail-closed
+HPy 0.9 loader compatibility hook, so the generated stub resolves its adjacent
+`.hpy0` binary without the removed `pkg_resources` module under the pinned
+Setuptools 83 toolchain.
 It also links `ahpy_external.c` and exposes its Python-independent scalar C API
 from `ahpy_external.h`; this is the maintained external-C example rather than
 an inline or CPython C-API wrapper.

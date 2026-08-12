@@ -172,7 +172,7 @@ class ReproduciblePackagesTest(unittest.TestCase):
         payload = (
             '{"build":"1.5.0","implementation":"CPython",'
             '"platform":"test","python":"3.11.15",'
-            '"setuptools":"80.9.0"}\n'
+            '"setuptools":"83.0.0"}\n'
         )
         with patch.object(
                 verify_reproducible_packages.subprocess, "check_output",

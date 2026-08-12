@@ -11,7 +11,7 @@ Target issue tracker: `https://github.com/oracle/graalpython/issues`
 
 ## Environment
 
-- Builder: CPython 3.11.15, HPy 0.9.0, setuptools 80.9.0, Ubuntu 24.04 x86-64.
+- Builder: CPython 3.11.15, HPy 0.9.0, setuptools 83.0.0, Ubuntu 24.04 x86-64.
 - Target: `graalpy-25.1.3` from `actions/setup-python`.
 - Artifact: unchanged Universal `.hpy0.so`; no target-side rebuild.
 - Current evidence: GitHub Actions run `31573340325`, job `94040063153`.
@@ -40,7 +40,7 @@ CFLAGS=-O0 python Tools/ahpy/build_portability_artifact.py \
 Transfer `portability-artifact` byte-for-byte to the target, then run:
 
 ```console
-graalpy -m pip install setuptools==80.9.0
+graalpy -m pip install setuptools==83.0.0
 graalpy portability-artifact/portability_smoke.py \
   --report portability-result-GraalPy-25.1.3.json
 ```

@@ -23,7 +23,7 @@ class ReleaseEvidenceTest(unittest.TestCase):
             "ahpy_compiler-3.3.0.1.dev0-py3-none-any.whl",
             "ahpy_pep517_example-0.0.0-cp311-test.whl",
             "hpy-0.9.0-cp311-test.whl",
-            "setuptools-80.9.0-py3-none-any.whl",
+            "setuptools-83.0.0-py3-none-any.whl",
         )
         paths = []
         records = []

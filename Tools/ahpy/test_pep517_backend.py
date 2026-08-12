@@ -56,12 +56,16 @@ class Pep517BackendTest(unittest.TestCase):
                 return_value=AHPY_VERSION,
             ),
             mock.patch.object(
+                ahpy_build_backend, "install_hpy_universal_loader_compat"
+            ) as install_compat,
+            mock.patch.object(
                 ahpy_build_backend._backend, "build_wheel",
                 return_value="example.whl",
             ) as build_wheel,
         ):
             result = ahpy_build_backend.build_wheel("dist", {"verbose": "1"})
         self.assertEqual(result, "example.whl")
+        install_compat.assert_called_once_with()
         settings = build_wheel.call_args.args[1]
         self.assertEqual(
             settings["--global-option"], ["--hpy-abi=universal"])
@@ -112,6 +116,10 @@ class Pep517BackendTest(unittest.TestCase):
                     return_value=AHPY_VERSION,
                 ) as identity,
                 mock.patch.object(
+                    ahpy_build_backend,
+                    "install_hpy_universal_loader_compat",
+                ) as install_compat,
+                mock.patch.object(
                     ahpy_build_backend._backend, hook_name,
                     return_value="delegated",
                 ) as delegated,
@@ -119,6 +127,7 @@ class Pep517BackendTest(unittest.TestCase):
                 result = getattr(ahpy_build_backend, hook_name)(*arguments)
             self.assertEqual(result, "delegated")
             identity.assert_called_once_with()
+            install_compat.assert_called_once_with()
             delegated.assert_called_once_with(*expected_arguments)
             settings = delegated.call_args.args[
                 0 if len(expected_arguments) == 1 else 1

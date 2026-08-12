@@ -11,7 +11,7 @@ base_commit = "b99cb0e3b5425e11414cadd24168a6cc850e8000"
 
 [hpy]
 supported_versions = ["0.9.0"]
-setuptools_version = "80.9.0"
+setuptools_version = "83.0.0"
 development_commit = "b57a33c1cec766a1cc3e89f6fd1e2eff73ba9381"
 development_status = "early-warning"
 

@@ -27,7 +27,7 @@ class ScikitBuildDefinitionTest(unittest.TestCase):
         self.assertNotIn('"Cython', pyproject)
         integration = Path(__file__).with_name(
             "scikit_build_integration.py").read_text(encoding="utf8")
-        self.assertIn('"setuptools==80.9.0"', integration)
+        self.assertIn('"setuptools==83.0.0"', integration)
         self.assertIn('isolated["PIP_NO_INDEX"] = "1"', integration)
         dependency_materialization = integration.split(
             '"hpy==0.9.0"', 1)[0].rsplit("[", 1)[-1]
@@ -74,7 +74,7 @@ class ScikitBuildDefinitionTest(unittest.TestCase):
                             "scikit_build_core-1.0.3-py3-none-any.whl",
                             "cmake-4.3.4-py3-none-any.whl",
                             "ninja-1.13.0-py3-none-any.whl",
-                            "setuptools-80.9.0-py3-none-any.whl"):
+                            "setuptools-83.0.0-py3-none-any.whl"):
                         (wheel_dir / name).write_bytes(name.encode("ascii"))
                 else:
                     project = Path(command[-1])

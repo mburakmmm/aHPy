@@ -1,6 +1,11 @@
 from setuptools import Extension, setup
 from Cython.Build import cythonize
 
+from ahpy_hpy_compat import install_hpy_universal_loader_compat
+
+
+install_hpy_universal_loader_compat()
+
 
 extensions = cythonize(
     [Extension("ahpy_pep517_example", ["ahpy_pep517_example.pyx"])],

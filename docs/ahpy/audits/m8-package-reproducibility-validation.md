@@ -1,6 +1,6 @@
 # M8 frontend package reproducibility validation
 
-Date: 2026-07-16
+Date: 2026-07-16; Setuptools 83 rerun: 2026-08-12
 Status: local frontend sdist and wheel byte-reproducible
 
 The first two-root run proved the frontend wheel byte-identical but failed the
@@ -11,7 +11,7 @@ name/time metadata without extracting the archive.
 
 The final CPython 3.11.15/macOS ARM64 run built both formats from two
 independent clean source roots with `SOURCE_DATE_EPOCH=1767225600`,
-`PYTHONHASHSEED=0`, build 1.5.0, and setuptools 80.9.0. The complete sdist and
+`PYTHONHASHSEED=0`, build 1.5.0, and setuptools 83.0.0. The complete sdist and
 wheel bytes match across roots. Names, sizes, SHA-256 hashes, and provenance
 are retained in the requested JSON output locally and the CI artifact on
 hosted runs.

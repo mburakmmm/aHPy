@@ -23,6 +23,7 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
         "ahpy_version.py",
         "ahpy_build_backend.py",
         "ahpy_build_config.py",
+        "ahpy_hpy_compat.py",
         "Cython/Compiler/RuntimeAPI.py",
         "Tools/ahpy/release_artifact_integration.py",
         "Tools/ahpy/release_evidence.py",
@@ -86,7 +87,7 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
         self.assertIn('"pip", "uninstall", "-y"', source)
         self.assertIn("_assert_frontend(clean_python, False, temp)", source)
         self.assertIn("_runtime_program(True)", source)
-        self.assertIn('"setuptools==80.9.0"', source)
+        self.assertIn('"setuptools==83.0.0"', source)
         self.assertIn('"build_dependencies"', source)
         self.assertIn('"schema_version": 2', source)
         self.assertIn("write_release_bundle(", source)
@@ -227,6 +228,7 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
             command = run.call_args.args[0]
             self.assertIn("HPY_UNIVERSAL_BACKEND", command[2])
             self.assertIn("ahpy_build_backend, ahpy_build_config", command[2])
+            self.assertIn("ahpy_hpy_compat", command[2])
             self.assertEqual(clean_cwd, run.call_args.kwargs["cwd"])
 
     def test_venv_python_rejects_incomplete_environment(self):
@@ -341,7 +343,7 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
                                 "hpy-0.9.0-py3-none-any.whl",
                             ),
                             "hpy": (
-                                "setuptools-80.9.0-py3-none-any.whl",
+                                "setuptools-83.0.0-py3-none-any.whl",
                                 "unrelated-1-py3-none-any.whl",
                             ),
                             "setuptools": (
@@ -350,7 +352,7 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
                             ),
                         }.get(failure, (
                             "hpy-0.9.0-py3-none-any.whl",
-                            "setuptools-80.9.0-py3-none-any.whl",
+                            "setuptools-83.0.0-py3-none-any.whl",
                         ))
                         for name in names:
                             (wheel_dir / name).touch()
@@ -417,7 +419,7 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
                 if "hpy==0.9.0" in command:
                     for name in (
                             "hpy-0.9.0-py3-none-any.whl",
-                            "setuptools-80.9.0-py3-none-any.whl"):
+                            "setuptools-83.0.0-py3-none-any.whl"):
                         (wheel_dir / name).write_bytes(name.encode("ascii"))
                 elif str(command[-1]).endswith(".tar.gz"):
                     (wheel_dir / "ahpy_compiler-0-py3-none-any.whl").write_bytes(

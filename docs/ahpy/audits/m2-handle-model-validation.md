@@ -68,8 +68,9 @@ the selected CPython runtime behavior.
 ## Real HPy 0.9 execution oracle
 
 An isolated Python 3.11 environment pins `hpy==0.9.0` and
-`setuptools==80.9.0`; HPy 0.9's generated loader still imports
-`pkg_resources`, which newer setuptools releases remove. The handwritten
+`setuptools==83.0.0`. aHPy's fail-closed compatibility hook replaces HPy
+0.9's legacy `pkg_resources` loader lookup with a standard-library adjacent
+path lookup before stub emission. The handwritten
 `tests/ahpy/minimal_universal.c` reference module uses only public HPy and
 contains `HPy_MODINIT`, no-argument methods, owned scalar returns, `HPy_Dup`,
 and a list-builder path with allocation-failure cleanup.

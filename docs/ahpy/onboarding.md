@@ -6,8 +6,13 @@ Universal-wheel portability claim.
 
 This flow belongs to the frozen
 [preview support contract](release-contract.md). It requires CPython 3.11,
-HPy 0.9.0, and setuptools 80.9.0; it does not promote PyPy, GraalPy, another
+HPy 0.9.0, and setuptools 83.0.0; it does not promote PyPy, GraalPy, another
 Python minor, or another HPy release.
+
+The installed `ahpy_hpy_compat` module replaces HPy 0.9's recognized legacy
+`pkg_resources` loader lookup with a standard-library lookup for the adjacent
+`.hpy0` binary. It is applied automatically by the maintained PEP 517 backend
+and `hpy-universal` cythonize path and rejects unknown partial templates.
 
 ## Prerequisites
 
@@ -45,7 +50,7 @@ HPy 0.9 compatibility contract. It rejects path traversal, archive
 links, native binaries, bytecode, caches, VCS data, missing compiler/runtime
 sources, and incorrect distribution metadata. It then:
 
-1. materializes exact HPy 0.9.0 and setuptools 80.9.0 wheels with their
+1. materializes exact HPy 0.9.0 and setuptools 83.0.0 wheels with their
    declared isolated build requirements;
 2. disables package-index access and builds the frontend wheel from the sdist;
 3. creates a second, new virtual environment and installs only from the local

@@ -22,9 +22,11 @@ may continue to evolve before a later major release.
    forbidden from using interpreter-private API.
 6. The support matrix records the exact HPy revisions used for each aHPy
    release.
-7. The HPy 0.9 validation environment pins `setuptools==80.9.0` because its
-   generated Universal loader imports the deprecated `pkg_resources` module,
-   which is absent from newer setuptools releases.
+7. The HPy 0.9 validation environment pins `setuptools==83.0.0`. Because HPy
+   0.9's generated Universal loader imports the removed `pkg_resources`
+   module, aHPy rewrites that exact legacy template to resolve the adjacent
+   `.hpy0` binary with `pathlib` before HPy emits the loader. Unknown or
+   partially matching templates fail closed.
 8. Moving interpreter and HPy branch-tip jobs run only on schedules or explicit
    dispatch, remain allowed-failure, and are separate from the release and
    full-commit-pinned development lanes. Their exact resolved revisions are

@@ -820,6 +820,8 @@ def build_and_measure(python, budgets, budget_path, output):
         setup = temp / "setup.py"
         setup.write_text(
             "from setuptools import Extension, setup\n"
+            "from ahpy_hpy_compat import install_hpy_universal_loader_compat\n"
+            "install_hpy_universal_loader_compat()\n"
             "setup(name='ahpy-benchmark', version='0.0.0', packages=[], "
             "py_modules=[], hpy_ext_modules=[\n"
             " Extension(%r, [%r, %r], include_dirs=[%r]),\n" % (

@@ -12,7 +12,7 @@ Target issue tracker: `https://github.com/pypy/pypy/issues`
 
 ## Environment
 
-- Builder: CPython 3.11.15, HPy 0.9.0, setuptools 80.9.0, Ubuntu 24.04 x86-64.
+- Builder: CPython 3.11.15, HPy 0.9.0, setuptools 83.0.0, Ubuntu 24.04 x86-64.
 - Target: `pypy3.11-v7.3.23` from `actions/setup-python`.
 - Artifact: unchanged `.hpy0.so` plus HPy's generated `hpy.universal` loader
   stub; no rebuild occurs under PyPy.
@@ -42,7 +42,7 @@ CFLAGS=-O0 python Tools/ahpy/build_portability_artifact.py \
 Transfer `portability-artifact` byte-for-byte to the target, then run:
 
 ```console
-pypy3 -m pip install setuptools==80.9.0
+pypy3 -m pip install setuptools==83.0.0
 pypy3 portability-artifact/portability_smoke.py \
   --report portability-result-PyPy-7.3.23.json
 ```

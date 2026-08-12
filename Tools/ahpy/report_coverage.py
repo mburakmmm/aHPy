@@ -54,6 +54,7 @@ FAMILY_MODULES = (
 PACKAGING_FILES = (
     "ahpy_build_backend.py",
     "ahpy_build_config.py",
+    "ahpy_hpy_compat.py",
     "ahpy_version.py",
 )
 

@@ -35,7 +35,7 @@ hook boundary.
    `--hpy-abi=universal`. A CPython or Hybrid request fails instead of
    overriding the policy.
 5. The maintained integration first builds a frontend wheel from the checked
-   out source and materializes exact HPy 0.9.0 plus setuptools 80.9.0 wheels
+   out source and materializes exact HPy 0.9.0 plus setuptools 83.0.0 wheels
    (building HPy from its sdist when the platform has no published wheel).
    The genuine isolated example build runs with `PIP_NO_INDEX=1` against only
    that wheelhouse, preventing same-name index substitution. It audits the

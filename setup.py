@@ -497,7 +497,7 @@ def run_build():
         packages=packages,
         py_modules=[
             "cython", "ahpy_version", "ahpy_build_backend",
-            "ahpy_build_config",
+            "ahpy_build_config", "ahpy_hpy_compat",
         ],
         **setup_args
     )

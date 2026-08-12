@@ -39,7 +39,7 @@ def _bundle(root):
             _write_artifact(
                 root, "hpy-0.9.0-cp311-cp311-linux_x86_64.whl", b"hpy"),
             _write_artifact(
-                root, "setuptools-80.9.0-py3-none-any.whl", b"setuptools"),
+                root, "setuptools-83.0.0-py3-none-any.whl", b"setuptools"),
         ],
     }
     report = {
@@ -51,7 +51,7 @@ def _bundle(root):
         "provenance": {
             "source_commit": COMMIT,
             "installed_hpy": "0.9.0",
-            "installed_setuptools": "80.9.0",
+            "installed_setuptools": "83.0.0",
         },
     }
     root.joinpath("provenance.json").write_text(

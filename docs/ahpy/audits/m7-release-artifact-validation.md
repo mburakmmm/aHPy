@@ -1,7 +1,8 @@
 # M7 clean release-artifact validation
 
-Date: 2026-07-16
-Status: local and hosted Linux sdist/install/uninstall/reinstall green
+Date: 2026-07-16; Setuptools 83 local rerun: 2026-08-12
+Status: current local sdist/install/uninstall/reinstall green; replacement
+hosted evidence pending
 
 `Tools/ahpy/release_artifact_integration.py` built
 `ahpy_compiler-3.3.0.1.dev0.tar.gz` from a clean frontend source tree. The
@@ -18,7 +19,9 @@ artifact.
 
 With index access disabled, the gate built the frontend wheel from that sdist,
 created a new virtual environment, installed the exact frontend plus HPy 0.9.0
-and setuptools 80.9.0, and built the maintained PEP 517 example. The example
+and setuptools 83.0.0, and built the maintained PEP 517 example. The packaged
+`ahpy_hpy_compat` module was present in both sdist and wheel, imported from the
+clean environment, and removed with the frontend. The example
 passed normal and Debug LeakDetector execution. Both the frontend and example
 then passed uninstall, clean-directory absence verification, reinstall, and a
 final normal execution.
@@ -26,11 +29,11 @@ final normal execution.
 Dependency-wheel materialization deliberately retains PEP 517 build isolation:
 HPy 0.9's source distribution otherwise derives the invalid version `0.0.0`
 when its declared build requirements are absent. Index access is disabled
-after the exact HPy 0.9.0 and setuptools 80.9.0 wheels have been materialized,
+after the exact HPy 0.9.0 and setuptools 83.0.0 wheels have been materialized,
 so all consumer builds and installs remain closed-wheelhouse operations.
 
 The schema-versioned JSON record hashes the sdist, frontend wheel, example
-wheel, HPy 0.9 wheel, and setuptools 80.9.0 wheel. Exact hashes are preserved
+wheel, HPy 0.9 wheel, and setuptools 83.0.0 wheel. Exact hashes are preserved
 in the requested local JSON output and in the CI evidence artifact for hosted
 runs, avoiding a self-referential hash inside the sdist itself.
 
@@ -43,9 +46,11 @@ creation rejects a non-empty destination, unexpected/missing artifacts, unsafe
 filenames, duplicate names, malformed digests, and copied bytes that do not
 match the validated report.
 
-Local macOS ARM64/CPython 3.11 evidence is complemented by the green clean
-sdist/onboarding step in hosted
+Local macOS ARM64/CPython 3.11 evidence is complemented by an earlier green
+clean sdist/onboarding step in hosted
 [compiler-and-quality job 88188395921](https://github.com/mburakmmm/aHPy/actions/runs/29685285138/job/88188395921).
+That hosted job predates the Setuptools 83 loader update; it is historical
+platform evidence, and the replacement current-HEAD run remains required.
 Cross-interpreter package installation, standardized Universal
 extension-wheel reproducibility, publication, and standardized Universal wheel
 metadata remain open. The example wheel's CPython tag is not a portability
