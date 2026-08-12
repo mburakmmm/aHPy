@@ -8,6 +8,7 @@ from unittest import mock
 import zipfile
 
 import cypack_pilot_integration
+from pilot_performance import validate_performance
 
 
 class CypackPilotIntegrationTest(unittest.TestCase):
@@ -47,6 +48,8 @@ class CypackPilotIntegrationTest(unittest.TestCase):
                 cypack_pilot_integration._only_wheel(dist)
 
     def test_performance_report_validation_fails_closed(self):
+        with self.assertRaisesRegex(AssertionError, "must be an object"):
+            validate_performance([])
         with tempfile.TemporaryDirectory(prefix="ahpy-cypack-performance-") as temp:
             path = Path(temp) / "performance.json"
             path.write_text("{}", encoding="utf8")
@@ -98,6 +101,16 @@ class CypackPilotIntegrationTest(unittest.TestCase):
                 "workloads": {"axpy": valid_workload},
             }), encoding="utf8")
             with self.assertRaisesRegex(AssertionError, "workloads"):
+                cypack_pilot_integration._read_performance(path)
+            path.write_text(json.dumps({
+                "schema_version": 1,
+                "environment": environment,
+                "workloads": {
+                    "axpy": [],
+                    "fibonacci": valid_workload,
+                },
+            }), encoding="utf8")
+            with self.assertRaisesRegex(AssertionError, "performance workload"):
                 cypack_pilot_integration._read_performance(path)
             invalid = dict(valid_workload, compiled_ns_per_call=float("inf"))
             path.write_text(json.dumps({

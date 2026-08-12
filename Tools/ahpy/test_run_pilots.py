@@ -258,6 +258,13 @@ class RunPilotsTest(unittest.TestCase):
         self.assertFalse(report["expectations_met"])
         self.assertEqual(report["generated_at"], "2026-08-02T12:00:00+00:00")
         self.assertEqual(len(report["pilots"]), 4)
+        blocked = report["pilots"][-1]
+        self.assertEqual(blocked["id"], "bezier-numpy-blocked")
+        self.assertEqual(
+            blocked["gates"]["performance"]["status"], "blocked")
+        self.assertIn(
+            "no performance ratio",
+            blocked["gates"]["performance"]["reason"])
 
         with mock.patch.object(
                 run_pilots, "checkout_pilot",

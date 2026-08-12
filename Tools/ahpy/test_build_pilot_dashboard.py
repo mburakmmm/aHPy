@@ -56,7 +56,7 @@ class PilotDashboardTest(unittest.TestCase):
         }
         if performance is not None:
             gates["performance"] = performance
-        return {
+        report = {
             "schema_version": 1,
             "generated_at": generated_at,
             "backend": "hpy-universal",
@@ -70,6 +70,29 @@ class PilotDashboardTest(unittest.TestCase):
             "port_contract": {"status": contract},
             "gates": gates,
         }
+        if performance == "pass":
+            report["performance"] = {
+                "comparison": "ported-surface-to-equivalent-python",
+                "budget_enforced": False,
+                "schema_version": 1,
+                "environment": {
+                    "python_implementation": "CPython",
+                    "python_version": "3.11.15",
+                    "hpy_version": "0.9.0",
+                    "platform": "test-platform",
+                    "machine": "test-machine",
+                },
+                "workloads": {
+                    "operation": {
+                        "iterations": 100,
+                        "repeats": 7,
+                        "compiled_ns_per_call": 10.0,
+                        "python_reference_ns_per_call": 20.0,
+                        "compiled_to_python_ratio": 0.5,
+                    },
+                },
+            }
+        return report
 
     def test_manifest_only_dashboard_never_infers_evidence(self):
         dashboard = build_pilot_dashboard.build_rows(self.manifest)
@@ -98,7 +121,10 @@ class PilotDashboardTest(unittest.TestCase):
             newer_data = self._evidence("2026-08-03T12:00:00Z")
             for item in newer_data["pilots"]:
                 item["gates"] = {
-                    gate: ("blocked" if gate == "performance" else "pass")
+                    gate: ({
+                        "status": "blocked",
+                        "reason": "unsupported surface is not comparable",
+                    } if gate == "performance" else "pass")
                     for gate in build_pilot_dashboard.GATES
                     if gate != "initial-scan"
                 }
@@ -210,6 +236,7 @@ class PilotDashboardTest(unittest.TestCase):
             path = Path(temp_dir) / "cypack.json"
             report = self._integration(self.manifest.pilots[0])
             report["gates"] = {"generate": "pass", "port-patch": "pass"}
+            report.pop("performance")
             path.write_text(json.dumps(report), encoding="utf8")
             dashboard = build_pilot_dashboard.build_rows(self.manifest, [path])
             row = next(
@@ -246,6 +273,30 @@ class PilotDashboardTest(unittest.TestCase):
                     build_pilot_dashboard.load_integration_evidence(
                         path, self.manifest)
 
+    def test_passing_performance_requires_complete_non_budget_evidence(self):
+        pilot = self.manifest.pilots[0]
+        report = self._integration(pilot)
+        with tempfile.TemporaryDirectory(prefix="ahpy-dashboard-performance-") as temp:
+            root = Path(temp)
+            for index, (mutate, message) in enumerate((
+                (lambda data: data.pop("performance"), "evidence is incomplete"),
+                (lambda data: data["performance"].update(
+                    budget_enforced=True), "evidence is incomplete"),
+                (lambda data: data["performance"].update(
+                    comparison=""), "comparison is missing"),
+                (lambda data: data["performance"]["workloads"].clear(),
+                 "invalid performance evidence"),
+                (lambda data: data["gates"].update(performance="blocked"),
+                 "payload requires a passing gate"),
+            )):
+                data = json.loads(json.dumps(report))
+                mutate(data)
+                path = self._write(root, data, f"case-{index}.json")
+                with self.subTest(message=message), self.assertRaisesRegex(
+                        DashboardError, message):
+                    build_pilot_dashboard.load_integration_evidence(
+                        path, self.manifest)
+
     def test_same_timestamp_conflicting_gate_or_contract_fails_closed(self):
         pilot = self.manifest.pilots[0]
         first = self._integration(pilot)
@@ -276,6 +327,12 @@ class PilotDashboardTest(unittest.TestCase):
             data["pilots"][0]["gates"] = {"normal": "maybe"}
             path = self._write(root, data)
             with self.assertRaisesRegex(DashboardError, "invalid normal status"):
+                build_pilot_dashboard.build_rows(self.manifest, [path])
+            data["pilots"][0]["gates"] = {
+                "performance": {"status": "blocked"},
+            }
+            path = self._write(root, data)
+            with self.assertRaisesRegex(DashboardError, "exact reason"):
                 build_pilot_dashboard.build_rows(self.manifest, [path])
 
             data = self._evidence()

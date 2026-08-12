@@ -7,7 +7,6 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
-import math
 import os
 from pathlib import Path
 import shutil
@@ -18,6 +17,7 @@ import time
 import zipfile
 
 from artifact_utils import require_universal_binary
+from pilot_performance import read_performance
 from test_generated_hpy import run, verify_binary_boundary, verify_source_boundary
 
 
@@ -127,38 +127,7 @@ with open(os.environ["AHPY_PILOT_PERFORMANCE_OUTPUT"], "w", encoding="utf8") as 
 
 
 def _read_performance(path):
-    try:
-        report = json.loads(path.read_text(encoding="utf8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise AssertionError(f"invalid pilot performance report: {exc}") from None
-    if report.get("schema_version") != 1:
-        raise AssertionError("pilot performance schema_version must be 1")
-    environment = report.get("environment")
-    environment_fields = {
-        "python_implementation", "python_version", "hpy_version", "platform",
-        "machine",
-    }
-    if not isinstance(environment, dict) or set(environment) != environment_fields \
-            or not all(isinstance(value, str) and value for value in
-                       environment.values()):
-        raise AssertionError("pilot performance environment is incomplete")
-    workloads = report.get("workloads")
-    if not isinstance(workloads, dict) or set(workloads) != {"axpy", "fibonacci"}:
-        raise AssertionError("pilot performance workloads differ from contract")
-    numeric = (
-        "compiled_ns_per_call",
-        "python_reference_ns_per_call",
-        "compiled_to_python_ratio",
-    )
-    for name, workload in workloads.items():
-        if workload.get("iterations", 0) <= 0 or workload.get("repeats", 0) < 3:
-            raise AssertionError(f"invalid {name} performance sampling contract")
-        for field in numeric:
-            value = workload.get(field)
-            if not isinstance(value, (int, float)) or not math.isfinite(value) \
-                    or value <= 0:
-                raise AssertionError(f"invalid {name} performance field {field}")
-    return report
+    return read_performance(path, {"axpy", "fibonacci"})
 
 
 def _build_root(binary):

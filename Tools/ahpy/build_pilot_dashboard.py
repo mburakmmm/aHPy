@@ -10,6 +10,7 @@ from pathlib import Path
 import sys
 
 from pilot_matrix import DEFAULT_MANIFEST, ManifestError, load_manifest
+from pilot_performance import validate_performance
 
 
 GATES = (
@@ -150,6 +151,28 @@ def load_integration_evidence(path, manifest):
     if not canonical:
         raise DashboardError(
             f"{path}: {pilot_id} integration has no dashboard gates")
+    performance_status = canonical.get("performance")
+    performance = data.get("performance")
+    if performance_status == "pass":
+        if not isinstance(performance, dict) or performance.get(
+                "budget_enforced") is not False:
+            raise DashboardError(
+                f"{path}: {pilot_id} passing performance evidence is incomplete")
+        comparison = performance.get("comparison")
+        if not isinstance(comparison, str) or not comparison:
+            raise DashboardError(
+                f"{path}: {pilot_id} performance comparison is missing")
+        try:
+            validate_performance({
+                key: value for key, value in performance.items()
+                if key not in {"comparison", "budget_enforced"}
+            })
+        except AssertionError as exc:
+            raise DashboardError(
+                f"{path}: {pilot_id} invalid performance evidence: {exc}") from exc
+    elif performance is not None:
+        raise DashboardError(
+            f"{path}: {pilot_id} performance payload requires a passing gate")
     return generated_at, pilot_id, canonical, contract["status"]
 
 
@@ -182,6 +205,12 @@ def _extra_gates(item):
         if status not in GATE_STATUSES:
             raise DashboardError(
                 f"{item['id']}: invalid {gate} status {status!r}")
+        if gate == "performance" and status == "blocked" and (
+                not isinstance(value, dict) or
+                not isinstance(value.get("reason"), str) or
+                not value["reason"].strip()):
+            raise DashboardError(
+                f"{item['id']}: blocked performance needs an exact reason")
         result[gate] = status
     return result
 

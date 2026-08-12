@@ -70,8 +70,8 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 440 compiler/seam testi, 507 quality-tool testi ve
-  iki yorumlayıcıda 947 coverage testi.
+- Mevcut odaklı doğrulama: 440 compiler/seam testi, 508 quality-tool testi ve
+  iki yorumlayıcıda 948 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Quality-tool Python satır kapsamı CPython 3.11 ve 3.14'te %100; ayrı native,
   subprocess, portability ve hosted kapıları bu orana dahil edilmez.
@@ -437,7 +437,7 @@ maintainer onayı veya current-candidate same-HEAD hosted kanıtı yerine geçme
 
 - [ ] Bütün yayımlanan bütçeler aynı release candidate üzerinde yeşil.
 - [ ] Sonuçlar timestamped, immutable CI artifact olarak saklanıyor.
-- [ ] Desteklenmeyen aileler için uydurma performans sayısı yayımlanmıyor.
+- [x] Desteklenmeyen aileler için uydurma performans sayısı yayımlanmıyor.
 
 ## PRD-8 — Gerçek kütüphane pilotlarını tamamla
 
@@ -477,6 +477,9 @@ doğrulandı. Exact upstream `MurmurHash3.cpp`/header kullanan fixed-width scala
 adapter generate/native-build, source/binary audit, normal/Trace/Debug ve
 conversion-failure kapılarını yerelde geçiyor; pointer yalnız C++ shim içinde
 kalır ve upstream `hash(str | bytes)` API'si destekleniyor diye işaretlenmez.
+Desteklenen `hash_u64` scalar yüzeyi aynı süreçteki bağımsız Python oracle'ına
+karşı yedi medyan örnekle ölçülür; ortam provenance'ı zorunludur ve sonuç
+release bütçesi değildir.
 Pinned frozenlist kaynağından türetilen supported-subset port; object-valued
 HPy field GC döngüsü, same-module inheritance, mutation/freeze/hash semantiği
 ve constructor failure cleanup kapılarını normal/Trace/Debug altında geçiyor.
@@ -485,12 +488,18 @@ MutableSequence registration kapsam dışı olarak raporlanıyor. Pilot ayrıca
 Universal `__hash__` slotunda fitting büyük tamsayıların ikinci kez hash'lendiği
 gerçek emitter hatasını ortaya çıkardı; direct `HPy_hash_t` conversion,
 overflow fallback ve `-1`→`-2` davranışı düzeltilip regresyonlandı.
+Desteklenen construct/mutate/freeze/hash altkümesi eşdeğer Python list/tuple
+workload'una karşı aynı fail-closed performans şemasıyla ölçülür; kapsam dışı
+yüzeylere oran veya performans iddiası taşınmaz.
 Tam dört-pilot pristine checkout/scan matrisi ile üç port integration raporu
 yerelde tek dashboard'a kapı bazında birleştirildi: cypack `pass`, murmurhash
 `partial-scalar-adapter`, frozenlist `supported-subset`, bezier ise beklenen
 `blocked` sonucunu veriyor. Workflow aynı dört JSON girdisini ve üretilen
 Markdown dashboard'u immutable artifact grubuna ekliyor; GitHub yazma limiti
 nedeniyle hosted artifact kanıtı ve ilgili checkbox açık kalıyor.
+Dashboard başarılı performans kapısı için eksiksiz sonlu örneklem, karşılaştırma
+kimliği, ortam provenance'ı ve `budget_enforced = false` ister; bezier matrisi
+ise NumPy C-API sınırı nedeniyle gerekçeli `blocked` kaydı üretir ve sayı üretmez.
 Frontend-independent `ahpy-universal-conformance-v1` sözleşmesi 21 semantik
 vakayı checksummed JSON'a ayırıyor; standart-kütüphane runner'ı yalnız açık
 surface→module eşlemesi kullanıyor ve hiçbir Cython import'u, `.pyx` yolu veya

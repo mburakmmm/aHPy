@@ -52,7 +52,7 @@ fallback.
   families a stable fail-closed boundary; the manifest test prevents an
   advanced family from becoming unclassified.
 
-The current focused gates pass 440 compiler/seam tests and 507 quality-tool
+The current focused gates pass 440 compiler/seam tests and 508 quality-tool
 tests (two expected platform/tool skips), generated normal/Trace/Debug
 execution, 150 isolated fault selectors, the diagnostic catalog, and the
 38-case CPython C/C++ oracle.

@@ -614,7 +614,7 @@ paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 947 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 948 focused tests under Python's built-in
 line-event tracer, applies the same tracer to test-created worker threads,
 derives executable lines from nested code-object line tables, and forces
 measured modules through a source-first finder so stale

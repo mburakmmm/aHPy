@@ -126,13 +126,13 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 507 tests pass (two expected platform/tool availability
+- Quality-tool suite: 508 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-08-12): 947 tests traced on both interpreters.
+- Focused coverage (2026-08-12): 948 tests traced on both interpreters.
   - CPython 3.11: backend 9609/9609 (100.00%), frontend_seam 53.29%,
-    quality_tools 8718/8718 (100.00%).
+    quality_tools 8807/8807 (100.00%).
   - CPython 3.14.2: backend 9495/9495 (100.00%), frontend_seam 53.42%,
-    quality_tools 8725/8725 (100.00%).
+    quality_tools 8815/8815 (100.00%).
   - CI floors are 100%, 45%, and 100%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
@@ -788,16 +788,20 @@ implementation.
    tree. A maintained scalar adapter now links the exact upstream
    `MurmurHash3.cpp`/header, keeps pointers inside a C++ shim, and passes
    generate/build, source/binary audit, normal/Trace/Debug, semantic-reference,
-   and pre-native conversion-failure checks locally. The full upstream
+   pre-native conversion-failure checks, and a provenance-bound seven-sample
+   `hash_u64`/Python-oracle comparison locally. The full upstream
    `hash(str | bytes)` API remains explicitly unsupported; CI retains the
-   complete exact checkout matrix plus this pilot's execution JSON.
+   complete exact checkout matrix plus this pilot's execution JSON. The
+   comparison is subset-only and never an enforced release budget.
    The frozenlist supported-subset fixture now passes object-field cyclic GC,
    same-module inheritance, mutation/freeze/hash, constructor-failure cleanup,
    source/binary audit, and normal/Trace/Debug. It exposed and drove a real
    `__hash__` emitter fix: fitting `HPy_hash_t` values are converted directly,
    overflow alone falls back to `HPy_Hash`, and `-1` maps to `-2`. Atomic
    free-threading, iterators, rich comparison, copying, and MutableSequence
-   registration remain explicitly outside the result; checkout/run JSON is
+   registration remain explicitly outside the result; the supported
+   construct/mutate/freeze/hash subset has its own provenance-bound Python
+   comparison, while omitted surfaces receive no number. Checkout/run JSON is
    wired into CI.
    Recurring pilot changes are now stable scanner rules instead of generic
    advice: `compiled-entry-point`, `cython-module-cimport`, and

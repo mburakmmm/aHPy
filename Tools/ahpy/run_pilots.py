@@ -198,6 +198,16 @@ def run_matrix(manifest, checkout_root, python=sys.executable, root=ROOT,
         if do_scan:
             result["initial_scan"] = scan_pilot(
                 pilot, checkout, python=python, root=root)
+        if pilot.category == "cpython-numpy-blocked":
+            result["gates"] = {
+                "performance": {
+                    "status": "blocked",
+                    "reason": (
+                        "NumPy CPython C API boundary prevents a comparable "
+                        "Universal port; no performance ratio is produced"
+                    ),
+                },
+            }
         pilots.append(result)
     expectations_met = all(
         item.get("initial_scan", {}).get("expectation_met", True)

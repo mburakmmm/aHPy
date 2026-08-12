@@ -16,6 +16,7 @@ from tempfile import TemporaryDirectory
 import time
 
 from artifact_utils import require_universal_binary
+from pilot_performance import read_performance
 from pilot_matrix import DEFAULT_MANIFEST, load_manifest
 from run_pilots import verify_checkout
 from test_generated_hpy import run, verify_binary_boundary, verify_source_boundary
@@ -108,6 +109,84 @@ for invalid in (-1, 1 << 64):
 """ + suffix
 
 
+def _performance_program():
+    return """\
+import gc
+import importlib.metadata
+import json
+import os
+import platform
+import statistics
+import time
+
+import ahpy_murmurhash_pilot as module
+
+def rotl32(value, amount):
+    return ((value << amount) | (value >> (32 - amount))) & 0xffffffff
+
+def python_murmur3_u64(value, seed):
+    data = value.to_bytes(8, "little")
+    h1 = seed & 0xffffffff
+    for offset in (0, 4):
+        k1 = int.from_bytes(data[offset:offset + 4], "little")
+        k1 = (k1 * 0xcc9e2d51) & 0xffffffff
+        k1 = rotl32(k1, 15)
+        k1 = (k1 * 0x1b873593) & 0xffffffff
+        h1 ^= k1
+        h1 = rotl32(h1, 13)
+        h1 = (h1 * 5 + 0xe6546b64) & 0xffffffff
+    h1 ^= 8
+    h1 ^= h1 >> 16
+    h1 = (h1 * 0x85ebca6b) & 0xffffffff
+    h1 ^= h1 >> 13
+    h1 = (h1 * 0xc2b2ae35) & 0xffffffff
+    return h1 ^ (h1 >> 16)
+
+def measure(function, arguments, iterations, repeats=7):
+    for _ in range(1000):
+        function(*arguments)
+    samples = []
+    for _ in range(repeats):
+        started = time.perf_counter_ns()
+        checksum = 0
+        for _ in range(iterations):
+            checksum ^= function(*arguments)
+        elapsed = time.perf_counter_ns() - started
+        if checksum not in (0, function(*arguments)):
+            raise AssertionError("unexpected performance checksum")
+        samples.append(elapsed / iterations)
+    return statistics.median(samples)
+
+arguments = (0x0123456789abcdef, 42)
+assert module.hash_u64(*arguments) == python_murmur3_u64(*arguments)
+gc.disable()
+iterations = 50000
+compiled_ns = measure(module.hash_u64, arguments, iterations)
+reference_ns = measure(python_murmur3_u64, arguments, iterations)
+with open(os.environ["AHPY_PILOT_PERFORMANCE_OUTPUT"], "w", encoding="utf8") as stream:
+    json.dump({
+        "schema_version": 1,
+        "environment": {
+            "python_implementation": platform.python_implementation(),
+            "python_version": platform.python_version(),
+            "hpy_version": importlib.metadata.version("hpy"),
+            "platform": platform.platform(),
+            "machine": platform.machine(),
+        },
+        "workloads": {
+            "hash-u64": {
+                "iterations": iterations,
+                "repeats": 7,
+                "compiled_ns_per_call": compiled_ns,
+                "python_reference_ns_per_call": reference_ns,
+                "compiled_to_python_ratio": compiled_ns / reference_ns,
+            },
+        },
+    }, stream, indent=2, sort_keys=True)
+    stream.write("\\n")
+"""
+
+
 def build_and_run(python, checkout, output=None, manifest_path=DEFAULT_MANIFEST):
     started = time.monotonic()
     manifest = load_manifest(manifest_path)
@@ -169,6 +248,17 @@ def build_and_run(python, checkout, output=None, manifest_path=DEFAULT_MANIFEST)
             ], cwd=project, env=selected)
             mode_seconds[mode] = time.monotonic() - mode_started
 
+        performance_output = Path(temp_dir) / "performance.json"
+        performance_environment = runtime_environment.copy()
+        performance_environment["AHPY_PILOT_PERFORMANCE_OUTPUT"] = str(
+            performance_output)
+        performance_started = time.monotonic()
+        run([
+            python, "-c", _performance_program(),
+        ], cwd=project, env=performance_environment)
+        performance_seconds = time.monotonic() - performance_started
+        performance = read_performance(performance_output, {"hash-u64"})
+
         report = {
             "schema_version": 1,
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -196,14 +286,21 @@ def build_and_run(python, checkout, output=None, manifest_path=DEFAULT_MANIFEST)
                 "trace": "pass",
                 "debug": "pass",
                 "conversion-failure": "pass",
+                "performance": "pass",
             },
             "artifacts": {
                 "generated_source": generated.name,
                 "binary": binary.name,
             },
+            "performance": {
+                "comparison": "scalar-adapter-to-equivalent-python",
+                "budget_enforced": False,
+                **performance,
+            },
             "timings_seconds": {
                 "build": build_seconds,
                 **mode_seconds,
+                "performance": performance_seconds,
                 "total": time.monotonic() - started,
             },
         }

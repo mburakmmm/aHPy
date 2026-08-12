@@ -21,6 +21,10 @@ class FrozenlistPilotIntegrationTest(unittest.TestCase):
         debug = integration._runtime_program(True)
         self.assertIn("LeakDetector", debug)
         self.assertTrue(debug.endswith("detector.stop()\n"))
+        performance = integration._performance_program()
+        self.assertIn("compiled_workload", performance)
+        self.assertIn('"mutation-freeze-hash"', performance)
+        self.assertIn("compiled_to_python_ratio", performance)
 
     def test_sha_and_selected_pilot_contract_fail_closed(self):
         with tempfile.TemporaryDirectory(prefix="ahpy-frozen-hash-") as temp:
@@ -51,6 +55,29 @@ class FrozenlistPilotIntegrationTest(unittest.TestCase):
         binary_box = {}
 
         def fake_run(command, **options):
+            performance = options.get("env", {}).get(
+                "AHPY_PILOT_PERFORMANCE_OUTPUT")
+            if performance:
+                Path(performance).write_text(json.dumps({
+                    "schema_version": 1,
+                    "environment": {
+                        "python_implementation": "CPython",
+                        "python_version": "3.11.15",
+                        "hpy_version": "0.9.0",
+                        "platform": "test-platform",
+                        "machine": "test-machine",
+                    },
+                    "workloads": {
+                        "mutation-freeze-hash": {
+                            "iterations": 10000,
+                            "repeats": 7,
+                            "compiled_ns_per_call": 30.0,
+                            "python_reference_ns_per_call": 15.0,
+                            "compiled_to_python_ratio": 2.0,
+                        },
+                    },
+                }), encoding="utf8")
+                return
             if "--build-base" not in command:
                 return
             project = Path(options["cwd"])
@@ -85,7 +112,7 @@ class FrozenlistPilotIntegrationTest(unittest.TestCase):
                         integration, "require_universal_binary",
                         side_effect=lambda build, module: binary_box["path"]), \
                     mock.patch.object(
-                        integration.time, "monotonic", side_effect=range(10)):
+                        integration.time, "monotonic", side_effect=range(12)):
                 report = integration.build_and_run(
                     "/venv/bin/python", checkout, output)
             stored = json.loads(output.read_text(encoding="utf8"))
@@ -99,8 +126,13 @@ class FrozenlistPilotIntegrationTest(unittest.TestCase):
             report["port_contract"]["free_threading_atomic_semantics"])
         self.assertEqual(set(report["gates"].values()), {"pass"})
         self.assertEqual(report["timings_seconds"]["build"], 1)
-        self.assertEqual(report["timings_seconds"]["total"], 9)
-        self.assertEqual(run.call_count, 4)
+        self.assertEqual(report["timings_seconds"]["performance"], 1)
+        self.assertEqual(report["timings_seconds"]["total"], 11)
+        self.assertEqual(run.call_count, 5)
+        self.assertEqual(
+            report["performance"]["comparison"],
+            "supported-subset-to-equivalent-python")
+        self.assertFalse(report["performance"]["budget_enforced"])
         source_audit.assert_called_once()
         binary_audit.assert_called_once_with(binary_box["path"])
         verify.assert_called_once()

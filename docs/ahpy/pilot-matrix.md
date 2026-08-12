@@ -69,8 +69,9 @@ The deliberately blocked bezier source was checked at the pinned commit: its
 the two NumPy cimports produce `numpy-c-api` findings at exact upstream
 positions `37:1` and `38:1`. These locations are part of the manifest contract;
 `run_pilots.py` fails the expectation if either diagnostic disappears or
-moves. This is an intentional `blocked` result, not a compiler failure or a
-fallback to CPython/Hybrid.
+moves. Its matrix evidence also records performance as `blocked` with the exact
+NumPy boundary reason and produces no ratio. This is an intentional `blocked`
+result, not a compiler failure or a fallback to CPython/Hybrid.
 
 ## Second local port result
 
@@ -95,6 +96,12 @@ translation unit. Held and `with nogil` calls are compared against an
 independent Python MurmurHash3 oracle in normal, Trace and Debug modes, while
 underflow/overflow probes prove conversion fails before the native call. The
 generated source and `.hpy0` binary audits pass locally.
+
+The scalar adapter also records seven-sample median `hash_u64` call costs
+against the independent same-process Python MurmurHash3 oracle. The schema
+requires finite positive samples plus exact Python, HPy, platform and machine
+provenance. This is a supported scalar comparison only, carries no release
+budget, and cannot be generalized to the omitted bytes API.
 
 This result is deliberately `partial-scalar-adapter`: it does not implement or
 claim compatibility with upstream `hash(str | bytes)`, because public HPy 0.9
@@ -127,6 +134,12 @@ payload in normal, Trace and Debug `LeakDetector` modes. It is explicitly a
 `supported-subset`: C++ atomic/free-threading semantics, iterator protocol,
 rich comparison, copy/deepcopy and MutableSequence registration remain out of
 scope.
+
+Its performance lane compares the supported construct/mutate/freeze/hash
+sequence with an equivalent Python list/tuple workload using seven-sample
+medians and the same strict environment schema. The local ratio is evidence
+for this subset only, is not a release budget, and makes no claim about the
+omitted surfaces.
 
 This pilot exposed a backend correctness bug in `__hash__`: fitting large
 integers were being hashed a second time. The emitter now converts values that
@@ -169,8 +182,9 @@ ABI.
 
 Render a dashboard from one or more retained JSON artifacts. Checkout/scan
 matrix evidence and per-pilot integration evidence are merged independently
-for every gate; the newest timezone-qualified value wins per gate, an
-equal-timestamp conflict fails closed, and missing phases remain `not-run`:
+for every gate; complete non-budget performance payloads are validated, the
+newest timezone-qualified value wins per gate, an equal-timestamp conflict
+fails closed, and missing phases remain `not-run`:
 
 ```console
 python3 Tools/ahpy/build_pilot_dashboard.py \
