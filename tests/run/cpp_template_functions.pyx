@@ -9,6 +9,7 @@ cdef extern from "cpp_template_functions_helper.h":
     cdef T no_arg[T]()
     cdef T one_param[T](T)
     cdef pair[T, U] two_params[T, U](T, U)
+    cdef int call_function[T](T, int)
     cdef cppclass A[T]:
         pair[T, U] method[U](T, U)
         U part_method[U](pair[T, U])
@@ -52,6 +53,16 @@ def test_two_params(int x, int y):
     (1, 2.0)
     """
     return two_params[int, double](x, y)
+
+cdef int increment(int value) noexcept nogil:
+    return value + 1
+
+def test_function_argument_decay():
+    """
+    >>> test_function_argument_decay()
+    4
+    """
+    return call_function(increment, 3)
 
 def test_method(int x, int y):
     """

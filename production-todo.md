@@ -72,6 +72,9 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
 - Mevcut odaklı doğrulama: 441 compiler/seam testi, 530 quality-tool testi ve
   iki yorumlayıcıda 971 coverage testi.
+- Güncel Cython rebase'i için resmî macOS C/C++ profili: dört bölümde 22.025
+  seçili test, 21.847 başarılı test ve upstream platform/dependency
+  sözleşmesine göre 178 skip; birleşik komut exit 0.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Quality-tool Python satır kapsamı CPython 3.11 ve 3.14'te %100; ayrı native,
   subprocess, portability ve hosted kapıları bu orana dahil edilmez.
@@ -534,6 +537,9 @@ gizleyemez.
 - [ ] HPy API eksiklerini minimal reproducer ile upstream issue/PR olarak aç.
 - [ ] PyPy/GraalPy bridge sorunlarını ilgili upstream projelere taşı.
 - [x] Cython upstream rebase log'unu ve conflict kararlarını güncel tut.
+  - [x] Kabul edilen `86b94cef` tabanındaki astral-Unicode ve C++ template
+        function-to-pointer decay regresyonlarını bağımsız testlerle onar;
+        hedefli 92/92 ve resmî macOS C/C++ profilini exit 0 doğrula.
 - [ ] Release branch/backport politikasını uygula.
 - [x] Security policy ve özel vulnerability reporting kanalını yayımla;
       `SECURITY.md` private GitHub Advisory yolunu tanımlar ve repository API

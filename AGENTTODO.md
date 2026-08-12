@@ -21,6 +21,13 @@ agent must keep all three synchronized when implementation status changes.
   artifact gate is green on that commit, while hosted runs `31590065924`,
   `31590065944`, `31590065930`, `31590066370`, `31590066388`, and
   `31590065928` remain pending/queued under the Actions quota.
+- The first post-merge full C/C++ developer run exposed and repaired two
+  defects already present in accepted upstream HEAD: astral-Unicode source
+  encoding compared a character with an integer, and non-reference C++
+  template deduction failed to apply function-to-pointer decay. Independent
+  compiler regressions pass in both C and C++ selections. The authoritative
+  `CI=1` macOS profile selected 22,025 tests across four partitions: 21,847
+  passed, 178 followed upstream skip contracts, and the command exited zero.
 - Last fully green dedicated-aHPy reference:
   `20e401ca71a0440ed91e9b6f9d083f3d6a24ef25`; always obtain the live branch
   HEAD with `git rev-parse HEAD` before reporting or changing evidence.
@@ -131,6 +138,9 @@ Last verified local gates:
   `dir()`/`globals()`/`__dict__`, reject-duplicates keywords, imag constant
   cache, richer terminal try, sequence-safe inlined genexps, slot early
   returns).
+- Full upstream macOS C/C++ profile after the current Cython rebase repairs:
+  22,025 selected, 21,847 passed and 178 skipped by upstream
+  platform/dependency contracts (`CI=1`, four workers, exit zero).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
 - Quality-tool suite: 530 tests pass (two expected platform/tool availability

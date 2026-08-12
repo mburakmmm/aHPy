@@ -332,7 +332,7 @@ def encode_pyunicode_string(string):
     for code_point in characters:
         charval = ord(code_point)
         ch = f"{charval:d}"
-        if code_point >= 0x10000:  # outside of BMP
+        if charval >= 0x10000:  # outside of BMP
             if utf16 is None:
                 utf16 = utf32[:]
             high, low = divmod(charval - 0x10000, 1024)

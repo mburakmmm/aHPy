@@ -6144,11 +6144,15 @@ def best_match(arg_types, functions, fail_if_empty=False, arg_is_lvalue_array=No
             # function call argument is an lvalue. See:
             # https://en.cppreference.com/w/cpp/language/template_argument_deduction#Deduction_from_a_function_call
             arg_types_for_deduction = list(arg_types)
-            if func.type.is_cfunction and arg_is_lvalue_array:
-                for i, formal_arg in enumerate(func.type.args):
+            if func.type.is_cfunction:
+                for i, (formal_arg, actual_arg) in enumerate(zip(func.type.args, arg_types)):
                     if formal_arg.is_forwarding_reference():
-                        if arg_is_lvalue_array[i]:
-                            arg_types_for_deduction[i] = c_ref_type(arg_types[i])
+                        if arg_is_lvalue_array and arg_is_lvalue_array[i]:
+                            arg_types_for_deduction[i] = c_ref_type(actual_arg)
+                    elif actual_arg.is_cfunction and not formal_arg.type.is_reference:
+                        # A function argument decays to a function pointer when the
+                        # corresponding template parameter is not a reference.
+                        arg_types_for_deduction[i] = actual_arg.as_argument_type()
             deductions = reduce(
                 merge_template_deductions,
                 [pattern.type.deduce_template_params(actual) for (pattern, actual) in zip(func_type.args, arg_types_for_deduction)],

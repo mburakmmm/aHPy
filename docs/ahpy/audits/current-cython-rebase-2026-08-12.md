@@ -19,6 +19,27 @@ new starred-exception list, tuple and exception-state calls. The shared-utility
 test remains serialized because that is part of the validated Windows and
 capacity reliability contract.
 
+## Post-merge regression repairs
+
+The first full local C/C++ run exposed two defects in the accepted upstream
+snapshot. `encode_pyunicode_string()` compared the one-character iteration
+value with an integer instead of comparing its `ord()` result, causing astral
+Unicode constants to fail during code generation. C++ template deduction also
+preserved a C function type for a non-reference value parameter instead of
+applying standard function-to-pointer decay; Apple Clang 21/libc++ then
+rejected the explicit function-type specializations used by permutation,
+merge and set algorithms. Both defects are repaired in the compiler frontend,
+with the existing Unicode C/C++ oracles and a new independent templated C
+function argument test. The matching algorithm corpus passes in ordinary and
+`cpp_locals` modes after the repair.
+
+The raw developer profile also selected `cpp_stl_cmath_cpp17` and
+`cpp_condition_variables_cpp20`, which Apple libc++ does not provide for this
+test configuration. Both are pre-existing entries in upstream's
+`tests/macos_cpp_bugs.txt`; the authoritative rerun therefore uses the same
+`CI=1` macOS exclusion contract as upstream CI rather than treating unavailable
+standard-library facilities as aHPy regressions.
+
 ## Validation record
 
 - Conflict-marker scan: clean.
@@ -38,6 +59,14 @@ capacity reliability contract.
   profile.
 - Upstream `except *` and serialized shared-utility end-to-end selection:
   61/61 passed.
+- Astral-Unicode regression selection: 35/35 C/C++ tests passed.
+- C++ template-decay and previously failing libc++ algorithm selection: 57/57
+  tests passed, including ordinary and `cpp_locals` variants.
+- Authoritative upstream macOS C/C++ profile (`CI=1`, four workers): 22,025
+  tests selected across the four partitions; 21,847 passed and 178 were
+  skipped under the upstream platform/dependency contract. The partitions
+  reported 6,482/4 skipped, 6,585/25 skipped, 4,511/25 skipped and 4,447/124
+  skipped, and the aggregate command exited successfully after 1,724 seconds.
 - Documentation contract: all 28 required aHPy documents and 72 local links
   passed. A diagnostic full-tree Sphinx `-W` run remains non-authoritative and
   fails on the repository's existing missing `entry` directive, offline

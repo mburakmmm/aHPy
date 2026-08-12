@@ -18,6 +18,11 @@ std::pair<T, U> two_params(T a, U b) {
 }
 
 template <typename T>
+int call_function(T function, int value) {
+    return function(value);
+}
+
+template <typename T>
 class A {
     public:
         template <typename U>
