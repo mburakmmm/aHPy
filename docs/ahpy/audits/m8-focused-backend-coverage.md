@@ -4,7 +4,7 @@ Date: 2026-08-03
 
 Status: local dual-interpreter gate green
 
-The dependency-free focused coverage gate now traces 944 tests and reaches
+The dependency-free focused coverage gate now traces 946 tests and reaches
 100% of the executable Python lines in the three Universal backend
 implementation modules:
 
@@ -14,8 +14,8 @@ implementation modules:
 
 | Interpreter | Backend | Frontend seam | Quality tools |
 | --- | ---: | ---: | ---: |
-| CPython 3.11 | 9565/9565 (100.00%) | 18278/34275 (53.33%) | 8706/8706 (100.00%) |
-| CPython 3.14.2 | 9451/9451 (100.00%) | 18377/34380 (53.45%) | 8713/8713 (100.00%) |
+| CPython 3.11 | 9565/9565 (100.00%) | 18279/34275 (53.33%) | 8718/8718 (100.00%) |
+| CPython 3.14.2 | 9451/9451 (100.00%) | 18378/34380 (53.46%) | 8725/8725 (100.00%) |
 
 The interpreter-specific executable-line totals differ because Python bytecode
 line tables differ; both independently satisfy the same CI floors:
@@ -27,8 +27,8 @@ python Tools/ahpy/report_coverage.py \
     --fail-under quality_tools=100
 ```
 
-The five traced families contain 65 ownership-model, 56 Runtime API, 255
-Universal emitter, 62 compiler-seam, and 506 quality-tool tests; two
+The five traced families contain 65 ownership-model, 57 Runtime API, 255
+Universal emitter, 62 compiler-seam, and 507 quality-tool tests; two
 platform/tool availability skips are expected on macOS.
 
 After the source refactors, the generated Universal corpus was also rebuilt
@@ -37,7 +37,8 @@ Debug execution. The unbounded local default `-O3` trial was stopped after it
 entered the already documented large-C Apple Clang optimizer bottleneck; it is
 diagnostic and is not the required correctness/liveness profile.
 
-The reporter derives executable lines from nested code objects, excludes only
+The reporter derives executable lines from nested code objects, traces worker
+threads created by tests, excludes only
 ellipsis-only interface stubs and behavior-free top-level repository-import or
 ``__main__`` dispatch wiring, and installs a source-first finder for measured
 modules so an in-tree stale extension cannot steal an import. Every imported

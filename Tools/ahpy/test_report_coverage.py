@@ -2,6 +2,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import json
 import sys
+import threading
 import trace
 import unittest
 from unittest import mock
@@ -96,6 +97,35 @@ class CoverageReportTest(unittest.TestCase):
             self.assertIs(sys.gettrace(), outer_trace)
         finally:
             sys.settrace(original_trace)
+
+    def test_suite_runner_traces_workers_and_restores_thread_trace(self):
+        worker_traces = []
+
+        class Runner:
+            def run(self, suite):
+                worker = threading.Thread(
+                    target=lambda: worker_traces.append(sys.gettrace()))
+                worker.start()
+                worker.join()
+                return "result"
+
+        def outer_thread_trace(frame, event, argument):
+            return outer_thread_trace
+
+        original_trace = sys.gettrace()
+        original_thread_trace = threading.gettrace()
+        try:
+            threading.settrace(outer_thread_trace)
+            result = report_coverage._run_suite_under_trace(
+                trace.Trace(count=True, trace=False), Runner(), object())
+            self.assertEqual(result, "result")
+            self.assertEqual(len(worker_traces), 1)
+            self.assertIsNotNone(worker_traces[0])
+            self.assertIs(sys.gettrace(), original_trace)
+            self.assertIs(threading.gettrace(), outer_thread_trace)
+        finally:
+            sys.settrace(original_trace)
+            threading.settrace(original_thread_trace)
 
     def test_measured_source_finder_prefers_the_reported_python_file(self):
         with TemporaryDirectory() as temp_dir:

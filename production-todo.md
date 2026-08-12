@@ -70,8 +70,8 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 438 compiler/seam testi, 506 quality-tool testi ve
-  iki yorumlayıcıda 944 coverage testi.
+- Mevcut odaklı doğrulama: 439 compiler/seam testi, 507 quality-tool testi ve
+  iki yorumlayıcıda 946 coverage testi.
 - Universal backend Python modülleri için ölçülen satır kapsamı: %100.
 - Quality-tool Python satır kapsamı CPython 3.11 ve 3.14'te %100; ayrı native,
   subprocess, portability ve hosted kapıları bu orana dahil edilmez.
@@ -558,6 +558,9 @@ owner onayı olmadan hiçbir yeni upstream issue yayımlanmadı.
 kaydeder ve installed entry point'ten tek provider keşfeder; HPy 0.9 loader
 uyumluluğunu `ahpy_hpy_compat` entegrasyon tarafından kaydeder ve Cython build
 core artık hiçbir `ahpy_*` modülünü adlandırmaz veya import etmez.
+Eşzamanlı başlatılan CPython ve Universal derlemeleri de context-local runtime
+seçiminin generated output'a çapraz sızmadığını kanıtlar; coverage tracer worker
+thread'lerini ölçer ve dış trace hook'larını geri yükler.
 `docs/ahpy/upstream-seam-plan.md` bu değişikliği altı bağımsız upstream dilimine,
 downstream-only politikalara, kanıt kapılarına ve maintainer sorularına ayırır;
 görüşme veya açılmış upstream PR olmadığı için ilgili checkbox'lar açık kalır.

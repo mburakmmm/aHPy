@@ -81,6 +81,8 @@ otherwise:
 - `Cython.Build` imports successfully without any `ahpy_*` module loaded; a
   clean installed wheel then discovers exactly one HPy Universal provider.
 - Default and explicit CPython `cythonize()` output is unchanged.
+- Concurrent CPython and alternate-backend compilation contexts retain
+  disjoint generated-runtime boundaries under a synchronized start.
 - The neutral hook registry covers identical registration, conflicting
   registration, unknown backend, non-callable hook and backend isolation.
 - The real aHPy Setuptools 83 build passes normal/Trace/Debug, source/binary

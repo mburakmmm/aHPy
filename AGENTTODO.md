@@ -118,7 +118,7 @@ and the first performance regression gate.
 
 Last verified local gates:
 
-- Focused compiler suite: 438 tests pass (includes U1 closable surface,
+- Focused compiler suite: 439 tests pass (includes U1 closable surface,
   writable scalar/fixed-array buffer producers, and
   closure-registry regressions:
   `dir()`/`globals()`/`__dict__`, reject-duplicates keywords, imag constant
@@ -126,13 +126,13 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 506 tests pass (two expected platform/tool availability
+- Quality-tool suite: 507 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-08-12): 944 tests traced on both interpreters.
+- Focused coverage (2026-08-12): 946 tests traced on both interpreters.
   - CPython 3.11: backend 9565/9565 (100.00%), frontend_seam 53.33%,
-    quality_tools 8706/8706 (100.00%).
-  - CPython 3.14.2: backend 9451/9451 (100.00%), frontend_seam 53.45%,
-    quality_tools 8713/8713 (100.00%).
+    quality_tools 8718/8718 (100.00%).
+  - CPython 3.14.2: backend 9451/9451 (100.00%), frontend_seam 53.46%,
+    quality_tools 8725/8725 (100.00%).
   - CI floors are 100%, 45%, and 100%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
@@ -817,7 +817,9 @@ implementation.
    `Cython.Build.register_runtime_backend_build_hook()` owns a neutral,
    fail-closed registry and installed entry-point discovery; `ahpy_hpy_compat`
    registers from the integration side, so Cython build core no longer imports
-   or names an aHPy module. Clean wheels must expose exactly one provider. The
+   or names an aHPy module. Clean wheels must expose exactly one provider.
+   CPython and Universal compilations also start concurrently in a regression
+   test and retain disjoint generated-runtime boundaries. The
    proposed independent upstream slices, evidence requirements and maintainer
    questions are frozen in `docs/ahpy/upstream-seam-plan.md`; no upstream
    acceptance or PR is claimed yet.

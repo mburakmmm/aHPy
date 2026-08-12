@@ -1,7 +1,9 @@
 from contextlib import redirect_stderr
+from concurrent.futures import ThreadPoolExecutor
 import io
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from threading import Barrier
 from unittest import TestCase
 
 from .. import Main, Options, PyrexTypes
@@ -2107,6 +2109,50 @@ class RuntimeAPITest(TestCase):
             RuntimeCodeGenerationKind.HPY_UNIVERSAL_BOOTSTRAP,
         )
         self.assertIsNone(context.runtime_api.ensure_compilation_ready())
+
+    def test_concurrent_compilations_keep_runtime_backends_context_local(self):
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "parallel_backend_probe.pyx"
+            source.write_text(
+                "def answer():\n"
+                "    return 42\n",
+                encoding="utf8",
+            )
+            start = Barrier(2)
+
+            def compile_backend(runtime_backend):
+                output = root / (runtime_backend + ".c")
+                start.wait()
+                result = Main.compile(
+                    str(source),
+                    Options.CompilationOptions(
+                        output_file=str(output),
+                        language_level=3,
+                        runtime_backend=runtime_backend,
+                    ),
+                )
+                self.assertEqual(result.num_errors, 0)
+                return output.read_text(encoding="utf8")
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                cpython_future = executor.submit(
+                    compile_backend, CPYTHON_BACKEND)
+                universal_future = executor.submit(
+                    compile_backend, HPY_UNIVERSAL_BACKEND)
+                cpython_source = cpython_future.result()
+                universal_source = universal_future.result()
+
+        self.assertIn("PyInit_parallel_backend_probe", cpython_source)
+        self.assertIn('#include "Python.h"', cpython_source)
+        self.assertNotIn("HPy_MODINIT(", cpython_source)
+        self.assertIn(
+            "HPy_MODINIT(parallel_backend_probe, __pyx_hpy_module)",
+            universal_source,
+        )
+        self.assertIn("#include <hpy.h>", universal_source)
+        self.assertNotIn("PyInit_parallel_backend_probe", universal_source)
+        self.assertNotIn('#include "Python.h"', universal_source)
 
     def test_hpy_cpython_backend_remains_unavailable(self):
         options = Options.CompilationOptions(runtime_backend=HPY_CPYTHON_BACKEND)

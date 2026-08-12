@@ -12,6 +12,7 @@ import io
 import json
 from pathlib import Path
 import sys
+import threading
 import trace
 from types import CodeType
 import unittest
@@ -243,6 +244,23 @@ def _load_suite_under_trace(tracer, loader, modules, root=ROOT):
         sys.settrace(previous_trace)
 
 
+def _run_suite_under_trace(tracer, runner, suite):
+    """Trace test-created threads as part of the same coverage result."""
+    previous_trace = sys.gettrace()
+    get_thread_trace = getattr(threading, "gettrace", lambda: None)
+    previous_thread_trace = get_thread_trace()
+    thread_trace = getattr(tracer, "globaltrace", None)
+    try:
+        if thread_trace is not None:
+            threading.settrace(thread_trace)
+        return tracer.runfunc(runner.run, suite)
+    finally:
+        # Preserve an outer tracer when report_coverage tests itself from the
+        # quality suite, just as suite discovery does above.
+        sys.settrace(previous_trace)
+        threading.settrace(previous_thread_trace)
+
+
 def run_traced_tests(root=ROOT, stream=None):
     loader = unittest.defaultTestLoader
     tracer = trace.Trace(count=True, trace=False)
@@ -263,7 +281,7 @@ def run_traced_tests(root=ROOT, stream=None):
             family_stream = stream if stream is not None else io.StringIO()
             runner = unittest.TextTestRunner(
                 stream=family_stream, verbosity=0, buffer=True)
-            result = tracer.runfunc(runner.run, suite)
+            result = _run_suite_under_trace(tracer, runner, suite)
             family_success = result.wasSuccessful()
             success = success and family_success
             families.append({

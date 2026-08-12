@@ -21,8 +21,9 @@ copies of generated user code.
 1. aHPy is developed on the current Cython source tree, not as a postprocessor.
 2. Backend selection applies to a complete extension module.
 3. Compiler nodes retain responsibility for syntax-specific code structure.
-4. Runtime-dependent operations use a typed `RuntimeAPI` service with explicit
-   capabilities and ownership contracts.
+4. Runtime-dependent operations use an immutable, compilation-context-owned
+   typed `RuntimeAPI` service with explicit capabilities and ownership
+   contracts; backend selection never uses mutable process-global state.
 5. C macros/helpers may share operations only when CPython and HPy semantics are
    genuinely equivalent.
 6. Structurally different operations such as builders, globals, module specs,
