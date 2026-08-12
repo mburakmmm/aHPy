@@ -76,6 +76,8 @@ class SecurityWorkflowTest(unittest.TestCase):
 
     def test_public_policy_names_private_channel_capacity_and_responsibility(self):
         self.assertIn("security/advisories/new", self.security)
+        self.assertIn("private vulnerability reporting", self.security)
+        self.assertIn("channel was enabled", self.security)
         self.assertIn("no response-time or embargo", self.security.lower())
         for required in (
                 "@mburakmmm", "bus factor is explicitly one",

@@ -840,6 +840,8 @@ implementation.
    limitation, and maintenance-cadence documentation before a release candidate.
    Local PRD-9 preparation now includes a strict machine-readable maintenance
    policy, explicit `@mburakmmm` CODEOWNERS and one-person bus-factor disclosure,
+   an operational GitHub private vulnerability reporting channel verified as
+   enabled through the repository API on 2026-08-12,
    supported-line/EOL/backport/deprecation/cadence procedures, expanded
    Dependabot coverage, and immutable CodeQL v4.36.0 plus Dependency Review
    v5.0.0 workflow pins. Keep the publication/automation tasks open until the

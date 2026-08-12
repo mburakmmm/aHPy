@@ -136,6 +136,10 @@ permits silent CPython/Hybrid fallback or private HPy API use.
 An urgent private security report is handled outside this calendar. The
 pre-stable project deliberately promises no acknowledgement or remediation
 time; `SECURITY.md` defines the private channel and evidence requested.
+GitHub private vulnerability reporting is enabled for `mburakmmm/aHPy`; its
+repository API returned `enabled: true` on 2026-08-12. This setting makes the
+documented advisory URL an operational private intake path rather than only a
+policy placeholder.
 
 ## Automated security gates
 

@@ -11,7 +11,9 @@ ownership and backport rules are in the
 
 ## Reporting a vulnerability
 
-Do not open a public issue. Submit a private report through
+Do not open a public issue. The repository's private vulnerability reporting
+channel was enabled and verified through the GitHub repository API on
+2026-08-12. Submit a private report through
 [GitHub Security Advisories](https://github.com/mburakmmm/aHPy/security/advisories/new)
 with:
 

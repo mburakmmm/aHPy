@@ -535,7 +535,9 @@ gizleyemez.
 - [ ] PyPy/GraalPy bridge sorunlarını ilgili upstream projelere taşı.
 - [ ] Cython upstream rebase log'unu ve conflict kararlarını güncel tut.
 - [ ] Release branch/backport politikasını uygula.
-- [ ] Security policy ve özel vulnerability reporting kanalını yayımla.
+- [x] Security policy ve özel vulnerability reporting kanalını yayımla;
+      `SECURITY.md` private GitHub Advisory yolunu tanımlar ve repository API
+      ayarı 2026-08-12'de `enabled: true` olarak doğrulandı.
 - [x] Desteklenen Cython, HPy, Python, OS ve compiler sürüm politikasını yayımla.
 - [ ] Dependency update ve security scanning otomasyonunu ekle.
 - [x] Third-party license/provenance envanterini release artifact'e bağla;
@@ -677,7 +679,7 @@ Universal CI JSON kaydını packaging artifact grubunda saklayacaktır.
       raporları gerçek davranışla eşleşiyor.
 - [ ] Ertelenen her özellik açıkça partial, blocked veya rejected.
 - [ ] HPy 0.9 hard gap'leri private/CPython emülasyonu olmadan fail-closed.
-- [ ] Security, vulnerability reporting, supported-version ve maintenance
+- [x] Security, vulnerability reporting, supported-version ve maintenance
       politikaları yayımlanmış.
 - [ ] M10 pilotları ve compatibility dashboard yayımlanmış.
 - [ ] M11 upstream/release/maintenance sorumlulukları tamamlanmış.
