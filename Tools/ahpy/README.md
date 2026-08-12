@@ -236,20 +236,24 @@ audits and normal/Debug loading. `scikit_build_integration.py` adds a closed,
 no-index PEP 517 wheelhouse around the maintained scikit-build-core/CMake
 package and proves ordinary pip install/import. See `docs/ahpy/build-systems.md`.
 
-`release_artifact_integration.py` builds the frontend sdist from a clean source
-copy, rejects unsafe or incomplete archive contents, and constructs the
-frontend wheel with index access disabled and exact HPy/setuptools inputs. It
-then creates a fresh virtual environment, executes the maintained PEP 517
-example in normal/Debug modes, and proves clean uninstall/reinstall cycles for
-both distributions. The JSON report hashes all artifacts and build-dependency
-wheels. See `docs/ahpy/onboarding.md` and ADR 0014.
+`release_artifact_integration.py` requires every declared release input to be
+committed in an exact Git checkout before and after the build. It builds the
+frontend sdist from a clean source copy, rejects unsafe or incomplete archive
+contents, and proves every non-generated archive file is tracked and
+byte-identical to that checkout. It constructs the frontend wheel with index
+access disabled and exact HPy/setuptools inputs, then creates a fresh virtual
+environment, executes the maintained PEP 517 example in normal/Debug modes,
+and proves clean uninstall/reinstall cycles for both distributions. The JSON
+report hashes all artifacts and build-dependency wheels. See
+`docs/ahpy/onboarding.md` and ADR 0014.
 
 `prepare_publish_dist.py` is a deliberately network-free package-index
 rehearsal. It requires a green schema-2 release bundle for the exact checkout,
-rehashes every selected file, rejects a non-empty output directory, and copies
-only the `aHPy-compiler` sdist and `py3-none-any` frontend wheel. Dependency
-and example wheels plus evidence metadata remain excluded. See
-`docs/ahpy/publishing.md`.
+rehashes every artifact including dependency/example wheels, regenerates and
+byte-compares `SHA256SUMS`, provenance, the six-component license inventory,
+and the SPDX SBOM, rejects a non-empty output directory, and copies only the
+`aHPy-compiler` sdist and `py3-none-any` frontend wheel. Dependency and example
+wheels plus evidence metadata remain excluded. See `docs/ahpy/publishing.md`.
 
 `verify_reproducible_packages.py` builds the `aHPy-compiler` sdist and
 pure-Python wheel from two independent clean roots. A fixed epoch/hash seed and

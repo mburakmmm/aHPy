@@ -522,9 +522,13 @@ modes. Its CPython tag remains a host packaging smoke test under ADR 0004.
 ## Clean release-artifact and onboarding gate
 
 `Tools/ahpy/release_artifact_integration.py` creates the frontend sdist from a
-clean source copy and audits every member before using it. Absolute/traversal
-paths, links, native binaries, bytecode, caches, VCS state, wrong metadata, and
-missing compiler/build/runtime/license files fail closed. Exact HPy 0.9.0 and
+clean source copy only after every declared release input is committed in an
+exact Git checkout. It repeats that check after the build, binds the report to
+the unchanged full commit, and audits every sdist file: apart from generated
+`PKG-INFO` and the canonical `.gitrev`, each file must be tracked and
+byte-identical to the checkout. Absolute/traversal paths, links, native
+binaries, bytecode, caches, VCS state, wrong metadata, and missing or dirty
+compiler/build/runtime/license files fail closed. Exact HPy 0.9.0 and
 setuptools 83.0.0 wheels are materialized first; index access is then disabled
 for the wheel-from-sdist build and all clean-environment installations.
 
@@ -538,6 +542,13 @@ dependencies. Local macOS ARM64/CPython 3.11 and hosted Linux job 88188395921
 are green. Publication, cross-interpreter
 packaging, standardized Universal wheel tags, and standardized Universal
 extension-wheel reproducibility remain open.
+
+The retained bundle covers all five artifact files and six direct shipped or
+build components: aHPy, its embedded exact Cython base, the packaging example,
+HPy, setuptools, and PyPA build. Publication selection rehashes every artifact
+and requires byte-exact regeneration of `SHA256SUMS`, `provenance.json`, the
+schema-2 license inventory, and SPDX 2.3 SBOM before it creates an output
+directory.
 
 ## Frontend package reproducibility gate
 
@@ -614,7 +625,7 @@ paths under concurrency.
 
 ## Focused Python coverage
 
-`Tools/ahpy/report_coverage.py` runs 958 focused tests under Python's built-in
+`Tools/ahpy/report_coverage.py` runs 970 focused tests under Python's built-in
 line-event tracer, applies the same tracer to test-created worker threads,
 derives executable lines from nested code-object line tables, and forces
 measured modules through a source-first finder so stale

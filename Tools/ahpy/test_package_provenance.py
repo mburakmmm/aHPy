@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from ahpy_version import (
+    AHPY_BUILD_FRONTEND_VERSION,
     AHPY_HPY_SUPPORTED_VERSION,
     CYTHON_BASE_COMMIT,
     provenance_project_urls,
@@ -14,6 +15,13 @@ from ahpy_version import (
 
 
 class PackageProvenanceTest(unittest.TestCase):
+    def test_release_build_frontend_pin_matches_requirement(self):
+        requirements = Path(
+            "tests/ahpy/requirements-build-systems.txt"
+        ).read_text(encoding="utf8").splitlines()
+        self.assertIn(
+            "build==%s" % AHPY_BUILD_FRONTEND_VERSION, requirements)
+
     def test_archive_revision_is_used_without_git_checkout(self):
         commit = "a" * 40
         with TemporaryDirectory() as temp_dir:

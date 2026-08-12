@@ -17,10 +17,13 @@ not `aHPy-compiler` distributions. In particular, no CPython-tagged example
 wheel may be described or uploaded as a Universal wheel.
 
 `Tools/ahpy/prepare_publish_dist.py` reads the validated release bundle,
-requires its exact source commit and frozen HPy/setuptools versions, rehashes
-the selected files, rejects a non-empty destination, and copies only the two
-frontend distributions. Its JSON record always says `actual_upload: false`;
-the tool has no network or upload implementation.
+requires its exact source commit and frozen build/HPy/setuptools versions,
+rehashes every frontend, example, and dependency artifact, and regenerates and
+byte-compares `SHA256SUMS`, `provenance.json`, `licenses.json`, and
+`sbom.spdx.json`. Only after that complete validation does it reject a
+non-empty destination and copy the two frontend distributions. Its JSON record
+always says `actual_upload: false`; the tool has no network or upload
+implementation.
 
 ## No-upload rehearsal
 

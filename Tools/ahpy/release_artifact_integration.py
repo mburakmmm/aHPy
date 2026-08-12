@@ -19,6 +19,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from ahpy_version import (
+    AHPY_BUILD_FRONTEND_VERSION,
     AHPY_DISTRIBUTION,
     AHPY_HPY_SUPPORTED_VERSION,
     AHPY_SETUPTOOLS_VERSION,
@@ -36,6 +37,50 @@ from pep517_integration import (
 )
 from release_evidence import write_release_bundle
 from verify_reproducible_packages import SOURCE_DATE_EPOCH, normalize_sdist
+
+
+RELEASE_SOURCE_PATHS = (
+    "Cython", "bin", "pyximport", "Tools/ahpy", "tests/ahpy", "docs/ahpy",
+    "examples", "setup.py", "setup.cfg", "pyproject.toml", "README.rst",
+    "CHANGES.rst", "COPYING.txt", "LICENSE.txt", "MANIFEST.in", "cython.py",
+    "ahpy_version.py", "ahpy_build_backend.py", "ahpy_build_config.py",
+    "ahpy_hpy_compat.py", "TODO.md", "AGENTTODO.md", "CONTRIBUTING.md",
+    "SECURITY.md",
+)
+
+
+def _require_clean_release_source(root=ROOT):
+    root = Path(root)
+    if not (root / ".git").exists():
+        raise AssertionError(
+            "release artifact source must be an exact Git checkout")
+    result = subprocess.run(
+        [
+            "git", "status", "--porcelain=v1", "--untracked-files=all",
+            "--", *RELEASE_SOURCE_PATHS,
+        ],
+        cwd=root,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode:
+        raise AssertionError(
+            "cannot verify release source cleanliness: %s" %
+            result.stderr.strip())
+    if result.stdout.strip():
+        raise AssertionError(
+            "release artifact source contains uncommitted inputs:\n%s" %
+            result.stdout.rstrip())
+    return source_commit(root)
+
+
+def _require_unchanged_release_source(expected_revision):
+    observed = _require_clean_release_source()
+    if observed != expected_revision:
+        raise AssertionError("release source commit changed during the build")
+    return observed
 
 
 def _run(command, *, cwd=None, env=None):
@@ -58,7 +103,46 @@ def _venv_python(venv):
     return str(result)
 
 
-def verify_sdist(sdist):
+def _verify_sdist_source_members(
+        archive, members, source_root, source_revision):
+    source_root = Path(source_root)
+    if not (source_root / ".git").exists():
+        raise AssertionError("sdist source audit requires a Git checkout")
+    result = subprocess.run(
+        ["git", "ls-files", "-z", "--", *RELEASE_SOURCE_PATHS],
+        cwd=source_root,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode:
+        raise AssertionError(
+            "cannot enumerate tracked release inputs: %s" %
+            result.stderr.strip())
+    tracked = {name for name in result.stdout.split("\0") if name}
+    for member in members:
+        if not member.isfile():
+            continue
+        _, separator, relative = member.name.partition("/")
+        if not separator:
+            raise AssertionError(
+                "sdist member lacks one source root: %s" % member.name)
+        payload = archive.extractfile(member).read()
+        if relative == ".gitrev":
+            if payload != (source_revision + "\n").encode("ascii"):
+                raise AssertionError("sdist .gitrev differs from source commit")
+        elif relative == "PKG-INFO":
+            continue
+        elif relative not in tracked:
+            raise AssertionError(
+                "sdist contains an untracked source input: %s" % relative)
+        elif (source_root / relative).read_bytes() != payload:
+            raise AssertionError(
+                "sdist member differs from tracked source: %s" % relative)
+
+
+def verify_sdist(sdist, source_root=None):
     required_suffixes = (
         "/PKG-INFO",
         "/setup.py",
@@ -109,6 +193,14 @@ def verify_sdist(sdist):
             name for name in names if name.endswith("/.gitrev"))
         source_revision = validate_source_commit(
             archive.extractfile(revision_name).read().decode("ascii"))
+        if source_root is not None:
+            if not (Path(source_root) / ".git").exists():
+                raise AssertionError(
+                    "sdist source audit requires a Git checkout")
+            if source_commit(source_root) != source_revision:
+                raise AssertionError("sdist revision differs from Git HEAD")
+            _verify_sdist_source_members(
+                archive, members, source_root, source_revision)
     if "Name: %s\n" % AHPY_DISTRIBUTION not in metadata:
         raise AssertionError("sdist metadata has the wrong distribution name")
     if "Version: %s\n" % AHPY_VERSION not in metadata:
@@ -165,7 +257,7 @@ def _assert_frontend(python, present, cwd):
     _run([python, "-c", program], cwd=cwd)
 
 
-def _build_provenance(python):
+def _build_provenance(python, expected_source_commit=None):
     program = (
         "from importlib.metadata import version\n"
         "import json, platform, sys, sysconfig\n"
@@ -189,6 +281,7 @@ def _build_provenance(python):
     )
     provenance = json.loads(selected.stdout)
     for field, expected in (
+        ("build_frontend_version", AHPY_BUILD_FRONTEND_VERSION),
         ("installed_hpy", AHPY_HPY_SUPPORTED_VERSION),
         ("installed_setuptools", AHPY_SETUPTOOLS_VERSION),
     ):
@@ -196,8 +289,12 @@ def _build_provenance(python):
             raise AssertionError(
                 "release provenance requires %s=%s, found %s" % (
                     field, expected, provenance[field]))
+    revision = source_commit(ROOT)
+    if (expected_source_commit is not None and
+            revision != validate_source_commit(expected_source_commit)):
+        raise AssertionError("release source commit changed during the build")
     provenance.update({
-        "source_commit": source_commit(ROOT),
+        "source_commit": revision,
         "cython_base_commit": CYTHON_BASE_COMMIT,
         "hpy_compatibility": AHPY_HPY_SUPPORTED_VERSION,
         "setuptools_compatibility": AHPY_SETUPTOOLS_VERSION,
@@ -216,6 +313,7 @@ def build_and_run(python, report_path=None, bundle_dir=None):
         if bundle_dir.exists() and any(bundle_dir.iterdir()):
             raise ValueError("release bundle directory must be empty")
     with TemporaryDirectory(prefix="ahpy-release-artifacts-") as temp_dir:
+        source_revision = _require_clean_release_source()
         temp = Path(temp_dir)
         source = temp / "frontend-source"
         _copy_frontend_source(source)
@@ -237,7 +335,7 @@ def build_and_run(python, report_path=None, bundle_dir=None):
         if len(sdists) != 1:
             raise AssertionError("expected one clean aHPy sdist")
         sdist = normalize_sdist(sdists[0])
-        member_count = verify_sdist(sdist)
+        member_count = verify_sdist(sdist, source_root=ROOT)
 
         wheelhouse = temp / "wheelhouse"
         wheelhouse.mkdir()
@@ -333,9 +431,11 @@ def build_and_run(python, report_path=None, bundle_dir=None):
         ], cwd=temp, env=install_environment)
         _run([clean_python, "-c", _runtime_program(False)], env=runtime_environment)
 
+        _require_unchanged_release_source(source_revision)
         report = {
             "schema_version": 2,
-            "provenance": _build_provenance(python),
+            "provenance": _build_provenance(
+                python, expected_source_commit=source_revision),
             "sdist": {
                 "name": sdist.name,
                 "sha256": _sha256(sdist),

@@ -124,6 +124,135 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
                 release_artifact_integration.verify_sdist(sdist),
             )
 
+    def test_sdist_verifier_binds_every_member_to_tracked_source(self):
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / ".git").mkdir()
+            sdist = root / "valid.tar.gz"
+            self.write_sdist(sdist)
+            tracked = [
+                relative for relative in self.required_members
+                if relative not in {"PKG-INFO", ".gitrev"}
+            ]
+            for relative in tracked:
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(relative, encoding="utf8")
+            completed = subprocess.CompletedProcess(
+                [], 0, stdout="\0".join(tracked) + "\0", stderr="")
+            with (
+                patch.object(
+                    release_artifact_integration.subprocess, "run",
+                    return_value=completed),
+                patch.object(
+                    release_artifact_integration, "source_commit",
+                    return_value=self.source_commit),
+            ):
+                self.assertEqual(
+                    release_artifact_integration.verify_sdist(
+                        sdist, source_root=root),
+                    len(self.required_members),
+                )
+                (root / "setup.py").write_text("changed", encoding="utf8")
+                with self.assertRaisesRegex(
+                        AssertionError, "differs from tracked source"):
+                    release_artifact_integration.verify_sdist(
+                        sdist, source_root=root)
+                (root / "setup.py").write_text("setup.py", encoding="utf8")
+                untracked = subprocess.CompletedProcess(
+                    [], 0,
+                    stdout="\0".join(
+                        item for item in tracked if item != "setup.py") + "\0",
+                    stderr="")
+                with (
+                    patch.object(
+                        release_artifact_integration.subprocess, "run",
+                        return_value=untracked),
+                    self.assertRaisesRegex(
+                        AssertionError, "untracked source input"),
+                ):
+                    release_artifact_integration.verify_sdist(
+                        sdist, source_root=root)
+
+    def test_sdist_source_audit_rejects_unverifiable_identity(self):
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            sdist = root / "valid.tar.gz"
+            self.write_sdist(sdist)
+            with self.assertRaisesRegex(AssertionError, "Git checkout"):
+                release_artifact_integration.verify_sdist(
+                    sdist, source_root=root)
+            (root / ".git").mkdir()
+            with (
+                patch.object(
+                    release_artifact_integration, "source_commit",
+                    return_value="b" * 40),
+                self.assertRaisesRegex(AssertionError, "differs from Git HEAD"),
+            ):
+                release_artifact_integration.verify_sdist(
+                    sdist, source_root=root)
+            failed = subprocess.CompletedProcess(
+                [], 1, stdout="", stderr="cannot list")
+            with (
+                patch.object(
+                    release_artifact_integration, "source_commit",
+                    return_value=self.source_commit),
+                patch.object(
+                    release_artifact_integration.subprocess, "run",
+                    return_value=failed),
+                self.assertRaisesRegex(AssertionError, "cannot enumerate"),
+            ):
+                release_artifact_integration.verify_sdist(
+                    sdist, source_root=root)
+
+    def test_sdist_source_audit_rejects_noncanonical_revision_payload(self):
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / ".git").mkdir()
+            sdist = root / "revision.tar.gz"
+            self.write_sdist(sdist, revision=self.source_commit + "\n")
+            completed = subprocess.CompletedProcess(
+                [], 0, stdout="", stderr="")
+            with (
+                patch.object(
+                    release_artifact_integration, "source_commit",
+                    return_value=self.source_commit),
+                patch.object(
+                    release_artifact_integration.subprocess, "run",
+                    return_value=completed),
+                self.assertRaisesRegex(AssertionError, "gitrev differs"),
+            ):
+                release_artifact_integration.verify_sdist(
+                    sdist, source_root=root)
+
+    def test_sdist_source_member_helper_rejects_invalid_roots(self):
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            with self.assertRaisesRegex(AssertionError, "Git checkout"):
+                release_artifact_integration._verify_sdist_source_members(
+                    None, (), root, self.source_commit)
+            (root / ".git").mkdir()
+            sdist = root / "invalid-root.tar.gz"
+            with tarfile.open(sdist, "w:gz") as archive:
+                directory = tarfile.TarInfo("directory")
+                directory.type = tarfile.DIRTYPE
+                archive.addfile(directory)
+                payload = b"orphan"
+                member = tarfile.TarInfo("orphan")
+                member.size = len(payload)
+                archive.addfile(member, io.BytesIO(payload))
+            completed = subprocess.CompletedProcess(
+                [], 0, stdout="", stderr="")
+            with (
+                tarfile.open(sdist, "r:gz") as archive,
+                patch.object(
+                    release_artifact_integration.subprocess, "run",
+                    return_value=completed),
+                self.assertRaisesRegex(AssertionError, "one source root"),
+            ):
+                release_artifact_integration._verify_sdist_source_members(
+                    archive, archive.getmembers(), root, self.source_commit)
+
     def test_sdist_verifier_rejects_invalid_source_revision(self):
         with TemporaryDirectory() as temp_dir:
             sdist = Path(temp_dir) / "invalid-revision.tar.gz"
@@ -251,6 +380,59 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "interpreter not found"):
                 release_artifact_integration.build_and_run("missing-python")
 
+    def test_release_source_must_be_a_clean_exact_git_checkout(self):
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            with self.assertRaisesRegex(AssertionError, "exact Git checkout"):
+                release_artifact_integration._require_clean_release_source(root)
+            (root / ".git").mkdir()
+            for completed, message in (
+                    (subprocess.CompletedProcess(
+                        [], 1, stdout="", stderr="git failed"),
+                     "cannot verify"),
+                    (subprocess.CompletedProcess(
+                        [], 0, stdout=" M Tools/ahpy/release_evidence.py\n",
+                        stderr=""),
+                     "uncommitted inputs")):
+                with (
+                    patch.object(
+                        release_artifact_integration.subprocess, "run",
+                        return_value=completed),
+                    self.assertRaisesRegex(AssertionError, message),
+                ):
+                    release_artifact_integration._require_clean_release_source(
+                        root)
+            completed = subprocess.CompletedProcess(
+                [], 0, stdout="", stderr="")
+            with (
+                patch.object(
+                    release_artifact_integration.subprocess, "run",
+                    return_value=completed) as run,
+                patch.object(
+                    release_artifact_integration, "source_commit",
+                    return_value=self.source_commit),
+            ):
+                self.assertEqual(
+                    release_artifact_integration._require_clean_release_source(
+                        root),
+                    self.source_commit,
+                )
+            self.assertIn(
+                "--untracked-files=all", run.call_args.args[0])
+            self.assertIn("Tools/ahpy", run.call_args.args[0])
+
+    def test_release_source_revision_must_remain_unchanged(self):
+        with (
+            patch.object(
+                release_artifact_integration,
+                "_require_clean_release_source",
+                return_value="b" * 40,
+            ),
+            self.assertRaisesRegex(AssertionError, "changed during"),
+        ):
+            release_artifact_integration._require_unchanged_release_source(
+                self.source_commit)
+
     def test_build_provenance_records_pinned_environment(self):
         selected = {
             "python": "3.11.15",
@@ -258,7 +440,8 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
             "python_executable": "/tool/python",
             "platform": "reviewed-platform",
             "compiler": "reviewed-cc",
-            "build_frontend_version": "1.3.0",
+            "build_frontend_version": (
+                release_artifact_integration.AHPY_BUILD_FRONTEND_VERSION),
             "installed_hpy": (
                 release_artifact_integration.AHPY_HPY_SUPPORTED_VERSION),
             "installed_setuptools": (
@@ -290,6 +473,8 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
 
     def test_build_provenance_rejects_dependency_version_drift(self):
         selected = {
+            "build_frontend_version": (
+                release_artifact_integration.AHPY_BUILD_FRONTEND_VERSION),
             "installed_hpy": "0.0",
             "installed_setuptools": (
                 release_artifact_integration.AHPY_SETUPTOOLS_VERSION),
@@ -304,6 +489,29 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
                 AssertionError, "release provenance requires installed_hpy"),
         ):
             release_artifact_integration._build_provenance("/tool/python")
+
+    def test_build_provenance_rejects_source_commit_race(self):
+        selected = {
+            "build_frontend_version": (
+                release_artifact_integration.AHPY_BUILD_FRONTEND_VERSION),
+            "installed_hpy": (
+                release_artifact_integration.AHPY_HPY_SUPPORTED_VERSION),
+            "installed_setuptools": (
+                release_artifact_integration.AHPY_SETUPTOOLS_VERSION),
+        }
+        completed = subprocess.CompletedProcess(
+            [], 0, stdout=json.dumps(selected), stderr="")
+        with (
+            patch.object(
+                release_artifact_integration.subprocess, "run",
+                return_value=completed),
+            patch.object(
+                release_artifact_integration, "source_commit",
+                return_value="b" * 40),
+            self.assertRaisesRegex(AssertionError, "changed during"),
+        ):
+            release_artifact_integration._build_provenance(
+                "/tool/python", expected_source_commit=self.source_commit)
 
     def test_build_and_run_rejects_nonempty_bundle_directory(self):
         with TemporaryDirectory() as temp_dir:
@@ -399,6 +607,11 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
                     patch.object(
                         release_artifact_integration, "_assert_frontend"
                     ),
+                    patch.object(
+                        release_artifact_integration,
+                        "_require_clean_release_source",
+                        return_value=self.source_commit,
+                    ),
                     self.assertRaisesRegex(AssertionError, message),
                 ):
                     release_artifact_integration.build_and_run(str(python))
@@ -478,6 +691,10 @@ class ReleaseArtifactDefinitionTest(unittest.TestCase):
                 patch.object(
                     release_artifact_integration, "_build_provenance",
                     return_value=provenance),
+                patch.object(
+                    release_artifact_integration,
+                    "_require_clean_release_source",
+                    return_value=self.source_commit),
                 patch.object(
                     release_artifact_integration,
                     "write_release_bundle") as write_bundle,

@@ -23,7 +23,7 @@ from ahpy_version import (
     source_commit,
     validate_source_commit,
 )
-from release_evidence import artifact_records
+from release_evidence import artifact_records, validate_release_bundle_evidence
 
 
 REPOSITORIES = {
@@ -95,6 +95,8 @@ def prepare_publish_directory(
     ):
         if report.get(gate) is not True:
             raise ValueError("release bundle gate is not green: %s" % gate)
+
+    validate_release_bundle_evidence(bundle_dir, report)
 
     records = _frontend_records(report)
     publish_dir.mkdir(parents=True, exist_ok=True)

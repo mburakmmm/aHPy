@@ -126,13 +126,13 @@ Last verified local gates:
   returns).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 518 tests pass (two expected platform/tool availability
+- Quality-tool suite: 530 tests pass (two expected platform/tool availability
   skips on macOS).
-- Focused coverage (2026-08-12): 958 tests traced on both interpreters.
+- Focused coverage (2026-08-12): 970 tests traced on both interpreters.
   - CPython 3.11: backend 9609/9609 (100.00%), frontend_seam 53.29%,
-    quality_tools 9207/9207 (100.00%).
+    quality_tools 9430/9430 (100.00%).
   - CPython 3.14.2: backend 9495/9495 (100.00%), frontend_seam 53.42%,
-    quality_tools 9215/9215 (100.00%).
+    quality_tools 9439/9439 (100.00%).
   - CI floors are 100%, 45%, and 100%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
@@ -161,7 +161,10 @@ Last verified local gates:
   hashes, provenance, ordered stdout/stderr and exit/signal classification to
   JSON even on failure; CI uploads it with `if: always()`.
 - Clean release artifact: the warning-free, self-contained
-  `ahpy_compiler-3.3.0.1.dev0.tar.gz` passes safety/completeness; the no-index
+  `ahpy_compiler-3.3.0.1.dev0.tar.gz` now requires unchanged committed release
+  inputs and proves every non-generated member is tracked and byte-identical;
+  its six-component license/SBOM evidence and all artifact hashes are
+  independently required by the no-upload publisher. The no-index
   wheel installs in a new venv with exact HPy 0.9.0/setuptools 83.0.0; the
   frontend and maintained PEP 517 example pass normal/Debug plus verified
   uninstall/reinstall. Hosted Linux execution is green in run `29685285138`.

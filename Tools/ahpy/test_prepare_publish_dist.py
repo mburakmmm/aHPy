@@ -7,6 +7,7 @@ import unittest
 from unittest import mock
 
 import prepare_publish_dist
+from release_evidence import evidence_documents
 
 
 COMMIT = "a" * 40
@@ -50,14 +51,20 @@ def _bundle(root):
         "example_uninstall_reinstall": True,
         "provenance": {
             "source_commit": COMMIT,
+            "cython_base_commit": (
+                "b99cb0e3b5425e11414cadd24168a6cc850e8000"),
+            "build_frontend_version": "1.5.0",
             "installed_hpy": "0.9.0",
             "installed_setuptools": "83.0.0",
         },
     }
-    root.joinpath("provenance.json").write_text(
-        json.dumps(report), encoding="utf8")
-    root.joinpath("SHA256SUMS").write_text("evidence\n", encoding="utf8")
+    _write_evidence(root, report)
     return report
+
+
+def _write_evidence(root, report):
+    for name, content in evidence_documents(report).items():
+        root.joinpath(name).write_text(content, encoding="utf8")
 
 
 class PreparePublishDistTest(unittest.TestCase):
@@ -110,7 +117,25 @@ class PreparePublishDistTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "content mismatch"):
                 prepare_publish_dist.prepare_publish_directory(
                     bundle, root / "publish", expected_commit=COMMIT)
-            self.assertEqual(list(root.joinpath("publish").iterdir()), [])
+            self.assertFalse(root.joinpath("publish").exists())
+
+    def test_rechecks_selected_file_after_bundle_validation(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            bundle = root / "bundle"
+            bundle.mkdir()
+            report = _bundle(bundle)
+            bundle.joinpath(report["sdist"]["name"]).unlink()
+            with (
+                mock.patch.object(
+                    prepare_publish_dist,
+                    "validate_release_bundle_evidence",
+                    return_value=True,
+                ),
+                self.assertRaisesRegex(ValueError, "content mismatch"),
+            ):
+                prepare_publish_dist.prepare_publish_directory(
+                    bundle, root / "publish", expected_commit=COMMIT)
 
     def test_rejects_nonempty_destination(self):
         with TemporaryDirectory() as temp:
@@ -144,6 +169,11 @@ class PreparePublishDistTest(unittest.TestCase):
                 lambda report: report["provenance"].update(
                     installed_setuptools="0"),
                 "supported setuptools version",
+            ),
+            (
+                lambda report: report["provenance"].update(
+                    build_frontend_version="0"),
+                "build_frontend_version=1.5.0",
             ),
             (
                 lambda report: report.update(offline_install=False),
@@ -180,10 +210,42 @@ class PreparePublishDistTest(unittest.TestCase):
             bundle = root / "bundle"
             bundle.mkdir()
             report = _bundle(bundle)
-            report["frontend_wheel"]["name"] = "wrong.whl"
-            (bundle / "provenance.json").write_text(
-                json.dumps(report), encoding="utf8")
+            original = bundle / report["frontend_wheel"]["name"]
+            report["frontend_wheel"]["name"] = "ahpy_compiler-wrong.whl"
+            original.rename(bundle / report["frontend_wheel"]["name"])
+            _write_evidence(bundle, report)
             with self.assertRaisesRegex(ValueError, "exact frontend"):
+                prepare_publish_dist.prepare_publish_directory(
+                    bundle, root / "publish", expected_commit=COMMIT)
+
+    def test_rejects_missing_or_tampered_supply_chain_evidence(self):
+        cases = (
+            ("licenses.json", "{}\n", "evidence mismatch"),
+            ("sbom.spdx.json", None, "lacks required evidence"),
+        )
+        for name, replacement, message in cases:
+            with self.subTest(name=name), TemporaryDirectory() as temp:
+                root = Path(temp)
+                bundle = root / "bundle"
+                bundle.mkdir()
+                _bundle(bundle)
+                path = bundle / name
+                if replacement is None:
+                    path.unlink()
+                else:
+                    path.write_text(replacement, encoding="utf8")
+                with self.assertRaisesRegex(ValueError, message):
+                    prepare_publish_dist.prepare_publish_directory(
+                        bundle, root / "publish", expected_commit=COMMIT)
+
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            bundle = root / "bundle"
+            bundle.mkdir()
+            report = _bundle(bundle)
+            dependency = bundle / report["build_dependencies"][0]["name"]
+            dependency.write_bytes(b"tampered dependency")
+            with self.assertRaisesRegex(ValueError, "content mismatch"):
                 prepare_publish_dist.prepare_publish_directory(
                     bundle, root / "publish", expected_commit=COMMIT)
 

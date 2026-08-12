@@ -4,8 +4,10 @@ Date: 2026-07-16; Setuptools 83 local rerun: 2026-08-12
 Status: current local sdist/install/uninstall/reinstall green; replacement
 hosted evidence pending
 
-`Tools/ahpy/release_artifact_integration.py` built
-`ahpy_compiler-3.3.0.1.dev0.tar.gz` from a clean frontend source tree. The
+`Tools/ahpy/release_artifact_integration.py` requires every declared release
+input to be committed in an exact Git checkout both before and after its run,
+then builds `ahpy_compiler-3.3.0.1.dev0.tar.gz` from a clean frontend source
+tree. The
 archive includes exact project metadata, the PEP 517 backend, external
 build-system contract, compiler/runtime packages, maintained
 tools/tests/docs/examples, and license. Its reviewed manifest emits no missing
@@ -16,6 +18,12 @@ the derived frontend wheel metadata link the exact aHPy source commit, exact
 Cython base commit, and HPy 0.9 compatibility contract. A Git checkout always
 resolves its live `HEAD`, so a stale local `.gitrev` cannot mislabel a new
 artifact.
+
+The source-member audit additionally enumerates the exact tracked release
+inputs. Every archive file except generated root `PKG-INFO` and canonical
+`.gitrev` must be tracked and byte-identical to the selected checkout. A dirty
+input, an untracked member, a source revision race, or an unverifiable Git
+identity therefore fails before evidence can be accepted.
 
 With index access disabled, the gate built the frontend wheel from that sdist,
 created a new virtual environment, installed the exact frontend plus HPy 0.9.0
@@ -38,13 +46,19 @@ in the requested local JSON output and in the CI evidence artifact for hosted
 runs, avoiding a self-referential hash inside the sdist itself.
 
 The release bundle retains those five exact artifacts together with a sorted
-GNU-compatible `SHA256SUMS`, SPDX 2.3 JSON SBOM, JSON license inventory, and
-build provenance. Provenance records the aHPy and Cython commits, HPy and
-setuptools compatibility pins, selected Python implementation/version/path,
-platform, compiler, build frontend, and deterministic source epoch. Bundle
-creation rejects a non-empty destination, unexpected/missing artifacts, unsafe
-filenames, duplicate names, malformed digests, and copied bytes that do not
-match the validated report.
+GNU-compatible `SHA256SUMS`, SPDX 2.3 JSON SBOM, schema-2 JSON license
+inventory, and build provenance. The inventory covers six direct shipped or
+build components: aHPy, the exact embedded Cython base, the packaging example,
+HPy, setuptools, and PyPA build. SPDX `CONTAINS` relationships bind embedded
+Cython to both aHPy artifacts and `BUILD_TOOL_OF` binds the pinned build
+frontend. Provenance records the aHPy and Cython commits, HPy, setuptools and
+build-frontend pins, selected Python implementation/version/path, platform,
+compiler, and deterministic source epoch. Bundle creation rejects a non-empty
+destination, unexpected/missing artifacts, unsafe filenames, duplicate names,
+malformed digests, and copied bytes that do not match the validated report.
+The no-upload publisher independently rehashes all five artifacts and requires
+byte-exact regeneration of all four evidence documents; altered or missing
+dependency wheels, checksums, licenses, provenance, or SBOM fail closed.
 
 Local macOS ARM64/CPython 3.11 evidence is complemented by an earlier green
 clean sdist/onboarding step in hosted

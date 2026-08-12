@@ -8,8 +8,10 @@ import unittest
 from release_evidence import (
     artifact_records,
     checksum_manifest,
+    evidence_documents,
     license_inventory,
     spdx_document,
+    validate_release_bundle_evidence,
     write_release_bundle,
 )
 
@@ -40,6 +42,11 @@ class ReleaseEvidenceTest(unittest.TestCase):
             "schema_version": 2,
             "provenance": {
                 "source_commit": self.source_commit,
+                "cython_base_commit": (
+                    "b99cb0e3b5425e11414cadd24168a6cc850e8000"),
+                "build_frontend_version": "1.5.0",
+                "installed_hpy": "0.9.0",
+                "installed_setuptools": "83.0.0",
                 "source_date_epoch": 1767225600,
             },
             "sdist": {**records[0], "members": 1},
@@ -83,26 +90,72 @@ class ReleaseEvidenceTest(unittest.TestCase):
             spdx = spdx_document(report)
             self.assertEqual(spdx["spdxVersion"], "SPDX-2.3")
             self.assertIn(self.source_commit, spdx["documentNamespace"])
-            self.assertEqual(len(spdx["packages"]), 5)
+            self.assertEqual(len(spdx["packages"]), 7)
+            self.assertEqual(
+                {package["name"] for package in spdx["packages"]},
+                {
+                    "aHPy-compiler", "ahpy-pep517-example", "build",
+                    "Cython", "hpy", "setuptools",
+                },
+            )
+            self.assertTrue(any(
+                relation["relationshipType"] == "CONTAINS" and
+                relation["relatedSpdxElement"] == "SPDXRef-Embedded-Cython"
+                for relation in spdx["relationships"]
+            ))
+            self.assertTrue(any(
+                relation["relationshipType"] == "BUILD_TOOL_OF"
+                for relation in spdx["relationships"]
+            ))
             self.assertEqual(
                 {package["licenseDeclared"] for package in spdx["packages"]},
                 {"Apache-2.0", "MIT"},
             )
-            inventory = license_inventory(self.source_commit)
+            inventory = license_inventory(report)
+            self.assertEqual(inventory["schema_version"], 2)
             self.assertEqual(inventory["source_commit"], self.source_commit)
             self.assertEqual(
                 {component["name"] for component in inventory["components"]},
                 {
                     "aHPy-compiler",
                     "ahpy-pep517-example",
+                    "build",
+                    "Cython",
                     "hpy",
                     "setuptools",
                 },
             )
+            cython = next(
+                component for component in inventory["components"]
+                if component["name"] == "Cython")
+            self.assertEqual(
+                cython["provenance"]["revision"],
+                "b99cb0e3b5425e11414cadd24168a6cc850e8000",
+            )
+            self.assertEqual(len(cython["provenance"]["artifacts"]), 2)
             unknown = deepcopy(report)
             unknown["build_dependencies"][0]["name"] = "unknown-1.whl"
             with self.assertRaisesRegex(ValueError, "unclassified"):
                 spdx_document(unknown)
+
+    def test_license_inventory_rejects_incomplete_build_provenance(self):
+        with TemporaryDirectory() as temp_dir:
+            _, report = self.make_artifacts(temp_dir)
+            for field, value in (
+                    ("source_commit", "short"),
+                    ("cython_base_commit", "0" * 40),
+                    ("build_frontend_version", "0"),
+                    ("installed_hpy", "0"),
+                    ("installed_setuptools", "0")):
+                with self.subTest(field=field):
+                    invalid = deepcopy(report)
+                    invalid["provenance"][field] = value
+                    with self.assertRaises((ValueError, RuntimeError)):
+                        license_inventory(invalid)
+            invalid = deepcopy(report)
+            invalid["provenance"] = None
+            with self.assertRaisesRegex(ValueError, "lacks build provenance"):
+                license_inventory(invalid)
 
     def test_release_bundle_contains_artifacts_and_all_evidence(self):
         with TemporaryDirectory() as temp_dir:
@@ -131,6 +184,14 @@ class ReleaseEvidenceTest(unittest.TestCase):
                     "provenance.json").read_text(encoding="utf8")),
                 report,
             )
+            self.assertTrue(validate_release_bundle_evidence(bundle, report))
+            self.assertEqual(
+                bundle.joinpath("licenses.json").read_text(encoding="utf8"),
+                evidence_documents(report)["licenses.json"],
+            )
+            bundle.joinpath(paths[0].name).write_bytes(b"changed")
+            with self.assertRaisesRegex(ValueError, "content mismatch"):
+                validate_release_bundle_evidence(bundle, report)
             paths[0].write_bytes(b"changed")
             with self.assertRaisesRegex(ValueError, "content mismatch"):
                 write_release_bundle(root / "mismatch", report, paths)
@@ -138,6 +199,22 @@ class ReleaseEvidenceTest(unittest.TestCase):
                 write_release_bundle(bundle, report, paths)
             with self.assertRaisesRegex(ValueError, "set does not match"):
                 write_release_bundle(root / "incomplete", report, paths[:-1])
+
+    def test_bundle_validator_rejects_missing_or_changed_evidence(self):
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            sources = root / "sources"
+            sources.mkdir()
+            paths, report = self.make_artifacts(sources)
+            bundle = root / "bundle"
+            write_release_bundle(bundle, report, paths)
+            bundle.joinpath("licenses.json").write_text(
+                "{}\n", encoding="utf8")
+            with self.assertRaisesRegex(ValueError, "evidence mismatch"):
+                validate_release_bundle_evidence(bundle, report)
+            bundle.joinpath("licenses.json").unlink()
+            with self.assertRaisesRegex(ValueError, "lacks required evidence"):
+                validate_release_bundle_evidence(bundle, report)
 
 
 if __name__ == "__main__":
