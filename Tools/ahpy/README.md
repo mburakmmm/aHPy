@@ -378,19 +378,21 @@ O3 trials while O0 completed near 5 seconds, so O3 duration is recorded without
 misclassifying optimizer cost as a backend correctness regression.
 
 `build_portability_artifact.py` builds the handwritten `ahpy_minimal` oracle
-plus generated `bootstrap_answer` and `bootstrap_types` once with the CPython
-3.11/HPy 0.9 builder, rejects forbidden source/binary imports, copies the
+plus generated `constants_only`, `fibonacci`, `bootstrap_types`, and
+`bootstrap_answer` rungs once with the CPython 3.11/HPy 0.9 builder, rejects
+forbidden source/binary imports, copies the
 `.hpy0` files and loader stubs without rebuilding, and writes sizes plus
 SHA-256 digests to `artifact-manifest.json`. Its hosted
 correctness build uses `-O0`; cross-interpreter portability does not depend on
 optimizer throughput.
 `portability_smoke.py` revalidates every digest and runs imports/semantics in
-six isolated subprocess stages, with the handwritten oracle first. Python
+ten isolated subprocess stages, ordered from the handwritten oracle through
+constant-only, single-function, heap-type, and large function corpora. Python
 `hpy.universal` runtimes use the
 unchanged stubs; native HPy runtimes use a temporary directory containing only
 the unchanged binaries so CPython stubs cannot shadow native loading. The
 pinned PyPy and GraalPy jobs remain allowed-failure early warnings until both
-first runs are green.
+are green.
 Every top-level run can also write a schema-versioned JSON report with
 `--report`. The report embeds the verified manifest hash/file records, builder
 and target provenance, loader selection, ordered stage stdout/stderr and exact
@@ -401,7 +403,7 @@ than only an ephemeral job log.
 `verify_reproducible_artifact.py` performs two independent builds with a fixed
 `SOURCE_DATE_EPOCH`, deterministic archive mode, and compiler
 file/debug-prefix maps. It requires identical file sets and byte content,
-including all three `.hpy0` binaries and their SHA-256 manifest. This is the
+including all five `.hpy0` binaries and their SHA-256 manifest. This is the
 Universal portability-artifact gate; future sdist/wheel archive reproducibility
 was split into the now-green frontend archive gate and the still-open future
 standardized Universal extension-wheel gate.

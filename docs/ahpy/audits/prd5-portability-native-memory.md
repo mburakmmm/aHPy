@@ -1,6 +1,6 @@
 # PRD-5 portability and native-memory audit
 
-Date: 2026-07-29
+Date: 2026-08-12
 Product envelope: unpublished aHPy preview
 Status: active; one external-reporting blocker remains
 
@@ -43,27 +43,31 @@ The current required aggregate is green in
 
 ## Excluded alternate interpreters
 
-The identical CPython-built artifact remains a useful early warning:
+The identical CPython-built handwritten-first artifact in
+[run 31573340325](https://github.com/mburakmmm/aHPy/actions/runs/31573340325)
+provides the current early-warning classification:
 
-- PyPy 7.3.23 reaches its bundled `hpy.universal` bridge and terminates with
-  signal 11 during the first `import-answer` stage in
-  [job 90501653601](https://github.com/mburakmmm/aHPy/actions/runs/30428968553/job/90501653601).
+- PyPy 7.3.23 passes the handwritten `import-minimal` and
+  `minimal-semantics` stages, then terminates with signal 11 at
+  `import-answer` in
+  [job 94040063173](https://github.com/mburakmmm/aHPy/actions/runs/31573340325/job/94040063173).
 - GraalPy 25.1.3 exposes neither `hpy.universal` nor a native `.hpy0` import
   suffix; the byte-identical native-only stage fails with
   `ModuleNotFoundError` in
-  [job 90501653614](https://github.com/mburakmmm/aHPy/actions/runs/30428968553/job/90501653614).
+  [job 94040063153](https://github.com/mburakmmm/aHPy/actions/runs/31573340325/job/94040063153).
 
 Both are listed as unsupported in the frozen release contract and remain
 allowed-failure CI signals. Their red results cannot broaden or weaken the
 required CPython support claim.
 
-The next artifact revision adds `tests/ahpy/minimal_universal.c`, a handwritten
-public-HPy module, before both generated corpora. Its isolated
-`import-minimal` and `minimal-semantics` stages pass locally on CPython
-3.11.15/HPy 0.9.0, followed by the four existing generated stages; two clean
-artifact builds are byte-identical. Prepared PyPy and GraalPy report drafts
-live beside this audit, but remain guarded until a new hosted run records the
-minimal binary digest and exact bridge/loader result.
+The current diagnostic revision keeps that handwritten oracle first, then adds
+generated constant-only and single-function modules before the heap-type and
+large function corpora. All ten stages pass locally on CPython 3.11.15/HPy
+0.9.0. Its next hosted run will determine whether PyPy first fails in basic
+generated module execution, type creation, or only the large corpus. Prepared
+PyPy and GraalPy report drafts live beside this audit; the PyPy report remains
+guarded pending that narrower result, while the GraalPy report is technically
+complete but still requires owner authorization before external publication.
 The cross-interpreter workflow now persists a schema-versioned JSON result with
 the verified manifest/file hashes, target and loader provenance, ordered stage
 stdout/stderr, and exact exit-or-signal classification under `if: always()`.
@@ -71,8 +75,9 @@ Missing evidence is itself a workflow artifact failure.
 
 ## Python 3.14 minimal reproducer
 
-The full generated corpus still terminates with signal 11 on CPython 3.14.6 in
-[job 90501555346](https://github.com/mburakmmm/aHPy/actions/runs/30428968553/job/90501555346).
+The pinned HPy development lane still terminates with signal 11 on CPython
+3.14.6 in
+[job 94039919189](https://github.com/mburakmmm/aHPy/actions/runs/31573340325/job/94039919189).
 `tests/ahpy/hpy_dev_type_reproducer.c` first proves the failure without the
 aHPy emitter: one handwritten public-HPy heap type owns one `HPyField`, uses
 `HPy_tp_new`, `HPy_New`, `HPy_tp_traverse`, and returns the stored object.

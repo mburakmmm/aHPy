@@ -20,6 +20,12 @@ from test_minimal_hpy import verify_source_boundary as verify_minimal_source_bou
 
 ROOT = Path(__file__).resolve().parents[2]
 GENERATED_SOURCES = (
+    ("constants_only", ROOT / "tests" / "ahpy" / "constants_only.pyx"),
+    (
+        "fibonacci",
+        ROOT / "tests" / "ahpy" / "pilot_ports" / "cypack" / "src" /
+        "cypack" / "fibonacci.pyx",
+    ),
     ("bootstrap_answer", ROOT / "tests" / "ahpy" / "bootstrap_answer.pyx"),
     ("bootstrap_types", ROOT / "tests" / "ahpy" / "bootstrap_types.pyx"),
 )
@@ -75,10 +81,11 @@ def build_artifact(python, output):
                 generated,
                 required=(
                     "#include <hpy.h>",
-                    "HPyDef_METH",
                     "HPy_mod_exec",
                     "HPy_MODINIT",
-                ),
+                ) + (() if module_name == "constants_only" else (
+                    "HPyDef_METH",
+                )),
             )
             generated_sources.append(generated)
 

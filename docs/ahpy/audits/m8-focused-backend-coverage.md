@@ -14,8 +14,8 @@ implementation modules:
 
 | Interpreter | Backend | Frontend seam | Quality tools |
 | --- | ---: | ---: | ---: |
-| CPython 3.11 | 9565/9565 (100.00%) | 18278/34275 (53.33%) | 8633/8633 (100.00%) |
-| CPython 3.14.6 | 9451/9451 (100.00%) | 18377/34380 (53.45%) | 8640/8640 (100.00%) |
+| CPython 3.11 | 9565/9565 (100.00%) | 18278/34275 (53.33%) | 8654/8654 (100.00%) |
+| CPython 3.14.6 | 9451/9451 (100.00%) | 18377/34380 (53.45%) | 8661/8661 (100.00%) |
 
 The interpreter-specific executable-line totals differ because Python bytecode
 line tables differ; both independently satisfy the same CI floors:

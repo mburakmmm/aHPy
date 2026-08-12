@@ -186,26 +186,29 @@ warnings with unconditional evidence upload.
 ## Same-binary interpreter gate
 
 The builder job uses CPython 3.11 and HPy 0.9 exactly once. It builds a
-handwritten public-HPy oracle before generating and building the module-function
-and pure-extension-type corpora, audits all three binaries, copies each `.hpy0`
+handwritten public-HPy oracle before generating constant-only, single-function,
+pure-extension-type and large module-function corpora, audits all five binaries,
+copies each `.hpy0`
 file and Python loader unchanged, and records SHA-256 plus size metadata. PyPy
 7.3.23 (Python 3.11.15 compatible) and GraalPy
 25.1.3 (Python 3.12 compatible) download that one artifact rather than
 rebuilding it. The smoke driver verifies every manifest digest before running
-six isolated stages (handwritten import/semantics followed by generated module
-and type import/semantics). A signal or nonzero exit therefore identifies the
+ten isolated stages ordered from the handwritten oracle through progressively
+larger generated surfaces. A signal or nonzero exit therefore identifies the
 exact failing stage and whether the fault exists without generated aHPy code.
 Interpreters exposing `hpy.universal` use the unchanged Python stubs; native
 HPy interpreters receive a temporary directory containing only byte-identical
 `.hpy0` binaries so a CPython loader stub cannot shadow their native importer.
 Their exact setup identifiers and evidence job IDs live in
-`tests/ahpy/interpreters.toml`. Run 29685285138 reached the first isolated
-module-import stage on both targets: PyPy terminated through its bundled HPy
-bridge, while GraalPy exposed neither that bridge nor a native `.hpy0` import
-hook. Both therefore remain allowed-failure early warnings. Only a future
-green hosted execution may remove `continue-on-error` or alter support. The
-new handwritten-first artifact passes all six stages locally on CPython
-3.11.15/HPy 0.9.0; PyPy/GraalPy classification awaits its first hosted run.
+`tests/ahpy/interpreters.toml`. Run 31573340325 supplied the first
+handwritten-first hosted classification: PyPy job 94040063173 passed
+`import-minimal` and `minimal-semantics`, then the old six-stage artifact
+terminated with signal 11 at `import-answer`; GraalPy job 94040063153 exposed
+neither `hpy.universal` nor a native `.hpy0` import suffix and failed with
+`ModuleNotFoundError` at `import-minimal`. Both remain allowed-failure early
+warnings. Only a future green hosted execution may remove `continue-on-error`
+or alter support. The expanded ten-stage artifact passes locally on CPython
+3.11.15/HPy 0.9.0 and will narrow the PyPy failure on its next hosted run.
 The smoke driver writes `portability-result-<target>.json` even when manifest
 verification, a normal exit, or a signal terminates the gate. Each report
 contains the complete verified file list, manifest SHA-256, loader/provenance,

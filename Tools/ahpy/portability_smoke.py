@@ -20,10 +20,14 @@ from tempfile import TemporaryDirectory
 STAGES = (
     "import-minimal",
     "minimal-semantics",
-    "import-answer",
-    "answer-semantics",
+    "import-constants",
+    "constants-semantics",
+    "import-fibonacci",
+    "fibonacci-semantics",
     "import-types",
     "type-semantics",
+    "import-answer",
+    "answer-semantics",
 )
 
 
@@ -100,21 +104,23 @@ def run_stage(stage, artifact_dir):
         assert module.return_none() is None
         assert module.make_pair() == [1, 2]
         return
-    if stage == "import-answer":
-        import bootstrap_answer  # noqa: F401
+    if stage == "import-constants":
+        import constants_only  # noqa: F401
         return
-    if stage == "answer-semantics":
-        import bootstrap_answer as module
+    if stage == "constants-semantics":
+        import constants_only as module
 
-        assert module.return_none() is None
-        assert module.return_big_integer() == \
-            1234567890123456789012345678901234567890
-        assert module.make_list() == [1, None, 2]
-        assert module.make_dict() == {
-            "one": 1, 2: [None, {"nested": True}]}
-        assert module.default_values("required") == [
-            "required", 2, (3, None)]
-        assert module.identity("portable") == "portable"
+        assert module.VALUE == 47
+        assert module.NAME == "sabit"
+        return
+    if stage == "import-fibonacci":
+        import fibonacci  # noqa: F401
+        return
+    if stage == "fibonacci-semantics":
+        import fibonacci as module
+
+        assert module.fib(0) == 0
+        assert module.fib(10) == 55
         return
     if stage == "import-types":
         import bootstrap_types  # noqa: F401
@@ -131,6 +137,22 @@ def run_stage(stage, artifact_dir):
         assert box.identity(marker) is marker
         initialized = module.Initialized(marker)
         assert initialized.value is marker
+        return
+    if stage == "import-answer":
+        import bootstrap_answer  # noqa: F401
+        return
+    if stage == "answer-semantics":
+        import bootstrap_answer as module
+
+        assert module.return_none() is None
+        assert module.return_big_integer() == \
+            1234567890123456789012345678901234567890
+        assert module.make_list() == [1, None, 2]
+        assert module.make_dict() == {
+            "one": 1, 2: [None, {"nested": True}]}
+        assert module.default_values("required") == [
+            "required", 2, (3, None)]
+        assert module.identity("portable") == "portable"
         return
     raise ValueError("unknown portability stage: %s" % stage)
 

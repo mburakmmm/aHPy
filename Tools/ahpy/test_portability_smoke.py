@@ -131,6 +131,13 @@ class PortabilitySmokeTest(unittest.TestCase):
         minimal.return_none = lambda: None
         minimal.make_pair = lambda: [1, 2]
 
+        constants = ModuleType("constants_only")
+        constants.VALUE = 47
+        constants.NAME = "sabit"
+
+        fibonacci = ModuleType("fibonacci")
+        fibonacci.fib = lambda n: 0 if n == 0 else 55
+
         answer = ModuleType("bootstrap_answer")
         answer.return_none = lambda: None
         answer.return_big_integer = (
@@ -167,6 +174,8 @@ class PortabilitySmokeTest(unittest.TestCase):
                 sys.modules,
                 {
                     "ahpy_minimal": minimal,
+                    "constants_only": constants,
+                    "fibonacci": fibonacci,
                     "bootstrap_answer": answer,
                     "bootstrap_types": types,
                 },

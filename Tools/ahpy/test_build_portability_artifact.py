@@ -46,7 +46,8 @@ class BuildPortabilityArtifactTest(unittest.TestCase):
             output = Path(temp_dir) / "artifact"
             with (
                 mock.patch.object(portability, "run", side_effect=fake_run),
-                mock.patch.object(portability, "verify_source_boundary"),
+                mock.patch.object(
+                    portability, "verify_source_boundary") as verify_source,
                 mock.patch.object(portability, "verify_binary_boundary"),
                 mock.patch.object(
                     portability.subprocess,
@@ -61,6 +62,10 @@ class BuildPortabilityArtifactTest(unittest.TestCase):
             expected_names = {
                 "ahpy_minimal.hpy0.so",
                 "ahpy_minimal.py",
+                "constants_only.hpy0.so",
+                "constants_only.py",
+                "fibonacci.hpy0.so",
+                "fibonacci.py",
                 "bootstrap_answer.hpy0.so",
                 "bootstrap_answer.py",
                 "bootstrap_types.hpy0.so",
@@ -80,6 +85,14 @@ class BuildPortabilityArtifactTest(unittest.TestCase):
         self.assertEqual(manifest["builder"], "CPython 3.11.15")
         self.assertEqual(len(setup_texts), 1)
         self.assertIn(
+            "Extension('constants_only', ['constants_only.c'])",
+            setup_texts[0],
+        )
+        self.assertIn(
+            "Extension('fibonacci', ['fibonacci.c'])",
+            setup_texts[0],
+        )
+        self.assertIn(
             "Extension('bootstrap_answer', ['bootstrap_answer.c'])",
             setup_texts[0],
         )
@@ -91,7 +104,15 @@ class BuildPortabilityArtifactTest(unittest.TestCase):
             "Extension('ahpy_minimal', ['minimal_universal.c'])",
             setup_texts[0],
         )
-        self.assertEqual(len(environments), 3)
+        self.assertEqual(
+            len(environments), len(portability.GENERATED_SOURCES) + 1)
+        required_by_module = {
+            call.args[0].stem: call.kwargs["required"]
+            for call in verify_source.call_args_list
+        }
+        self.assertNotIn("HPyDef_METH", required_by_module["constants_only"])
+        for module_name in ("fibonacci", "bootstrap_answer", "bootstrap_types"):
+            self.assertIn("HPyDef_METH", required_by_module[module_name])
         for environment in environments:
             self.assertEqual(environment["SOURCE_DATE_EPOCH"], "946684800")
             self.assertEqual(environment["ZERO_AR_DATE"], "1")
@@ -109,16 +130,20 @@ class BuildPortabilityArtifactTest(unittest.TestCase):
     def test_build_artifact_rejects_incomplete_or_split_build_outputs(self):
         binary_root = Path("/definitely/missing/ahpy-build")
         cases = (
-            (([],), "expected 3 Universal binaries"),
+            (([],), "expected 5 Universal binaries"),
             (([
                 binary_root / "one" / "bootstrap_answer.hpy0.so",
                 binary_root / "two" / "bootstrap_types.hpy0.so",
                 binary_root / "three" / "ahpy_minimal.hpy0.so",
+                binary_root / "four" / "constants_only.hpy0.so",
+                binary_root / "five" / "fibonacci.hpy0.so",
             ],), "different build dirs"),
             (([
                 binary_root / "bootstrap_answer.hpy0.so",
                 binary_root / "bootstrap_types.hpy0.so",
                 binary_root / "ahpy_minimal.hpy0.so",
+                binary_root / "constants_only.hpy0.so",
+                binary_root / "fibonacci.hpy0.so",
             ], []), "missing artifact file"),
         )
         for find_results, message in cases:

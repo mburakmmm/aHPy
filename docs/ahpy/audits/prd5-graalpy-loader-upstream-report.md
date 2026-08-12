@@ -1,7 +1,7 @@
 # Prepared upstream report: GraalPy Universal HPy loader gap
 
-Status: prepared locally; do not file until the new handwritten-oracle hosted
-run confirms the loader classification.
+Status: hosted loader classification confirmed; technically ready, but do not
+file without explicit owner authorization.
 
 Target issue tracker: `https://github.com/oracle/graalpython/issues`
 
@@ -14,7 +14,7 @@ Target issue tracker: `https://github.com/oracle/graalpython/issues`
 - Builder: CPython 3.11.15, HPy 0.9.0, setuptools 80.9.0, Ubuntu 24.04 x86-64.
 - Target: `graalpy-25.1.3` from `actions/setup-python`.
 - Artifact: unchanged Universal `.hpy0.so`; no target-side rebuild.
-- Existing evidence: GitHub Actions run `30428968553`, job `90501653614`.
+- Current evidence: GitHub Actions run `31573340325`, job `94040063153`.
 
 ## Minimal source
 
@@ -54,18 +54,21 @@ GraalPy exposes either an HPy Universal Python loader or a native `.hpy0`
 import suffix, imports the unchanged module, and returns `42`, `None`, and
 `[1, 2]` from its three methods.
 
-## Existing actual result
+## Current actual result
 
-In run `30428968553`, job `90501653614`, GraalPy exposed neither
+In run `31573340325`, job `94040063153`, GraalPy 25.1.3 reported
+`EXTENSION_SUFFIXES` as `.graalpy250-312-native-x86_64-linux.so`, `.so`, and
+`.pyd`, exposed neither
 `hpy.universal` nor a native `.hpy0` suffix. Native-only staging therefore
 failed at the first module import with `ModuleNotFoundError`. The artifact was
 not rebuilt, renamed to a CPython suffix, or routed through a CPython C-API
-fallback.
+fallback. The unchanged handwritten binary SHA-256 was
+`5b62871da8259c7976cd553b2378c16c4d542c4c685c2657da6c4cc5baf35cce`.
 
 ## Filing guard
 
-Replace this section with the new run/job URL, exact `ahpy_minimal.hpy0.so`
-SHA-256, `importlib.machinery.EXTENSION_SUFFIXES`, loader probe result, and full
-exception text from the uploaded `ahpy-portability-GraalPy-25.1.3` JSON evidence
-before filing. If current GraalPy now supplies a Universal HPy loader, discard
-this report and record the new semantic result instead.
+The required run/job URL, binary digest, extension suffixes, loader probe, and
+full `ModuleNotFoundError` are retained in the uploaded
+`ahpy-portability-GraalPy-25.1.3` JSON. External publication remains an owner
+decision; if a newer GraalPy supplies a Universal HPy loader before filing,
+rerun and replace this evidence.

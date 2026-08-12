@@ -67,7 +67,7 @@ lexical masking, static CPython/PyObject rules, compiler diagnostics,
 Universal generated-header validation, status aggregation, text/JSON reports,
 interpreter/source validation, allow-rejected policy, and CLI exit codes.
 The dual-interpreter quality-tool suite now contains 499 tests and covers
-8633/8633 executable lines on CPython 3.11 and 8640/8640 on CPython 3.14
+8654/8654 executable lines on CPython 3.11 and 8661/8661 on CPython 3.14
 (100% on both), while the Universal backend remains at 100% and the frontend
 seam remains above its 45% floor.
 Nightly environment provenance, diagnostic catalogs, publish preparation,

@@ -129,9 +129,9 @@ Last verified local gates:
   skips on macOS).
 - Focused coverage (2026-08-12): 937 tests traced on both interpreters.
   - CPython 3.11: backend 9565/9565 (100.00%), frontend_seam 53.33%,
-    quality_tools 8633/8633 (100.00%).
+    quality_tools 8654/8654 (100.00%).
   - CPython 3.14.6: backend 9451/9451 (100.00%), frontend_seam 53.45%,
-    quality_tools 8640/8640 (100.00%).
+    quality_tools 8661/8661 (100.00%).
   - CI floors are 100%, 45%, and 100%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in
     `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
@@ -151,12 +151,14 @@ Last verified local gates:
 - Diagnostic catalog, Python compileall, CI YAML parsing, and `git diff
   --check` pass.
 - The build-once portability artifact now contains the frontend-independent
-  handwritten `ahpy_minimal` oracle before both generated corpora. All six
-  isolated stages and two clean byte-reproducibility builds pass locally on
-  CPython 3.11/HPy 0.9. The smoke writes verified hashes, provenance, ordered
-  stdout/stderr and exit/signal classification to JSON even on failure; CI
-  uploads it with `if: always()`. Pinned PyPy/GraalPy hosted confirmation is
-  pending.
+  handwritten `ahpy_minimal` oracle followed by constant-only, single-function,
+  heap-type and large function-corpus generated rungs. All ten isolated stages
+  pass locally on CPython 3.11/HPy 0.9. Hosted run `31573340325` proved the
+  handwritten oracle on PyPy before the old artifact crashed at
+  `import-answer`, while GraalPy failed native discovery at `import-minimal`;
+  rerun the ten-stage ladder to narrow PyPy further. The smoke writes verified
+  hashes, provenance, ordered stdout/stderr and exit/signal classification to
+  JSON even on failure; CI uploads it with `if: always()`.
 - Clean release artifact: the warning-free, self-contained
   `ahpy_compiler-3.3.0.1.dev0.tar.gz` passes safety/completeness; the no-index
   wheel installs in a new venv with exact HPy 0.9.0/setuptools 80.9.0; the

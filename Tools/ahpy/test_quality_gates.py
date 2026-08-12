@@ -840,16 +840,25 @@ class QualityGateTest(unittest.TestCase):
             {target["status"] for target in targets.values()},
             {"allowed-failure-early-warning"},
         )
-        self.assertEqual(targets["PyPy"]["evidence_run"], 30428968553)
-        self.assertEqual(targets["PyPy"]["evidence_job"], 90501653601)
-        self.assertEqual(targets["GraalPy"]["evidence_run"], 30428968553)
-        self.assertEqual(targets["GraalPy"]["evidence_job"], 90501653614)
+        self.assertEqual(targets["PyPy"]["evidence_run"], 31573340325)
+        self.assertEqual(targets["PyPy"]["evidence_job"], 94040063173)
+        self.assertEqual(targets["GraalPy"]["evidence_run"], 31573340325)
+        self.assertEqual(targets["GraalPy"]["evidence_job"], 94040063153)
+        self.assertEqual(
+            targets["PyPy"]["minimal_hosted_confirmation"], "passed")
+        self.assertEqual(
+            targets["GraalPy"]["minimal_hosted_confirmation"],
+            "loader-unavailable",
+        )
+        self.assertEqual(
+            {target["minimal_binary_sha256"] for target in targets.values()},
+            {"5b62871da8259c7976cd553b2378c16c4d542c4c685c2657da6c4cc5baf35cce"},
+        )
         workflow = (ROOT / ".github" / "workflows" /
                     "ahpy-universal.yml").read_text(encoding="utf8")
         job = workflow.split("  cross-interpreter:\n", 1)[1].split(
             "  nightly-interpreter:\n", 1)[0]
         for target in targets.values():
-            self.assertEqual(target["minimal_hosted_confirmation"], "pending")
             self.assertTrue((ROOT / target["reproducer"]).is_file())
             self.assertTrue((ROOT / target["handwritten_source"]).is_file())
             report = ROOT / target["prepared_report"]

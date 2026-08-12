@@ -1,13 +1,14 @@
-# Prepared upstream report: PyPy Universal HPy bridge import crash
+# Guarded upstream report: PyPy generated Universal HPy import crash
 
-Status: prepared locally; do not file until the new handwritten-oracle hosted
-run reproduces the failure.
+Status: hosted failure confirmed, but the handwritten oracle passes; do not
+file until the ten-stage diagnostic artifact identifies the smallest failing
+generated-code rung.
 
 Target issue tracker: `https://github.com/pypy/pypy/issues`
 
 ## Proposed title
 
-`PyPy 7.3.23 exits with SIGSEGV while importing a CPython-built Universal HPy 0.9 module`
+`PyPy 7.3.23 exits with SIGSEGV while importing an aHPy-generated Universal HPy 0.9 module`
 
 ## Environment
 
@@ -15,7 +16,7 @@ Target issue tracker: `https://github.com/pypy/pypy/issues`
 - Target: `pypy3.11-v7.3.23` from `actions/setup-python`.
 - Artifact: unchanged `.hpy0.so` plus HPy's generated `hpy.universal` loader
   stub; no rebuild occurs under PyPy.
-- Existing evidence: GitHub Actions run `30428968553`, job `90501653601`.
+- Current evidence: GitHub Actions run `31573340325`, job `94040063173`.
 
 ## Minimal source
 
@@ -55,18 +56,19 @@ signal, so a bridge crash cannot be confused with an assertion failure.
 The Universal module imports and `answer()`, `return_none()`, and `make_pair()`
 return `42`, `None`, and `[1, 2]` respectively.
 
-## Existing actual result
+## Current actual result
 
-The previous unchanged aHPy corpus reached PyPy's bundled `hpy.universal`
-bridge and terminated with signal 11 during its first module import in run
-`30428968553`, job `90501653601`. That establishes the bridge-stage failure but
-does not yet prove that the new handwritten minimum reproduces it.
+The artifact's handwritten `ahpy_minimal.hpy0.so` has SHA-256
+`5b62871da8259c7976cd553b2378c16c4d542c4c685c2657da6c4cc5baf35cce`.
+PyPy passed both its isolated import and semantics, then terminated with signal
+11 while importing `bootstrap_answer` in run `31573340325`, job `94040063173`.
+This excludes the handwritten HPy runtime operations from the report and
+assigns the next reduction step to generated output.
 
 ## Filing guard
 
-Replace this section with the new run/job URL, exact `ahpy_minimal.hpy0.so`
-SHA-256, subprocess stage, exit/signal, stderr, and any native backtrace from
-the uploaded `ahpy-portability-PyPy-7.3.23` JSON evidence before filing. If the
-handwritten module passes, do not file this report as written;
-bisect from `minimal-semantics` toward the generated function/type corpora and
-report the smallest failing public-HPy operation instead.
+Rerun the expanded artifact and retain its JSON. It tests generated
+constant-only, single-function, and heap-type rungs before the large function
+corpus. Replace this guard with the first failing rung, its binary digest, full
+stderr, signal classification, and a native backtrace before filing. Do not
+describe the passing handwritten module as the reproducer.

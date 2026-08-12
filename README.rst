@@ -124,10 +124,13 @@ The current local M9 snapshot records:
 The CPython 3.11/HPy 0.9 stable baseline is green on hosted Linux x86-64 and
 ARM64, macOS Intel and ARM64, and Windows x64.  Same-binary PyPy and GraalPy
 executions are recorded as allowed-failure early warnings: their selected
-runtimes currently fail before aHPy's Universal module semantics can run, so
-neither interpreter is a support claim.  The next portability artifact starts
-with a handwritten public-HPy oracle before generated aHPy modules, allowing a
-hosted rerun to distinguish runtime bridge/loader failures from frontend output.
+runtimes currently remain outside the support claim.  Hosted run 31573340325
+proved that PyPy passes the unchanged handwritten public-HPy module before
+crashing while importing the large generated function corpus; GraalPy exposes
+neither ``hpy.universal`` nor a native ``.hpy0`` suffix and cannot discover the
+same handwritten binary.  The artifact now adds generated constant-only and
+single-function rungs and runs the generated heap-type corpus before that large
+module, giving the next hosted result an exact first-failing feature boundary.
 See
 `the validation matrix <docs/ahpy/validation-matrix.md>`_ and
 `the focused-coverage audit
