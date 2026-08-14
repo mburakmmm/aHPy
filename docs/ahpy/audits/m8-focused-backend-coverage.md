@@ -1,6 +1,6 @@
 # M8 focused Universal backend coverage
 
-Date: 2026-08-03
+Date: 2026-08-12
 
 Status: local dual-interpreter gate green
 
@@ -14,8 +14,8 @@ implementation modules:
 
 | Interpreter | Backend | Frontend seam | Quality tools |
 | --- | ---: | ---: | ---: |
-| CPython 3.11 | 9609/9609 (100.00%) | 18403/34755 (52.95%) | 9430/9430 (100.00%) |
-| CPython 3.14.2 | 9495/9495 (100.00%) | 18504/34860 (53.08%) | 9439/9439 (100.00%) |
+| CPython 3.11 | 9614/9614 (100.00%) | 18404/34800 (52.89%) | 9430/9430 (100.00%) |
+| CPython 3.14.2 | 9500/9500 (100.00%) | 18505/34905 (53.02%) | 9439/9439 (100.00%) |
 
 The interpreter-specific executable-line totals differ because Python bytecode
 line tables differ; both independently satisfy the same CI floors:
@@ -28,7 +28,7 @@ python Tools/ahpy/report_coverage.py \
 ```
 
 The five traced families contain 65 ownership-model, 58 Runtime API, 255
-Universal emitter, 63 compiler-seam, and 530 quality-tool tests; two
+Universal emitter, 63 compiler-seam, and 532 quality-tool tests; two
 platform/tool availability skips are expected on macOS.
 
 After the source refactors, the generated Universal corpus was also rebuilt

@@ -40,6 +40,25 @@ test configuration. Both are pre-existing entries in upstream's
 `CI=1` macOS exclusion contract as upstream CI rather than treating unavailable
 standard-library facilities as aHPy regressions.
 
+The post-rebase PRD-8 pilot rerun then exposed a frontend-shape compatibility
+gap: current Cython wraps the object-typed result of `str.format()` in an
+exact-`str` `PyTypeTestNode`. Universal generation now preserves that runtime
+contract with public HPy only, using `HPy_Type` and identity against
+`ctx->h_UnicodeType`; other unproven `PyTypeTestNode` families remain
+fail-closed. A dedicated generated-module `str.format()` oracle and the
+frozenlist supported-subset pilot pass in normal, Trace and Debug modes.
+
+The first hosted run on the repaired compiler baseline also found three
+fork-integration assumptions outside the emitter. The upstream wheel metadata
+probe looked only for Cython-named metadata, the handwritten HPy setup fixture
+installed its loader compatibility hook at import time even in HPy-free
+general Cython/pydebug jobs, and codespell parsed the MSVC `/Iinclude` test
+argument as prose. The local repair discovers any generated distribution
+metadata, defers the HPy-only hook until the fixture is executed as a build,
+and narrowly exempts that exact compiler argument. Focused C/C++ compilation,
+pure import, metadata and spelling regressions cover these boundaries; hosted
+same-HEAD confirmation remains open.
+
 ## Validation record
 
 - Conflict-marker scan: clean.
@@ -47,12 +66,12 @@ standard-library facilities as aHPy regressions.
 - Focused compiler/runtime/HPy writer suite on CPython 3.11: 441/441 passed.
 - CI policy tests: 8/8 passed.
 - Quality-gate tests: 34/34 passed.
-- Complete quality-tool suite: 530/530 passed with two expected platform/tool
+- Complete quality-tool suite: 532/532 passed with two expected platform/tool
   availability skips.
-- CPython 3.11 focused coverage: backend 9609/9609, frontend seam
-  18403/34755 (52.95%), quality tools 9430/9430.
-- CPython 3.14.2 focused coverage: backend 9495/9495, frontend seam
-  18504/34860 (53.08%), quality tools 9439/9439.
+- CPython 3.11 focused coverage: backend 9614/9614, frontend seam
+  18404/34800 (52.89%), quality tools 9430/9430.
+- CPython 3.14.2 focused coverage: backend 9500/9500, frontend seam
+  18505/34905 (53.02%), quality tools 9439/9439.
 - Generated Universal HPy normal, Trace and Debug execution: passed under the
   required `CFLAGS=-O0` semantic profile.
 - Direct Universal HPy build/import: passed under the required semantic
@@ -67,6 +86,9 @@ standard-library facilities as aHPy regressions.
   skipped under the upstream platform/dependency contract. The partitions
   reported 6,482/4 skipped, 6,585/25 skipped, 4,511/25 skipped and 4,447/124
   skipped, and the aggregate command exited successfully after 1,724 seconds.
+- Fresh four-pilot PRD-8 matrix: cypack passed, murmurhash and frozenlist
+  passed their declared partial contracts, and bezier remained intentionally
+  blocked at the pinned NumPy C-API boundary; the merged dashboard validated.
 - Documentation contract: all 28 required aHPy documents and 72 local links
   passed. A diagnostic full-tree Sphinx `-W` run remains non-authoritative and
   fails on the repository's existing missing `entry` directive, offline

@@ -5,13 +5,11 @@ from setuptools import Extension, setup
 from ahpy_hpy_compat import install_hpy_universal_loader_compat
 
 
-install_hpy_universal_loader_compat()
-
-
 HERE = Path(__file__).resolve().parent
 
 
 def main():
+    install_hpy_universal_loader_compat()
     setup(
         name="ahpy-minimal-reference",
         version="0.0.0",

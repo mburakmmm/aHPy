@@ -185,8 +185,12 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
     ls -l dist/ || true
 
     # Check for changelog entry in wheel metadata, except for "...-dev" or "...a0" dev versions.
+    METADATA_FILE=$(find . -maxdepth 2 -type f \( \
+      -path './*.dist-info/METADATA' -o \
+      -path './*.egg-info/PKG-INFO' \
+    \) -print -quit)
     grep -q '^__version__.*=.*".*\(a0\|dev[0-9]\?\)"' Cython/Shadow.py || \
-      fgrep -q '=======' $( [ -d ?ython-*.dist-info/ ] && echo "?ython-*.dist-info/METADATA" || echo "?ython*.egg-info/PKG-INFO" ) || {
+      { [ -n "$METADATA_FILE" ] && fgrep -q '=======' "$METADATA_FILE"; } || {
         echo "ERROR: wheel METADATA lacks changelog - did you add a version entry?" ; exit 1; }
 
     if $( twine --version ); then twine check dist/*.whl; fi

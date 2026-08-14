@@ -7,7 +7,7 @@ agent must keep all three synchronized when implementation status changes.
 
 ## 1. Snapshot and source of truth
 
-- Snapshot date: 2026-08-12 (Cursor/Codex continuation, writable scalar and
+- Snapshot date: 2026-08-14 (Cursor/Codex continuation, writable scalar and
   fixed-array buffer producer slices, handwritten-first cross-interpreter
   evidence, dynamic fault-count reporting, and local coverage audited and
   reconciled).
@@ -28,6 +28,21 @@ agent must keep all three synchronized when implementation status changes.
   compiler regressions pass in both C and C++ selections. The authoritative
   `CI=1` macOS profile selected 22,025 tests across four partitions: 21,847
   passed, 178 followed upstream skip contracts, and the command exited zero.
+- A subsequent fresh four-pilot rerun exposed current Cython's exact-`str`
+  `PyTypeTestNode` around `str.format()` results. Universal generation now
+  implements only that proven runtime check through public HPy and keeps all
+  other type-test families fail-closed. The generated normal/Trace/Debug
+  oracle, frozenlist pilot, complete pilot dashboard and dual-interpreter
+  focused coverage pass after the repair.
+- Hosted checks for remote HEAD `2924030e7015fecd536987393c6106c6da85e999`
+  exposed three fork-integration defects in addition to that pilot failure:
+  the upstream CI changelog probe assumed a Cython-named distribution,
+  `setup_minimal.py` required HPy during ordinary C/C++/pydebug imports, and
+  codespell interpreted the MSVC `/Iinclude` oracle as prose. The current
+  local tree repairs all four roots; 441 compiler/seam tests, 532 quality-tool
+  tests, focused C/C++ fixture import, dual-interpreter coverage, and generated
+  Universal normal/Trace/Debug execution pass. Hosted same-HEAD confirmation
+  remains mandatory after commit and push.
 - Last fully green dedicated-aHPy reference:
   `20e401ca71a0440ed91e9b6f9d083f3d6a24ef25`; always obtain the live branch
   HEAD with `git rev-parse HEAD` before reporting or changing evidence.
@@ -143,12 +158,12 @@ Last verified local gates:
   platform/dependency contracts (`CI=1`, four workers, exit zero).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 530 tests pass (two expected platform/tool availability
+- Quality-tool suite: 532 tests pass (two expected platform/tool availability
   skips on macOS).
 - Focused coverage (2026-08-12): 971 tests traced on both interpreters.
-  - CPython 3.11: backend 9609/9609 (100.00%), frontend_seam 52.95%,
+  - CPython 3.11: backend 9614/9614 (100.00%), frontend_seam 52.89%,
     quality_tools 9430/9430 (100.00%).
-  - CPython 3.14.2: backend 9495/9495 (100.00%), frontend_seam 53.08%,
+  - CPython 3.14.2: backend 9500/9500 (100.00%), frontend_seam 53.02%,
     quality_tools 9439/9439 (100.00%).
   - CI floors are 100%, 45%, and 100%; do not lower them to hide new code.
   - Full backend coverage means executable Python lines in

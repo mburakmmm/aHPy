@@ -132,6 +132,7 @@ class RuntimeContextConstant(Enum):
     TYPE_ERROR = "type-error"
     BASE_EXCEPTION = "base-exception"
     TYPE_TYPE = "type-type"
+    UNICODE_TYPE = "unicode-type"
     SLICE_TYPE = "slice-type"
     LONG_TYPE = "long-type"
     COMPLEX_TYPE = "complex-type"
@@ -1230,6 +1231,7 @@ class CPythonRuntimeAPI(_RuntimeAPIBase):
             RuntimeContextConstant.TYPE_ERROR: "PyExc_TypeError",
             RuntimeContextConstant.BASE_EXCEPTION: "PyExc_BaseException",
             RuntimeContextConstant.TYPE_TYPE: "(PyObject *)&PyType_Type",
+            RuntimeContextConstant.UNICODE_TYPE: "(PyObject *)&PyUnicode_Type",
             RuntimeContextConstant.SLICE_TYPE: "(PyObject *)&PySlice_Type",
             RuntimeContextConstant.LONG_TYPE: "(PyObject *)&PyLong_Type",
             RuntimeContextConstant.COMPLEX_TYPE: "(PyObject *)&PyComplex_Type",
@@ -2168,6 +2170,7 @@ class _HPyRuntimeAPIBase(_RuntimeAPIBase):
             RuntimeContextConstant.TYPE_ERROR: "h_TypeError",
             RuntimeContextConstant.BASE_EXCEPTION: "h_BaseException",
             RuntimeContextConstant.TYPE_TYPE: "h_TypeType",
+            RuntimeContextConstant.UNICODE_TYPE: "h_UnicodeType",
             RuntimeContextConstant.SLICE_TYPE: "h_SliceType",
             RuntimeContextConstant.LONG_TYPE: "h_LongType",
             RuntimeContextConstant.COMPLEX_TYPE: "h_ComplexType",

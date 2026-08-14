@@ -15830,6 +15830,56 @@ class PyTypeTestNode(CoercionNode):
         # FIXME
         pass
 
+    def generate_hpy_bootstrap_owned_result(self, code):
+        if not (self.type.is_pystr_type and self.exact_builtin_type):
+            code.unsupported(
+                self,
+                "Python type test for %s is not implemented by the bootstrap "
+                "Universal HPy emitter" % self.type,
+            )
+        result_cname = code.materialize_owned_handle(
+            self.arg.generate_hpy_bootstrap_owned_result(code))
+        code.put_error_return_if_null(result_cname)
+        allow_none = not self.notnone
+        if allow_none:
+            none_cname = code.runtime_api.context_constant(
+                RuntimeContextConstant.NONE,
+                context_cname=code.context_cname,
+            )
+            code.putln("if (!%s) {" % code.runtime_api.identity_test(
+                result_cname, none_cname, context_cname=code.context_cname))
+            code.indent()
+        actual_type_cname = code.allocate_owned_handle(
+            code.runtime_api.object_type(
+                result_cname, context_cname=code.context_cname))
+        code.put_error_return_if_null(actual_type_cname)
+        expected_type_cname = code.runtime_api.context_constant(
+            RuntimeContextConstant.UNICODE_TYPE,
+            context_cname=code.context_cname,
+        )
+        code.putln("if (!%s) {" % code.runtime_api.identity_test(
+            actual_type_cname,
+            expected_type_cname,
+            context_cname=code.context_cname,
+        ))
+        code.indent()
+        code.putln("%s;" % code.runtime_api.error_set_string(
+            code.runtime_api.context_constant(
+                RuntimeContextConstant.TYPE_ERROR,
+                context_cname=code.context_cname,
+            ),
+            '"Expected str, got an incompatible return value"',
+            context_cname=code.context_cname,
+        ))
+        code.put_error_return()
+        code.dedent()
+        code.putln("}")
+        code.close_owned_handle(actual_type_cname)
+        if allow_none:
+            code.dedent()
+            code.putln("}")
+        return result_cname
+
     def calculate_result_code(self):
         return self.arg.result()
 

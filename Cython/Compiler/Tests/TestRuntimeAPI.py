@@ -97,6 +97,10 @@ class RuntimeAPITest(TestCase):
             "(PyObject *)&PyType_Type",
         )
         self.assertEqual(
+            cpython.context_constant(RuntimeContextConstant.UNICODE_TYPE),
+            "(PyObject *)&PyUnicode_Type",
+        )
+        self.assertEqual(
             cpython.context_constant(RuntimeContextConstant.LONG_TYPE),
             "(PyObject *)&PyLong_Type",
         )
@@ -223,6 +227,11 @@ class RuntimeAPITest(TestCase):
                 hpy.context_constant(
                     RuntimeContextConstant.TYPE_TYPE, context_cname="ctx"),
                 "ctx->h_TypeType",
+            )
+            self.assertEqual(
+                hpy.context_constant(
+                    RuntimeContextConstant.UNICODE_TYPE, context_cname="ctx"),
+                "ctx->h_UnicodeType",
             )
             self.assertEqual(
                 hpy.context_constant(

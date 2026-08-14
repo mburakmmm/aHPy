@@ -4599,12 +4599,15 @@ class UniversalHPyFunctionWriter:
     def put_error_return_if_negative(self, expression):
         self.putln("if (%s < 0) {" % expression)
         self.indent()
+        self.put_error_return()
+        self.dedent()
+        self.putln("}")
+
+    def put_error_return(self):
         if self.rollback_module_publications:
             self._emit_module_failure_exit_preserving_memory()
         else:
             self._emit_failure_exit()
-        self.dedent()
-        self.putln("}")
 
     def _emit_module_failure_exit_preserving_memory(
         self, exclude_handles=(),

@@ -632,8 +632,8 @@ measured modules through a source-first finder so stale
 compiled extensions cannot hide Python lines. It reports the Universal
 backend, touched Cython frontend seam, and quality tools independently, plus
 ownership, Runtime API, emitter, compiler-seam, and quality-tool feature
-families. The current Python 3.11 validation records 100.00%, 52.95%, and
-100.00%; the current local Python 3.14.2 rerun records 100.00%, 53.08%, and
+families. The current Python 3.11 validation records 100.00%, 52.89%, and
+100.00%; the current local Python 3.14.2 rerun records 100.00%, 53.02%, and
 100.00%. CI keeps
 cross-version floors of 100%, 45%, and 100%. Schema 2 JSON and Markdown reports
 include exact missing lines and compact missing ranges for actionable

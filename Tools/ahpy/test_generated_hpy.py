@@ -80,6 +80,8 @@ def verify_source_boundary(generated, required=None):
             "ctx->h_ComplexType",
             "ctx->h_ListType",
             "ctx->h_TupleType",
+            "ctx->h_UnicodeType",
+            "HPy_Type(",
             "HPyListBuilder_New",
             "HPyListBuilder_Cancel",
             "HPyTupleBuilder_New",
@@ -2890,6 +2892,13 @@ def build_and_run(python, runtime_prefix=()):
             "assert bootstrap_answer.format_greeting('hpy') == 'hello hpy!'; "
             "assert bootstrap_answer.format_repr('hpy') == \"'hpy'\"; "
             "assert bootstrap_answer.format_padded(7, 3) == '  7'; "
+            "assert bootstrap_answer.format_method('hpy') == \"value='hpy'\"; "
+            "assert bootstrap_answer.checked_str_result(lambda: 'ok') == 'ok'; "
+            "assert bootstrap_answer.checked_str_result(lambda: None) is None; "
+            "exec(\"try:\\n bootstrap_answer.checked_str_result(lambda: 42)\\n"
+            "except TypeError as error:\\n assert str(error) == "
+            "'Expected str, got an incompatible return value'\\n"
+            "else:\\n raise AssertionError('invalid str return was accepted')\"); "
             "assert bootstrap_answer.walrus_threshold((1, 2, 3), 2) == 3; "
             "assert bootstrap_answer.walrus_threshold((1,), 2) == 0; "
             "assert bootstrap_answer.walrus_product(3, 4) == 49; "

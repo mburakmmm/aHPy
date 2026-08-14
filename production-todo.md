@@ -34,7 +34,7 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 
 | Sıra | Faz | Durum | Production sonucuna katkısı |
 | ---: | --- | --- | --- |
-| 0 | PRD-0 — Mevcut dalı yeşile getir | **TAMAMLANDI** | Güvenilir aynı-HEAD CI tabanı |
+| 0 | PRD-0 — Mevcut dalı yeşile getir | **AKTİF — REBASE TEKRAR DOĞRULAMA** | Güvenilir aynı-HEAD CI tabanı |
 | 1 | PRD-1 — Destek sözleşmesini dondur | **TAMAMLANDI** | İlk sürümün dürüst kapsamı |
 | 2 | PRD-2 — Core compiler/module state | **TAMAMLANDI** | Ownership ve semantic correctness |
 | 3 | PRD-3 — Pure HPy extension type | **TAMAMLANDI** | Type/GC/finalizer güvenliği |
@@ -70,7 +70,7 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
-- Mevcut odaklı doğrulama: 441 compiler/seam testi, 530 quality-tool testi ve
+- Mevcut odaklı doğrulama: 441 compiler/seam testi, 532 quality-tool testi ve
   iki yorumlayıcıda 971 coverage testi.
 - Güncel Cython rebase'i için resmî macOS C/C++ profili: dört bölümde 22.025
   seçili test, 21.847 başarılı test ve upstream platform/dependency
@@ -108,6 +108,21 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 
 Bu kapı kapanmadan yeni production özelliği eklenmez.
 
+Güncel Cython rebase'i sonrası yenileme (2026-08-14):
+
+- [x] Frozenlist pilotunu kıran exact-`str` `PyTypeTestNode` Universal yolunu
+      public HPy ile uygula ve diğer tip-test ailelerini fail-closed tut.
+- [x] Fork dağıtım adını kabul etmeyen wheel metadata/changelog probunu
+      dağıtım adından bağımsız yap.
+- [x] `setup_minimal.py` dosyasının genel Cython C/C++ ve pydebug testlerinde
+      HPy kurulu değilken güvenle import edilmesini sağla.
+- [x] MSVC `/Iinclude` oracle'ını saklamadan codespell sözleşmesini düzelt.
+- [x] Yerelde 441 compiler/seam, 532 quality-tool, C/C++ fixture import,
+      dual-interpreter coverage ve Universal normal/Trace/Debug kapılarını
+      geçir.
+- [ ] Bu düzeltmeleri tek commit olarak push et ve beş mandatory aggregate
+      context'i aynı HEAD üzerinde yeniden yeşil doğrula.
+
 - [x] Son commit için devam eden bütün GitHub Actions işlerinin bitmesini
       bekle ve sonuçları kaydet.
 - [x] `Benchmarks` workflow'undaki `benchmark_results_*.csv` bulunamadığı için
@@ -144,9 +159,9 @@ Bu kapı kapanmadan yeni production özelliği eklenmez.
 
 ### PRD-0 çıkış kapısı
 
-- [x] Aynı HEAD üzerinde clean-build mandatory CI tamamen yeşil.
-- [x] Kırmızı kalan her iş açıkça allowed-failure ve destek iddiası dışında.
-- [x] README ve kanıt belgeleri aynı commit/run durumunu gösteriyor.
+- [ ] Güncel rebase HEAD'i üzerinde clean-build mandatory CI tamamen yeşil.
+- [ ] Kırmızı kalan her iş açıkça allowed-failure ve destek iddiası dışında.
+- [ ] README ve kanıt belgeleri güncel commit/run durumunu gösteriyor.
 
 ## PRD-1 — İlk production sürümünün destek sözleşmesini dondur
 
@@ -500,6 +515,11 @@ overflow fallback ve `-1`→`-2` davranışı düzeltilip regresyonlandı.
 Desteklenen construct/mutate/freeze/hash altkümesi eşdeğer Python list/tuple
 workload'una karşı aynı fail-closed performans şemasıyla ölçülür; kapsam dışı
 yüzeylere oran veya performans iddiası taşınmaz.
+Güncel Cython rebase'i sonrası temiz pilot koşusu `str.format()` sonucuna
+eklenen exact-`str` `PyTypeTestNode` sınırını yakaladı; Universal emitter bu
+tek kanıtlanmış şekli public `HPy_Type`/`HPy_Is` ile doğruluyor, diğer tip-test
+ailelerini fail-closed bırakıyor. Generated normal/Trace/Debug oracle,
+frozenlist entegrasyonu ve dört-pilot birleşik dashboard yeniden geçti.
 Tam dört-pilot pristine checkout/scan matrisi ile üç port integration raporu
 yerelde tek dashboard'a kapı bazında birleştirildi: cypack `pass`, murmurhash
 `partial-scalar-adapter`, frozenlist `supported-subset`, bezier ise beklenen

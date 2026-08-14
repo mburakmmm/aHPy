@@ -386,6 +386,15 @@ def format_padded(value, width, /):
     return f"{value:{width}}"
 
 
+def format_method(value, /):
+    return "value={!r}".format(value)
+
+
+def checked_str_result(provider, /):
+    cdef str result = provider()
+    return result
+
+
 def walrus_threshold(values, limit, /):
     if (count := len(values)) > limit:
         return count

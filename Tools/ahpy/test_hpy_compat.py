@@ -17,6 +17,23 @@ LEGACY_TEMPLATE = """def __bootstrap__():
 
 
 class HPyCompatTest(unittest.TestCase):
+    def test_minimal_setup_is_import_safe_without_hpy(self):
+        root = Path(ahpy_hpy_compat.__file__).resolve().parent
+        setup_path = root / "tests" / "ahpy" / "setup_minimal.py"
+        program = (
+            "import runpy, sys\n"
+            "sys.path.insert(0, %r)\n"
+            "sys.modules['hpy'] = None\n"
+            "sys.modules['hpy.devel'] = None\n"
+            "runpy.run_path(%r, run_name='ahpy_setup_fixture')\n"
+        ) % (str(root), str(setup_path))
+        subprocess.run(
+            [sys.executable, "-I", "-c", program],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
     def test_default_hpy_module_is_loaded_and_repaired(self):
         hpy_module = ModuleType("hpy")
         hpy_module.__path__ = []

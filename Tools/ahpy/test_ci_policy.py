@@ -254,6 +254,12 @@ class CIPolicyTest(unittest.TestCase):
         }
         self.assertIn("production-todo.md", skipped_paths)
 
+    def test_cython_ci_metadata_probe_accepts_fork_distribution_name(self):
+        text = (ROOT / "Tools" / "ci-run.sh").read_text(encoding="utf8")
+        self.assertIn("-path './*.dist-info/METADATA'", text)
+        self.assertIn("-path './*.egg-info/PKG-INFO'", text)
+        self.assertNotIn("?ython*.egg-info/PKG-INFO", text)
+
     def test_job_level_workflow_mappings_have_no_duplicate_keys(self):
         for entry in load_policy()["workflows"]:
             text = (ROOT / entry["path"]).read_text(encoding="utf8")
