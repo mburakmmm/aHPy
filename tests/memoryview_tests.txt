@@ -1,6 +1,10 @@
 # Tests that involve memoryviews and aren't caught by filename or
 # tag. These should be excluded from Limited API < 3.11
 
+# aHPy producer fixtures declare Py_buffer, which entered the Stable ABI in 3.11.
+^ahpy[.]bootstrap_types$
+^ahpy[.]fault_injection$
+
 # TODO these are mostly "array" rather than memoryview. Revisit if
 # they are separated.
 array.clone

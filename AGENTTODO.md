@@ -7,6 +7,18 @@ agent must keep all three synchronized when implementation status changes.
 
 ## 1. Snapshot and source of truth
 
+- Current continuation (2026-09-05): the owner authorized integrating this
+  branch into `main` and continuing the complete roadmap there. PR #2 is
+  mergeable but its required `ci-success` failed on the two Python 3.9
+  Limited API buffer fixtures; all four other required aggregates passed on
+  `652cd3f66341e08a383fe565ee89849f44eec1a1`. The existing pre-3.11 buffer
+  exclusion now covers exactly `ahpy.bootstrap_types` and
+  `ahpy.fault_injection`. Local ordinary C/C++ and Limited API 3.11 each
+  compile/import all four selections successfully; Limited API 3.9 selects
+  neither unsupported buffer fixture. Push the repair, await the five
+  required checks, and merge PR #2 through the existing ruleset. Once the
+  workflow is on `main`, dispatch the five-sample performance calibration;
+  the previously proposed PR-label workaround is unnecessary.
 - Snapshot date: 2026-08-14 (Cursor/Codex continuation, writable scalar and
   fixed-array buffer producer slices, handwritten-first cross-interpreter
   evidence, dynamic fault-count reporting, and local coverage audited and

@@ -38,6 +38,19 @@ returns all four rule types for both `main` and the future-pattern probe
 
 ### PRD-0 hosted aggregate evidence
 
+On 2026-09-05, the completed runs for
+`652cd3f66341e08a383fe565ee89849f44eec1a1` were inspected: aHPy
+(`31794650087`), benchmarks (`31794650181`), coverage (`31794650184`) and
+sanitizers (`31794650377`) passed their required aggregates. Full Cython CI
+`31794650243` failed only its C/C++ Python 3.9 Limited API jobs and final
+aggregate. Both jobs compiled `ahpy.bootstrap_types` and
+`ahpy.fault_injection`, whose buffer producers require `Py_buffer`, absent
+from the Limited API before 3.11. The existing version-dependent
+`tests/memoryview_tests.txt` exclusion now covers those exact fixtures.
+Local CPython 3.11.15 with `CFLAGS=-O0` passed four ordinary C/C++ and four
+Limited API 3.11 compile/import selections; Limited API 3.9 selected zero
+of these unsupported buffer cases. Replacement hosted evidence is pending.
+
 CI-policy implementation commit
 `e791c8983bcb1a3c38aa932617a91ea976cb5c55` has the following hosted
 evidence:

@@ -31,6 +31,11 @@ in `the support matrix <docs/ahpy/support-matrix.md>`_.  The authoritative work
 queue and agent hand-off are `TODO.md <TODO.md>`_ and
 `AGENTTODO.md <AGENTTODO.md>`_.
 
+The current integration into ``main`` is tracked in
+`PR #2 <https://github.com/mburakmmm/aHPy/pull/2>`_; the remaining production
+and release gates are listed in `production-todo.md <production-todo.md>`_.
+Moving development to ``main`` retains the preview support contract.
+
 Core guarantees
 ---------------
 

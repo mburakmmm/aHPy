@@ -48,6 +48,11 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 
 ### Şu anki kritik yol
 
+2026-09-05 kararı: proje sahibi `codex/ahpy-bootstrap` içeriğinin `main`e
+alınmasını onayladı. PR #2 mevcut koruma kuralları üzerinden birleştirilecek;
+bu geçiş preview seviyesini veya production çıkış koşullarını değiştirmez.
+Kalibrasyon workflow'u `main`e geldiğinde manual dispatch engeli de kalkar.
+
 1. Final kanıt commit'inin required context'lerini yeniden yeşil doğrula ve
    final run/job bağlantılarını commit döngüsü yaratmadan PR açıklamasında tut.
 2. Hazır Python 3.14 + HPy-development `SIGSEGV` raporunu proje sahibi açıkça
@@ -122,6 +127,12 @@ Güncel Cython rebase'i sonrası yenileme (2026-08-14):
       geçir.
 - [ ] Bu düzeltmeleri tek commit olarak push et ve beş mandatory aggregate
       context'i aynı HEAD üzerinde yeniden yeşil doğrula.
+- [x] `652cd3f` koşusunun son hatasını sınıflandır: Python 3.9 Limited API
+      `Py_buffer` sunmadığından iki aHPy buffer fixture'ı derlenemiyor.
+- [x] Mevcut pre-3.11 buffer seçim kuralına yalnız `bootstrap_types` ve
+      `fault_injection` ekle; normal C/C++ ve Limited API 3.11 seçimlerinde
+      toplam sekiz compile/import doğrulamasını geçir.
+- [ ] Düzeltmenin hosted beş kapısını doğrula ve PR #2'yi `main`e birleştir.
 
 - [x] Son commit için devam eden bütün GitHub Actions işlerinin bitmesini
       bekle ve sonuçları kaydet.
