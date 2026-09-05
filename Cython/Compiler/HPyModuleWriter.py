@@ -9,7 +9,7 @@ import copy
 import math
 import re
 
-from . import ExprNodes, Nodes, PyrexTypes
+from . import ExprNodes, Nodes, Options, PyrexTypes
 from .Errors import CompileError
 from .HandleModel import (
     HandleBuilderManager,
@@ -26,10 +26,18 @@ from .RuntimeAPI import (
     RuntimeMethodSignature,
     RuntimeSequenceKind,
 )
-from ..Utils import GENERATED_BY_MARKER
+from .StringEncoding import EncodedString
+from ..Utils import GENERATED_BY_MARKER, open_new_file
 
 
 _C_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _c_identifier_fragment(value):
+    """Preserve ASCII identifiers and encode other Python identifiers for C."""
+    if _C_IDENTIFIER.match(value):
+        return value
+    return "unicode_%s" % value.encode("utf8").hex()
 
 
 def _resolve_extension_field_storage_type(field_type):
@@ -78,6 +86,29 @@ def _extension_field_storage(field_type, field_cname):
         PyrexTypes.c_longdouble_type:
             ("long double", None, "long-double"),
     }
+    if field_type is not None and field_type.is_array:
+        if (
+            not isinstance(field_type.size, int)
+            or field_type.size <= 0
+            or field_type.base_type.is_array
+        ):
+            raise AssertionError(
+                "unvalidated pure HPy extension array field type: %r" %
+                field_type)
+        element_type = _resolve_extension_field_storage_type(
+            field_type.base_type)
+        element_storage = native_types.get(element_type)
+        if element_storage is None:
+            raise AssertionError(
+                "unvalidated pure HPy extension array element type: %r" %
+                element_type)
+        element_declaration, _, element_storage_kind = element_storage
+        return (
+            "%s %s[%d]" % (
+                element_declaration, field_cname, field_type.size),
+            None,
+            "fixed-array:%s" % element_storage_kind,
+        )
     storage = native_types.get(field_type)
     if storage is not None:
         declaration, member_kind, storage_kind = storage
@@ -86,6 +117,11 @@ def _extension_field_storage(field_type, field_cname):
 
 
 def _supports_extension_field_storage(field_type):
+    resolved_type = _resolve_extension_field_storage_type(field_type)
+    if resolved_type is not None and resolved_type.is_array:
+        # Fixed arrays are admitted only by the stricter buffer-producer
+        # validator; general field load/store and member exposure stay closed.
+        return False
     try:
         _extension_field_storage(field_type, "field")
     except AssertionError:
@@ -101,8 +137,6 @@ def _external_c_scalar_kind(value_type):
     try:
         _, _, storage_kind = _extension_field_storage(value_type, "value")
     except AssertionError:
-        return None
-    if storage_kind == "object":
         return None
     if storage_kind == "py-ssize":
         # Py_ssize_t is owned by Python.h, not a Python-independent C ABI.
@@ -290,7 +324,10 @@ class UniversalHPyFunctionWriter:
 
     @staticmethod
     def unsupported(node, message):
-        raise CompileError(node.pos, "aHPy bootstrap backend: %s" % message)
+        raise CompileError(
+            getattr(node, "pos", None),
+            "aHPy bootstrap backend: %s" % message,
+        )
 
     def allocate_owned_handle(self, expression):
         cname = "__pyx_hpy_temp_%d" % self._next_handle
@@ -333,6 +370,7 @@ class UniversalHPyFunctionWriter:
         self._extension_runtime_receiver_cname = receiver_cname
 
     def ensure_extension_runtime_owners(self, node=None):
+        """Return only after both the default owner and module handle exist."""
         if self.module_cname is not None and self.default_owner_cname is not None:
             return
         receiver_cname = self._extension_runtime_receiver_cname
@@ -523,10 +561,85 @@ class UniversalHPyFunctionWriter:
                     argument_kind, argument_cname))
         call_expression = "%s(%s)" % (
             function_cname, ", ".join(native_arguments))
+        errno_sentinel = getattr(
+            entry, "ahpy_universal_external_c_errno_sentinel", None)
+        if errno_sentinel is None:
+            result_cname = self._box_external_c_scalar_result(
+                storage_kind, call_expression)
+        else:
+            native_result_cname = "__pyx_hpy_external_result_%d" % (
+                self._next_native_field)
+            self._next_native_field += 1
+            saved_errno_cname = "__pyx_hpy_external_errno_%d" % (
+                self._next_status)
+            self._next_status += 1
+            self.putln("%s %s;" % (
+                self._external_c_scalar_c_type(storage_kind),
+                native_result_cname,
+            ))
+            self.putln("int %s;" % saved_errno_cname)
+            self.putln("errno = 0;")
+            self.putln("%s = %s;" % (
+                native_result_cname, call_expression))
+            self.putln("%s = errno;" % saved_errno_cname)
+            self._emit_external_c_errno_failure(
+                entry,
+                storage_kind,
+                native_result_cname,
+                saved_errno_cname,
+            )
+            result_cname = self._box_external_c_scalar_result(
+                storage_kind, native_result_cname)
+        for argument_cname in reversed(argument_handles):
+            self.close_owned_handle(argument_cname)
+        return result_cname
+
+    def _emit_external_c_errno_failure(
+        self,
+        entry,
+        storage_kind,
+        native_result_cname,
+        saved_errno_cname,
+    ):
+        errno_sentinel = entry.ahpy_universal_external_c_errno_sentinel
+        sentinel_expression = "((%s)%s)" % (
+            self._external_c_scalar_c_type(storage_kind),
+            errno_sentinel,
+        )
+        self.putln("if (%s == %s) {" % (
+            native_result_cname, sentinel_expression))
+        self.indent()
+        self.putln("if (%s != 0) {" % saved_errno_cname)
+        self.indent()
+        self.putln("errno = %s;" % saved_errno_cname)
+        self.putln("(void)%s;" % self.runtime_api.error_set_from_errno(
+            self.runtime_api.builtin_exception(
+                "OSError", context_cname=self.context_cname),
+            context_cname=self.context_cname,
+        ))
+        self.dedent()
+        self.putln("} else {")
+        self.indent()
+        message = UniversalHPyModuleWriter._c_string(
+            "external C function '%s' returned its -1 error sentinel "
+            "without setting errno" % entry.name)
+        self.putln("%s;" % self.runtime_api.error_set_string(
+            self.runtime_api.builtin_exception(
+                "RuntimeError", context_cname=self.context_cname),
+            message,
+            context_cname=self.context_cname,
+        ))
+        self.dedent()
+        self.putln("}")
+        self._emit_failure_exit()
+        self.dedent()
+        self.putln("}")
+
+    def _box_external_c_scalar_result(self, storage_kind, native_expression):
         if storage_kind == "bint":
             expression = self.runtime_api.duplicate_reference(
                 "%s ? %s : %s" % (
-                    call_expression,
+                    native_expression,
                     self.runtime_api.context_constant(
                         RuntimeContextConstant.TRUE,
                         context_cname=self.context_cname,
@@ -540,24 +653,42 @@ class UniversalHPyFunctionWriter:
             )
         elif storage_kind == "py-ssize":
             expression = self.runtime_api.ssize_integer_from_cvalue(
-                call_expression, context_cname=self.context_cname)
+                native_expression, context_cname=self.context_cname)
         elif storage_kind.startswith("signed-") or storage_kind == "char":
             expression = self.runtime_api.signed_integer_from_cvalue(
-                call_expression, context_cname=self.context_cname)
+                native_expression, context_cname=self.context_cname)
         elif storage_kind.startswith("unsigned-"):
             expression = self.runtime_api.unsigned_integer_from_cvalue(
-                call_expression, context_cname=self.context_cname)
+                native_expression, context_cname=self.context_cname)
         elif storage_kind in ("float", "double", "long-double"):
             expression = self.runtime_api.floating_from_cvalue(
-                call_expression, context_cname=self.context_cname)
+                native_expression, context_cname=self.context_cname)
         else:
             raise AssertionError(
                 "unknown validated external C scalar kind %r" % storage_kind)
         result_cname = self.allocate_owned_handle(expression)
         self.put_error_return_if_null(result_cname)
-        for argument_cname in reversed(argument_handles):
-            self.close_owned_handle(argument_cname)
         return result_cname
+
+    @staticmethod
+    def _external_c_scalar_c_type(storage_kind):
+        return {
+            "bint": "char",
+            "char": "char",
+            "signed-char": "signed char",
+            "unsigned-char": "unsigned char",
+            "signed-short": "short",
+            "unsigned-short": "unsigned short",
+            "signed-int": "int",
+            "unsigned-int": "unsigned int",
+            "signed-long": "long",
+            "unsigned-long": "unsigned long",
+            "signed-long-long": "long long",
+            "unsigned-long-long": "unsigned long long",
+            "float": "float",
+            "double": "double",
+            "long-double": "long double",
+        }[storage_kind]
 
     @staticmethod
     def _external_c_scalar_literal_value(node):
@@ -605,8 +736,6 @@ class UniversalHPyFunctionWriter:
         if storage_kind in ("float", "double", "long-double"):
             if isinstance(value, bool):
                 value = int(value)
-            if not isinstance(value, (int, float)):
-                return None
             try:
                 numeric_value = float(value)
             except (OverflowError, ValueError):
@@ -678,17 +807,69 @@ class UniversalHPyFunctionWriter:
                 "HPy execution-state transition must be unconditional",
             )
 
-        calls = []
+        emitted_calls = 0
         for statement in self.stats(gil_node.body):
             if isinstance(statement, Nodes.ParallelStatNode):
                 self.reject_parallel_construct(statement)
-            if type(statement) is not Nodes.ExprStatNode:
+            if type(statement) is Nodes.GILStatNode:
+                if (
+                    statement.state != "gil"
+                    or statement.internally_generated
+                ):
+                    self.unsupported(
+                        statement,
+                        "only an explicit with gil block may interrupt the "
+                        "Universal HPy with nogil external-C lane",
+                    )
+                if statement.condition is not None:
+                    self.unsupported(
+                        statement,
+                        "conditional with gil blocks are not implemented in "
+                        "the Universal HPy with nogil lane",
+                    )
+                gil_body = self.stats(statement.body)
+                if not gil_body:
+                    self.unsupported(
+                        statement,
+                        "empty nested with gil blocks are not part of the "
+                        "Universal HPy execution-state slice",
+                    )
+                self.putln(
+                    "/* explicit with gil: Python execution is active between "
+                    "native intervals */")
+                for gil_statement in gil_body:
+                    gil_statement.generate_hpy_bootstrap_execution_code(self)
+                continue
+            result_target = None
+            if type(statement) is Nodes.ExprStatNode:
+                expression = statement.expr
+            elif type(statement) is Nodes.SingleAssignmentNode:
+                if (
+                    not isinstance(
+                        statement.lhs,
+                        (
+                            ExprNodes.NameNode,
+                            ExprNodes.AttributeNode,
+                            ExprNodes.IndexNode,
+                            ExprNodes.SliceIndexNode,
+                        ),
+                    )
+                    or not statement.lhs.type.is_pyobject
+                ):
+                    self.unsupported(
+                        statement.lhs,
+                        "used with nogil results require a Python name, "
+                        "attribute, item, or slice target",
+                    )
+                result_target = statement.lhs
+                expression = statement.rhs
+            else:
                 self.unsupported(
                     statement,
-                    "the initial with nogil lane permits only discarded "
-                    "calls to validated argumentless external C functions",
+                    "the with nogil lane permits only discarded calls or "
+                    "assignments to supported Python targets from validated "
+                    "external C functions",
                 )
-            expression = statement.expr
             while isinstance(
                 expression,
                 (
@@ -701,8 +882,9 @@ class UniversalHPyFunctionWriter:
             if not isinstance(expression, ExprNodes.SimpleCallNode):
                 self.unsupported(
                     statement,
-                    "the initial with nogil lane permits only discarded "
-                    "calls to validated argumentless external C functions",
+                    "the with nogil lane permits only discarded calls or "
+                    "assignments to supported Python targets from validated "
+                    "external C functions",
                 )
             if expression.self is not None or expression.coerced_self is not None:
                 self.unsupported(
@@ -710,11 +892,11 @@ class UniversalHPyFunctionWriter:
                     "external C method calls are not implemented inside "
                     "with nogil",
                 )
-            if expression.args is None or expression.args:
+            if expression.args is None:
                 self.unsupported(
                     expression,
-                    "external C calls inside with nogil must be argumentless "
-                    "in the initial Universal HPy lane",
+                    "expanded external C call arguments are not implemented "
+                    "inside with nogil",
                 )
             entry = getattr(expression.function, "entry", None)
             function_type = getattr(entry, "type", None)
@@ -734,11 +916,14 @@ class UniversalHPyFunctionWriter:
             if (
                 function_type.exception_value is not None
                 or function_type.exception_check
-            ):
+            ) and getattr(
+                entry, "ahpy_universal_external_c_errno_sentinel", None
+            ) is None:
                 self.unsupported(
                     expression,
-                    "external C calls inside with nogil must be noexcept; "
-                    "Python exception inspection requires active execution state",
+                    "external C calls inside with nogil must be noexcept or use "
+                    "the exact signed except -1 errno contract; Python exception "
+                    "inspection requires active execution state",
                 )
             function_cname = str(entry.cname)
             if not self.is_c_identifier(function_cname):
@@ -746,31 +931,107 @@ class UniversalHPyFunctionWriter:
                     expression,
                     "external C function names must be plain C identifiers",
                 )
-            calls.append(function_cname)
+            argument_kinds = getattr(
+                entry, "ahpy_universal_external_c_argument_kinds", None)
+            if (
+                argument_kinds is None
+                or len(argument_kinds) != len(expression.args)
+            ):
+                raise AssertionError(
+                    "validated external C signature changed inside with nogil")
+            native_arguments = []
+            for argument, argument_kind in zip(
+                    expression.args, argument_kinds):
+                while isinstance(
+                    argument,
+                    (
+                        ExprNodes.CoerceFromPyTypeNode,
+                        ExprNodes.CoerceToTempNode,
+                    ),
+                ):
+                    argument = argument.arg
+                literal_argument = self._render_external_c_scalar_literal(
+                    argument, argument_kind)
+                if literal_argument is not None:
+                    native_arguments.append(literal_argument)
+                    continue
+                argument_cname = self.materialize_owned_handle(
+                    argument.generate_hpy_bootstrap_owned_result(self))
+                self.put_error_return_if_null(argument_cname)
+                native_arguments.append(self._convert_native_scalar_handle(
+                    argument_kind, argument_cname))
+                self.close_owned_handle(argument_cname)
+            call_expression = "%s(%s)" % (
+                function_cname, ", ".join(native_arguments))
+            errno_sentinel = getattr(
+                entry, "ahpy_universal_external_c_errno_sentinel", None)
+            native_result_cname = None
+            if result_target is not None or errno_sentinel is not None:
+                native_result_cname = "__pyx_hpy_nogil_result_%d" % (
+                    self._next_native_field)
+                self._next_native_field += 1
+                self.putln("%s %s;" % (
+                    self._external_c_scalar_c_type(
+                        getattr(
+                            entry,
+                            "ahpy_universal_external_c_scalar_kind",
+                        )),
+                    native_result_cname,
+                ))
+            saved_errno_cname = None
+            if errno_sentinel is not None:
+                saved_errno_cname = "__pyx_hpy_nogil_errno_%d" % (
+                    self._next_status)
+                self._next_status += 1
+                self.putln("int %s;" % saved_errno_cname)
+            thread_state_cname = "__pyx_hpy_thread_state_%d" % (
+                self._next_thread_state)
+            self._next_thread_state += 1
+            self.putln("{")
+            self.indent()
+            self.putln("%s %s = %s;" % (
+                self.runtime_api.execution_state_type_cname(),
+                thread_state_cname,
+                self.runtime_api.leave_python_execution(
+                    context_cname=self.context_cname),
+            ))
+            if errno_sentinel is not None:
+                self.putln("errno = 0;")
+            if native_result_cname is None:
+                self.putln("(void)%s;" % call_expression)
+            else:
+                self.putln("%s = %s;" % (
+                    native_result_cname, call_expression))
+            if saved_errno_cname is not None:
+                self.putln("%s = errno;" % saved_errno_cname)
+            self.putln("%s;" % self.runtime_api.reenter_python_execution(
+                thread_state_cname, context_cname=self.context_cname))
+            self.dedent()
+            self.putln("}")
+            if errno_sentinel is not None:
+                self._emit_external_c_errno_failure(
+                    entry,
+                    getattr(
+                        entry, "ahpy_universal_external_c_scalar_kind"),
+                    native_result_cname,
+                    saved_errno_cname,
+                )
+            if result_target is not None:
+                result_cname = self._box_external_c_scalar_result(
+                    getattr(
+                        entry, "ahpy_universal_external_c_scalar_kind"),
+                    native_result_cname,
+                )
+                self.assign_target_from_owned_cname(
+                    result_target, result_cname)
+            emitted_calls += 1
 
-        if not calls:
+        if not emitted_calls:
             self.unsupported(
                 gil_node,
                 "empty with nogil blocks are not part of the initial "
                 "Universal HPy execution-state slice",
             )
-
-        thread_state_cname = "__pyx_hpy_thread_state_%d" % self._next_thread_state
-        self._next_thread_state += 1
-        self.putln("{")
-        self.indent()
-        self.putln("%s %s = %s;" % (
-            self.runtime_api.execution_state_type_cname(),
-            thread_state_cname,
-            self.runtime_api.leave_python_execution(
-                context_cname=self.context_cname),
-        ))
-        for function_cname in calls:
-            self.putln("(void)%s();" % function_cname)
-        self.putln("%s;" % self.runtime_api.reenter_python_execution(
-            thread_state_cname, context_cname=self.context_cname))
-        self.dedent()
-        self.putln("}")
 
     def reject_parallel_construct(self, node):
         self.unsupported(
@@ -1123,9 +1384,6 @@ class UniversalHPyFunctionWriter:
             if entry.is_builtin or entry.scope.is_builtin_scope:
                 self.name_registry.require_builtin(source_name)
                 self.ensure_extension_runtime_owners(node)
-                if self.module_cname is None:
-                    self.unsupported(
-                        node, "builtin lookup requires the current module handle")
                 builtins_cname = self.allocate_owned_handle(
                     self.runtime_api.attribute_get_string(
                         self.module_cname,
@@ -1146,9 +1404,6 @@ class UniversalHPyFunctionWriter:
             elif entry.is_cclass_var_entry:
                 self.name_registry.require_module_global(source_name)
                 self.ensure_extension_runtime_owners(node)
-                if self.module_cname is None:
-                    self.unsupported(
-                        node, "extension-type lookup requires the current module handle")
                 result_cname = self.allocate_owned_handle(
                     self.runtime_api.attribute_get_string(
                         self.module_cname,
@@ -1160,9 +1415,6 @@ class UniversalHPyFunctionWriter:
             elif entry.is_pyglobal:
                 self.name_registry.require_module_global(source_name)
                 self.ensure_extension_runtime_owners(node)
-                if self.module_cname is None:
-                    self.unsupported(
-                        node, "module-global lookup requires the current module handle")
                 return self.load_module_global(source_name)
             else:
                 self.unsupported(
@@ -1225,8 +1477,6 @@ class UniversalHPyFunctionWriter:
         if attribute_name is None:
             return fallback_expression
         self.ensure_extension_runtime_owners(node)
-        if self.module_cname is None:
-            self.unsupported(node, "constant cache lookup requires a module handle")
         result_cname = self.allocate_owned_handle(
             self.runtime_api.attribute_get_string(
                 self.module_cname,
@@ -1244,8 +1494,6 @@ class UniversalHPyFunctionWriter:
         if attribute_name is None:
             return None
         self.ensure_extension_runtime_owners(node)
-        if self.module_cname is None:
-            self.unsupported(node, "constant cache lookup requires a module handle")
         result_cname = self.allocate_owned_handle(
             self.runtime_api.attribute_get_string(
                 self.module_cname,
@@ -1371,8 +1619,6 @@ class UniversalHPyFunctionWriter:
 
     def assign_function_global(self, node, source_name, value):
         self.ensure_extension_runtime_owners(node)
-        if self.module_cname is None:
-            self.unsupported(node, "global assignment requires the module receiver")
         self.store_module_global(
             node, source_name, value, self.module_cname, publish=True)
 
@@ -1449,11 +1695,6 @@ class UniversalHPyFunctionWriter:
         if env_spec is None:
             return
         self.ensure_extension_runtime_owners(outer_def)
-        if self.module_cname is None:
-            self.unsupported(
-                outer_def,
-                "closure env allocation requires the current module handle",
-            )
         self.closure_env_spec = env_spec
         self._closure_in_closure_names = {
             capture.name for capture in env_spec.captures}
@@ -1509,11 +1750,6 @@ class UniversalHPyFunctionWriter:
                 "nested def materialization requires an active closure env",
             )
         self.ensure_extension_runtime_owners(inner_node)
-        if self.module_cname is None:
-            self.unsupported(
-                inner_node,
-                "nested def materialization requires the current module handle",
-            )
         fn_type_cname = self.allocate_owned_handle(
             self.runtime_api.attribute_get_string(
                 self.module_cname,
@@ -1568,9 +1804,6 @@ class UniversalHPyFunctionWriter:
         if isinstance(target, ExprNodes.NameNode):
             if target.entry is not None and target.entry.is_pyglobal:
                 self.ensure_extension_runtime_owners(target)
-                if self.module_cname is None:
-                    self.unsupported(
-                        target, "global unpack assignment requires the module receiver")
                 self.store_materialized_module_global(
                     target.name, value_cname, self.module_cname, publish=True)
             else:
@@ -1962,8 +2195,6 @@ class UniversalHPyFunctionWriter:
 
     def delete_function_global(self, node, source_name):
         self.ensure_extension_runtime_owners(node)
-        if self.module_cname is None:
-            self.unsupported(node, "global deletion requires the module receiver")
         name_cname = UniversalHPyModuleWriter._c_string(source_name)
         has_module_value = self._emit_status_operation(
             self.runtime_api.attribute_has_string(
@@ -3040,24 +3271,21 @@ class UniversalHPyFunctionWriter:
         return pattern
 
     @staticmethod
-    def _is_side_effect_free_handler_result(value):
-        while isinstance(
-            value,
-            (ExprNodes.CoerceFromPyTypeNode,
-             ExprNodes.CoerceToPyTypeNode,
-             ExprNodes.CoerceToTempNode),
-        ):
-            value = value.arg
-        return UniversalHPyModuleWriter._is_supported_default(value)
-
-    def _is_supported_handler_return(self, value):
-        """Handler returns may use any bootstrap-owned expression after clear."""
-        if value is None:
-            return True
-        if self._is_side_effect_free_handler_result(value):
-            return True
-        # Locals/arguments/arithmetic/calls are safe once the error is cleared.
-        return True
+    def _find_nested_try_except(node):
+        pending = [node]
+        while pending:
+            current = pending.pop()
+            if current is None:
+                continue
+            if type(current) is Nodes.TryExceptStatNode:
+                return current
+            for child_name in getattr(current, "child_attrs", ()):
+                child = getattr(current, child_name, None)
+                if isinstance(child, (list, tuple)):
+                    pending.extend(child)
+                else:
+                    pending.append(child)
+        return None
 
     def generate_terminal_try_except(self, node):
         """Emit the HPy-0.9 current-error-only handler subset."""
@@ -3118,24 +3346,31 @@ class UniversalHPyFunctionWriter:
                 )
             handler_body = self.stats(clause.body)
             if (
-                len(handler_body) != 1
-                or type(handler_body[0]) is not Nodes.ReturnStatNode
+                not handler_body
+                or type(handler_body[-1])
+                not in (Nodes.ReturnStatNode, Nodes.RaiseStatNode)
             ):
                 self.unsupported(
                     clause.body,
-                    "the initial HPy exception handler must contain exactly "
-                    "one return statement",
+                    "an HPy exception handler must end with a return or raise "
+                    "statement",
                 )
-            return_value = handler_body[0].value
-            if return_value is not None and not self._is_supported_handler_return(
-                return_value
-            ):
-                self.unsupported(
-                    return_value,
-                    "HPy 0.9 cannot preserve observable active-handler state; "
-                    "handler returns must currently be side-effect-free literals",
-                )
-
+            for statement in handler_body:
+                nested_try = self._find_nested_try_except(statement)
+                if nested_try is not None:
+                    self.unsupported(
+                        nested_try,
+                        "nested try/except statements are not implemented",
+                    )
+            for statement in handler_body[:-1]:
+                if type(statement) not in allowed_statement_types:
+                    self.unsupported(
+                        statement,
+                        "handler statements before the terminal return or "
+                        "raise must currently be linear assignments, "
+                        "expressions, deletions, pass, or supported "
+                        "if/while/for control",
+                    )
             exception_names = []
             if clause.pattern:
                 if default_seen:
@@ -3164,7 +3399,7 @@ class UniversalHPyFunctionWriter:
                     exception_names.append(pattern.name)
             else:
                 default_seen = True
-            clauses.append((exception_names, handler_body[0]))
+            clauses.append((exception_names, handler_body))
 
         if not clauses:
             raise AssertionError("try/except statement has no clauses")
@@ -3181,7 +3416,7 @@ class UniversalHPyFunctionWriter:
 
         self._restore_lifetime_state(copy.deepcopy(entry_state))
         self.putln("%s:" % handler_label)
-        for exception_names, handler in clauses:
+        for exception_names, handler_body in clauses:
             if exception_names:
                 conditions = [
                     self.runtime_api.exception_matches(
@@ -3201,7 +3436,8 @@ class UniversalHPyFunctionWriter:
             self.putln("%s;" % self.runtime_api.error_clear(
                 context_cname=self.context_cname))
             self._restore_lifetime_state(copy.deepcopy(entry_state))
-            handler.generate_hpy_bootstrap_execution_code(self)
+            for statement in handler_body:
+                statement.generate_hpy_bootstrap_execution_code(self)
             if terminal_state is None:
                 terminal_state = self._snapshot_lifetime_state()
             self.dedent()
@@ -3210,8 +3446,6 @@ class UniversalHPyFunctionWriter:
         if not default_seen:
             self._restore_lifetime_state(copy.deepcopy(entry_state))
             self._emit_failure_exit()
-        if terminal_state is None:
-            raise AssertionError("try/except handler did not terminate")
         self._restore_lifetime_state(terminal_state)
 
     def generate_early_return_if(self, node, condition, body):
@@ -3344,11 +3578,6 @@ class UniversalHPyFunctionWriter:
     def load_module_globals_dict(self, node):
         """Owned ``module.__dict__`` for ``globals()`` / module-scope ``locals()``."""
         self.ensure_extension_runtime_owners(node)
-        if self.module_cname is None:
-            self.unsupported(
-                node,
-                "globals()/module-scope locals() requires the current module handle",
-            )
         result_cname = self.allocate_owned_handle(
             self.runtime_api.attribute_get_string(
                 self.module_cname,
@@ -3535,9 +3764,8 @@ class UniversalHPyFunctionWriter:
     def generate_sequence_for_loop(
         self, sequence, target_name, body, else_body, unpack_target=None,
     ):
-        sequence_cname = self.materialize_owned_handle(
-            sequence.generate_hpy_bootstrap_owned_result(self))
-        self.put_error_return_if_null(sequence_cname)
+        sequence_cname, sequence_is_borrowed = _borrow_sequence_source(
+            self, sequence)
         length_cname = "__pyx_hpy_sequence_length_%d" % self._next_loop
         index_cname = "__pyx_hpy_sequence_index_%d" % self._next_loop
         self._next_loop += 1
@@ -3583,7 +3811,8 @@ class UniversalHPyFunctionWriter:
         popped_flag = self._loop_stack.pop()
         if popped_flag != break_flag:
             raise AssertionError("bootstrap loop stack changed")
-        self.close_owned_handle(sequence_cname)
+        if not sequence_is_borrowed:
+            self.close_owned_handle(sequence_cname)
         if else_body is not None:
             self.putln("if (%s) {" % break_flag)
             self.indent()
@@ -4119,9 +4348,6 @@ class UniversalHPyFunctionWriter:
         source_name = lhs.name
         if lhs.entry is not None and lhs.entry.is_pyglobal:
             self.ensure_extension_runtime_owners(assignment)
-            if self.module_cname is None:
-                self.unsupported(
-                    assignment, "global walrus assignment requires the module receiver")
             self.store_materialized_module_global(
                 source_name, value_cname, self.module_cname, publish=True)
         elif source_name in self._stable_local_slots:
@@ -4373,12 +4599,15 @@ class UniversalHPyFunctionWriter:
     def put_error_return_if_negative(self, expression):
         self.putln("if (%s < 0) {" % expression)
         self.indent()
+        self.put_error_return()
+        self.dedent()
+        self.putln("}")
+
+    def put_error_return(self):
         if self.rollback_module_publications:
             self._emit_module_failure_exit_preserving_memory()
         else:
             self._emit_failure_exit()
-        self.dedent()
-        self.putln("}")
 
     def _emit_module_failure_exit_preserving_memory(
         self, exclude_handles=(),
@@ -4405,8 +4634,14 @@ class UniversalHPyFunctionWriter:
         self.putln("return %s;" % self.failure_return_value)
         self.dedent()
         self.putln("}")
-        # Preserve non-MemoryError failures without speculative replacement.
-        self._emit_failure_exit(exclude_handles=exclude_handles)
+        # HPy 0.9 cannot fetch and restore an arbitrary active exception.
+        # Deleting published attributes here can clear that exception on some
+        # runtimes, making the loader report a SystemError. A failed module is
+        # discarded, so close owned resources but leave its attributes alone.
+        self._emit_failure_exit(
+            exclude_handles=exclude_handles,
+            include_failure_epilogue=False,
+        )
 
     def put_module_publication_error_if_negative(self, expression):
         if not self.rollback_module_publications:
@@ -4713,7 +4948,9 @@ class UniversalHPyFunctionWriter:
         self.dedent()
         self.putln("}")
 
-    def _put_failure_cleanup(self, exclude_handles=()):
+    def _put_failure_cleanup(
+        self, exclude_handles=(), include_failure_epilogue=True,
+    ):
         failure_scope = (
             self._failure_scopes[-1] if self._failure_scopes else None)
         preserved_handles = (
@@ -4748,7 +4985,7 @@ class UniversalHPyFunctionWriter:
                 continue
             self.putln(self.runtime_api.close_argument_tracker(
                 cname, context_cname=self.context_cname))
-        if failure_scope is None:
+        if failure_scope is None and include_failure_epilogue:
             for line in self.failure_epilogue:
                 self.putln(line)
 
@@ -4770,8 +5007,14 @@ class UniversalHPyFunctionWriter:
         if scope["label"] != label:
             raise AssertionError("bootstrap failure scope changed")
 
-    def _emit_failure_exit(self, exclude_handles=(), failure_value=None):
-        self._put_failure_cleanup(exclude_handles=exclude_handles)
+    def _emit_failure_exit(
+        self, exclude_handles=(), failure_value=None,
+        include_failure_epilogue=True,
+    ):
+        self._put_failure_cleanup(
+            exclude_handles=exclude_handles,
+            include_failure_epilogue=include_failure_epilogue,
+        )
         if self._failure_scopes:
             self.putln("goto %s;" % self._failure_scopes[-1]["label"])
         else:
@@ -4884,7 +5127,31 @@ class UniversalHPyFunctionWriter:
             self.putln("}")
             hash_cname = "__pyx_hpy_hash_%d" % self._next_status
             self._next_status += 1
-            self.putln("HPy_hash_t %s = %s;" % (
+            converted_cname = "__pyx_hpy_hash_value_%d" % self._next_status
+            self._next_status += 1
+            self.putln("HPy_ssize_t %s = %s;" % (
+                converted_cname,
+                self.runtime_api.ssize_t_from_python(
+                    value_cname, context_cname=self.context_cname),
+            ))
+            self.putln("HPy_hash_t %s;" % hash_cname)
+            self.putln("if ((%s == -1) && %s) {" % (
+                converted_cname,
+                self.runtime_api.python_error_occurred(
+                    context_cname=self.context_cname),
+            ))
+            self.indent()
+            overflow_error = self.runtime_api.builtin_exception(
+                "OverflowError", context_cname=self.context_cname)
+            self.putln("if (!%s) {" % self.runtime_api.exception_matches(
+                overflow_error, context_cname=self.context_cname))
+            self.indent()
+            self._emit_failure_exit()
+            self.dedent()
+            self.putln("}")
+            self.putln("%s;" % self.runtime_api.error_clear(
+                context_cname=self.context_cname))
+            self.putln("%s = %s;" % (
                 hash_cname,
                 self.runtime_api.object_hash(
                     value_cname, context_cname=self.context_cname),
@@ -4895,6 +5162,15 @@ class UniversalHPyFunctionWriter:
                     self.runtime_api.python_error_occurred(
                         context_cname=self.context_cname),
                 ))
+            self.dedent()
+            self.putln("} else {")
+            self.indent()
+            self.putln("%s = (HPy_hash_t)%s;" % (
+                hash_cname, converted_cname))
+            self.dedent()
+            self.putln("}")
+            self.putln("if (%s == -1) %s = -2;" % (
+                hash_cname, hash_cname))
             self.close_owned_handle(value_cname)
             self._close_remaining_owned_handles()
             self._close_argument_tracker()
@@ -5094,21 +5370,16 @@ class UniversalHPyModuleWriter:
 
     def render(self):
         module_name = str(self.module_node.full_module_name)
-        if not _C_IDENTIFIER.match(module_name):
+        module_name_parts = module_name.split(".")
+        if not all(_C_IDENTIFIER.match(part) for part in module_name_parts):
             self.unsupported(
                 self.module_node,
-                "bootstrap Universal HPy modules currently require a simple "
-                "C identifier as their module name",
+                "Universal HPy module-name components must be C identifiers",
             )
+        module_init_name = module_name_parts[-1]
 
         methods, module_stats, extension_types, external_c_blocks = (
             self.module_node.hpy_bootstrap_contents(self))
-        if not methods and not extension_types:
-            self.unsupported(
-                self.module_node,
-                "bootstrap Universal HPy modules require at least one "
-                "supported def or cdef class",
-            )
 
         defaultable_methods = list(methods)
         for extension_type in extension_types:
@@ -5144,11 +5415,6 @@ class UniversalHPyModuleWriter:
                 ", ".join(sorted(duplicate_public_names)),
             )
         for extension_type in extension_types:
-            if not _C_IDENTIFIER.match(extension_type.class_name):
-                self.unsupported(
-                    extension_type,
-                    "pure HPy cdef class names must be C identifiers",
-                )
             self.name_registry.require_module_global(extension_type.class_name)
             reserved_type_names = [
                 entry.name
@@ -5170,8 +5436,9 @@ class UniversalHPyModuleWriter:
                     ))
                 ):
                     reserved_type_names.append(method.name)
-                method.hpy_bootstrap_signature(
-                    self, receiver_argument=method.args[0])
+                if method.name not in ("__getbuffer__", "__releasebuffer__"):
+                    method.hpy_bootstrap_signature(
+                        self, receiver_argument=method.args[0])
             if reserved_type_names:
                 self.unsupported(
                     extension_type,
@@ -5219,8 +5486,11 @@ class UniversalHPyModuleWriter:
 
         self._collect_referenced_names(methods)
         for extension_type in extension_types:
-            self._collect_referenced_names(
-                self._extension_type_methods(extension_type))
+            self._collect_referenced_names([
+                method
+                for method in self._extension_type_methods(extension_type)
+                if method.name not in ("__getbuffer__", "__releasebuffer__")
+            ])
             self._collect_referenced_names([
                 accessor
                 for _, accessors in self._extension_type_properties(
@@ -5245,6 +5515,7 @@ class UniversalHPyModuleWriter:
          type_contains_slot_definitions,
          type_richcompare_slot_definitions,
          type_finalize_slot_definitions,
+         type_buffer_slot_definitions,
          type_field_layouts) = (
             self._render_extension_type_declarations(
             extension_types, module_name)
@@ -5255,13 +5526,15 @@ class UniversalHPyModuleWriter:
         method_lines = []
         definitions = []
         for index, method in enumerate(methods):
-            definition_cname = "__pyx_hpy_def_%d_%s" % (index, method.name)
+            definition_cname = "__pyx_hpy_def_%d_%s" % (
+                index, _c_identifier_fragment(method.name))
             definition = RuntimeMethodDefinition(
                 signature=method.hpy_bootstrap_signature(self),
                 definition_cname=definition_cname,
                 python_name_cname=self._c_string(method.name),
                 implementation_cname="%s_impl" % definition_cname,
-                doc_cname="NULL",
+                doc_cname=self._doc_cname(
+                    method, method.entry.doc, "function"),
             )
             function_writer = UniversalHPyFunctionWriter(
                 self.runtime_api,
@@ -5450,6 +5723,12 @@ class UniversalHPyModuleWriter:
                     definition_cname,
                     type_field_layouts[id(extension_type)],
                 ))
+            buffer_slot = type_buffer_slot_definitions[id(extension_type)]
+            if buffer_slot is not None:
+                method_lines.extend(self._render_extension_buffer_slots(
+                    buffer_slot,
+                    type_field_layouts[id(extension_type)],
+                ))
 
         exec_definition_cname = "__pyx_hpy_mod_exec"
         exec_lines = self._render_module_exec(
@@ -5466,6 +5745,7 @@ class UniversalHPyModuleWriter:
             "/* aHPy Universal HPy bootstrap backend. */",
             "#include <hpy.h>",
             "#include <stddef.h>",
+            "#include <errno.h>",
             "#include <limits.h>",
             "#include <math.h>",
             "#include <stdio.h>",
@@ -5500,14 +5780,16 @@ class UniversalHPyModuleWriter:
         lines.extend([
             "",
             "static HPyModuleDef %s = {" % module_cname,
-            '    .doc = "Generated by the aHPy Universal backend",',
+            "    .doc = %s," % self._doc_cname(
+                self.module_node, getattr(self.module_node, "doc", None),
+                "module"),
             "    .size = 0,",
             "    .legacy_methods = NULL,",
             "    .defines = %s," % definitions_cname,
             "    .globals = NULL,",
             "};",
             "",
-            "HPy_MODINIT(%s, %s)" % (module_name, module_cname),
+            "HPy_MODINIT(%s, %s)" % (module_init_name, module_cname),
             "",
         ])
         return "\n".join(lines)
@@ -6066,6 +6348,7 @@ class UniversalHPyModuleWriter:
         type_contains_slot_definitions = {}
         type_richcompare_slot_definitions = {}
         type_finalize_slot_definitions = {}
+        type_buffer_slot_definitions = {}
         type_field_layouts = {}
         type_struct_cnames = {}
         type_traverse_cnames = {}
@@ -6079,13 +6362,19 @@ class UniversalHPyModuleWriter:
             for extension_type in extension_types
         }
         for type_index, extension_type in enumerate(extension_types):
-            class_name = extension_type.class_name
+            python_class_name = extension_type.class_name
+            class_name = _c_identifier_fragment(python_class_name)
             all_fields = list(extension_type.entry.type.scope.var_entries)
             fields = [
                 field for field in all_fields
                 if not getattr(field, "is_inherited", False)
             ]
             methods = self._extension_type_methods(extension_type)
+            buffer_get_method = next(
+                (method for method in methods
+                 if hasattr(method, "ahpy_universal_buffer_spec")),
+                None,
+            )
             properties = self._extension_type_properties(extension_type)
             type_cname = "__pyx_hpy_type_%s" % class_name
             struct_cname = "%s_object" % type_cname
@@ -6257,7 +6546,7 @@ class UniversalHPyModuleWriter:
                             "    if (nargs != 0 || nkw != 0) {",
                             "        HPyErr_SetString(ctx, ctx->h_TypeError, "
                             "%s);" % self._c_string(
-                                "%s() takes no arguments" % class_name),
+                                "%s() takes no arguments" % python_class_name),
                             "        return HPy_NULL;",
                             "    }",
                         ])
@@ -6281,6 +6570,30 @@ class UniversalHPyModuleWriter:
                 ])
                 lines.extend(new_lines)
                 definition_cnames.append(new_definition_cname)
+            if buffer_get_method is not None:
+                get_definition_cname = (
+                    "__pyx_hpy_type_%d_%s_bf_getbuffer" %
+                    (type_index, class_name))
+                release_definition_cname = (
+                    "__pyx_hpy_type_%d_%s_bf_releasebuffer" %
+                    (type_index, class_name))
+                lines.append(self.runtime_api.type_slot_definition(
+                    "bf_getbuffer",
+                    get_definition_cname,
+                    "%s_impl" % get_definition_cname,
+                ))
+                lines.append(self.runtime_api.type_slot_definition(
+                    "bf_releasebuffer",
+                    release_definition_cname,
+                    "%s_impl" % release_definition_cname,
+                ))
+                definition_cnames.extend((
+                    get_definition_cname, release_definition_cname))
+                type_buffer_slot_definitions[id(extension_type)] = (
+                    buffer_get_method.ahpy_universal_buffer_spec,
+                    get_definition_cname,
+                    release_definition_cname,
+                )
             if initializer_method is not None:
                 definition_cname = "__pyx_hpy_type_%d_%s_init" % (
                     type_index, class_name)
@@ -6308,7 +6621,7 @@ class UniversalHPyModuleWriter:
                 definition_cname = (
                     "__pyx_hpy_type_%d_%s_property_%d_%s" % (
                         type_index, class_name, property_index,
-                        property_node.name))
+                        _c_identifier_fragment(property_node.name)))
                 has_getter = "__get__" in accessors
                 has_setter = any(
                     name in accessors for name in ("__set__", "__del__"))
@@ -6320,8 +6633,8 @@ class UniversalHPyModuleWriter:
                     macro = "HPyDef_SET"
                 doc_argument = ""
                 if property_node.doc is not None:
-                    doc_argument = ", .doc = %s" % self._c_string(
-                        str(property_node.doc))
+                    doc_argument = ", .doc = %s" % self._doc_cname(
+                        property_node, property_node.doc, "property")
                 lines.append("%s(%s, %s%s)" % (
                     macro,
                     definition_cname,
@@ -6332,6 +6645,8 @@ class UniversalHPyModuleWriter:
                 property_definitions.append((
                     property_node, accessors, definition_cname))
             for method_index, method in enumerate(methods):
+                if method.name in ("__getbuffer__", "__releasebuffer__"):
+                    continue
                 if method.name in ("__cinit__", "__init__"):
                     continue
                 if method.name == "__call__":
@@ -6491,14 +6806,16 @@ class UniversalHPyModuleWriter:
                         method, definition_cname)
                     continue
                 definition_cname = "__pyx_hpy_type_%d_%s_method_%d_%s" % (
-                    type_index, class_name, method_index, method.name)
+                    type_index, class_name, method_index,
+                    _c_identifier_fragment(method.name))
                 definition = RuntimeMethodDefinition(
                     signature=method.hpy_bootstrap_signature(
                         self, receiver_argument=method.args[0]),
                     definition_cname=definition_cname,
                     python_name_cname=self._c_string(method.name),
                     implementation_cname="%s_impl" % definition_cname,
-                    doc_cname="NULL",
+                    doc_cname=self._doc_cname(
+                        method, method.entry.doc, "method"),
                 )
                 lines.append(
                     self.runtime_api.method_definition_declaration(definition))
@@ -6528,7 +6845,7 @@ class UniversalHPyModuleWriter:
                     assignment_methods.get("__delitem__"),
                     definition_cname,
                     sequence_definition_cname,
-                    class_name,
+                    python_class_name,
                 )
             if richcompare_methods:
                 definition_cname = (
@@ -6555,8 +6872,6 @@ class UniversalHPyModuleWriter:
                     for method_name in (left_name, right_name)
                     if method_name in numeric_binary_methods
                 }
-                if not family_methods:
-                    continue
                 definition_cname = "__pyx_hpy_type_%d_%s_%s" % (
                     type_index, class_name, slot_name)
                 lines.append(self.runtime_api.type_slot_definition(
@@ -6568,7 +6883,8 @@ class UniversalHPyModuleWriter:
                 numeric_binary_slots.append((
                     family_methods,
                     definition_cname,
-                    self._type_slot_marker_attribute(module_name, class_name),
+                    self._type_slot_marker_attribute(
+                        module_name, python_class_name),
                     left_name,
                     right_name,
                 ))
@@ -6586,7 +6902,8 @@ class UniversalHPyModuleWriter:
                 type_power_slot_definitions[id(extension_type)] = (
                     power_methods,
                     definition_cname,
-                    self._type_slot_marker_attribute(module_name, class_name),
+                    self._type_slot_marker_attribute(
+                        module_name, python_class_name),
                 )
             type_method_definitions[id(extension_type)] = method_definitions
             type_property_definitions[id(extension_type)] = property_definitions
@@ -6611,6 +6928,7 @@ class UniversalHPyModuleWriter:
             type_richcompare_slot_definitions.setdefault(
                 id(extension_type), None)
             type_finalize_slot_definitions.setdefault(id(extension_type), None)
+            type_buffer_slot_definitions.setdefault(id(extension_type), None)
             object_field_cnames = [
                 field_cname
                 for field_cname, storage in zip(field_cnames, field_storages)
@@ -6688,14 +7006,18 @@ class UniversalHPyModuleWriter:
                 "};",
                 self.runtime_api.type_specification_declaration(type_cname),
                 "    .name = %s," % self._c_string(
-                    "%s.%s" % (module_name, class_name)),
+                    "%s.%s" % (module_name, python_class_name)),
                 "    .basicsize = sizeof(%s)," % struct_cname,
                 "    .itemsize = 0,",
                 "    .flags = %s," % flags,
                 "    .builtin_shape = SHAPE(%s)," % struct_cname,
                 "    .legacy_slots = NULL,",
                 "    .defines = %s_defines," % type_cname,
-                "    .doc = NULL,",
+                "    .doc = %s," % self._doc_cname(
+                    extension_type,
+                    getattr(extension_type.entry.type.scope, "doc", None),
+                    "type",
+                ),
                 "};",
                 "",
             ])
@@ -6720,8 +7042,69 @@ class UniversalHPyModuleWriter:
             type_contains_slot_definitions,
             type_richcompare_slot_definitions,
             type_finalize_slot_definitions,
+            type_buffer_slot_definitions,
             type_field_layouts,
         )
+
+    def _render_extension_buffer_slots(
+            self, buffer_slot, extension_field_layout):
+        """Render an allocation-free one-dimensional native producer."""
+        ((field, shape_field, stride_field, format_string, element_count),
+         get_definition_cname, release_definition_cname) = buffer_slot
+        struct_cname, field_cname, _ = extension_field_layout[id(field)]
+        shape_struct_cname, shape_field_cname, _ = (
+            extension_field_layout[id(shape_field)])
+        stride_struct_cname, stride_field_cname, _ = (
+            extension_field_layout[id(stride_field)])
+        if (
+            shape_struct_cname != struct_cname
+            or stride_struct_cname != struct_cname
+        ):
+            raise AssertionError("buffer metadata must share the field layout")
+        return [
+            "static int %s_impl(HPyContext *ctx, HPy self, "
+            "HPy_buffer *view, int flags)" % get_definition_cname,
+            "{",
+            "    %s *data;" % struct_cname,
+            "    (void)flags;",
+            "    if (view == NULL) {",
+            "        HPyErr_SetString(ctx, ctx->h_BufferError, "
+            "%s);" % self._c_string("buffer view must not be NULL"),
+            "        return -1;",
+            "    }",
+            "    data = %s_AsStruct(ctx, self);" % struct_cname,
+            "    data->%s = %d;" % (shape_field_cname, element_count),
+            "    data->%s = " % stride_field_cname +
+            "(HPy_ssize_t)sizeof(data->%s%s);" % (
+                field_cname, "[0]" if element_count != 1 else ""),
+            "    view->buf = (void *)%sdata->%s;" % (
+                "" if element_count != 1 else "&", field_cname),
+            "    view->obj = HPy_NULL;",
+            "    view->len = (HPy_ssize_t)sizeof(data->%s);" % field_cname,
+            "    view->itemsize = (HPy_ssize_t)sizeof(data->%s%s);" % (
+                field_cname, "[0]" if element_count != 1 else ""),
+            "    view->readonly = 0;",
+            "    view->ndim = 1;",
+            "    view->format = (char *)%s;" % self._c_string(format_string),
+            "    view->shape = &data->%s;" % shape_field_cname,
+            "    view->strides = &data->%s;" % stride_field_cname,
+            "    view->suboffsets = NULL;",
+            "    view->internal = NULL;",
+            "    view->obj = HPy_Dup(ctx, self);",
+            "    if (HPy_IsNull(view->obj))",
+            "        return -1;",
+            "    return 0;",
+            "}",
+            "",
+            "static void %s_impl(HPyContext *ctx, HPy self, "
+            "HPy_buffer *view)" % release_definition_cname,
+            "{",
+            "    (void)ctx;",
+            "    (void)self;",
+            "    (void)view;",
+            "}",
+            "",
+        ]
 
     def _render_extension_call_slot(
             self, method, definition_cname, extension_field_layout):
@@ -7851,8 +8234,78 @@ class UniversalHPyModuleWriter:
 
     @staticmethod
     def _c_string(value):
-        return '"%s"' % value.replace("\\", "\\\\").replace('"', '\\"')
+        return EncodedString(value).as_c_string_literal()
+
+    def _doc_cname(self, node, value, subject):
+        if value is None:
+            return "NULL"
+        value = str(value)
+        if "\x00" in value:
+            self.unsupported(
+                node,
+                "%s docstrings containing NUL are not representable by "
+                "the HPy definition API" % subject,
+            )
+        return self._c_string(value)
 
     @staticmethod
     def unsupported(node, message):
-        raise CompileError(node.pos, "aHPy bootstrap backend: %s" % message)
+        raise CompileError(
+            getattr(node, "pos", None),
+            "aHPy bootstrap backend: %s" % message,
+        )
+
+
+def emit_hpy_universal_module(module_node, options, result):
+    """Emit one complete Universal HPy module through the runtime contract."""
+    if options.cplus:
+        raise CompileError(
+            module_node.pos,
+            "aHPy bootstrap backend: C++ output is not implemented yet",
+        )
+    if Options.annotate or options.annotate:
+        raise CompileError(
+            module_node.pos,
+            "aHPy bootstrap backend: annotated output is not implemented yet",
+        )
+    instrumentation = [
+        directive
+        for directive in ("profile", "linetrace", "embedsignature")
+        if module_node.directives.get(directive)
+    ]
+    if instrumentation:
+        raise CompileError(
+            module_node.pos,
+            "aHPy Universal preview does not implement generated %s "
+            "instrumentation; disable these directives or use a "
+            "separately selected CPython backend" %
+            "/".join(instrumentation),
+        )
+    if options.c_line_in_traceback:
+        raise CompileError(
+            module_node.pos,
+            "aHPy Universal preview does not implement generated C-line "
+            "traceback instrumentation; disable c_line_in_traceback or "
+            "use a separately selected CPython backend",
+        )
+    module_node.assure_safe_target(result.c_file, allow_failed=True)
+    output = UniversalHPyModuleWriter(
+        module_node, module_node.scope.context.runtime_api).render()
+    with open_new_file(result.c_file) as output_file:
+        output_file.write(output)
+    result.c_file_generated = 1
+
+
+def _borrow_sequence_source(writer, sequence):
+    """Keep call arguments borrowed; materialize rebindable local sources."""
+    # The HPy call frame (or its argument tracker) keeps an incoming argument
+    # alive until return, even when its source name is rebound in the loop.
+    # Owned locals are ineligible because rebinding closes their old handle.
+    sequence_cname = writer.borrow_direct_named_value(
+        sequence, borrowed_arguments_only=True)
+    if sequence_cname is not None:
+        return sequence_cname, True
+    sequence_cname = writer.materialize_owned_handle(
+        sequence.generate_hpy_bootstrap_owned_result(writer))
+    writer.put_error_return_if_null(sequence_cname)
+    return sequence_cname, False

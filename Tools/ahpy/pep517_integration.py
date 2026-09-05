@@ -18,7 +18,12 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ahpy_version import AHPY_DISTRIBUTION, AHPY_VERSION
+from ahpy_version import (
+    AHPY_DISTRIBUTION,
+    AHPY_VERSION,
+    provenance_project_urls,
+    source_commit,
+)
 from test_generated_hpy import run, verify_binary_boundary, verify_source_boundary
 
 
@@ -46,26 +51,52 @@ def _copy_frontend_source(destination):
         "setup.py", "setup.cfg", "pyproject.toml", "README.rst",
         "CHANGES.rst", "COPYING.txt", "LICENSE.txt", "MANIFEST.in",
         "cython.py", "ahpy_version.py", "ahpy_build_backend.py",
-        "ahpy_build_config.py", "TODO.md", "AGENTTODO.md",
+        "ahpy_build_config.py", "ahpy_hpy_compat.py", "TODO.md", "AGENTTODO.md",
+        "CONTRIBUTING.md", "SECURITY.md",
     ):
         shutil.copy2(ROOT / name, destination / name)
+    destination.joinpath(".gitrev").write_text(
+        source_commit(ROOT) + "\n", encoding="ascii")
 
 
-def _frontend_metadata(wheel):
+def _frontend_metadata(wheel, expected_commit=None):
     with zipfile.ZipFile(wheel) as archive:
         names = archive.namelist()
         metadata_name = next(
             name for name in names if name.endswith(".dist-info/METADATA"))
         metadata_text = archive.read(metadata_name).decode("utf8")
+        entry_point_names = [
+            name for name in names
+            if name.endswith(".dist-info/entry_points.txt")
+        ]
+        if len(entry_point_names) != 1:
+            raise AssertionError(
+                "frontend wheel must contain exactly one entry_points.txt")
+        entry_points_text = archive.read(entry_point_names[0]).decode("utf8")
     if "Name: %s\n" % AHPY_DISTRIBUTION not in metadata_text:
         raise AssertionError("frontend wheel is not the aHPy distribution")
     if "Version: %s\n" % AHPY_VERSION not in metadata_text:
         raise AssertionError("frontend wheel has the wrong aHPy version")
+    expected_commit = expected_commit or source_commit(ROOT)
+    for label, url in provenance_project_urls(expected_commit).items():
+        field = "Project-URL: %s, %s\n" % (label, url)
+        if field not in metadata_text:
+            raise AssertionError(
+                "frontend wheel lacks exact provenance field %s" % label)
     for required in (
-        "ahpy_build_backend.py", "ahpy_build_config.py", "ahpy_version.py",
+        "ahpy_build_backend.py", "ahpy_build_config.py", "ahpy_hpy_compat.py",
+        "ahpy_version.py",
     ):
         if required not in names:
             raise AssertionError("frontend wheel is missing %s" % required)
+    hook_entry = (
+        "[cython.runtime_backend_build_hooks]\n"
+        "hpy-universal = "
+        "ahpy_hpy_compat:install_hpy_universal_loader_compat\n"
+    )
+    if hook_entry not in entry_points_text:
+        raise AssertionError(
+            "frontend wheel lacks the Universal backend build hook")
     if not any(name.startswith("Cython/") for name in names):
         raise AssertionError("frontend wheel is missing the Cython package")
 
@@ -118,9 +149,9 @@ def build_and_run(python, report_path=None):
         _frontend_metadata(frontend_wheel)
 
         run([
-            python, "-m", "pip", "wheel", "--no-build-isolation",
-            "--no-deps", "--wheel-dir", str(wheelhouse),
-            "hpy==0.9.0", "setuptools==80.9.0",
+            python, "-m", "pip", "wheel", "--no-deps",
+            "--wheel-dir", str(wheelhouse),
+            "hpy==0.9.0", "setuptools==83.0.0",
         ], env=environment)
         dependency_wheels = sorted(
             path for path in wheelhouse.glob("*.whl")
@@ -132,9 +163,9 @@ def build_and_run(python, report_path=None):
         if not any(name.startswith("hpy-0.9.0-") for name in dependency_names):
             raise AssertionError("wheelhouse lacks exact HPy 0.9.0")
         if not any(
-                name.startswith("setuptools-80.9.0-")
+                name.startswith("setuptools-83.0.0-")
                 for name in dependency_names):
-            raise AssertionError("wheelhouse lacks exact setuptools 80.9.0")
+            raise AssertionError("wheelhouse lacks exact setuptools 83.0.0")
 
         project = temp / "project"
         shutil.copytree(EXAMPLE, project, ignore=shutil.ignore_patterns("__pycache__"))

@@ -1,0 +1,134 @@
+schema_version = 1
+validated_on = "2026-07-29"
+
+[branch_policy]
+topic_branch_event = "pull_request"
+push_branches = ["main", "ahpy/**"]
+protected_branches = ["main", "ahpy/**"]
+required_status_integration_id = 15368
+required_status_contexts = [
+  "aHPy required checks",
+  "benchmark required checks",
+  "ci-success",
+  "coverage required checks",
+  "sanitizers-success",
+]
+
+[[workflows]]
+path = ".github/workflows/ahpy-universal.yml"
+trigger_class = "pr-main-release-schedule-manual"
+required_jobs = [
+  "compiler-and-quality",
+  "stable-universal",
+  "sanitizers",
+  "build-portability-artifact",
+  "required-success",
+]
+mixed_required_allowed_failure_jobs = ["development-revision"]
+allowed_failure_jobs = ["cross-interpreter"]
+schedule_manual_required_jobs = [
+  "native-memory-valgrind",
+  "native-memory-windows",
+]
+schedule_manual_allowed_failure_jobs = [
+  "nightly-interpreter",
+  "nightly-hpy",
+]
+
+[[workflows]]
+path = ".github/workflows/ahpy-release-attestations.yml"
+trigger_class = "release-tags"
+release_or_build_jobs = ["attest-release"]
+
+[[workflows]]
+path = ".github/workflows/ahpy-security.yml"
+trigger_class = "pr-main-release-schedule-manual"
+required_jobs = ["dependency-review", "codeql"]
+
+[[workflows]]
+path = ".github/workflows/ahpy-testpypi.yml"
+trigger_class = "manual-publication"
+manual_required_jobs = ["build-testpypi-candidate"]
+release_or_build_jobs = ["publish-testpypi"]
+
+[[workflows]]
+path = ".github/workflows/ahpy-performance-calibration.yml"
+trigger_class = "manual-performance-calibration"
+manual_required_jobs = [
+  "performance-sample",
+  "calibrate-release-budget",
+]
+
+[[workflows]]
+path = ".github/workflows/benchmarks.yml"
+trigger_class = "pr-main-release-manual-label"
+required_jobs = ["file-changes", "benchmarks", "benchmarks-success"]
+
+[[workflows]]
+path = ".github/workflows/benchmarks-weekly.yml"
+trigger_class = "manual-or-upstream-schedule"
+manual_required_jobs = ["benchmarks"]
+
+[[workflows]]
+path = ".github/workflows/ci.yml"
+trigger_class = "pr-main-release-manual"
+required_jobs = [
+  "file-changes",
+  "ci-early",
+  "ci-early-success",
+  "ci-all",
+  "ci-arm64",
+  "ci-32bit",
+  "ci-typespecs",
+  "ci-sharedmodule",
+  "ci-compileall",
+  "ci-stdc",
+  "ci-lapi",
+  "ci-noncpython",
+  "ci-success",
+  "codespell",
+  "codestyle",
+  "build_docs",
+]
+
+[[workflows]]
+path = ".github/workflows/coverage.yml"
+trigger_class = "pr-main-release-manual"
+required_jobs = ["file-changes", "pycoverage", "cycoverage", "coverage-success"]
+
+[[workflows]]
+path = ".github/workflows/sanitizers.yml"
+trigger_class = "pr-main-release-manual-label"
+required_jobs = [
+  "file-changes",
+  "sanitizers",
+  "pydebug",
+  "sanitizers-success",
+]
+
+[[workflows]]
+path = ".github/workflows/wheels.yml"
+trigger_class = "release-schedule-manual-build-label"
+release_or_build_jobs = [
+  "generate-wheels-matrix",
+  "build_wheels",
+  "build_limited_api_wheels",
+  "build_sdist_pure_wheel",
+  "inspect_wheels",
+  "upload_release_assets",
+]
+
+[[workflows]]
+path = ".github/workflows/nightly-wheels.yml"
+trigger_class = "upstream-schedule-manual-build-label"
+upstream_only_jobs = ["build_pure_wheel"]
+
+[[workflows]]
+path = ".github/workflows/ci-job.yml"
+trigger_class = "reusable"
+reusable_jobs = ["build-and-test"]
+
+[[workflows]]
+path = ".github/workflows/compiled_python.yml"
+trigger_class = "reusable"
+reusable_jobs = ["do_run"]

@@ -3,7 +3,7 @@
 Date: 2026-07-16
 Status: local three-profile measurement green
 
-`Tools/ahpy/benchmark_hpy.py` measures the same nine semantic operations in
+`Tools/ahpy/benchmark_hpy.py` measures the same ten semantic operations in
 three profiles but does not collapse them into a cross-ABI ratio:
 
 - classic Cython/CPython records standalone per-call timings;
@@ -38,7 +38,9 @@ combined native build took 2.446 seconds, and peak RSS was
 The same run regenerated the 4,978,328-byte/87,259-line extension-type corpus.
 Frontend generation took 0.806 seconds; isolated Apple Clang 21 compilation
 took 1.593 seconds at `-O0` and 5.290 seconds at `-O3` (3.321×). Both profiles
-are subject to a 60-second liveness ceiling. This controlled single-compiler
+were subject to the original 60-second liveness ceiling. Hosted Ubuntu GCC 13
+later exceeded both 60- and 180-second O3 trials while O0 stayed near 5 seconds;
+O0 is now the required liveness gate and O3 is diagnostic. This controlled single-compiler
 measurement did not reproduce the earlier >15-minute post-stress state.
 
 These absolute local timings and memory values are diagnostic baselines, not
@@ -46,6 +48,21 @@ portable limits. Only same-process, same-ABI generated/reference Universal
 ratios use the current conservative regression ceilings. Hosted history is
 required before promoting HPy CPython or absolute resource values into release
 budgets.
+
+The release corpus now also includes sequence-index iteration, the iteration
+surface supported by the HPy 0.9 backend. Generated Cython and handwritten HPy
+both return the last item from the same fixed sequence, including the empty
+sequence case. True iterator-protocol loops remain blocked by the HPy 0.9
+public API, and typed memoryviews remain blocked/non-comparable because that API
+does not expose a public buffer-consumer contract; neither blocked surface gets
+a synthetic performance number.
+
+The ownership-proven iteration follow-up borrows the sequence handle only when
+it is an incoming call argument whose frame/tracker lifetime spans the complete
+loop. Rebindable locals remain owned. Normal/Trace/Debug source-name rebinding
+and all 150 fault selectors pass; generated Trace falls from 38 to 36 calls per
+iteration while the local runtime range remains inside the temporary 2.50×
+ceiling.
 
 ## Post-baseline ownership correction
 
@@ -60,7 +77,7 @@ The follow-up Universal run recorded 0.82× identity, 0.87× attribute, and 1.02
 call ratios. HPy CPython ABI recorded 1.00×, 1.03×, and 1.03× respectively.
 Trace now reports exactly one API call and zero Dup/Close churn for generated
 and reference attribute/call paths. Debug Mode, the full generated corpus in
-the documented O0 stress profile, 179 emitter tests, and all 128 isolated
+the documented O0 stress profile, 179 emitter tests, and all 150 isolated
 allocation/API fault selectors pass. Runtime ceilings for identity, attribute,
 and call were tightened to 1.5×.
 
@@ -93,7 +110,7 @@ their handwritten references at 1/4 API calls with zero Dup/Close churn.
 Generated Universal C is 33,703 bytes and its binary is 76,672 bytes versus a
 76,080-byte reference. The isolated 4,930,017-byte/86,250-line type corpus
 compiled in 2.367 seconds at `-O0` and 10.321 seconds at `-O3`, both below the
-60-second liveness ceiling. Hosted history is still required before any local
+current required O0 liveness ceiling. O3 remains diagnostic. Hosted history is still required before any local
 absolute value becomes a release budget.
 
 ## Extension owner and initializer follow-up

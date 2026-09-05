@@ -7,7 +7,7 @@ its ``CompilationOptions``.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import FrozenSet, Protocol
+from typing import Callable, FrozenSet, Optional, Protocol
 
 from .Errors import CompileError
 
@@ -132,6 +132,7 @@ class RuntimeContextConstant(Enum):
     TYPE_ERROR = "type-error"
     BASE_EXCEPTION = "base-exception"
     TYPE_TYPE = "type-type"
+    UNICODE_TYPE = "unicode-type"
     SLICE_TYPE = "slice-type"
     LONG_TYPE = "long-type"
     COMPLEX_TYPE = "complex-type"
@@ -308,6 +309,19 @@ class RuntimeSequenceFromArray:
     utility_code_file: str = ""
 
 
+@dataclass(frozen=True)
+class RuntimeModuleEmitter:
+    """Complete module-emission callback selected by one runtime service."""
+    backend: str
+    emit: Callable[[object, object, object], None]
+
+    def __post_init__(self):
+        if not isinstance(self.backend, str) or not self.backend:
+            raise ValueError("runtime module emitter backend must be non-empty")
+        if not callable(self.emit):
+            raise TypeError("runtime module emitter must be callable")
+
+
 class RuntimeAPI(Protocol):
     """Structural type implemented by runtime-specific code generators."""
 
@@ -318,6 +332,9 @@ class RuntimeAPI(Protocol):
         ...
 
     def code_generation_kind(self) -> RuntimeCodeGenerationKind:
+        ...
+
+    def module_emitter(self) -> Optional[RuntimeModuleEmitter]:
         ...
 
     def context_contract(self) -> RuntimeContextContract:
@@ -812,6 +829,11 @@ class RuntimeAPI(Protocol):
     ) -> str:
         ...
 
+    def error_set_from_errno(
+        self, exception_cname: str, context_cname: str = "",
+    ) -> str:
+        ...
+
     def error_set_object(
         self, exception_cname: str, value_cname: str, context_cname: str = "",
     ) -> str:
@@ -1097,6 +1119,9 @@ class _RuntimeAPIBase:
     def code_generation_kind(self):
         return RuntimeCodeGenerationKind.CPYTHON
 
+    def module_emitter(self):
+        return None
+
     def supports(self, capability):
         return capability in self.capabilities
 
@@ -1206,6 +1231,7 @@ class CPythonRuntimeAPI(_RuntimeAPIBase):
             RuntimeContextConstant.TYPE_ERROR: "PyExc_TypeError",
             RuntimeContextConstant.BASE_EXCEPTION: "PyExc_BaseException",
             RuntimeContextConstant.TYPE_TYPE: "(PyObject *)&PyType_Type",
+            RuntimeContextConstant.UNICODE_TYPE: "(PyObject *)&PyUnicode_Type",
             RuntimeContextConstant.SLICE_TYPE: "(PyObject *)&PySlice_Type",
             RuntimeContextConstant.LONG_TYPE: "(PyObject *)&PyLong_Type",
             RuntimeContextConstant.COMPLEX_TYPE: "(PyObject *)&PyComplex_Type",
@@ -1772,6 +1798,9 @@ class CPythonRuntimeAPI(_RuntimeAPIBase):
     def error_set_string(self, exception_cname, message_cname, context_cname=""):
         return "PyErr_SetString(%s, %s)" % (exception_cname, message_cname)
 
+    def error_set_from_errno(self, exception_cname, context_cname=""):
+        return "PyErr_SetFromErrno(%s)" % exception_cname
+
     def error_set_object(self, exception_cname, value_cname, context_cname=""):
         return "PyErr_SetObject(%s, %s)" % (exception_cname, value_cname)
 
@@ -2141,6 +2170,7 @@ class _HPyRuntimeAPIBase(_RuntimeAPIBase):
             RuntimeContextConstant.TYPE_ERROR: "h_TypeError",
             RuntimeContextConstant.BASE_EXCEPTION: "h_BaseException",
             RuntimeContextConstant.TYPE_TYPE: "h_TypeType",
+            RuntimeContextConstant.UNICODE_TYPE: "h_UnicodeType",
             RuntimeContextConstant.SLICE_TYPE: "h_SliceType",
             RuntimeContextConstant.LONG_TYPE: "h_LongType",
             RuntimeContextConstant.COMPLEX_TYPE: "h_ComplexType",
@@ -2696,6 +2726,11 @@ class _HPyRuntimeAPIBase(_RuntimeAPIBase):
         return "HPyErr_SetString(%s, %s, %s)" % (
             context_cname, exception_cname, message_cname)
 
+    def error_set_from_errno(self, exception_cname, context_cname=""):
+        context_cname = self._require_context(context_cname)
+        return "HPyErr_SetFromErrno(%s, %s)" % (
+            context_cname, exception_cname)
+
     def error_set_object(self, exception_cname, value_cname, context_cname=""):
         context_cname = self._require_context(context_cname)
         return "HPyErr_SetObject(%s, %s, %s)" % (
@@ -2919,10 +2954,15 @@ class _HPyRuntimeAPIBase(_RuntimeAPIBase):
                     expected_implementation,
                 "generate the HPy method wrapper before emitting its definition",
             )
-        return "HPyDef_METH(%s, %s, %s)" % (
+        doc_argument = (
+            ", .doc = %s" % definition.doc_cname
+            if definition.doc_cname not in ("0", "NULL") else ""
+        )
+        return "HPyDef_METH(%s, %s, %s%s)" % (
             definition.definition_cname,
             definition.python_name_cname,
             hpy_signature,
+            doc_argument,
         )
 
     def method_implementation_declaration(
@@ -3052,6 +3092,10 @@ class HPyUniversalRuntimeAPI(_HPyRuntimeAPIBase):
 
     def code_generation_kind(self):
         return RuntimeCodeGenerationKind.HPY_UNIVERSAL_BOOTSTRAP
+
+    def module_emitter(self):
+        from .HPyModuleWriter import emit_hpy_universal_module
+        return RuntimeModuleEmitter(self.name, emit_hpy_universal_module)
 
 
 class HPyCPythonRuntimeAPI(_HPyRuntimeAPIBase):

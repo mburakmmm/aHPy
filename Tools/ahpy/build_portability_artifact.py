@@ -13,14 +13,26 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 
+from artifact_utils import find_universal_binaries
 from test_generated_hpy import run, verify_binary_boundary, verify_source_boundary
+from test_minimal_hpy import verify_source_boundary as verify_minimal_source_boundary
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCES = (
+GENERATED_SOURCES = (
+    ("constants_only", ROOT / "tests" / "ahpy" / "constants_only.pyx"),
+    (
+        "fibonacci",
+        ROOT / "tests" / "ahpy" / "pilot_ports" / "cypack" / "src" /
+        "cypack" / "fibonacci.pyx",
+    ),
     ("bootstrap_answer", ROOT / "tests" / "ahpy" / "bootstrap_answer.pyx"),
     ("bootstrap_types", ROOT / "tests" / "ahpy" / "bootstrap_types.pyx"),
 )
+HANDWRITTEN_SOURCES = (
+    ("ahpy_minimal", ROOT / "tests" / "ahpy" / "minimal_universal.c"),
+)
+SOURCES = GENERATED_SOURCES + HANDWRITTEN_SOURCES
 SMOKE = ROOT / "Tools" / "ahpy" / "portability_smoke.py"
 
 
@@ -55,7 +67,7 @@ def build_artifact(python, output):
         _append_flag(environment, "CFLAGS", reproducible_paths)
         _append_flag(environment, "CXXFLAGS", reproducible_paths)
         generated_sources = []
-        for module_name, source in SOURCES:
+        for module_name, source in GENERATED_SOURCES:
             generated = temp / (module_name + ".c")
             run([
                 python,
@@ -69,20 +81,37 @@ def build_artifact(python, output):
                 generated,
                 required=(
                     "#include <hpy.h>",
-                    "HPyDef_METH",
                     "HPy_mod_exec",
                     "HPy_MODINIT",
-                ),
+                ) + (() if module_name == "constants_only" else (
+                    "HPyDef_METH",
+                )),
             )
             generated_sources.append(generated)
 
+        for _module_name, source in HANDWRITTEN_SOURCES:
+            verify_minimal_source_boundary()
+            copied = temp / source.name
+            shutil.copy2(source, copied)
+
         setup = temp / "setup.py"
+        setup_sources = (
+            tuple((module_name, module_name + ".c")
+                  for module_name, _source in GENERATED_SOURCES) +
+            tuple((module_name, source.name)
+                  for module_name, source in HANDWRITTEN_SOURCES)
+        )
+        extensions = "\n".join(
+            "    Extension(%r, [%r])," % (module_name, source_name)
+            for module_name, source_name in setup_sources
+        )
         setup.write_text(
             "from setuptools import Extension, setup\n"
+            "from ahpy_hpy_compat import install_hpy_universal_loader_compat\n"
+            "install_hpy_universal_loader_compat()\n"
             "setup(name='ahpy-portability', version='0.0.0', "
             "packages=[], py_modules=[], hpy_ext_modules=[\n"
-            "    Extension('bootstrap_answer', ['bootstrap_answer.c']),\n"
-            "    Extension('bootstrap_types', ['bootstrap_types.c']),\n"
+            + extensions + "\n"
             "])\n",
             encoding="utf8",
         )
@@ -95,7 +124,7 @@ def build_artifact(python, output):
             "--build-base", str(build_root),
         ], cwd=temp, env=environment, stdout=subprocess.DEVNULL)
 
-        binaries = sorted(build_root.rglob("*.hpy0.*"))
+        binaries = find_universal_binaries(build_root)
         if len(binaries) != len(SOURCES):
             raise AssertionError(
                 "expected %d Universal binaries, got %r" %
@@ -108,7 +137,7 @@ def build_artifact(python, output):
         artifact_names = []
         for module_name, _ in SOURCES:
             candidates = (
-                list(build_lib.glob(module_name + "*.hpy0.*")) +
+                find_universal_binaries(build_lib, module_name) +
                 [build_lib / (module_name + ".py")]
             )
             for candidate in candidates:

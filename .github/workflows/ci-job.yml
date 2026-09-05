@@ -89,7 +89,7 @@ jobs:
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~10-15 minutes for ubuntu / macos and ~25 for windows,
     # so a limit of 80 minutes should be enough. This can always be changed in the future if needed.
-    timeout-minutes: ${{ startsWith(inputs.python-version, 'graalpy') && 150 || 80 }}
+    timeout-minutes: ${{ startsWith(inputs.python-version, 'graalpy') && 150 || inputs.shared_utility && 120 || 80 }}
     runs-on: ${{ inputs.os }}
 
     defaults:
@@ -98,7 +98,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -112,12 +112,12 @@ jobs:
 
       - name: Setup extra Python versions
         if: ${{ inputs.extra_python_versions }}
-        uses: actions/setup-python@v6.3.0
+        uses: actions/setup-python@v7.0.0
         with:
           python-version-file: .python-versions
 
       - name: Setup python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ inputs.python-version }}
           architecture: ${{ inputs.architecture }}

@@ -9,8 +9,15 @@ import json
 import os
 from pathlib import Path
 import shlex
+import shutil
 import subprocess
 import sys
+from tempfile import TemporaryDirectory
+
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from ahpy_build_config import (
     probe_toolchain,
@@ -32,6 +39,119 @@ def _is_msvc(command, probe):
     if probe["os_name"] != "nt" or not command:
         return False
     return Path(command[0]).name.lower() in ("cl", "cl.exe")
+
+
+def _environment_value(environment, name):
+    for key, value in environment.items():
+        if key.lower() == name.lower():
+            return value
+    return None
+
+
+def _replace_environment_value(environment, name, value):
+    for key in tuple(environment):
+        if key.lower() == name.lower():
+            del environment[key]
+    environment[name] = value
+
+
+def _msvc_activation_script(vcvarsall, architecture):
+    return (
+        "@echo off\n"
+        'call "%s" %s >nul\n' % (vcvarsall, architecture) +
+        "if errorlevel 1 exit /b 1\n"
+        "set\n"
+    )
+
+
+def _resolve_msvc_executable(environment):
+    executable = shutil.which(
+        "cl.exe", path=_environment_value(environment, "PATH"))
+    if executable is None:
+        raise RuntimeError("Visual C++ environment does not expose cl.exe")
+    return executable
+
+
+def discover_msvc_environment(machine, environment=None):
+    """Load the native Visual C++ command environment through vcvarsall."""
+    environment = dict(os.environ if environment is None else environment)
+    path = _environment_value(environment, "PATH")
+    if shutil.which("cl.exe", path=path):
+        return environment
+
+    vswhere = shutil.which("vswhere.exe", path=path)
+    if vswhere is None:
+        program_files = _environment_value(environment, "ProgramFiles(x86)")
+        if program_files:
+            candidate = (
+                Path(program_files) / "Microsoft Visual Studio" /
+                "Installer" / "vswhere.exe"
+            )
+            if candidate.is_file():
+                vswhere = str(candidate)
+    if vswhere is None:
+        raise RuntimeError(
+            "cannot locate vswhere.exe for the Visual C++ build environment")
+
+    installation = subprocess.run(
+        [
+            vswhere,
+            "-latest",
+            "-products", "*",
+            "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+            "-property", "installationPath",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=environment,
+    ).stdout.strip()
+    if not installation:
+        raise RuntimeError("vswhere.exe found no Visual C++ installation")
+    vcvarsall = (
+        Path(installation) / "VC" / "Auxiliary" / "Build" /
+        "vcvarsall.bat"
+    )
+    if not vcvarsall.is_file():
+        raise RuntimeError("Visual C++ vcvarsall.bat is missing: %s" % vcvarsall)
+
+    normalized_machine = machine.lower()
+    architectures = {
+        "amd64": "x64",
+        "x86_64": "x64",
+        "arm64": "arm64",
+        "aarch64": "arm64",
+    }
+    try:
+        architecture = architectures[normalized_machine]
+    except KeyError:
+        raise RuntimeError(
+            "unsupported Visual C++ target architecture: %s" % machine) from None
+    command_processor = _environment_value(environment, "COMSPEC") or "cmd.exe"
+    with TemporaryDirectory(prefix="ahpy-msvc-environment-") as temp:
+        activation = Path(temp) / "activate.cmd"
+        activation.write_text(
+            _msvc_activation_script(vcvarsall, architecture),
+            encoding="utf8",
+        )
+        result = subprocess.run(
+            [command_processor, "/d", "/c", str(activation)],
+            check=True,
+            capture_output=True,
+            text=True,
+            env=environment,
+        )
+    loaded = 0
+    for line in result.stdout.splitlines():
+        name, separator, value = line.partition("=")
+        if separator and name:
+            _replace_environment_value(environment, name, value)
+            loaded += 1
+    if not loaded or not shutil.which(
+        "cl.exe", path=_environment_value(environment, "PATH")
+    ):
+        raise RuntimeError("vcvarsall.bat did not expose cl.exe on PATH")
+    return environment
 
 
 def _validate_inputs(module_name, source, output_dir, build_dir):
@@ -108,7 +228,10 @@ def create_build_plan(
             "/OUT:%s" % artifact,
         ])
     else:
-        base = compiler_command
+        # Keep compile-only flags out of the fallback linker command.  Mutating
+        # compiler_command here silently leaked optimization/PIC/definitions/
+        # includes into the link driver whenever LDSHARED was unavailable.
+        base = list(compiler_command)
         base += _split_flags(probe["config"].get("CFLAGS"))
         base += _split_flags(probe["config"].get("CCSHARED"))
         base += ["-O2", "-fPIC", "-DHPY", "-DHPY_ABI_UNIVERSAL"]
@@ -172,8 +295,20 @@ def execute_build_plan(plan):
     output_dir.mkdir(parents=True, exist_ok=True)
     build_dir.mkdir(parents=True, exist_ok=True)
     environment = os.environ.copy()
+    first_command = plan["compile_commands"][0]
+    msvc_executable = None
+    if Path(first_command[0]).name.lower() in ("cl", "cl.exe"):
+        environment = discover_msvc_environment(
+            plan["machine"], environment)
+        # CreateProcess does not consistently resolve the extensionless `cl`
+        # stored by Python's Windows build configuration. Execute the exact
+        # cl.exe exposed by vcvarsall instead of depending on PATH lookup.
+        msvc_executable = _resolve_msvc_executable(environment)
     for command in plan["compile_commands"] + [plan["link_command"]]:
-        subprocess.run(command, check=True, env=environment)
+        execution_command = list(command)
+        if msvc_executable is not None:
+            execution_command[0] = msvc_executable
+        subprocess.run(execution_command, check=True, env=environment)
     if not artifact.is_file():
         raise RuntimeError("direct linker did not create %s" % artifact)
     verify_binary_boundary(artifact)

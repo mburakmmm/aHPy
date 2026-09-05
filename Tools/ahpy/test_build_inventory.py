@@ -1,4 +1,7 @@
+import io
+import json
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -24,6 +27,22 @@ class BuildInventoryTest(unittest.TestCase):
             build_inventory.classify("PyUnreviewed_API")[0],
             "unsupported_by_validated_hpy",
         )
+        self.assertEqual(
+            build_inventory.classify("PyMem_Malloc")[0],
+            "backend_independent_replacement",
+        )
+
+    def test_git_revision_uses_requested_repository(self):
+        root = Path("/repository")
+        with mock.patch.object(
+            build_inventory.subprocess,
+            "run",
+            return_value=mock.Mock(stdout="deadbeef\n"),
+        ) as run:
+            self.assertEqual(build_inventory.git_revision(root), "deadbeef")
+        self.assertEqual(run.call_args.args[0], ["git", "rev-parse", "HEAD"])
+        self.assertEqual(run.call_args.kwargs["cwd"], root)
+        self.assertTrue(run.call_args.kwargs["check"])
 
     @mock.patch.object(build_inventory, "git_revision", return_value="abc123")
     def test_inventory_is_deterministic_and_counts_symbols(self, _git_revision):
@@ -36,7 +55,7 @@ class BuildInventoryTest(unittest.TestCase):
             utility.mkdir(parents=True)
             tests.mkdir(parents=True)
             (compiler / "Example.py").write_text(
-                'x = "PyLong_FromLong(1)"\n', encoding="utf-8"
+                'x = "PyLong_FromLong(1) PyObject"\n', encoding="utf-8"
             )
             (utility / "Example.c").write_text(
                 "#include <Python.h>\nPy_INCREF(value);\n"
@@ -46,6 +65,8 @@ class BuildInventoryTest(unittest.TestCase):
             (tests / "example.pyx").write_text(
                 "#tag: run hpy_candidate\n", encoding="utf-8"
             )
+            (tests / "notes.txt").write_text("not tagged\n", encoding="utf-8")
+            (tests / "directory.pyx").mkdir()
 
             inventory = build_inventory.build_inventory(root)
 
@@ -59,12 +80,34 @@ class BuildInventoryTest(unittest.TestCase):
             inventory["test_summary"]["tag_counts"],
             {"hpy_candidate": 1, "run": 1},
         )
+        self.assertEqual(
+            inventory["python_object_types"],
+            [{
+                "type": "PyObject",
+                "occurrences": 1,
+                "files": ["Cython/Compiler/Example.py"],
+            }],
+        )
         avoid_borrowed = next(
             item
             for item in inventory["existing_abstractions"]
             if item["marker"] == "CYTHON_AVOID_BORROWED_REFS"
         )
         self.assertEqual(avoid_borrowed["occurrences"], 1)
+
+    def test_main_resolves_root_and_renders_sorted_json(self):
+        report = {"schema_version": 1, "z": 2, "a": 1}
+        stdout = io.StringIO()
+        with (
+            mock.patch("sys.argv", ["build_inventory.py", "--root", "."]),
+            mock.patch.object(
+                build_inventory, "build_inventory", return_value=report
+            ) as build,
+            mock.patch.object(sys, "stdout", stdout),
+        ):
+            build_inventory.main()
+        build.assert_called_once_with(Path(".").resolve())
+        self.assertEqual(json.loads(stdout.getvalue()), report)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,9 @@ name: aHPy Universal
 
 on:
   push:
+    branches:
+      - main
+      - "ahpy/**"
   pull_request:
   workflow_dispatch:
   schedule:
@@ -39,6 +42,35 @@ jobs:
         run: python -m pip install -r tests/ahpy/requirements-build-systems.txt
       - name: Diagnose Universal toolchain
         run: python Tools/ahpy/doctor.py --python python --strict
+      - name: Validate preview release contract
+        run: python Tools/ahpy/release_contract.py --json
+      - name: Validate production documentation contract
+        run: >-
+          python Tools/ahpy/documentation_contract.py
+          --output packaging-results/documentation-contract.json
+      - name: Validate maintenance and compatibility policy
+        run: >-
+          python Tools/ahpy/maintenance_policy.py --json
+          --output packaging-results/maintenance-policy.json
+      - name: Exercise release recovery and backport policy
+        run: >-
+          python Tools/ahpy/release_recovery_drill.py
+          --output packaging-results/release-recovery-drill.json
+      - name: Validate pinned third-party pilot matrix
+        run: python Tools/ahpy/pilot_matrix.py --json
+      - name: Validate frontend-neutral HPy conformance contract
+        run: >-
+          python Tools/ahpy/run_conformance.py
+          --validate-only
+          --output packaging-results/conformance-contract.json
+      - name: Checkout and scan all pinned third-party pilots
+        run: >-
+          python Tools/ahpy/run_pilots.py
+          --checkout-root "${RUNNER_TEMP}/ahpy-pilots"
+          --checkout
+          --scan
+          --python python
+          --output packaging-results/pilot-matrix.json
       - name: Source compatibility self-scan
         run: >-
           python Tools/ahpy/scan_compatibility.py
@@ -49,6 +81,31 @@ jobs:
           --json
       - name: Setuptools and cythonize Universal integration
         run: python Tools/ahpy/setuptools_integration.py --python python
+      - name: Pinned pure-Cython third-party pilot
+        run: >-
+          python Tools/ahpy/cypack_pilot_integration.py
+          --python python
+          --output packaging-results/cypack-pilot.json
+      - name: Pinned external-C murmurhash scalar pilot
+        run: >-
+          python Tools/ahpy/murmurhash_pilot_integration.py
+          --python python
+          --checkout "${RUNNER_TEMP}/ahpy-pilots/murmurhash-external-c"
+          --output packaging-results/murmurhash-pilot.json
+      - name: Pinned frozenlist extension-type and GC pilot
+        run: >-
+          python Tools/ahpy/frozenlist_pilot_integration.py
+          --python python
+          --checkout "${RUNNER_TEMP}/ahpy-pilots/frozenlist-extension-type"
+          --output packaging-results/frozenlist-pilot.json
+      - name: Build merged third-party compatibility dashboard
+        run: >-
+          python Tools/ahpy/build_pilot_dashboard.py
+          --evidence packaging-results/pilot-matrix.json
+          --evidence packaging-results/cypack-pilot.json
+          --evidence packaging-results/murmurhash-pilot.json
+          --evidence packaging-results/frozenlist-pilot.json
+          --output packaging-results/compatibility-dashboard.md
       - name: Direct non-setuptools Universal integration
         run: python Tools/ahpy/direct_build_integration.py --python python
       - name: Isolated PEP 517 Universal integration
@@ -61,6 +118,7 @@ jobs:
           python Tools/ahpy/release_artifact_integration.py
           --python python
           --output packaging-results/release-artifacts.json
+          --bundle-dir packaging-results/release-bundle
       - name: Reproducible frontend package archives
         run: >-
           python Tools/ahpy/verify_reproducible_packages.py
@@ -68,13 +126,23 @@ jobs:
           --output packaging-results/package-reproducibility.json
       - name: Upload isolated packaging evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ahpy-pep517-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             packaging-results/pep517.json
             packaging-results/release-artifacts.json
+            packaging-results/release-bundle
             packaging-results/package-reproducibility.json
+            packaging-results/pilot-matrix.json
+            packaging-results/cypack-pilot.json
+            packaging-results/murmurhash-pilot.json
+            packaging-results/frozenlist-pilot.json
+            packaging-results/compatibility-dashboard.md
+            packaging-results/conformance-contract.json
+            packaging-results/documentation-contract.json
+            packaging-results/maintenance-policy.json
+            packaging-results/release-recovery-drill.json
           if-no-files-found: error
       - name: CMake and Meson Universal integrations
         run: >-
@@ -89,7 +157,7 @@ jobs:
           --output packaging-results/scikit-build.json
       - name: Upload external build-system evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ahpy-build-systems-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -109,9 +177,9 @@ jobs:
       - name: Focused aHPy coverage floors
         run: >-
           python Tools/ahpy/report_coverage.py
-          --fail-under backend=71
-          --fail-under frontend_seam=25
-          --fail-under quality_tools=35
+          --fail-under backend=100
+          --fail-under frontend_seam=45
+          --fail-under quality_tools=100
       - name: Universal HPy performance regression budgets
         run: >-
           python Tools/ahpy/benchmark_hpy.py
@@ -119,7 +187,7 @@ jobs:
           --output performance-results/benchmark.json
       - name: Upload performance history record
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ahpy-performance-${{ github.run_id }}-${{ github.run_attempt }}
           path: performance-results/benchmark.json
@@ -127,6 +195,7 @@ jobs:
       - name: API and allocation fault injection
         run: python Tools/ahpy/test_fault_injection.py --python python
       - name: Bounded parallel HPy stress
+        id: parallel_stress
         run: >-
           python Tools/ahpy/stress_parallel_hpy.py
           --python python
@@ -135,8 +204,8 @@ jobs:
           --timeout-seconds 600
           --output stress-results/parallel-hpy.json
       - name: Upload parallel stress evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7.0.1
+        if: ${{ always() && steps.parallel_stress.outcome != 'skipped' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ahpy-parallel-stress-${{ github.run_id }}-${{ github.run_attempt }}
           path: stress-results
@@ -174,26 +243,32 @@ jobs:
             os: ubuntu-24.04
             architecture: x64
             cc: gcc
+            cflags: -O0
           - name: linux-x64-clang
             os: ubuntu-24.04
             architecture: x64
             cc: clang
+            cflags: -O0
           - name: linux-arm64-gcc
             os: ubuntu-24.04-arm
             architecture: arm64
             cc: gcc
+            cflags: -O0
           - name: macos-intel-clang
             os: macos-15-intel
             architecture: x64
             cc: clang
+            cflags: -O0
           - name: macos-arm64-clang
             os: macos-15
             architecture: arm64
             cc: clang
+            cflags: -O0
           - name: windows-x64-msvc
             os: windows-2025
             architecture: x64
             cc: cl
+            cflags: /Od
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -212,6 +287,7 @@ jobs:
       - name: Build, audit, and run Universal module
         env:
           CC: ${{ matrix.cc }}
+          CFLAGS: ${{ matrix.cflags }}
         run: python Tools/ahpy/test_generated_hpy.py --python python
       - name: Direct non-setuptools build and load
         env:
@@ -243,7 +319,15 @@ jobs:
           cache-dependency-path: tests/ahpy/requirements-hpy-dev.txt
       - name: Install pinned HPy development revision
         run: python -m pip install -r tests/ahpy/requirements-hpy-dev.txt
+      - name: Classify minimal HPy heap-type compatibility
+        env:
+          CFLAGS: -O0
+        run: >-
+          python Tools/ahpy/reproduce_hpy_dev_closure.py
+          --python python
       - name: Build, audit, and run Universal module
+        env:
+          CFLAGS: -O0
         run: python Tools/ahpy/test_generated_hpy.py --python python
 
   sanitizers:
@@ -279,10 +363,9 @@ jobs:
           --cc ${{ matrix.cc }}
 
   native-memory-valgrind:
-    name: early warning (Linux Valgrind definite leaks)
+    name: native memory gate (Linux Valgrind definite leaks)
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-24.04
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -309,10 +392,44 @@ jobs:
           --build-dir valgrind-evidence
       - name: Upload Valgrind evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ahpy-valgrind-${{ github.run_id }}-${{ github.run_attempt }}
           path: valgrind-evidence
+          if-no-files-found: warn
+
+  native-memory-windows:
+    name: native memory gate (Windows AppVerifier full page heap)
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Set up Python 3.11 x64
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+          architecture: x64
+          cache: pip
+          cache-dependency-path: tests/ahpy/requirements-hpy09.txt
+      - name: Install stable HPy lane
+        run: python -m pip install -r tests/ahpy/requirements-hpy09.txt
+      - name: Detect native overrun and inspect generated Universal corpus
+        env:
+          CFLAGS: /Od
+        run: >-
+          python Tools/ahpy/run_appverifier_hpy.py
+          --python python
+          --build-dir appverifier-evidence
+      - name: Upload AppVerifier evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ahpy-appverifier-${{ github.run_id }}-${{ github.run_attempt }}
+          path: appverifier-evidence
           if-no-files-found: warn
 
   build-portability-artifact:
@@ -331,6 +448,8 @@ jobs:
       - name: Install stable HPy lane
         run: python -m pip install -r tests/ahpy/requirements-hpy09.txt
       - name: Build portability artifact once
+        env:
+          CFLAGS: -O0
         run: >-
           python Tools/ahpy/build_portability_artifact.py
           --python python
@@ -367,12 +486,37 @@ jobs:
         with:
           name: ahpy-linux-x64-universal
           path: portability-artifact
-      - name: Report interpreter and HPy loader
+      - name: Report target interpreter
         run: >-
-          python -c "import platform, hpy.universal;
+          python -c "import platform;
           print(platform.python_implementation(), platform.python_version())"
-      - name: Execute exactly the uploaded binary
-        run: python portability-artifact/portability_smoke.py
+      - name: Execute staged unchanged Universal binaries
+        run: >-
+          python portability-artifact/portability_smoke.py
+          --report portability-result-${{ matrix.name }}.json
+      - name: Upload cross-interpreter evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ahpy-portability-${{ matrix.name }}
+          path: portability-result-${{ matrix.name }}.json
+          if-no-files-found: error
+
+  required-success:
+    name: aHPy required checks
+    needs:
+      - compiler-and-quality
+      - stable-universal
+      - development-revision
+      - sanitizers
+      - build-portability-artifact
+    if: always()
+    env:
+      FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Verify required jobs
+        run: exit $FAIL
 
   nightly-interpreter:
     name: early warning (CPython 3.15-dev + HPy 0.9)
@@ -402,10 +546,13 @@ jobs:
           --requested-python 3.15-dev
           --output nightly-evidence/environment.json
       - name: Build, audit, and run Universal module
+        timeout-minutes: 30
+        env:
+          CFLAGS: -O0
         run: python Tools/ahpy/test_generated_hpy.py --python python
       - name: Upload interpreter-nightly evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ahpy-nightly-interpreter-${{ github.run_id }}-${{ github.run_attempt }}
           path: nightly-evidence
@@ -443,10 +590,13 @@ jobs:
           --expected-hpy-ref master
           --output nightly-evidence/environment.json
       - name: Build, audit, and run Universal module
+        timeout-minutes: 30
+        env:
+          CFLAGS: -O0
         run: python Tools/ahpy/test_generated_hpy.py --python python
       - name: Upload HPy-nightly evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ahpy-nightly-hpy-${{ github.run_id }}-${{ github.run_attempt }}
           path: nightly-evidence

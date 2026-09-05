@@ -19,3 +19,10 @@ Mode.
 `Tools/ahpy/test_generated_hpy.py` to compile it through Cython's
 `hpy-universal` backend, reject legacy C-API spellings, build its `.hpy0`
 binary, and execute it in both normal and HPy debug modes.
+
+The separate `conformance-v1.json` suite is frontend-neutral. Its checksummed
+descriptor is `tests/ahpy-conformance.toml`, and
+`Tools/ahpy/run_conformance.py` executes the same 21 Python-visible cases
+against explicit import-name mappings from any language frontend. See
+`docs/ahpy/conformance-corpus.md`; no Cython source path is part of that
+protocol.

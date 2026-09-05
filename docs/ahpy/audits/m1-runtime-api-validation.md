@@ -21,6 +21,13 @@ central reference/null/error operations were routed through the Runtime API.
 The Runtime API/CLI unit set later grew to 66 passing tests as call layouts and
 their validation were added. The same oracle corpus remained at 19/19.
 
+The current regression suite also starts CPython and Universal compilations at
+the same barrier in separate worker threads. Their generated translation units
+retain only their selected `PyInit_*`/`Python.h` or `HPy_MODINIT`/`hpy.h`
+boundary, proving that context-owned backend selection does not cross-contaminate
+concurrent compilations. The focused coverage tracer follows those worker
+threads and restores any enclosing system/thread trace hooks.
+
 ## Full Cython regression matrix
 
 The unrestricted first run completed the suite but returned a nonzero status

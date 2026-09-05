@@ -56,17 +56,22 @@ cdef class FunctionState:
     cdef public bint can_trace
     cdef public bint gil_owned
 
+    cdef CCodeWriter temp_decl_writer
     cdef list[tuple] temps_allocated
     cdef dict[tuple, tuple] temps_free
     cdef dict[object, tuple] temps_used_type
     cdef set zombie_temps
     cdef size_t temp_counter
     cdef list[set[tuple]] collect_temps_stack
+    cdef public object handle_temps
+    cdef public object handle_builders
+    cdef public object runtime_context_cname
 
     cdef readonly object closure_temps
     cdef bint should_declare_error_indicator
     cdef public bint uses_error_indicator
     cdef public bint error_without_exception
+    cdef public bint has_except_star
 
     cdef public bint needs_refnanny
 

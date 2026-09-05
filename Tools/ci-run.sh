@@ -108,7 +108,7 @@ if [[ $PYTHON_VERSION != *"-dev" ]]; then
     $PYTHON -m pip install --no-cache-dir pythran || exit 1
   fi
 
-  if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* ]]; then
+  if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* && $PYTHON_VERSION != "3.13t" ]]; then
     $PYTHON -m pip install --no-cache-dir mypy || exit 1
   fi
 
@@ -185,15 +185,19 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
     ls -l dist/ || true
 
     # Check for changelog entry in wheel metadata, except for "...-dev" or "...a0" dev versions.
+    METADATA_FILE=$(find . -maxdepth 2 -type f \( \
+      -path './*.dist-info/METADATA' -o \
+      -path './*.egg-info/PKG-INFO' \
+    \) -print -quit)
     grep -q '^__version__.*=.*".*\(a0\|dev[0-9]\?\)"' Cython/Shadow.py || \
-      fgrep -q '=======' $( [ -d ?ython-*.dist-info/ ] && echo "?ython-*.dist-info/METADATA" || echo "?ython*.egg-info/PKG-INFO" ) || {
+      { [ -n "$METADATA_FILE" ] && fgrep -q '=======' "$METADATA_FILE"; } || {
         echo "ERROR: wheel METADATA lacks changelog - did you add a version entry?" ; exit 1; }
 
     if $( twine --version ); then twine check dist/*.whl; fi
   fi
 
   echo "Extension modules created during the build:"
-  find Cython -name "*.so" -ls | sort -k11
+  find Cython -name "*.so" -ls -o -name "*.pyd" -ls | sort -k11
 fi
 
 if [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" && $OSTYPE != "cygwin" ]]; then
@@ -207,11 +211,24 @@ if [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" && $OSTYPE != "cygwin" ]];
   fi
 fi
 
-if [[ $PYTHON_VERSION == "graalpy"* ]]; then
+if [[ $OSTYPE == "msys" || $OSTYPE == "cygwin" ]]; then
+  # Several end-to-end tests launch their own multi-extension MSVC builds.
+  # Keep the ordinary trees bounded and run the shared-utility trees in
+  # isolation below. Their fixture-local build_ext commands are also serial:
+  # even an isolated -j3 run reproduced link.exe failing to launch the Windows
+  # SDK rc.exe helper (LNK1158).
+  TEST_PARALLELISM=-j4
+  WINDOWS_SHARED_UTILITY_EXCLUDE="-x tag:shared_utility"
+elif [[ $PYTHON_VERSION == "graalpy"* ]]; then
   # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
   # JIT actually makes it faster! And reduces the number of cores each process uses.
   GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
   TEST_PARALLELISM=-j2
+elif [[ $SHARED_UTILITY ]]; then
+  # Shared-utility mode recompiles the complete selected corpus with larger
+  # generated translation units. Keep a cold-cache hosted runner from
+  # oversubscribing its compiler processes and exhausting the job timeout.
+  TEST_PARALLELISM=-j4
 fi
 
 RUNTESTS_ARGS=""
@@ -247,9 +264,26 @@ $PYTHON $GRAAL_PYTHON_ARGS runtests.py \
   --backends=$BACKEND \
   $SHARED_UTILITY \
   $EXCLUDE \
+  $WINDOWS_SHARED_UTILITY_EXCLUDE \
   $RUNTESTS_ARGS
 
 EXIT_CODE=$?
+
+if [[ $WINDOWS_SHARED_UTILITY_EXCLUDE ]]; then
+  # The final -j1 serializes the outer tag run; both shared-utility fixtures
+  # also use build_ext -j1 so no concurrent link.exe process competes for
+  # rc.exe inside the isolated tree.
+  $PYTHON runtests.py \
+    -vv --no-code-style \
+    --no-cleanup \
+    -x Debugger \
+    --backends=$BACKEND \
+    $SHARED_UTILITY \
+    $EXCLUDE \
+    $RUNTESTS_ARGS \
+    -j1 \
+    tag:shared_utility || EXIT_CODE=1
+fi
 
 ccache -s -v -v 2>/dev/null || true
 

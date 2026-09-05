@@ -42,8 +42,25 @@ the compiler message, and a migration action with stable `id` and explanatory
 
 Current action IDs are:
 
+- `cython-module-cimport`: replace a cross-module Cython C-API dependency with
+  an ordinary Python-callable boundary, while routing genuinely independent C
+  declarations through the separately reviewed external-C contract;
+- `compiled-entry-point`: expose a module-level `cdef`/`cpdef` entry point as
+  `def`, or keep a proven native-only helper outside the Universal translation
+  unit;
+- `cpp-runtime-boundary`: replace a `libcpp` runtime type with a semantically
+  equivalent supported native scalar, or isolate C++ state behind a
+  Python-independent C-compatible shim;
 - `direct-cpython-cimport`: remove `cpython.*` declarations from the Universal
-  boundary;
+  boundary. The exact `from cpython.buffer cimport Py_buffer` declaration is a
+  permitted frontend-only marker for the canonical validated buffer producer;
+  its use remains compiler-validated and generated Universal output contains
+  public `HPy_buffer`, not CPython buffer APIs;
+- `numpy-c-api`: keep NumPy values behind an ordinary Python object boundary
+  or replace the C-API dependency with a Python-independent scalar shim;
+- `native-pointer-boundary`: keep native pointer/buffer ownership outside the
+  Universal translation unit until a reviewed scalar shim or public HPy buffer
+  contract is available;
 - `python-header`: port `Python.h` dependencies to public HPy or an independent
   C shim;
 - `direct-pyobject-pointer`: replace `PyObject *`/`cpy_PyObject *` storage with
@@ -62,10 +79,14 @@ Current action IDs are:
 - `compiler-error` and `report-backend-boundary-bug`: preserve artifacts and
   report an aHPy compiler defect.
 
-The scanner also performs source-level detection for direct `cpython.*`
-imports and `cdef extern from "Python.h"`, even if frontend analysis would fail
-before backend emission. It also rejects direct `PyObject *`/`cpy_PyObject *`
-declarations and calls to the two legacy HPy/PyObject conversion APIs. Lexical
-comments and string literals are masked without changing source offsets, so
-examples in documentation do not become false findings. These findings are
-compatibility rejections, never permission to change ABI mode.
+The scanner also performs source-level detection for `libcpp` runtime types,
+relative cross-module Cython cimports, direct `cpython.*` and NumPy C-API cimports plus
+`cdef extern from "Python.h"`, even if frontend analysis would fail before
+backend emission. Native `void *` boundaries also receive a stable
+source-located migration action. Ordinary Python-level
+`import numpy` remains valid and is not confused with `cimport numpy`. The
+scanner also rejects direct `PyObject *`/`cpy_PyObject *` declarations and
+calls to the two legacy HPy/PyObject conversion APIs. Lexical comments and
+string literals are masked without changing source offsets, so examples in
+documentation do not become false findings. These findings are compatibility
+rejections, never permission to change ABI mode.

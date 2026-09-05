@@ -83,10 +83,9 @@ def build_and_run(python, report_path=None):
         _frontend_metadata(frontend_wheel)
 
         _run([
-            python, "-m", "pip", "wheel", "--no-build-isolation",
-            "--wheel-dir", str(wheelhouse),
+            python, "-m", "pip", "wheel", "--wheel-dir", str(wheelhouse),
             "hpy==0.9.0", "scikit-build-core==1.0.3",
-            "cmake==4.3.4", "ninja==1.13.0", "setuptools==80.9.0",
+            "cmake==4.3.4", "ninja==1.13.0", "setuptools==83.0.0",
         ], env=environment)
 
         project = temp / "project"

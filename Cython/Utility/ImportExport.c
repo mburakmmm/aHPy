@@ -695,7 +695,9 @@ bad:
 }
 
 
-/////////////// SetVTable.proto ///////////////
+/////////////// SetVTable.export ///////////////
+//@feature: ExtensionTypes
+//@requires: MergeVTables
 
 static int __Pyx_SetVtable(PyTypeObject* typeptr , void* vtable); /*proto*/
 
@@ -712,7 +714,9 @@ static int __Pyx_SetVtable(PyTypeObject *type, void *vtable) {
 #endif
         goto bad;
     Py_DECREF(ob);
-    return 0;
+
+    return __Pyx_MergeVtables(type);
+
 bad:
     Py_XDECREF(ob);
     return -1;
@@ -841,7 +845,7 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
                     break;
                 }
                 base = __Pyx_PyType_TryGetSlot(base, tp_base, PyTypeObject*);
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX <= 0x030A0000
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
                 if (!base) goto bad;
 #endif
             }

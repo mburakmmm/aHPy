@@ -5,6 +5,9 @@ not the unrelated PyPI `ahpy` project—as its build frontend and selects
 `ahpy_build_backend`. The wrapper verifies the installed aHPy version and
 forces HPy's Universal ABI option for every setuptools PEP 517 hook. A
 missing/substituted frontend or Hybrid/CPython ABI request fails.
+The backend also applies aHPy's packaged, fail-closed HPy 0.9 loader-template
+compatibility hook before delegation, allowing the pinned Setuptools 83
+toolchain without restoring `pkg_resources`.
 
 The current HPy 0.9 tooling produces a host-tagged wheel containing one
 `.hpy0` binary and loader stub. Per ADR 0004, that wheel is a packaging smoke

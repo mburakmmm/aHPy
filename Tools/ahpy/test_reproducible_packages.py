@@ -1,6 +1,9 @@
 import hashlib
 import io
+import json
 from pathlib import Path
+import subprocess
+import sys
 import tarfile
 from tempfile import TemporaryDirectory
 import unittest
@@ -10,6 +13,28 @@ import verify_reproducible_packages
 
 
 class ReproduciblePackagesTest(unittest.TestCase):
+    def test_run_raises_checked_process_error_with_combined_output(self):
+        with patch.object(
+                verify_reproducible_packages.subprocess, "run",
+                return_value=type("Result", (), {
+                    "returncode": 0, "stdout": "ok\n"})()) as run:
+            self.assertIsNone(verify_reproducible_packages._run(
+                ["python", "-V"], cwd=Path("/tmp"), env={"A": "1"}))
+        run.assert_called_once_with(
+            ["python", "-V"], cwd=Path("/tmp"), env={"A": "1"},
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+        with (
+            patch.object(
+                verify_reproducible_packages.subprocess, "run",
+                return_value=type("Result", (), {
+                    "returncode": 7, "stdout": "build failed\n"})()),
+            self.assertRaises(subprocess.CalledProcessError) as raised,
+        ):
+            verify_reproducible_packages._run(["python", "-m", "build"])
+        self.assertEqual(raised.exception.returncode, 7)
+        self.assertEqual(raised.exception.output, "build failed\n")
+
     def test_contract_fixes_epoch_and_builds_both_archive_formats(self):
         source = Path(verify_reproducible_packages.__file__).read_text(
             encoding="utf8")
@@ -124,6 +149,7 @@ class ReproduciblePackagesTest(unittest.TestCase):
                 ["ahpy_compiler-test.tar.gz", "ahpy_compiler-test.whl"],
                 sorted(path.name for path in dist.iterdir()),
             )
+            self.assertFalse((Path(temp_dir) / "build" / "source").exists())
         self.assertEqual("0", environments[0]["PYTHONHASHSEED"])
         self.assertEqual(
             verify_reproducible_packages.SOURCE_DATE_EPOCH,
@@ -146,7 +172,7 @@ class ReproduciblePackagesTest(unittest.TestCase):
         payload = (
             '{"build":"1.5.0","implementation":"CPython",'
             '"platform":"test","python":"3.11.15",'
-            '"setuptools":"80.9.0"}\n'
+            '"setuptools":"83.0.0"}\n'
         )
         with patch.object(
                 verify_reproducible_packages.subprocess, "check_output",
@@ -160,6 +186,78 @@ class ReproduciblePackagesTest(unittest.TestCase):
                 return_value=None):
             with self.assertRaisesRegex(ValueError, "interpreter not found"):
                 verify_reproducible_packages.verify("missing-python")
+
+    def test_verify_records_two_clean_roots_and_optional_report(self):
+        provenance = {
+            "python": "3.11.15",
+            "implementation": "CPython",
+        }
+
+        def build_once(_python, root):
+            dist = Path(root) / "dist"
+            dist.mkdir(parents=True)
+            (dist / "ahpy_compiler.tar.gz").write_bytes(b"sdist")
+            (dist / "ahpy_compiler.whl").write_bytes(b"wheel")
+            return dist
+
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            python = root / "python"
+            python.touch()
+            output = root / "evidence" / "packages.json"
+            with (
+                patch.object(
+                    verify_reproducible_packages, "_build_once",
+                    side_effect=build_once) as build,
+                patch.object(
+                    verify_reproducible_packages, "_provenance",
+                    return_value=provenance),
+            ):
+                report = verify_reproducible_packages.verify(
+                    str(python), output)
+            self.assertEqual(json.loads(output.read_text()), report)
+        self.assertEqual(build.call_count, 2)
+        self.assertTrue(report["byte_identical"])
+        self.assertEqual(report["build_roots"], 2)
+        self.assertEqual(report["provenance"], provenance)
+        self.assertEqual(len(report["artifacts"]), 2)
+
+        with (
+            patch.object(
+                verify_reproducible_packages.shutil, "which",
+                return_value="/tool/python"),
+            patch.object(
+                verify_reproducible_packages, "_build_once",
+                side_effect=build_once),
+            patch.object(
+                verify_reproducible_packages, "_provenance",
+                return_value=provenance),
+        ):
+            report = verify_reproducible_packages.verify("reviewed-python")
+        self.assertTrue(report["byte_identical"])
+
+    def test_main_reports_reproducible_artifact_names(self):
+        report = {
+            "artifacts": [
+                {"name": "frontend.whl"},
+                {"name": "frontend.tar.gz"},
+            ],
+        }
+        with (
+            patch.object(sys, "argv", [
+                "verify_reproducible_packages.py",
+                "--python", "/tool/python",
+                "--output", "report.json",
+            ]),
+            patch.object(
+                verify_reproducible_packages, "verify",
+                return_value=report) as verify,
+            patch("builtins.print") as printed,
+        ):
+            verify_reproducible_packages.main()
+        verify.assert_called_once_with(
+            "/tool/python", Path("report.json"))
+        self.assertIn("frontend.whl, frontend.tar.gz", printed.call_args.args[0])
 
 if __name__ == "__main__":
     unittest.main()

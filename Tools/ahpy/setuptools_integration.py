@@ -12,6 +12,7 @@ import sys
 from tempfile import TemporaryDirectory
 import zipfile
 
+from artifact_utils import require_universal_binary
 from test_generated_hpy import run, verify_binary_boundary, verify_source_boundary
 
 
@@ -35,6 +36,7 @@ def _runtime_program(debug):
         )
         suffix = "detector.stop()\n"
     return (
+        "import errno\n"
         "import ahpy_setuptools_example as module\n" +
         prefix +
         "assert module.answer() == 42\n"
@@ -58,6 +60,95 @@ def _runtime_program(debug):
         "nogil_calls = module.external_nogil_probe()\n"
         "assert nogil_calls >= 1\n"
         "assert module.external_nogil_probe() == nogil_calls + 1\n"
+        "nogil_calls = module.external_nogil_advance(3)\n"
+        "assert nogil_calls >= 4\n"
+        "class BadIndex:\n"
+        "    def __index__(self):\n"
+        "        raise RuntimeError('nogil conversion failed')\n"
+        "try:\n"
+        "    module.external_nogil_advance(BadIndex())\n"
+        "except RuntimeError as error:\n"
+        "    assert str(error) == 'nogil conversion failed'\n"
+        "else:\n"
+        "    raise AssertionError('missing pre-nogil conversion error')\n"
+        "assert module.external_nogil_probe() == nogil_calls + 1\n"
+        "ordered_base = module.external_nogil_calls()\n"
+        "class OrderedIndex:\n"
+        "    def __index__(self):\n"
+        "        assert module.external_nogil_calls() == ordered_base + 1\n"
+        "        return 3\n"
+        "assert module.external_nogil_ordered(OrderedIndex()) == ordered_base + 4\n"
+        "result_base = module.external_nogil_calls()\n"
+        "assert module.external_nogil_result(5) == result_base + 5\n"
+        "assert module.external_nogil_calls() == result_base + 5\n"
+        "target_base = module.external_nogil_calls()\n"
+        "class Target:\n"
+        "    pass\n"
+        "target = Target()\n"
+        "target.amount = 1\n"
+        "class Mapping:\n"
+        "    item = 2\n"
+        "    slice_item = None\n"
+        "    def __getitem__(self, key):\n"
+        "        return self.slice_item if isinstance(key, slice) else self.item\n"
+        "    def __setitem__(self, key, value):\n"
+        "        if isinstance(key, slice):\n"
+        "            self.slice_item = value\n"
+        "        else:\n"
+        "            self.item = value\n"
+        "mapping = Mapping()\n"
+        "assert module.external_nogil_targets(target, mapping) == (\n"
+        "    target_base + 1, target_base + 3, target_base + 6,\n"
+        "    target_base + 10, target_base + 10)\n"
+        "assert module.nogil_stored_result == target_base + 1\n"
+        "assert target.value == target_base + 3\n"
+        "assert mapping.item == target_base + 6\n"
+        "assert mapping.slice_item == target_base + 10\n"
+        "gil_base = module.external_nogil_calls()\n"
+        "gil_events = []\n"
+        "def gil_callback(before):\n"
+        "    gil_events.append(before)\n"
+        "    assert module.external_nogil_calls() == gil_base + 1\n"
+        "    return 2\n"
+        "assert module.external_nogil_with_gil(gil_callback) == (\n"
+        "    gil_base + 1, 2, gil_base + 3)\n"
+        "assert gil_events == [gil_base + 1]\n"
+        "gil_failure_base = module.external_nogil_calls()\n"
+        "def failing_gil_callback(before):\n"
+        "    assert before == gil_failure_base + 1\n"
+        "    assert module.external_nogil_calls() == gil_failure_base + 1\n"
+        "    raise ValueError('nested with gil failed')\n"
+        "try:\n"
+        "    module.external_nogil_with_gil(failing_gil_callback)\n"
+        "except ValueError as error:\n"
+        "    assert str(error) == 'nested with gil failed'\n"
+        "else:\n"
+        "    raise AssertionError('missing nested with gil failure')\n"
+        "assert module.external_nogil_calls() == gil_failure_base + 1\n"
+        "errno_base = module.external_nogil_calls()\n"
+        "assert module.external_errno_held(2) == errno_base + 2\n"
+        "assert module.external_errno_released(3) == errno_base + 5\n"
+        "assert module.external_errno_discarded(4) == errno_base + 9\n"
+        "for failing_call in (\n"
+        "    module.external_errno_held,\n"
+        "    module.external_errno_released,\n"
+        "    module.external_errno_discarded,\n"
+        "):\n"
+        "    try:\n"
+        "        failing_call(-1)\n"
+        "    except OSError as error:\n"
+        "        assert error.errno == errno.EDOM\n"
+        "    else:\n"
+        "        raise AssertionError('missing external C errno failure')\n"
+        "assert module.external_nogil_calls() == errno_base + 9\n"
+        "try:\n"
+        "    module.external_missing_errno()\n"
+        "except RuntimeError as error:\n"
+        "    assert str(error) == (\n"
+        "        \"external C function 'ahpy_external_missing_errno' returned \"\n"
+        "        \"its -1 error sentinel without setting errno\")\n"
+        "else:\n"
+        "    raise AssertionError('missing unset-errno contract failure')\n"
         "byte_calls = module.external_byte_calls()\n"
         "try:\n"
         "    module.external_byte(128)\n"
@@ -105,19 +196,24 @@ def build_and_run(python):
                 "HPy_MODINIT", '#include "ahpy_external.h"',
                 "HPyLong_FromUnsignedLongLong",
                 "HPyThreadState", "HPy_LeavePythonExecution",
-                "HPy_ReenterPythonExecution",
+                "HPy_ReenterPythonExecution", "ahpy_external_nogil_advance",
+                "explicit with gil: Python execution is active",
+                "#include <errno.h>", "HPyErr_SetFromErrno",
             ),
         )
-        binaries = list(build_root.rglob(MODULE_NAME + "*.hpy0.*"))
-        if len(binaries) != 1:
-            raise AssertionError("expected one .hpy0 binary, got %r" % binaries)
-        verify_binary_boundary(binaries[0])
+        binary = require_universal_binary(build_root, MODULE_NAME)
+        verify_binary_boundary(binary)
 
         runtime_environment = environment.copy()
-        runtime_environment["PYTHONPATH"] = str(binaries[0].parent)
+        runtime_environment["PYTHONPATH"] = str(binary.parent)
         run([
             python, "-c", _runtime_program(False),
         ], cwd=temp, env=runtime_environment)
+        trace_environment = runtime_environment.copy()
+        trace_environment["HPY"] = "trace"
+        run([
+            python, "-c", _runtime_program(False),
+        ], cwd=temp, env=trace_environment)
         debug_environment = runtime_environment.copy()
         debug_environment["HPY"] = "debug"
         run([

@@ -182,11 +182,11 @@ a standard Cython source file which will be compiled into an extension cimportin
 ``mypkg.shared._cyutility`` module (automatically).
 The compilation process now consist of three steps:
 
-1. Generating the shared utility code. This is done via the ``--generate-shared`` argument:
+1. Generating the shared utility code. This is done via the ``generate-shared`` sub-command:
 
    .. code-block:: console
 
-       $ cython --generate-shared=mypkg/shared/_cyutility.c
+       $ cython generate-shared mypkg/shared/_cyutility.c
 
 2. Translating all ``.pyx`` files to ``.c`` files with the ``--shared`` argument to provide
    the fully qualified name of the shared module:
@@ -238,19 +238,23 @@ Selecting features to be shared
 -------------------------------
 
 Since Cython 3.3, the content of the shared utility can be controlled via feature selection.
-The list of named features can be found in the output of ``cython --help``, which includes
-names like ``MemoryView`` or ``AutoPickle``.  Cython accepts a positive list and a negative
-list as follows.  If both options are provided, excludes override the positive list.
+The list of named features can be found in the output of ``cython generate-shared --help``,
+which includes names like ``MemoryView`` or ``AutoPickle``.  Cython accepts a positive list
+and a negative list as follows.  If both options are provided, excludes are removed after
+selecting from the positive list.
+
+To help with defining a positive list, the feature name ``"DEFAULTS"`` can be used to
+start with an active set of features that are likely required.
 
 * via the ``cython`` command:
 
    .. code-block:: console
 
-       $ cython --generate-shared=shared.c \
-                --shared-only MemoryView,AutoPickle  # positive list
+       $ cython generate-shared shared.c \
+                --only DEFAULTS,MemoryView,AutoPickle  # positive list
 
-       $ cython --generate-shared=shared.c \
-                --shared-exclude MemoryView  # negative list
+       $ cython generate-shared shared.c \
+                --exclude MemoryView  # negative list
 
 via ``cythonize()`` in ``setup.py``:
 
@@ -259,7 +263,7 @@ via ``cythonize()`` in ``setup.py``:
        cythonize(
            extensions,
            shared_utility_qualified_name='mypkg.shared._cyutility',
-           shared_utility_features_enabled=['MemoryView'],  # positive list
+           shared_utility_features_enabled=['DEFAULTS', 'MemoryView'],  # positive list
            shared_utility_features_disabled=['AutoPickle'],  # negative list
        )
 
@@ -897,6 +901,48 @@ Configurable optimisations
     have a slight negative performance impact in some cases where the guess goes
     completely wrong.
     Disabling this option can also reduce the code size.
+
+Branch hints
+^^^^^^^^^^^^
+
+Cython automatically inserts branch hints in some places where the result of a condition
+is clearly skewed, e.g. when an if-condition can only lead to an exception being raised
+and is therefore very unlikely to be taken and not a performance critical path.
+Branch hints tell the C/C++ compiler which path of a conditional branch is more likely
+and should be translated into a more efficient binary code sequence than the other
+(unlikely) branch, if it can.
+
+In performance critical cases where neither Cython nor the C compiler can decide this
+themselves because the outcome is not obvious from the code (they cannot know the
+data that the code will commonly process), users can manually provide branch hints
+for an if-clause since Cython 3.3:
+
+- ``cython.likely()`` - Marks a condition as expected to be true
+- ``cython.unlikely()`` - Marks a condition as expected to be false
+
+.. code-block:: python
+
+    if cython.likely(x > threshold):
+        # This branch is expected to execute frequently.
+        process_common_case(x)
+    else:
+        process_rare_case(x)
+
+The compiler can use these hints to optimize instruction layout and branch prediction,
+potentially improving cache hit rates and reducing pipeline flushes.
+
+.. warning::
+
+   Branch hints are for **rare and very clear use cases**, not for guessing. Only use them when:
+
+   - You have concrete profiling data showing the actual branch frequency
+   - You have domain knowledge that makes the prediction obvious
+
+   Incorrect hints will make your code slower instead of faster, and can silently become
+   misleading over time when data, requirements or surrounding/calling code change.
+   The compiler's own heuristics are often better than manual guessing, especially
+   when based on real profiling data with
+   `PGO <https://en.wikipedia.org/wiki/Profile-guided_optimization>`_.
 
 
 .. _warnings:

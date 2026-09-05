@@ -2,13 +2,14 @@
 
 Date: 2026-07-15  
 Cython base: `b99cb0e3b5425e11414cadd24168a6cc850e8000`  
-Status: strict bootstrap subset passes; M3 remains in progress
+Status: frozen preview module-function subset passes; broader Cython source
+families remain partial, blocked, planned, or rejected
 
 ## Implemented subset
 
 The `hpy-universal` backend now completes Cython parsing, semantic analysis,
 and optimisation before selecting a dedicated Universal bootstrap emitter
-through `RuntimeCodeGenerationKind`. The emitter accepts simple module names
+through `RuntimeCodeGenerationKind`. The original emitter accepted simple module names
 and undecorated module `def` functions with required untyped ordinary,
 multiple, and positional-only arguments. Function bodies may use linear local
 assignment/reassignment, discarded expressions, `pass`, final returns, and a
@@ -29,6 +30,35 @@ owned context-constant duplication, `HPyLong_FromLongLong`,
 `Set`; intermediate allocation failure cancels all live nested builders in
 reverse order. Unsupported AST forms raise a source-positioned compiler error
 and never enter CPython codegen.
+
+## Qualified module-name follow-up
+
+The backend now accepts dotted package-module names whose individual
+components are C identifiers. It preserves the full name for runtime type and
+metadata identity while passing only the final component to `HPy_MODINIT`, as
+required by the Universal loader's exported `HPyInit_<leaf>` symbols. A real
+`ahpy_package.qualified_module` build passes binary-boundary checks and imports
+with the exact `__name__` in normal, HPy Trace, and HPy Debug modes. The same
+fixture exports and calls valid Unicode module-function and extension-method
+names; their Python spellings stay intact while only indexed private C-symbol
+fragments use deterministic UTF-8 hex encoding. Unicode `cdef class` names
+follow the same rule for generated type/helper symbols while their HPy type
+spec name and module attribute retain the original spelling. The executable
+fixture also covers a Unicode property, closure capture/inner function,
+argument, and public `HPyField` descriptor in all three runtime modes.
+Property documentation containing Unicode, line breaks, quotes, backslashes,
+and controls is encoded through Cython's UTF-8-aware C-literal machinery and
+round-trips in all three modes. NUL-bearing property docs are rejected because
+HPy's definition field is a NUL-terminated C string.
+The same contract now covers module, module-function, pure extension-type, and
+ordinary extension-method documentation through their native HPy definition
+fields; the packaged fixture introspects each value in normal, Trace, and Debug
+modes, and every NUL-bearing definition-doc family receives a source diagnostic.
+
+The bootstrap no longer requires a public callable or extension type. Empty,
+documentation-only, pass-only, and assignment-only sources produce a valid
+definition array containing `HPy_mod_exec`; the real `constants_only` fixture
+preserves its module doc and two globals in normal, Trace, and Debug modes.
 
 `HPy_GetItem` and UTF-8-name `HPy_GetAttr_s` reads are also enabled over the
 implemented expression subset. Their owned operands are closed before a null
@@ -132,14 +162,16 @@ exceptions, a tuple-normalized group of builtin exceptions, multiple clauses,
 or a final bare clause. An internal failure label checkpoints handles,
 builders, and argument trackers that existed before the try; each failure edge
 closes only intermediates created in the protected body. A matched clause
-clears the current error and returns a side-effect-free literal, while an
-unmatched error retains its identity and propagates through the ordinary
-function cleanup. Callable success, ValueError/TypeError/default matching,
-explicit raise, container return, a local allocated before a failing call,
-unmatched ZeroDivisionError, and leak cleanup pass normal, trace, and Debug
-execution. HPy 0.9 exposes no public exception
-type/value/traceback fetch/restore API, so observable handler bodies,
-`except as`, reraise, traceback/cause/chaining, `else`/`finally`, and nesting
+clears the current error, may execute linear assignments, expressions,
+deletions, pass, and supported `if`/`while`/`for`, then terminates with a return
+or explicit raise. An unmatched error retains its identity and propagates
+through ordinary function cleanup. Callable success,
+ValueError/TypeError/default matching, explicit and translated raises,
+multi-statement conditional handler mutation, container return, a local
+allocated before a failing call, unmatched ZeroDivisionError, and leak cleanup
+pass normal, trace, and Debug execution. HPy 0.9 exposes no public exception
+type/value/traceback fetch/restore API, so `except as`, bare reraise,
+traceback/cause/chaining, `else`/`finally`, nesting, and observable handler state
 remain rejected rather than emulated with CPython state.
 
 Python-object addition, subtraction, multiplication, true/floor division,
@@ -219,8 +251,10 @@ handles.
 The same Debug Mode lane executes a callable that raises, covering cleanup for
 both callable and positional-argument owned temporaries.
 
-This record does not claim the complete M3 function, value, exception,
-container, import, or cross-interpreter surface.
+This record does not claim arbitrary Cython function, value, exception,
+container, import, or cross-interpreter compatibility. It closes the exact
+module-function subset frozen by the preview support matrix; every excluded
+shape remains fail-closed or is assigned a non-supported status.
 
 Module execution, registered globals, imports, builtins, retry, concurrency,
 and subinterpreter evidence now live in the separate

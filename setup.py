@@ -14,7 +14,12 @@ from collections import defaultdict
 from functools import partial
 
 import platform
-from ahpy_version import AHPY_DISTRIBUTION, AHPY_VERSION
+from ahpy_version import (
+    AHPY_DISTRIBUTION,
+    AHPY_VERSION,
+    provenance_project_urls,
+    source_commit,
+)
 
 is_cpython = platform.python_implementation() == 'CPython'
 
@@ -40,9 +45,9 @@ from distutils.command.sdist import sdist as sdist_orig
 class sdist(sdist_orig):
     def run(self):
         self.force_manifest = 1
-        if (sys.platform != "win32" and
-            os.path.isdir('.git')):
-            assert os.system("git rev-parse --verify HEAD > .gitrev") == 0
+        commit = source_commit()
+        with open(".gitrev", "w", encoding="ascii") as revision:
+            revision.write(commit + "\n")
         sdist_orig.run(self)
 add_command_class('sdist', sdist)
 
@@ -79,7 +84,11 @@ if 'setuptools' in sys.modules:
             'cython = Cython.Compiler.Main:setuptools_main',
             'cythonize = Cython.Build.Cythonize:main',
             'cygdb = Cython.Debugger.Cygdb:main',
-        ]
+        ],
+        'cython.runtime_backend_build_hooks': [
+            'hpy-universal = '
+            'ahpy_hpy_compat:install_hpy_universal_loader_compat',
+        ],
     }
     scripts = []
 else:
@@ -127,6 +136,8 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             "Cython.Compiler.Optimize",
             ])
 
+    shared_utility_module = 'Cython._shared'
+
     from shutil import which
     from sysconfig import get_path
     pgen = which(
@@ -161,6 +172,10 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     if sysconfig.get_config_var('Py_GIL_DISABLED') and platform.system() == "Windows":
         defines.append(('Py_GIL_DISABLED', 1))
 
+    if is_cpython:
+        # Reduce module sizes.
+        defines.append(('CYTHON_USE_TYPE_SPECS', '1'))
+
     extra_defines = []
     if cython_with_refnanny:
         extra_defines.append(('CYTHON_REFNANNY', '1'))
@@ -189,11 +204,24 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     # optimise build parallelism by starting with the largest modules
     extensions.sort(key=lambda ext: os.path.getsize(ext.sources[0]), reverse=True)
 
+    # Add the shared utility module.
+    extensions.append(Extension(
+        shared_utility_module, sources=[shared_utility_module.replace('.', '/') + '.c'],
+        # Cannot build this with refnanny because 'refnanny' depends on '_shared' as well.
+        define_macros=defines,
+        **extra_extension_args,
+    ))
+
+    unused_features = ['MemoryView']
+    for ext in extensions:
+        ext.shared_utility_qualified_name = shared_utility_module
+        ext.shared_utility_features_disabled = unused_features
+
     # Set up Cython directives.
     cython_directives = dict(
         language_level=3,
-        auto_pickle=False,
-        #binding=False,
+        auto_pickle=False,  # activated in FlowControl.py
+        #binding=False,  # used via @functools.wraps()
         always_allow_keywords=False,
         autotestdict=False,
     )
@@ -485,13 +513,14 @@ def run_build():
             "aHPy documentation": "https://github.com/mburakmmm/aHPy/tree/main/docs/ahpy",
             "Upstream Cython": "https://github.com/cython/cython",
             "HPy": "https://hpyproject.org/",
+            **provenance_project_urls(source_commit()),
         },
 
         scripts=scripts,
         packages=packages,
         py_modules=[
             "cython", "ahpy_version", "ahpy_build_backend",
-            "ahpy_build_config",
+            "ahpy_build_config", "ahpy_hpy_compat",
         ],
         **setup_args
     )

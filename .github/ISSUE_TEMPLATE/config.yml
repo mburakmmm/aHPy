@@ -1,5 +1,14 @@
 blank_issues_enabled: false
 contact_links:
-  - name: I NEED HELP or I have a question/comment
-    url: https://groups.google.com/g/cython-users
-    about: The Cython-users mailing list is a place to ask and answer support questions.
+  - name: aHPy support matrix
+    url: https://github.com/mburakmmm/aHPy/blob/main/docs/ahpy/support-matrix.md
+    about: Check implemented, partial, blocked, and rejected Universal surfaces.
+  - name: Security vulnerability
+    url: https://github.com/mburakmmm/aHPy/security/advisories/new
+    about: Report vulnerabilities privately; do not open a public issue.
+  - name: Upstream Cython tracker
+    url: https://github.com/cython/cython/issues
+    about: Report issues that reproduce without the aHPy Universal backend upstream.
+  - name: HPy tracker
+    url: https://github.com/hpyproject/hpy/issues
+    about: Report public HPy API or runtime defects independent of aHPy.

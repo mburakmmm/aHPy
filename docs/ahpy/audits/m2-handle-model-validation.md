@@ -2,8 +2,8 @@
 
 Date: 2026-07-15  
 Cython base: `b99cb0e3b5425e11414cadd24168a6cc850e8000`  
-Status: M2 in progress; a strict M3 bootstrap emitter is enabled while general
-Universal HPy code generation remains gated
+Status: preview release scope complete; source families outside the frozen
+support contract remain fail-closed
 
 ## Completed foundation
 
@@ -24,13 +24,14 @@ The compiler-visible model now covers:
 - backend and function-level call-scoped context propagation contracts; and
 - exact `HPy` and opaque builder C storage plus builder lifecycle integration.
 
-Most of this layer remains executable without C compilation. A narrow M3
-bootstrap emitter now exercises call-scoped context, borrowed positional
+The model remains independently executable without C compilation. The strict
+Universal emitter exercises call-scoped context, borrowed positional
 arguments, `HPy_Dup`, owned scalar returns, nested owned temporaries,
 container cleanup, loop break/continue body-temp cleanup, return/raise from
 loops, and mixed terminating/continuing conditional branches in generated C.
-Broader expression/coercion ownership and utility-context propagation remain
-gated.
+Expression/coercion families and utility paths inside the preview contract use
+the same tracked operations; broader Cython families remain gated by
+source-located diagnostics.
 
 ## Validation
 
@@ -46,8 +47,9 @@ python3 -m unittest \
     Cython.Compiler.Tests.TestCode
 ```
 
-It currently passes 303 tests, including 56 focused handle-model tests. Python bytecode
-compilation and `git diff --check` also pass. The generated Universal corpus also
+The current command passes 432 tests, including the focused handle-model
+property/transition suite. Python bytecode compilation and `git diff --check`
+also pass. The generated Universal corpus also
 passes normal/Trace/Debug with the new loop-exit and mixed-branch surface under
 the documented O0 stress profile (ordinary Apple Clang `-O3` on
 `bootstrap_types.c` remains an independent M9 timing gate).
@@ -66,8 +68,9 @@ the selected CPython runtime behavior.
 ## Real HPy 0.9 execution oracle
 
 An isolated Python 3.11 environment pins `hpy==0.9.0` and
-`setuptools==80.9.0`; HPy 0.9's generated loader still imports
-`pkg_resources`, which newer setuptools releases remove. The handwritten
+`setuptools==83.0.0`. aHPy's fail-closed compatibility hook replaces HPy
+0.9's legacy `pkg_resources` loader lookup with a standard-library adjacent
+path lookup before stub emission. The handwritten
 `tests/ahpy/minimal_universal.c` reference module uses only public HPy and
 contains `HPy_MODINIT`, no-argument methods, owned scalar returns, `HPy_Dup`,
 and a list-builder path with allocation-failure cleanup.
@@ -83,6 +86,19 @@ loads it with `HPY=debug` and wraps all calls in `hpy.debug.LeakDetector`.
 Both lanes pass with zero reported open handles. This remains the handwritten
 toolchain and ownership oracle; the separate M3 bootstrap audit records the
 first generated aHPy execution.
+
+## PRD-2 preview closure
+
+On 2026-07-29 the frozen preview scope passed 432 compiler/seam tests, 155
+quality tests (two expected platform/tool skips), the generated Universal
+corpus in normal/Trace/Debug, all 150 isolated allocation/API fault selectors,
+and the 38-case CPython C/C++ semantic oracle. Generated-source and undefined-
+symbol audits found no CPython/Hybrid leakage. The handle transition suite
+exhausts normal, return, break, continue, goto, and exception cleanup plans,
+including preservation of moved returns and rejection of mismatched branch
+states. No open ownership or cleanup TODO remains inside the preview support
+contract; excluded source families stay partial, blocked, planned, or rejected
+in the support matrix.
 
 Authoritative HPy ownership references verified for this slice:
 

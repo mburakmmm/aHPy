@@ -2,7 +2,7 @@ version: 2
 updates:
   # Maintain dependencies for GitHub Actions
   - package-ecosystem: "github-actions"
-    target-branch: "master"
+    target-branch: "main"
     directory: "/"
     schedule:
       # Check for updates to GitHub Actions every month
@@ -11,21 +11,6 @@ updates:
       github-actions:
         patterns:
           - "*"
-    cooldown:
-      default-days: 7
-
-  - package-ecosystem: "github-actions"
-    target-branch: "3.2.x"
-    directory: "/"
-    schedule:
-      # Check for updates to GitHub Actions every month
-      interval: "monthly"
-    groups:
-      github-actions:
-        patterns:
-          - "*"
-    ignore:
-      - dependency-name: "pypa/cibuildwheel"  # >= 4.0 dropped Py3.8 support
     cooldown:
       default-days: 7
 
@@ -33,11 +18,37 @@ updates:
   # it's kept in sync with github actions above.
   # NOTE: also needed for new release branches!
   - package-ecosystem: "pip"
-    target-branch: "master"
+    target-branch: "main"
     directory: ".github"
     schedule:
       interval: "monthly"
     allow:
       - dependency-name: "cibuildwheel"
+    cooldown:
+      default-days: 7
+
+  # Review the compiler frontend and release-build dependencies.
+  - package-ecosystem: "pip"
+    target-branch: "main"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      ahpy-root-dependencies:
+        patterns:
+          - "*"
+    cooldown:
+      default-days: 7
+
+  # Review the pinned HPy, packaging, and external build-system lanes.
+  - package-ecosystem: "pip"
+    target-branch: "main"
+    directory: "/tests/ahpy"
+    schedule:
+      interval: "monthly"
+    groups:
+      ahpy-validation-dependencies:
+        patterns:
+          - "*"
     cooldown:
       default-days: 7

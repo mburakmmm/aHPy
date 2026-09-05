@@ -1,22 +1,23 @@
-name: Blank Issue
-description: Not a Bug or a Feature Request. DO NOT post support questions here, see the "I NEED HELP" section
+name: Design or support question
+description: Ask an aHPy-specific question that is not a bug or feature proposal
+title: "[QUESTION] "
+labels: ["question"]
 body:
   - type: markdown
     attributes:
       value: |
-        **PLEASE READ THIS FIRST:**
-        - DO NOT use the bug and feature tracker for general questions and support requests.
-        Use the [`cython-users`](https://groups.google.com/g/cython-users) mailing list instead.
-        It has a wider audience, so you get more and better answers.
-        - Do not ask for binary wheels. Cython works just fine with its Python wheel.
-        - Did you search for SIMILAR ISSUES already?
-        Please do, it helps to save us precious time that we otherwise could not invest into development.
-        - Did you try the LATEST MASTER BRANCH or pre-release?
-        It might already have what you want to report.
-        Specifically, the legacy stable 0.29.x release series receives only important low-risk bug fixes.
-        Also see the [Changelog](https://github.com/cython/cython/blob/master/CHANGES.rst) regarding recent changes
+        This tracker covers aHPy. For upstream Cython behavior use [cython/cython](https://github.com/cython/cython); for HPy runtime/API behavior use [hpyproject/hpy](https://github.com/hpyproject/hpy).
   - type: textarea
+    id: question
     attributes:
-      label: "Describe your issue"
+      label: Question
+      description: Include relevant source, commands, support-matrix rows, or ADRs.
     validations:
       required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I checked the README, onboarding guide, support matrix, and existing issues.
+          required: true

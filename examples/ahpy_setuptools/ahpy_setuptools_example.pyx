@@ -12,7 +12,13 @@ cdef extern from "ahpy_external.h":
     int ahpy_external_byte_calls()
     double ahpy_external_scale(double value, double factor)
     long long ahpy_external_nogil_probe() noexcept nogil
+    long long ahpy_external_nogil_advance(long long amount) noexcept nogil
     long long ahpy_external_nogil_probe_calls()
+    long long ahpy_external_errno_advance(long long amount) except -1 nogil
+    long long ahpy_external_missing_errno() except -1 nogil
+
+
+nogil_stored_result = 0
 
 
 def external_signed_answer():
@@ -51,6 +57,76 @@ def external_nogil_probe():
     with nogil:
         ahpy_external_nogil_probe()
     return ahpy_external_nogil_probe_calls()
+
+
+def external_nogil_advance(amount, /):
+    with nogil:
+        ahpy_external_nogil_advance(amount)
+    return ahpy_external_nogil_probe_calls()
+
+
+def external_nogil_calls():
+    return ahpy_external_nogil_probe_calls()
+
+
+def external_nogil_ordered(amount, /):
+    with nogil:
+        ahpy_external_nogil_probe()
+        ahpy_external_nogil_advance(amount)
+    return ahpy_external_nogil_probe_calls()
+
+
+def external_nogil_result(amount, /):
+    with nogil:
+        result = ahpy_external_nogil_advance(amount)
+    return result
+
+
+def external_nogil_targets(obj, mapping, /):
+    global nogil_stored_result
+    with nogil:
+        nogil_stored_result = ahpy_external_nogil_advance(obj.amount)
+        obj.value = ahpy_external_nogil_advance(mapping[0])
+        mapping[0] = ahpy_external_nogil_advance(3)
+        mapping[1:2] = ahpy_external_nogil_advance(4)
+    return (
+        nogil_stored_result,
+        obj.value,
+        mapping[0],
+        mapping[1:2],
+        ahpy_external_nogil_probe_calls(),
+    )
+
+
+def external_nogil_with_gil(callback, /):
+    with nogil:
+        before = ahpy_external_nogil_advance(1)
+        with gil:
+            amount = callback(before)
+        after = ahpy_external_nogil_advance(amount)
+    return before, amount, after
+
+
+def external_errno_held(amount, /):
+    return ahpy_external_errno_advance(amount)
+
+
+def external_errno_released(amount, /):
+    with nogil:
+        result = ahpy_external_errno_advance(amount)
+    return result
+
+
+def external_errno_discarded(amount, /):
+    with nogil:
+        ahpy_external_errno_advance(amount)
+    return ahpy_external_nogil_probe_calls()
+
+
+def external_missing_errno():
+    with nogil:
+        result = ahpy_external_missing_errno()
+    return result
 
 
 cdef class Box:

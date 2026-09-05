@@ -23,6 +23,14 @@ class Pep517BackendTest(unittest.TestCase):
             raise metadata.PackageNotFoundError(name)
         with self.assertRaisesRegex(RuntimeError, "upstream Cython or"):
             ahpy_build_backend.assert_ahpy_frontend(missing)
+        with (
+            mock.patch(
+                "Cython.Compiler.RuntimeAPI.HPY_UNIVERSAL_BACKEND",
+                "not-universal",
+            ),
+            self.assertRaisesRegex(RuntimeError, "no Universal backend"),
+        ):
+            ahpy_build_backend.assert_ahpy_frontend(lambda name: AHPY_VERSION)
 
     def test_config_forces_universal_and_rejects_other_abis(self):
         settings = ahpy_build_backend.universal_config_settings(
@@ -48,15 +56,84 @@ class Pep517BackendTest(unittest.TestCase):
                 return_value=AHPY_VERSION,
             ),
             mock.patch.object(
+                ahpy_build_backend, "install_hpy_universal_loader_compat"
+            ) as install_compat,
+            mock.patch.object(
                 ahpy_build_backend._backend, "build_wheel",
                 return_value="example.whl",
             ) as build_wheel,
         ):
             result = ahpy_build_backend.build_wheel("dist", {"verbose": "1"})
         self.assertEqual(result, "example.whl")
+        install_compat.assert_called_once_with()
         settings = build_wheel.call_args.args[1]
         self.assertEqual(
             settings["--global-option"], ["--hpy-abi=universal"])
+
+    def test_all_pep517_hooks_delegate_with_validated_universal_settings(self):
+        cases = (
+            (
+                "get_requires_for_build_wheel",
+                (None,),
+                (mock.ANY,),
+            ),
+            (
+                "prepare_metadata_for_build_wheel",
+                ("metadata", None),
+                ("metadata", mock.ANY),
+            ),
+            (
+                "get_requires_for_build_sdist",
+                (None,),
+                (mock.ANY,),
+            ),
+            (
+                "build_sdist",
+                ("sdist", None),
+                ("sdist", mock.ANY),
+            ),
+            (
+                "get_requires_for_build_editable",
+                (None,),
+                (mock.ANY,),
+            ),
+            (
+                "prepare_metadata_for_build_editable",
+                ("metadata", None),
+                ("metadata", mock.ANY),
+            ),
+            (
+                "build_editable",
+                ("wheel", None, "metadata"),
+                ("wheel", mock.ANY, "metadata"),
+            ),
+        )
+        for hook_name, arguments, expected_arguments in cases:
+            with (
+                self.subTest(hook=hook_name),
+                mock.patch.object(
+                    ahpy_build_backend, "assert_ahpy_frontend",
+                    return_value=AHPY_VERSION,
+                ) as identity,
+                mock.patch.object(
+                    ahpy_build_backend,
+                    "install_hpy_universal_loader_compat",
+                ) as install_compat,
+                mock.patch.object(
+                    ahpy_build_backend._backend, hook_name,
+                    return_value="delegated",
+                ) as delegated,
+            ):
+                result = getattr(ahpy_build_backend, hook_name)(*arguments)
+            self.assertEqual(result, "delegated")
+            identity.assert_called_once_with()
+            install_compat.assert_called_once_with()
+            delegated.assert_called_once_with(*expected_arguments)
+            settings = delegated.call_args.args[
+                0 if len(expected_arguments) == 1 else 1
+            ]
+            self.assertEqual(
+                settings["--global-option"], ["--hpy-abi=universal"])
 
 
 if __name__ == "__main__":

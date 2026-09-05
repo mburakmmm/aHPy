@@ -1,5 +1,16 @@
 schema_version = 1
 
+[policy]
+# These ceilings catch gross regressions; they are deliberately not release
+# budgets until five same-HEAD hosted samples produce and a maintainer approves
+# a calibration proposal.
+classification = "regression"
+release_enforced = false
+calibration_status = "hosted-history-pending"
+minimum_hosted_reports = 5
+candidate_binding = "unbound"
+calibration_source_commit = ""
+
 [environment]
 abi = "universal"
 hpy = "0.9.0"
@@ -11,9 +22,11 @@ warmups = 2
 repeats = 7
 
 [large_type_compile]
-# Per-optimization liveness ceiling for the 4.9 MB extension-type corpus.
-# Hosted history is required before adopting a tighter timing regression limit.
+# Per-profile ceiling for the 4.9 MB extension-type corpus. O0 is the required
+# C-validity/liveness gate. O3 remains a bounded diagnostic because Ubuntu GCC
+# 13 exceeded both 60 and 180 seconds on shared runners while O0 took ~5 s.
 timeout_seconds = 60
+enforce_o3 = false
 
 [runtime_ratio]
 # aHPy median / equivalent handwritten Universal HPy median. These initial
@@ -31,6 +44,12 @@ exception = 1.50
 # equivalent to the handwritten reference apart from cinit's separate AsStruct.
 type_create = 1.50
 type_method = 1.50
+# Sequence-index iteration is the supported HPy 0.9 iteration surface; true
+# iterator-protocol loops remain blocked and receive no performance number. The
+# initial 2.50x ceiling contains the observed 1.86x-2.00x local
+# generated/reference range; hosted same-HEAD calibration must replace it for
+# a release.
+iteration = 2.50
 # Portable literal arguments bypass the Python-object round trip and match the
 # handwritten one-call Trace contract. Dynamic values remain checked.
 external_c = 1.50

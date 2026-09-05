@@ -1,0 +1,114 @@
+schema_version = 1
+product_level = "preview"
+distribution = "aHPy-compiler"
+distribution_version = "3.3.0.1.dev0"
+publication_status = "unpublished"
+general_cython_compatibility = false
+
+[cython]
+version = "3.3.0b1"
+base_commit = "86b94cef002aa23aea0b390335ea3d9e9b62c19e"
+
+[hpy]
+supported_versions = ["0.9.0"]
+setuptools_version = "83.0.0"
+development_commit = "b57a33c1cec766a1cc3e89f6fd1e2eff73ba9381"
+development_status = "early-warning"
+
+[python]
+supported_implementation = "CPython"
+supported_versions = ["3.11"]
+locally_validated_patch = "3.11.15"
+unsupported_implementations = ["PyPy", "GraalPy"]
+
+[evidence]
+implementation_commit = "8ed77677ee6bd69fdc93a81bdfe3e704ea7d924b"
+ahpy_run = 30361153504
+benchmark_run = 30361153497
+ci_run = 30361153866
+coverage_run = 30361153526
+sanitizers_run = 30361153809
+
+[[platforms]]
+id = "linux-x64-gcc"
+runner = "ubuntu-24.04"
+architecture = "x86-64"
+compiler = "GCC"
+status = "supported"
+
+[[platforms]]
+id = "linux-x64-clang"
+runner = "ubuntu-24.04"
+architecture = "x86-64"
+compiler = "Clang"
+status = "supported"
+
+[[platforms]]
+id = "linux-arm64-gcc"
+runner = "ubuntu-24.04-arm"
+architecture = "ARM64"
+compiler = "GCC"
+status = "supported"
+
+[[platforms]]
+id = "macos-intel-clang"
+runner = "macos-15-intel"
+architecture = "x86-64"
+compiler = "Clang"
+status = "supported"
+
+[[platforms]]
+id = "macos-arm64-clang"
+runner = "macos-15"
+architecture = "ARM64"
+compiler = "Clang"
+status = "supported"
+
+[[platforms]]
+id = "windows-x64-msvc"
+runner = "windows-2025"
+architecture = "x86-64"
+compiler = "MSVC"
+status = "supported"
+
+[[frontends]]
+id = "compiler-cli"
+name = "aHPy compiler CLI"
+status = "supported"
+scope = "Generate C for the documented Universal subset."
+
+[[frontends]]
+id = "direct-build"
+name = "Direct non-setuptools build"
+status = "partial"
+scope = "Build and load through the HPy public loader on all six platform lanes; packaging/import stubs remain separate."
+
+[[frontends]]
+id = "setuptools-cythonize"
+name = "setuptools/cythonize"
+status = "partial"
+scope = "Maintained linked example; not yet a six-platform packaging contract."
+
+[[frontends]]
+id = "pep517"
+name = "Isolated PEP 517"
+status = "partial"
+scope = "Closed-wheelhouse Linux-hosted and macOS-local evidence; no publication claim."
+
+[[frontends]]
+id = "cmake"
+name = "CMake"
+status = "partial"
+scope = "Linux x86-64 hosted and macOS ARM64 local evidence; Windows and cross-build pending."
+
+[[frontends]]
+id = "meson"
+name = "Meson"
+status = "partial"
+scope = "Linux x86-64 hosted and macOS ARM64 local evidence; Windows and cross-build pending."
+
+[[frontends]]
+id = "scikit-build-core"
+name = "scikit-build-core"
+status = "partial"
+scope = "Linux x86-64 hosted and macOS ARM64 local evidence; portable wheel tags pending."

@@ -14,9 +14,14 @@ source location instead of silently falling back to CPython or HPy Hybrid mode.
 Project status
 --------------
 
-aHPy is active, pre-release compiler work.  It already has an executable
+aHPy's frozen product level is **preview**: active, unpublished pre-release
+compiler work rather than beta, release-candidate, or stable software.  The
+exact CPython 3.11/HPy 0.9.0 platform and build-frontend envelope is recorded
+in `the preview support contract <docs/ahpy/release-contract.md>`_.  aHPy
+already has an executable
 Universal subset, pure-HPy extension types, Python-independent external-C
-integration, multiple build-system examples, and normal/Trace/Debug,
+integration including a narrow ``nogil`` transition lane with explicit
+``with gil`` islands, multiple build-system examples, and normal/Trace/Debug,
 fault-injection, fuzz, coverage, ABI, footprint, and reproducibility gates.
 It is **not yet a claim that arbitrary Cython or NumPy C-API code can compile
 unchanged**, and the frontend has not been published to PyPI.
@@ -25,6 +30,11 @@ The exact implemented, partial, blocked, and rejected surfaces are maintained
 in `the support matrix <docs/ahpy/support-matrix.md>`_.  The authoritative work
 queue and agent hand-off are `TODO.md <TODO.md>`_ and
 `AGENTTODO.md <AGENTTODO.md>`_.
+
+The current integration into ``main`` is tracked in
+`PR #2 <https://github.com/mburakmmm/aHPy/pull/2>`_; the remaining production
+and release gates are listed in `production-todo.md <production-todo.md>`_.
+Moving development to ``main`` retains the preview support contract.
 
 Core guarantees
 ---------------
@@ -37,6 +47,9 @@ Core guarantees
 * Mutable module/type state is interpreter-owned rather than process-global.
 * A supported feature needs semantic, HPy Debug, failure-path, and ABI evidence.
 * Existing Cython C/C++ generation retains a separate regression oracle.
+* The buffer-export subset translates canonical Cython descriptor syntax for
+  writable native scalars and private fixed native C arrays to public Universal
+  HPy producer slots without emitting ``Py_buffer``.
 
 Quick start for contributors
 ----------------------------
@@ -89,24 +102,83 @@ Validation snapshot
 
 The current local M9 snapshot records:
 
-* 354 focused compiler tests and 110 quality-tool tests;
-* 464 focused coverage tests on CPython 3.11 and 3.14;
+* 441 focused compiler tests and 530 quality-tool tests (two expected
+  platform skips);
+* 971 focused coverage tests on CPython 3.11 and 3.14;
+* 100% executable Python-line coverage for the three Universal backend
+  implementation modules on both interpreters, with separate 45% frontend-seam
+  and 100% quality-tool floors (current quality-tool coverage is 100%);
 * normal, HPy Trace, and HPy Debug execution;
-* 128 isolated allocation/API fault selectors;
-* nine generated-versus-handwritten Universal HPy performance budgets;
-* reproducible frontend wheel/sdist and portability artifacts.
+* 150 isolated allocation/API fault selectors;
+* ten generated-versus-handwritten Universal HPy regression ceilings, marked
+  machine-readably as non-release until same-HEAD hosted calibration;
+* reproducible frontend wheel/sdist and portability artifacts;
+* pinned real-world cypack, murmurhash and frozenlist pilots: cypack locally passes
+  Universal source/binary audits, host-tagged wheel install, installed
+  normal/Trace/Debug execution and comparable performance measurement, while
+  murmurhash passes an explicitly partial fixed-width scalar adapter over its
+  exact upstream C++ implementation without claiming its bytes API, and
+  frozenlist passes an explicit extension-type/GC/inheritance subset; their
+  reports merge locally with the exact four-project checkout/scan matrix into
+  a fail-closed dashboard, while hosted artifact proof remains pending;
+* sdist and frontend-wheel metadata bound to the exact aHPy source commit,
+  embedded Cython base commit, and HPy compatibility contract;
+* a retained release bundle whose complete artifact set, checksums, SPDX 2.3
+  SBOM, six-component license inventory, embedded Cython revision, and exact
+  build provenance are regenerated and byte-validated before publication.
 
-Hosted Linux/macOS/Windows, PyPy, and GraalPy evidence remains open and is not
-presented as completed support.  See
+The CPython 3.11/HPy 0.9 stable baseline is green on hosted Linux x86-64 and
+ARM64, macOS Intel and ARM64, and Windows x64.  Same-binary PyPy and GraalPy
+executions are recorded as allowed-failure early warnings: their selected
+runtimes currently remain outside the support claim.  Hosted run 31573340325
+proved that PyPy passes the unchanged handwritten public-HPy module before
+crashing while importing the large generated function corpus; GraalPy exposes
+neither ``hpy.universal`` nor a native ``.hpy0`` suffix and cannot discover the
+same handwritten binary.  The artifact now adds generated constant-only and
+single-function rungs and runs the generated heap-type corpus before that large
+module, giving the next hosted result an exact first-failing feature boundary.
+See
 `the validation matrix <docs/ahpy/validation-matrix.md>`_ and
-`M9 performance audits <docs/ahpy/audits/m9-abi-performance-baseline.md>`_.
+`the focused-coverage audit
+<docs/ahpy/audits/m8-focused-backend-coverage.md>`_; performance evidence
+remains in the
+`M9 ABI audit <docs/ahpy/audits/m9-abi-performance-baseline.md>`_.
+
+The schedule/manual Linux Valgrind definite-leak job is a required native
+memory gate.  A separate Windows Application Verifier and GFlags full-page-
+heap diagnostic is declared with a native overrun positive control and five
+real generated-runtime checks, but remains allowed-failure until its first
+hosted artifact is reviewed; it does not expand the supported baseline.
+
+Production branch-policy validation is green on repair commit
+``8ed77677ee6bd69fdc93a81bdfe3e704ea7d924b``: the aHPy, benchmark, full
+Cython, coverage, and sanitizer aggregate contexts all passed on the same
+HEAD.  Exact run and job links are recorded in
+`the validation matrix <docs/ahpy/validation-matrix.md>`_.
 
 Documentation map
 -----------------
 
+* `Production readiness roadmap <production-todo.md>`_
 * `Project contract and architecture <docs/ahpy/README.md>`_
+* `Preview support contract <docs/ahpy/release-contract.md>`_
 * `Support matrix <docs/ahpy/support-matrix.md>`_
+* `Known limitations <docs/ahpy/known-limitations.md>`_
+* `Pinned third-party pilot matrix <docs/ahpy/pilot-matrix.md>`_
+* `Third-party compatibility dashboard <docs/ahpy/compatibility-dashboard.md>`_
+* `Library-author porting guide <docs/ahpy/porting-guide.md>`_
+* `Frontend-neutral HPy conformance corpus <docs/ahpy/conformance-corpus.md>`_
 * `Validation and release gates <docs/ahpy/validation-matrix.md>`_
+* `Release performance budget calibration <docs/ahpy/performance-release-gate.md>`_
+* `Release signing and verification <docs/ahpy/release-signing.md>`_
+* `TestPyPI and PyPI publication policy <docs/ahpy/publishing.md>`_
+* `Machine-readable CI policy <docs/ahpy/ci-policy.md>`_
+* `Maintenance, support lifetime, and change policy <docs/ahpy/maintenance.md>`_
+* `Backend-neutral upstream seam plan <docs/ahpy/upstream-seam-plan.md>`_
+* `Cython upstream baseline and rebase log <docs/ahpy/upstream-rebase-log.md>`_
+* `Debugging Universal failures <docs/ahpy/debugging.md>`_
+* `Upstream dependency and reproducer inventory <docs/ahpy/upstream-dependencies.md>`_
+* `Production branch ruleset <.github/rulesets/production-branches.json>`_
 * `Handle ownership model <docs/ahpy/handle-model.md>`_
 * `Runtime API seam <docs/ahpy/runtime-api.md>`_
 * `External-C contract <docs/ahpy/external-c.md>`_
@@ -134,12 +206,16 @@ License.  See `LICENSE.txt <LICENSE.txt>`_.
 Contributing
 ------------
 
-Start with `AGENTTODO.md <AGENTTODO.md>`_ for the verified snapshot and exact
+Read `CONTRIBUTING.md <CONTRIBUTING.md>`_, then start with
+`AGENTTODO.md <AGENTTODO.md>`_ for the verified snapshot and exact
 validation commands, then use `TODO.md <TODO.md>`_ for normative milestone and
 release criteria.  Keep unsupported Universal features fail-closed and include
 ownership, failure-path, CPython-regression, documentation, and audit evidence
 with each change.  Upstream Cython contribution guidance remains available in
 `docs/CONTRIBUTING.rst <docs/CONTRIBUTING.rst>`_.
+
+Security vulnerabilities must not be posted publicly; follow
+`SECURITY.md <SECURITY.md>`_ for the private reporting path.
 
 Upstream Cython background
 --------------------------

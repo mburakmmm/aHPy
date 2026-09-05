@@ -26,11 +26,48 @@ DIAGNOSTIC_RE = re.compile(
 
 STATIC_RULES = (
     (
+        "cpp-runtime-boundary",
+        re.compile(
+            r"(?m)^[ \t]*(?:from\s+libcpp(?:\.[A-Za-z_]\w*)?\s+cimport\b|"
+            r"cimport\s+libcpp(?:\.|\s|$))"),
+        "C++ runtime-library dependency detected by source scan",
+        "Keep libcpp/C++ runtime types outside the Universal translation unit. "
+        "Use a supported native scalar field only when its semantics are "
+        "equivalent, or isolate the C++ behavior behind a Python-independent "
+        "C-compatible shim.",
+    ),
+    (
+        "cython-module-cimport",
+        re.compile(r"(?m)^[ \t]*from\s+\.+[A-Za-z_][\w.]*\s+cimport\b"),
+        "relative Cython module C-API dependency detected by source scan",
+        "Replace cross-module cimport calls with an ordinary Python import "
+        "and Python-callable boundary; Universal modules cannot exchange "
+        "Cython's generated module C API.",
+    ),
+    (
         "direct-cpython-cimport",
         re.compile(r"(?m)^\s*(?:from\s+cpython(?:\.|\s)|cimport\s+cpython(?:\.|\s))"),
         "direct cpython.* dependency detected by source scan",
         "Replace direct cpython.* declarations with Python-independent C APIs "
         "or an explicitly designed public HPy boundary.",
+    ),
+    (
+        "numpy-c-api",
+        re.compile(
+            r"(?m)^[ \t]*(?:from\s+numpy(?:\.\S+)?\s+cimport\b|"
+            r"cimport\s+numpy(?:\.|\s|$))"),
+        "NumPy C API dependency detected by source scan",
+        "Keep NumPy values behind the ordinary Python object boundary or "
+        "replace the C-API dependency with a Python-independent scalar C "
+        "shim; HPy 0.9 Universal mode cannot expose NumPy's CPython C API.",
+    ),
+    (
+        "native-pointer-boundary",
+        re.compile(r"\bvoid\s*\*"),
+        "native void pointer detected by source scan",
+        "Keep pointer and buffer ownership outside the Universal translation "
+        "unit; expose a reviewed Python-independent scalar C shim or wait for "
+        "a selected public HPy buffer acquisition and release contract.",
     ),
     (
         "python-header",
@@ -57,7 +94,31 @@ STATIC_RULES = (
     ),
 )
 
+FRONTEND_ONLY_CPYTHON_DECLARATION = re.compile(
+    r"^[ \t]*from[ \t]+cpython\.buffer[ \t]+cimport[ \t]+Py_buffer[ \t]*$"
+)
+
 ACTION_RULES = (
+    (
+        "direct-cpython-cimport",
+        ("cpython.* cimports expose the CPython C API",),
+        "Replace direct cpython.* declarations with Python-independent C APIs "
+        "or an explicitly designed public HPy boundary.",
+    ),
+    (
+        "cython-module-cimport",
+        ("FromCImportStatNode is not implemented",),
+        "Replace a cross-module Cython cimport with an ordinary Python "
+        "boundary. For a Python-independent external C declaration, keep the "
+        "native ABI behind the reviewed scalar rules in external-c.md.",
+    ),
+    (
+        "compiled-entry-point",
+        ("CFuncDefNode is not implemented",),
+        "Expose the Python-visible entry point as def. Keep a native-only "
+        "helper outside the Universal translation unit or express its proven "
+        "scalar behavior through a supported Python/HPy boundary.",
+    ),
     (
         "parallel-worker-contract",
         (
@@ -74,9 +135,11 @@ ACTION_RULES = (
             "inside with nogil", "with nogil blocks",
             "with nogil may call", "HPy execution-state transition",
         ),
-        "Keep the native interval argumentless, noexcept, and independent of "
-        "Python/HPy state as documented by ADR 0010, or move the operation "
-        "outside with nogil until its transition subgate is implemented.",
+        "Keep the native interval scalar-preconverted, noexcept (or use the "
+        "exact signed except -1 errno contract), and independent of Python/HPy "
+        "state as documented by ADR 0010, or move "
+        "the operation outside with nogil until its transition subgate is "
+        "implemented.",
     ),
     (
         "buffer-consumer-api",
@@ -184,6 +247,21 @@ def static_findings(path, source_text):
         for match in pattern.finditer(source_text):
             if not code_mask[match.start():match.end()].strip():
                 continue
+            if action_id == "direct-cpython-cimport":
+                # The legacy rule starts with ``^\s*`` and can therefore
+                # consume preceding blank lines. Anchor the exemption to the
+                # declaration line containing the end of that match.
+                line_start = code_mask.rfind("\n", 0, match.end()) + 1
+                line_end = code_mask.find("\n", match.end())
+                if line_end < 0:
+                    line_end = len(code_mask)
+                if FRONTEND_ONLY_CPYTHON_DECLARATION.fullmatch(
+                        code_mask[line_start:line_end]):
+                    # Py_buffer is Cython's source-level spelling for the
+                    # canonical producer protocol. The Universal validator
+                    # remains authoritative and emits HPy_buffer without a
+                    # CPython source/binary dependency for the supported form.
+                    continue
             line = source_text.count("\n", 0, match.start()) + 1
             column = match.start() - source_text.rfind("\n", 0, match.start())
             findings.append({

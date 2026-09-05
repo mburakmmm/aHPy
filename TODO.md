@@ -32,7 +32,8 @@ earlier phase's exit gate.
 
 - [x] Attach the empty repository to the official Cython upstream.
 - [x] Base development on Cython commit
-      `b99cb0e3b5425e11414cadd24168a6cc850e8000` (2026-07-13).
+      `86b94cef002aa23aea0b390335ea3d9e9b62c19e` (2026-08-12), with the
+      previous baseline and transition preserved in the append-only rebase log.
 - [x] Create the `codex/ahpy-bootstrap` development branch.
 - [x] Add the complete dependency-ordered implementation checklist.
 - [x] Add the initial scope, architecture, version-policy, and support-matrix
@@ -332,9 +333,24 @@ earlier phase's exit gate.
 - [x] Emit through the HPy build lane that defines `HPY_ABI_UNIVERSAL`, and
       compile with HPy's `forbid_python_h` include guard.
 - [x] Emit `HPy_MODINIT` and an `HPyModuleDef`.
+- [x] Generate valid empty, doc-only, pass-only, and assignment-only modules
+      through `HPy_mod_exec` without requiring a synthetic function or
+      extension type; build/import a real constant-only Universal module in
+      normal, Trace, and Debug modes.
+- [x] Preserve module and module-function docstrings in `HPyModuleDef` and
+      `HPyDef_METH`; encode UTF-8/multiline/control-bearing content with safe C
+      literals and reject NUL-bearing docs that the ABI cannot represent.
+- [x] Support qualified package-module names: retain the full dotted name for
+      runtime type/metadata identity and use only the final identifier in the
+      `HPy_MODINIT` export symbol; import the built package module in normal,
+      Trace, and Debug modes.
 - [x] Emit `HPy_mod_exec` initialization where runtime setup is required.
 - [ ] Generate HPy module-level method definitions and all declared signatures.
   - [x] Generate strict argument-free `HPyFunc_NOARGS` definitions.
+  - [x] Preserve valid Unicode Python function/method names at the HPy boundary
+        while encoding only their private generated C-symbol fragments; cover
+        module functions and extension methods in normal, Trace, and Debug
+        modes.
   - [x] Generate `HPyFunc_O` for exactly one untyped positional-only argument;
         model the incoming handle as borrowed and duplicate it for owned
         returns/container temporaries.
@@ -346,9 +362,9 @@ earlier phase's exit gate.
       layout.
 - [x] Select the bootstrap emitter through a typed code-generation-kind
       contract, independently of handle-ownership policy.
-- [x] Reject module names, module statements, function signatures, decorators,
-      bodies, and return expressions outside the bootstrap subset at their
-      source positions.
+- [x] Reject invalid module-name components, unsupported module statements,
+      function signatures, decorators, bodies, and return expressions outside
+      the bootstrap subset at their source positions.
 
 ### Core Python semantics
 
@@ -484,8 +500,8 @@ earlier phase's exit gate.
         rebind-after-delete, conditional deletion, and Debug Mode cleanup.
   - [x] Support function-scope `locals()` / zero-arg `vars()` via
         `FuncLocalsExprNode` with null-slot exclusion, `HPy_Dup` failure
-        propagation, and normal/Debug generated-oracle coverage; keep
-        module-scope `locals()`/`globals()` rejected.
+        propagation, and normal/Debug generated-oracle coverage; module-scope
+        `locals()`/`globals()` use the owned module dictionary.
   - [x] Evaluate reads before module initialization at runtime instead of
         rejecting them at compile time; keep relative/star imports rejected.
   - [x] Add the remaining constant caches for `None`, booleans, integers, and
@@ -526,12 +542,15 @@ earlier phase's exit gate.
         public HPy type/subtype operations.
   - [x] Add the HPy 0.9 current-error-only terminal handler slice: a linear
         try body ending in return/raise, direct builtin or tuple-normalized
-        builtin matching, multiple/default clauses, literal-return handlers,
+        builtin matching, multiple/default clauses, terminal handlers,
         internal failure labels, checkpointed handle/builder/tracker cleanup,
         unmatched propagation, and normal/Trace/Debug execution.
-  - [ ] Add general handler bodies, `except as`, reraise, traceback, cause,
-        chaining, `else`/`finally`, nested handlers, and complete observable
-        handler-state semantics after a public exception-state design exists.
+  - [x] Add multi-statement handler bodies with linear assignments,
+        expressions, deletions, pass, supported `if`/`while`/`for`, and a
+        terminal return or explicit raise after the matched error is cleared.
+  - [ ] Add `except as`, bare reraise, traceback, cause/chaining,
+        `else`/`finally`, nested handlers, and complete observable handler-state
+        semantics after a public exception-state design exists.
 - [ ] Support iteration for the declared builtin containers.
   - [x] Support fixed, non-empty list/tuple literal iteration through
         `HPy_Length` and `HPy_GetItem_i`, including `break`, `continue`, `else`,
@@ -654,21 +673,39 @@ earlier phase's exit gate.
 - [x] Generate `HPyType_HELPERS`, builtin shape, and `HPyType_Spec` for the
       currently supported layout.
 - [ ] Generate method, member, get/set, and slot definitions.
+  - [x] Preserve valid Unicode `cdef class` names in HPy type specs and module
+        publication while encoding only generated C type/helper symbols; cover
+        construction, method/property dispatch, qualified `__module__`,
+        Unicode closure captures/arguments/public fields, and
+        normal/Trace/Debug execution.
   - [x] Generate ordinary undecorated instance methods as `HPyDef_METH`
         entries with correct receiver, one-argument, keyword, and optional
         positional/keyword-only layouts; store supported defaults on the
         defining type, load them through `self.__class__`, preserve inherited
-        and mutable-default identity, and keep unsupported special methods
-        rejected.
+        and mutable-default identity, preserve class and ordinary-method
+        docstrings in `HPyType_Spec`/`HPyDef_METH`, and keep unsupported
+        special methods rejected.
     - [x] Enable slotless two-argument `__format__` as an ordinary
           `HPyDef_METH` method rather than inventing a type slot; use
           `HPyFunc_O` for a positional-only spelling and the ordinary checked
           keyword wrapper when the source signature permits keywords. Validate
           valid strings, runtime non-string rejection, body errors,
           inheritance, and normal/Debug Mode cleanup.
+    - [x] Enable slotless `__bytes__`, `__complex__`, and optional-argument
+          `__round__` as ordinary `HPyDef_METH` definitions with exact source
+          signature gates; validate builtin protocol dispatch, inherited
+          methods, runtime result-type enforcement, body errors, and
+          normal/Trace/Debug cleanup without inventing HPy slots.
+    - [x] Enable synchronous `__enter__` and `__exit__` context-manager
+          methods as ordinary `HPyDef_METH` definitions with exact source
+          arities; validate successful entry/exit, exception suppression and
+          propagation, inherited lookup, body failures, and
+          normal/Trace/Debug cleanup without inventing HPy slots.
   - [x] Generate user-written extension-type `property` blocks with exact
         Universal `HPyDef_GET`, `HPyDef_SET`, or `HPyDef_GETSET` definitions;
-        preserve docstrings, dispatch null-value deletion separately from
+        preserve UTF-8, multiline, quoted, backslash/control-bearing docstrings
+        with safe C literals, reject NUL-bearing docs that HPy's C-string field
+        cannot represent, dispatch null-value deletion separately from
         assignment, retain borrowed receiver/value handles, and validate
         getter-only, setter-only, full get/set/delete, body errors, inherited
         descriptors, three subinterpreters, and normal/Debug Mode cleanup.
@@ -972,11 +1009,23 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         HPy 0.9 public-slot/exception-state diagnostics.
   - [ ] Enable only after the selected public HPy surface can publish and drive
         awaitable/async-iterator objects without CPython coroutine utilities.
-- [ ] Buffer protocol acquisition and release.
+- [x] Buffer protocol producer acquisition and release.
   - [x] Record ADR 0008's producer-versus-consumer split, owned `HPy_buffer.obj`
         lifecycle, rollback, and neutral frontend seam requirements.
-  - [ ] Implement and validate pure-type producer slots through public
-        `HPy_bf_getbuffer`/`HPy_bf_releasebuffer` without `Py_buffer` wrappers.
+  - [x] Implement the strict writable one-dimensional fixed native-scalar or
+        private positive compile-time-sized native C-array producer through
+        public `HPy_bf_getbuffer`/`HPy_bf_releasebuffer`:
+        translate only the exact canonical Cython frontend descriptor, keep
+        shape/stride storage object-owned, transfer one duplicated exporter
+        handle to the runtime, and emit no `Py_buffer`/`Python.h` dependency.
+        All 13 enabled integer/float format mappings compile for scalar and
+        array layouts; writable `long`/`double`, a four-element `long` array,
+        retained views, ordinary derived-type slot inheritance, and both
+        exporter Dup failure paths pass Normal/Trace/Debug or fault gates.
+        Readonly exporters remain blocked on HPy 0.9's missing named public
+        writable-request flag; multidimensional/general array-field,
+        auxiliary-allocation, and custom-release exporters remain explicitly
+        outside this completed subset.
 - [ ] Typed memoryviews and memoryview utility types.
   - [x] Reject typed buffer/memoryview arguments immediately after declaration
         analysis with one HPy 0.9 consumer-API diagnostic, before CPython
@@ -994,16 +1043,36 @@ until its full existing Cython test subset and new HPy-specific tests pass.
 - [ ] `nogil`, enter/leave Python execution, and exception reacquisition.
   - [x] Record ADR 0010's public-HPy transition, no-handle interval, native
         library contract, re-entry, and staged typed-conversion requirements.
-  - [x] Support non-empty `with nogil` blocks containing only discarded,
-        argumentless calls to validated external C functions declared
-        `noexcept nogil`, using `HPy_LeavePythonExecution` and
-        `HPy_ReenterPythonExecution` with a local `HPyThreadState`.
-  - [x] Validate the linked native probe in normal/Debug runtime execution and
-        reject argument-bearing or empty blocks without generated C.
-  - [ ] Preconvert typed scalar arguments before leaving execution, retain
-        native results, re-enter, and only then perform HPy result conversion.
-  - [ ] Design nested `with gil`, native failure/exception reacquisition,
-        callbacks, and every structured early-exit cleanup path.
+  - [x] Support non-empty `with nogil` blocks containing discarded calls or
+        Python name/attribute/item/slice assignments from validated external C
+        functions declared `noexcept nogil` or with the exact signed-integer
+        `except -1 nogil` errno contract, using `HPy_LeavePythonExecution` and
+        `HPy_ReenterPythonExecution` with a local `HPyThreadState`; checked
+        scalar arguments are evaluated, converted, and released before leaving
+        execution.
+  - [x] Validate the linked native probe in normal/Trace/Debug runtime execution and
+        reject expanded-argument or empty blocks without generated C.
+  - [x] Preconvert supported scalar arguments before leaving execution and
+        prove conversion failures cannot enter the native interval.
+  - [x] Retain supported scalar native results, re-enter, and only then perform
+        HPy result conversion and assignment to a Python local/global,
+        attribute, item, or slice target; evaluate Python attribute/item
+        arguments before leaving execution.
+  - [x] Implement the exact signed-integer `except -1` native errno protocol:
+        clear errno immediately before the native call, snapshot it before
+        re-entry, raise `OSError` through public HPy after re-entry, and raise a
+        deterministic `RuntimeError` when the native function omits errno.
+        Reject `except?`, `except *`, unsigned/non-`-1` sentinels, and prove
+        held/released/discarded calls in normal/Trace/Debug and installed-wheel
+        runs.
+  - [x] Permit explicit, non-empty `with gil` islands between admitted native
+        intervals; emit their supported Python body while execution is active,
+        reject implicit/conditional/empty islands, and prove callback success
+        plus failure prevents the following native call in normal/Trace/Debug.
+  - [ ] Independently gate compound/destructuring result targets.
+  - [ ] Design other native failure/exception reacquisition, callbacks that
+        cross the C boundary, and every remaining structured early-exit cleanup
+        path.
 - [ ] `prange`, OpenMP, synchronization, and free-threading interactions.
   - [x] Record ADR 0011's backend-neutral scheduling/reduction plan,
         originating-thread transition, native-only worker rules, sequential
@@ -1111,22 +1180,22 @@ until its full existing Cython test subset and new HPy-specific tests pass.
 
 ## M8 - Continuous integration and quality engineering
 
-- [ ] Linux x86-64 and ARM64 lanes.
+- [x] Linux x86-64 and ARM64 lanes.
   - [x] Declare explicit `ubuntu-24.04` x86-64 GCC/Clang and
         `ubuntu-24.04-arm` GCC jobs without a moving runner alias.
-  - [ ] Record the first green hosted run for every declared Linux job before
+  - [x] Record the first green hosted run for every declared Linux job before
         claiming platform support.
-- [ ] macOS Intel and Apple Silicon lanes.
+- [x] macOS Intel and Apple Silicon lanes.
   - [x] Declare explicit `macos-15-intel` and ARM64 `macos-15` Apple Clang
         jobs.
-  - [ ] Record the first green hosted run for both macOS architectures.
-- [ ] Windows x64 lane.
+  - [x] Record the first green hosted run for both macOS architectures.
+- [x] Windows x64 lane.
   - [x] Declare the explicit `windows-2025` MSVC job and make the binary import
         audit fail closed through `dumpbin`, `llvm-nm`, or `objdump`.
-  - [ ] Record the first green hosted Windows/MSVC run.
-- [ ] GCC, Clang, and MSVC coverage.
+  - [x] Record the first green hosted Windows/MSVC run.
+- [x] GCC, Clang, and MSVC coverage.
   - [x] Put all three compiler families in the dedicated stable matrix.
-  - [ ] Promote coverage to supported only after every hosted job is green.
+  - [x] Promote coverage to supported only after every hosted job is green.
 - [ ] Supported CPython, PyPy, and GraalPy versions.
   - [x] Validate the initial CPython 3.11 release and development-revision
         environments locally.
@@ -1136,6 +1205,9 @@ until its full existing Cython test subset and new HPy-specific tests pass.
           machine-readable manifest; build and hash one CPython-hosted
           Universal artifact, then download that unchanged artifact in both
           target jobs.
+    - [x] Verify every downloaded member digest, separate Python-stub and
+          native HPy loading, and isolate module imports/semantics into four
+          subprocess stages so a signal identifies its exact boundary.
     - [ ] Record the first green hosted execution on both interpreters and
           remove `continue-on-error` before claiming cross-interpreter support.
 - [x] Add the HPy 0.9 release lane and a full-commit-pinned HPy development
@@ -1158,17 +1230,30 @@ until its full existing Cython test subset and new HPy-specific tests pass.
   - [x] Add a Linux GCC ASan/UBSan build-and-execute job with matching
         `libasan` preload and fail-fast diagnostics.
   - [x] Add an Apple Clang ASan/UBSan job that discovers and preloads the
-        matching dynamic sanitizer runtime before Python imports the module.
-  - [ ] Add a separately validated LSan/Valgrind lane with versioned
+        matching dynamic sanitizer runtime before Python imports the module;
+        use a native-architecture ASan-linked `Py_BytesMain` launcher because
+        signed Python executables may discard `DYLD_INSERT_LIBRARIES`.
+  - [x] Add a separately validated LSan/Valgrind lane with versioned
         suppressions for the uninstrumented host interpreter; do not treat
         unrelated interpreter allocations as backend leaks.
     - [x] Declare a schedule/manual allowed-failure Linux Valgrind job that
           proves the positive control survives suppressions and enforces all
           five generated-corpus runtime processes with definite-leak failures.
-    - [ ] Record the first hosted green, review every suppression, and promote
+    - [x] Record the first hosted green, review every suppression, and promote
           the job only after its uploaded logs prove the clean corpus.
   - [ ] Add Windows Application Verifier or an equivalent reviewed memory
         diagnostic.
+    - [x] Declare a schedule/manual `windows-2025` AppVerifier Basics plus
+          GFlags full-page-heap job. Require a native heap-overrun positive
+          control, verifier injection in all five generated-corpus processes,
+          clean XML error parsing, raw logs, and unconditional settings cleanup.
+    - [ ] Record the first hosted run, inspect tool discovery and every uploaded
+          log, repair any runner/tool mismatch, then remove `continue-on-error`
+          only after the positive control and real corpus are both proven.
+      - [x] Review probe run `29945115651`, job `89008424404`: both x64 tools
+            exist and cleanup passed; replace the unreliable aggregate
+            `gflags /p` assertion with direct enable output plus AppVerifier's
+            `Heaps`/`Full=true` query.
 - [x] Audit generated source plus undefined binary imports on Unix and Windows;
       fail closed when no supported symbol reader exists.
 - [x] Add byte-for-byte deterministic Universal source generation from two
@@ -1202,7 +1287,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         `sys.modules`, collection, clean Debug state, and successful
         one-past/unselected imports.
   - [x] Classify the one macOS transient `SystemError`: it did not reproduce in
-        five bounded concurrent rounds covering 640 fault selectors, generated
+        five bounded concurrent rounds covering 750 fault selectors, generated
         corpus, setuptools, and full fixed fuzz. Replace the unsafe ad-hoc
         orchestration that left compiler descendants behind with isolated
         process groups, recursive timeout cleanup, retained logs, and a
@@ -1212,7 +1297,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         three dictionary insertions, direct and expanded call shapes,
         three attribute/item reads, attribute/item set/delete, all three type
         creations, every generated module/type publication position, and
-        independently owned intermediate cleanup; run 128 isolated
+        independently owned intermediate cleanup; run 150 isolated
         normal/Debug cases and fix the exposed transactional init rollback.
 - [x] Fuzz compiler inputs and selected runtime operation sequences.
   - [x] Generate a fixed-seed 48-function corpus spanning nested containers,
@@ -1233,6 +1318,10 @@ until its full existing Cython test subset and new HPy-specific tests pass.
       by backend, frontend seam, quality utilities, and five feature-test
       families; enforce cross-Python conservative CI floors while keeping
       generated/native/subprocess behavior in its dedicated runtime gates.
+  - [x] Reach 100% executable Python-line coverage for `HPyModuleWriter.py`,
+        `HandleModel.py`, and `RuntimeAPI.py` on CPython 3.11 and 3.14; trace
+        584 tests and lock CI floors at backend 100%, frontend seam 45%, and
+        quality tools 50% without conflating native/generated-C gates.
 - [x] Add benchmark history and regression thresholds.
   - [x] Compare generated Universal HPy with an equivalent handwritten
         public-HPy module for identity/call overhead, arithmetic, containers,
@@ -1243,22 +1332,24 @@ until its full existing Cython test subset and new HPy-specific tests pass.
 
 ## M9 - Performance and footprint
 
-- [ ] Establish handwritten HPy reference implementations for all benchmark
+- [x] Establish handwritten HPy reference implementations for all supported
+      benchmark
       families.
   - [x] Maintain equivalent public-HPy references for identity/call,
         arithmetic, containers, attributes, nested calls, and exceptions.
-  - [x] Add equivalent type and external-C references; iteration/memoryview
-        references remain non-comparable while the generated Universal paths
-        are blocked.
+  - [x] Add equivalent type, external-C, and supported sequence-index iteration
+        references; typed memoryviews remain blocked/non-comparable because
+        HPy 0.9 exposes no public buffer-consumer API.
 - [x] Compare classic Cython, HPy CPython ABI, and HPy Universal ABI separately;
       retain standalone classic timings and independent generated/reference
       ratios for each HPy ABI instead of one cross-ABI overhead number.
-- [ ] Measure calls, arithmetic, containers, attributes, exceptions, types,
+- [x] Measure calls, arithmetic, containers, attributes, exceptions, types,
       iteration, memoryviews, and external-C wrappers.
   - [x] Measure calls, arithmetic, containers, attributes, and exceptions in
         alternating generated/reference repeats with Debug semantics.
-  - [x] Add types and external-C wrappers; record iteration/memoryviews as
-        blocked rather than fabricating runtime numbers until supported.
+  - [x] Add types, external-C wrappers, and supported sequence-index iteration;
+        record typed memoryviews as blocked/non-comparable rather than
+        fabricating a runtime number.
 - [x] Measure compile time, C compiler time, generated C size, binary size, and
       peak memory.
   - [x] Record frontend time, combined native build time, source/binary sizes,
@@ -1266,25 +1357,27 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         Universal benchmark JSON.
   - [x] Isolate and budget the generated `bootstrap_types.c` native compile:
         every benchmark regenerates the 4.98 MB/87,259-line corpus, measures
-        `-O0` and `-O3` independently, and enforces a 60-second per-profile
-        liveness ceiling. A clean Apple Clang 21 run completed in 1.59/5.29
+        `-O0` and `-O3` independently under a 60-second ceiling. O0 is the
+        required C-validity/liveness gate; O3 is diagnostic after Ubuntu GCC 13
+        exceeded both 60- and 180-second trials. Apple Clang 21 completed in 1.59/5.29
         seconds (3.32×); the earlier post-stress >15-minute result is not
         reproducible without the discarded concurrent/orphaned process state.
 - [x] Use HPy Trace Mode to identify excess API calls and handle churn; record
       exact per-operation API deltas and `ctx_Dup`/`ctx_Close` counts for both
       generated and handwritten modules in benchmark history.
-- [ ] Optimize duplicate/close pairs only after ownership proofs and tests.
+- [x] Optimize duplicate/close pairs only after ownership proofs and tests for
+      the declared release benchmark surface.
   - [x] Align generated/reference positional-only call contracts, then borrow
         direct live Name handles for `HPy_GetAttr_s` receivers and zero-argument
         `HPy_Call` callables. Trace proves attribute/call fell from 7 to 1 API
         call per iteration and from 2 Dup/1 Close to zero churn; normal,
-        Trace, Debug, 179 emitter tests, and all 128 fault selectors pass.
+        Trace, Debug, 179 emitter tests, and all 150 fault selectors pass.
   - [x] Route two-or-more required positional-only arguments through
         `HPyFunc_VARARGS`, then borrow direct live Name operands for binary APIs
         and fixed sequence-builder items under an evaluation-order proof.
         Arithmetic/container now match the handwritten references at 1/4 API
         calls with zero Dup/Close churn; normal, Trace, Debug, 185 emitter
-        tests, and all 128 fault selectors pass.
+        tests, and all 150 fault selectors pass.
   - [x] Borrow call-scoped extension-field owners and direct field-store Name
         values, load type/module owners only at their first actual use, and bind
         positional-only initializer slot arrays without a tracker. Type method
@@ -1297,7 +1390,32 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         ambiguous, and out-of-portable-range values. External-C Trace now
         matches the handwritten reference at 1 call/iteration with zero
         Dup/Close churn and enforces a 1.5× runtime ceiling.
+  - [x] Borrow dynamic sequence-loop sources only for incoming call-scoped
+        arguments; retain owned materialization for rebindable locals. Trace
+        drops from 38 to 36 calls/iteration while normal/Trace/Debug and all
+        150 fault selectors remain green.
 - [ ] Define and enforce release performance budgets.
+  - [x] Record exact source/GitHub-run provenance in every new benchmark
+        artifact and add a fail-closed proposal generator requiring at least
+        five unique successful hosted reports from one exact commit and
+        measurement cohort.
+  - [x] Add a read-only manual workflow that collects five isolated hosted
+        samples for one selected commit and emits only the reviewed proposal
+        artifact after every sample succeeds.
+  - [x] Benchmark the supported sequence-index iteration surface against an
+        equivalent handwritten HPy implementation in every ABI profile; keep
+        typed memoryviews explicitly blocked/non-comparable on HPy 0.9 rather
+        than publishing a synthetic number.
+  - [x] Borrow a dynamic sequence-loop source only when it is an incoming
+        call-scoped argument; retain owned materialization for rebindable
+        locals, prove source-name rebinding in normal/Trace/Debug, and pass all
+        150 fault selectors. Trace drops from 38 to 36 calls per iteration.
+  - [x] Include frontend/native build time, generated/reference peak RSS, and
+        large-type frontend/O0 distributions in the fail-closed hosted
+        proposal without auto-applying absolute cross-host limits.
+  - [ ] Collect the minimum hosted same-HEAD history, review the proposed
+        headroom, version the release ceilings, and validate them again on the
+        same release candidate.
 - [x] Document interpreter/HPy reference cost separately from aHPy overhead by
       retaining standalone classic timings and same-ABI handwritten HPy
       baselines; publish no aggregate cross-ABI ratio.
@@ -1405,22 +1523,65 @@ emulated.
 
 ### U2 - M8 evidence without false claims
 
-- [ ] Record first green hosted runs for every declared Linux/macOS/Windows
-      compiler job. The authorized origin/push prerequisite is complete;
-      workflow run `29490045367` is the first hosted aHPy execution and remains
-      evidence-pending until every required job finishes and is reviewed.
+- [ ] Keep every mandatory workflow green on the current aHPy branch HEAD,
+      including the upstream Cython C/C++ and non-CPython regression matrix.
+      Run `29900694989` verifies that the focused GraalPy exclusion moved past
+      the former Universal-fixture import failure while compile-only aHPy
+      fixtures remain covered. Its Windows C++/Python 3.11 full lane later hit
+      the known hosted MSVC parallel-link transient `LNK1158` when `link.exe`
+      could not launch the otherwise-present Windows SDK `rc.exe`; Windows
+      `runtests.py` parallelism was bounded at four, but replacement run
+      `29905498043` showed `shared_utility_module` overlapping its internal
+      `build_ext -j3` with that outer pool. Both `shared_utility` trees are now
+      isolated from the four-worker pass while retaining their internal
+      parallel build. At commit `d0026d83b`, push run `29912142526` attempt 2
+      and PR run `29912145346` each completed all 103 jobs successfully;
+      coverage run `29912145042` completed both jobs successfully. The early
+      Windows C/C++ jobs executed the isolated one-tree pass and both
+      `memoryview_shared_utility` and `shared_utility_module` passed without
+      `LNK1158`. Later run `30439469712` at `b173e6f37` reproduced the same
+      failure inside the already isolated fixture's own `build_ext -j3`;
+      the stronger local repair serializes all eight shared-utility fixture
+      builds with `-j1`, passes both real local trees, and still requires
+      replacement hosted proof.
+- [x] Record first green hosted runs for every declared Linux/macOS/Windows
+      compiler job. Push run `29685285138` is green at commit `02d9f8cdd` for
+      Linux x64 GCC/Clang, Linux ARM64 GCC, macOS Intel/ARM64 Clang, Windows x64
+      MSVC, both sanitizer jobs, pinned HPy development on Python 3.11, and the
+      complete compiler/quality job; exact job URLs, runner images, compiler
+      versions, and portability hashes are in the M8 platform repair audit.
 - [ ] Record same-binary PyPy and GraalPy hosted executions and remove
-      `continue-on-error` only after green evidence.
+      `continue-on-error` only after green evidence. Run `29685285138` records
+      both executions as red allowed-failure early warnings: PyPy terminates at
+      its first bridge import and GraalPy has no HPy bridge/native `.hpy0`
+      import hook. Neither target is supported.
 - [x] Finish local nightly contract tests and support-claim wording guards:
-      manifest status sets, stable-vs-nightly separation, hosted-pending
+      manifest status sets, stable-vs-nightly separation, evidence-state
       wording, ASan `detect_leaks=0`, job contracts, and exact revision reports.
 - [ ] Record first green hosted executions of both moving nightly jobs; retain
       allowed-failure early-warning status and do not alter stable support.
+      Manual run `29906185775` records CPython 3.15.0-beta.4 failing in HPy
+      0.9's own `-Werror` build before aHPy runs, while HPy `master` passed VCS
+      provenance at the already pinned `b57a33c1...` commit but omitted the
+      pinned lane's `-O0` profile and hung in the optimized generated build for
+      over 90 minutes. Both runtime steps now use `-O0` and a 30-minute timeout.
+  - [ ] CPython `3.15-dev` with HPy 0.9 remains externally red at the HPy build
+        boundary and has no green execution.
+  - [x] CPython 3.11 with HPy `master` completed its first bounded green in
+        manual run `29912162645`, job `88897432348`; provenance resolved the
+        expected full commit and the `-O0` generated runtime finished in 19
+        seconds. It remains an allowed-failure early warning.
 - [ ] Add reviewed Linux LSan/Valgrind and Windows Application Verifier lanes
-      with positive leak controls.
-      The Linux job now enforces the positive control and real generated corpus
-      but remains allowed-failure/hosted-pending; suppression review, its first
-      green run, and the Windows lane remain open.
+      with independent positive native-memory controls.
+  - [x] Promote the Linux job after manual run `29906185775`, job
+        `88878105102`, detected the 64-byte positive control, produced five
+        clean real-corpus logs, and confirmed zero active suppressions.
+  - [x] Declare the Windows AppVerifier/GFlags diagnostic as an allowed-failure
+        schedule/manual job with fail-closed tool discovery, a native overrun
+        positive control, five verified generated-runtime processes, XML/raw
+        evidence, and settings cleanup.
+  - [ ] Review the first hosted Windows artifact and promote the diagnostic only
+        after AppVerifier injection and full-page-heap detection are proven.
 - [ ] Apply reproducibility gates to future aHPy sdist and Universal wheel
       formats after U4 packaging exists.
 
@@ -1445,6 +1606,9 @@ emulated.
 
 ### U5 - M9 / M10 / M11 release readiness
 
+- [ ] Keep README status, support/validation matrices, audit evidence,
+      `AGENTTODO.md`, and draft PR metadata synchronized to the same published
+      HEAD after each hosted fix; do not advertise stale or mixed-run evidence.
 - [ ] Satisfy M9 performance budgets with hosted history and separate
       interpreter/HPy overhead accounting.
 - [ ] Complete the four M10 pilots and publish dashboard/porting guidance.

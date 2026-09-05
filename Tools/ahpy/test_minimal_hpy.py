@@ -7,6 +7,8 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 
+from artifact_utils import require_universal_binary
+
 
 ROOT = Path(__file__).resolve().parents[2]
 SETUP = ROOT / "tests" / "ahpy" / "setup_minimal.py"
@@ -47,10 +49,8 @@ def build_and_run(python):
             "--build-base", str(build_root),
         ], cwd=SETUP.parent)
 
-        binaries = list(build_root.rglob("ahpy_minimal*.hpy0.*"))
-        if len(binaries) != 1:
-            raise AssertionError("expected one .hpy0 binary, got %r" % binaries)
-        build_lib = binaries[0].parent
+        binary = require_universal_binary(build_root, "ahpy_minimal")
+        build_lib = binary.parent
         if not build_lib.joinpath("ahpy_minimal.py").exists():
             raise AssertionError("HPy universal loader stub was not generated")
 

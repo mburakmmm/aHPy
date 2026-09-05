@@ -1,0 +1,102 @@
+name: Library compatibility report
+description: Report a reproducible third-party Cython library port or blocker
+title: "[COMPAT] "
+labels: ["compatibility"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use a clean checkout and the [library-author porting guide](https://github.com/mburakmmm/aHPy/blob/main/docs/ahpy/porting-guide.md). A manifest check or successful C generation alone is not a compatibility pass, and Universal mode may not fall back to CPython or HPy Hybrid.
+  - type: input
+    id: project
+    attributes:
+      label: Project and repository
+      placeholder: project-name — https://github.com/owner/project
+    validations:
+      required: true
+  - type: input
+    id: upstream_revision
+    attributes:
+      label: Exact upstream revision
+      description: Include the upstream version and full 40-character commit SHA.
+      placeholder: v1.2.3; 0123456789abcdef0123456789abcdef01234567
+    validations:
+      required: true
+  - type: input
+    id: license
+    attributes:
+      label: SPDX license and license path
+      placeholder: BSD-3-Clause; LICENSE.txt
+    validations:
+      required: true
+  - type: dropdown
+    id: status
+    attributes:
+      label: Observed status
+      options:
+        - pass
+        - fail
+        - blocked
+        - compiler-error
+        - not-run
+    validations:
+      required: true
+  - type: textarea
+    id: sources_and_patch
+    attributes:
+      label: Selected sources and complete port diff
+      description: List exact source paths and attach or link the complete patch plus checksum.
+    validations:
+      required: true
+  - type: textarea
+    id: scanner
+    attributes:
+      label: Compatibility scanner JSON
+      description: Paste the complete strict hpy-universal scanner result, including source-located action IDs.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: build_audits
+    attributes:
+      label: Generation, native build, source and binary audits
+      description: Include commands and full logs; confirm hpy.h/no Python.h and forbidden-symbol checks.
+    validations:
+      required: true
+  - type: textarea
+    id: runtime_modes
+    attributes:
+      label: Tests and normal, Trace, Debug results
+      description: Include semantic tests, Trace counts, Debug leak result, failure paths and artifact links.
+    validations:
+      required: true
+  - type: input
+    id: ahpy_revision
+    attributes:
+      label: Exact aHPy revision
+      placeholder: 40-character commit SHA
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Python, HPy, OS, architecture and compiler
+      placeholder: CPython 3.11.15; HPy 0.9.0; Ubuntu 24.04 x86-64; GCC 14
+    validations:
+      required: true
+  - type: textarea
+    id: performance
+    attributes:
+      label: Comparable performance evidence
+      description: Optional; omit numbers for blocked/non-comparable behavior and separate HPy runtime cost from aHPy overhead.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I used exact clean revisions and included the complete source diff.
+          required: true
+        - label: I did not use CPython ABI, HPy Hybrid, Python.h, PyObject pointers, or legacy HPy/PyObject conversions as a Universal fallback.
+          required: true
+        - label: I did not label unexecuted or blocked gates as passing.
+          required: true

@@ -2,26 +2,106 @@
 
 This file is the operational handoff for AI agents continuing aHPy. It does
 not replace `TODO.md`: that file is the normative, dependency-ordered project
-checklist. An agent must update both files when implementation status changes.
+checklist. `production-todo.md` is the release-readiness execution order. An
+agent must keep all three synchronized when implementation status changes.
 
 ## 1. Snapshot and source of truth
 
-- Snapshot date: 2026-07-16 (Cursor continuation audited and reconciled).
+- Current continuation (2026-09-05): the owner authorized integrating this
+  branch into `main` and continuing the complete roadmap there. PR #2 is
+  mergeable but its required `ci-success` failed on the two Python 3.9
+  Limited API buffer fixtures; all four other required aggregates passed on
+  `652cd3f66341e08a383fe565ee89849f44eec1a1`. The existing pre-3.11 buffer
+  exclusion now covers exactly `ahpy.bootstrap_types` and
+  `ahpy.fault_injection`. Local ordinary C/C++ and Limited API 3.11 each
+  compile/import all four selections successfully; Limited API 3.9 selects
+  neither unsupported buffer fixture. Push the repair, await the five
+  required checks, and merge PR #2 through the existing ruleset. Once the
+  workflow is on `main`, dispatch the five-sample performance calibration;
+  the previously proposed PR-label workaround is unnecessary.
+- Snapshot date: 2026-08-14 (Cursor/Codex continuation, writable scalar and
+  fixed-array buffer producer slices, handwritten-first cross-interpreter
+  evidence, dynamic fault-count reporting, and local coverage audited and
+  reconciled).
 - Workspace: `/Users/melihburakmemis/Documents/aHPy`.
 - Branch: `codex/ahpy-bootstrap`.
-- Cython base/HEAD: `b99cb0e3b5425e11414cadd24168a6cc850e8000`.
+- Upstream Cython baseline: `86b94cef002aa23aea0b390335ea3d9e9b62c19e`.
+- The accepted base was merged as
+  `a1dc62c0084cc426090b38137eefb3c9ef82dcab` with the exact two parents and
+  six conflict decisions recorded in
+  `docs/ahpy/audits/current-cython-rebase-2026-08-12.md`; the clean release
+  artifact gate is green on that commit, while hosted runs `31590065924`,
+  `31590065944`, `31590065930`, `31590066370`, `31590066388`, and
+  `31590065928` remain pending/queued under the Actions quota.
+- The first post-merge full C/C++ developer run exposed and repaired two
+  defects already present in accepted upstream HEAD: astral-Unicode source
+  encoding compared a character with an integer, and non-reference C++
+  template deduction failed to apply function-to-pointer decay. Independent
+  compiler regressions pass in both C and C++ selections. The authoritative
+  `CI=1` macOS profile selected 22,025 tests across four partitions: 21,847
+  passed, 178 followed upstream skip contracts, and the command exited zero.
+- A subsequent fresh four-pilot rerun exposed current Cython's exact-`str`
+  `PyTypeTestNode` around `str.format()` results. Universal generation now
+  implements only that proven runtime check through public HPy and keeps all
+  other type-test families fail-closed. The generated normal/Trace/Debug
+  oracle, frozenlist pilot, complete pilot dashboard and dual-interpreter
+  focused coverage pass after the repair.
+- Hosted checks for remote HEAD `2924030e7015fecd536987393c6106c6da85e999`
+  exposed three fork-integration defects in addition to that pilot failure:
+  the upstream CI changelog probe assumed a Cython-named distribution,
+  `setup_minimal.py` required HPy during ordinary C/C++/pydebug imports, and
+  codespell interpreted the MSVC `/Iinclude` oracle as prose. The current
+  local tree repairs all four roots; 441 compiler/seam tests, 532 quality-tool
+  tests, focused C/C++ fixture import, dual-interpreter coverage, and generated
+  Universal normal/Trace/Debug execution pass. Hosted same-HEAD confirmation
+  remains mandatory after commit and push.
+- Last fully green dedicated-aHPy reference:
+  `20e401ca71a0440ed91e9b6f9d083f3d6a24ef25`; always obtain the live branch
+  HEAD with `git rev-parse HEAD` before reporting or changing evidence.
 - Stable local environment: `.venv-hpy09`, CPython 3.11.15, HPy 0.9.0.
-- Additional local coverage interpreter: `python3`, CPython 3.14.6.
-- The verified aHPy implementation is committed through `39c7c6830`; preserve
+- Additional local coverage interpreter: `/tmp/ahpy-docdeps314/bin/python`,
+  CPython 3.14.2 with the current documentation dependency lock.
+- The dedicated aHPy and sanitizer sets are verified through `20e401ca7`;
+  the last complete coverage set is verified through `b8dc12f67`. Preserve
   later user/agent work and do not reset, clean, overwrite, or discard it.
 - `.DS_Store` and
   `docs/examples/userguide/wrapping_CPlusPlus/rect_with_attributes.cpp` are
   user-owned/unrelated. Leave them untouched.
-- `origin` is `https://github.com/mburakmmm/aHPy.git`; upstream Cython baseline
-  `b99cb0e3b` is published as `main`, and `codex/ahpy-bootstrap` is pushed.
-  The first hosted aHPy workflow is run `29490045367`; it is still in progress,
-  so do not claim a hosted green before every required job and artifact is
-  reviewed.
+- `origin` is `https://github.com/mburakmmm/aHPy.git`; the original Cython
+  baseline is published as `main`, `codex/ahpy-bootstrap` is pushed, and
+  draft PR [#2](https://github.com/mburakmmm/aHPy/pull/2) carries the aHPy
+  integration.
+- Live repository ruleset
+  [19886870](https://github.com/mburakmmm/aHPy/rules/19886870) protects `main`
+  and future `ahpy/**` release branches without bypass actors. It requires
+  pull requests, resolved review threads, deletion/non-fast-forward
+  protection, and the five GitHub Actions contexts declared in
+  `tests/ahpy/ci-policy.toml`, all bound to Actions integration ID `15368`.
+- At pre-repair HEAD `cfbd94b64475306036a11474d5cc587ab9bf8ac6`, dedicated
+  aHPy run
+  [29905497837](https://github.com/mburakmmm/aHPy/actions/runs/29905497837),
+  coverage run
+  [29905497811](https://github.com/mburakmmm/aHPy/actions/runs/29905497811),
+  and sanitizer run
+  [29905498058](https://github.com/mburakmmm/aHPy/actions/runs/29905498058)
+  are green. General Cython run
+  [29905498043](https://github.com/mburakmmm/aHPy/actions/runs/29905498043)
+  confirmed the GraalPy fixture isolation but reproduced Windows/MSVC
+  `LNK1158` inside `shared_utility_module`: its own `build_ext -j3` overlapped
+  the bounded four-worker outer pool. The stronger local repair excludes both
+  `tag:shared_utility` trees from that pool and runs them alone while retaining
+  their internal parallel build. Replacement hosted confirmation remains
+  mandatory; do not call the complete matrix green before it lands.
+- Later full Cython run
+  [30439469712](https://github.com/mburakmmm/aHPy/actions/runs/30439469712)
+  at `b173e6f3797298723d8b5c325a68ad5d5aa6e577` proved that outer isolation
+  alone is still insufficient: isolated Windows C++/Python 3.11 job
+  [90542124435](https://github.com/mburakmmm/aHPy/actions/runs/30439469712/job/90542124435)
+  reproduced `LNK1158` inside the fixture's own `build_ext -j3`. The current
+  local repair changes all eight shared-utility fixture builds to `-j1` while
+  retaining separate parallel-build coverage elsewhere; both real local
+  shared-utility trees and the quality contract pass. Replacement hosted
+  confirmation remains mandatory.
 - User mandate (2026-07-15): complete **HPy 0.9 max Universal coverage** and the
   **full M2–M11 roadmap** (options 1+3). Work the ordered queues below; never
   mark a HPy-0.9 API gap as supported; never claim hosted lanes without green
@@ -30,11 +110,14 @@ checklist. An agent must update both files when implementation status changes.
 Read these before changing code:
 
 1. `TODO.md` — normative scope, dependencies, and exit gates.
-2. `docs/ahpy/README.md` — project contract.
-3. `docs/ahpy/support-matrix.md` — current support claims.
-4. `docs/ahpy/validation-matrix.md` — actual validation evidence.
-5. `docs/ahpy/adr/` — architecture and release decisions.
-6. The milestone audit matching the code being changed in
+2. `production-todo.md` — ordered production and release gates.
+3. `docs/ahpy/README.md` — project contract.
+4. `docs/ahpy/support-matrix.md` — current support claims.
+5. `tests/ahpy/ci-policy.toml` — machine-readable workflow/job policy.
+6. `.github/rulesets/production-branches.json` — live ruleset source.
+7. `docs/ahpy/validation-matrix.md` — actual validation evidence.
+8. `docs/ahpy/adr/` — architecture and release decisions.
+9. The milestone audit matching the code being changed in
    `docs/ahpy/audits/`.
 
 ## 2. Non-negotiable implementation rules
@@ -76,39 +159,62 @@ and the first performance regression gate.
 
 Last verified local gates:
 
-- Focused compiler suite: 354 tests pass (includes U1 closable surface and
+- Focused compiler suite: 441 tests pass (includes U1 closable surface,
+  writable scalar/fixed-array buffer producers, and
   closure-registry regressions:
   `dir()`/`globals()`/`__dict__`, reject-duplicates keywords, imag constant
   cache, richer terminal try, sequence-safe inlined genexps, slot early
   returns).
+- Full upstream macOS C/C++ profile after the current Cython rebase repairs:
+  22,025 selected, 21,847 passed and 178 skipped by upstream
+  platform/dependency contracts (`CI=1`, four workers, exit zero).
 - Generated oracle + Debug: green (`CFLAGS=-O0`, normal/trace/debug).
 - Deterministic fuzz: 48 cases green (`--seed 0xA4F9`).
-- Quality-tool suite: 110 tests pass (one expected Valgrind availability skip
-  on macOS).
-- Focused coverage (post–M9 external-literal gate, Python 3.11): 464 tests
-  traced.
-  - backend 74.02%, frontend_seam 28.78%, quality_tools 35.49%.
-  - CI floors remain 71%, 25%, and 35%; do not lower them to hide new code.
-  - Python 3.14.6: backend 73.20%, frontend seam 28.65%, quality tools
-    35.60%; current dual-interpreter floors remain satisfied.
-- Fault injection: 128 isolated normal/Debug cases pass sequentially.
-- Bounded parallel HPy stress: five full rounds, 640 fault selectors, twenty
+- Quality-tool suite: 532 tests pass (two expected platform/tool availability
+  skips on macOS).
+- Focused coverage (2026-08-12): 971 tests traced on both interpreters.
+  - CPython 3.11: backend 9614/9614 (100.00%), frontend_seam 52.89%,
+    quality_tools 9430/9430 (100.00%).
+  - CPython 3.14.2: backend 9500/9500 (100.00%), frontend_seam 53.02%,
+    quality_tools 9439/9439 (100.00%).
+  - CI floors are 100%, 45%, and 100%; do not lower them to hide new code.
+  - Full backend coverage means executable Python lines in
+    `HPyModuleWriter.py`, `HandleModel.py`, and `RuntimeAPI.py`; native and
+    generated-C behavior remains governed by its dedicated gates.
+- Fault injection: 150 isolated normal/Debug cases pass sequentially, including
+  scalar and fixed-array buffer exporter `HPy_Dup` failure/one-past boundaries.
+- Bounded parallel HPy stress: five full rounds, 750 fault selectors, twenty
   child gates, no timeout or `SystemError`; recursive descendant cleanup is
   unit-tested and one round recurs in CI.
 - Fixed-seed supported-surface fuzz: 48 cases pass (`dir()`/`globals()` side
   effects, method-call, Python `type()` surface, plus five M5 reject samples).
 - Coverage-guided fuzz: 16 of 64 mutations retained across 16 families and a
-  4,075-line compiler frontier; normal/Debug oracle and ABI audits pass.
-- Performance gate: generated and handwritten Universal HPy modules pass nine
+  4,141-line compiler frontier; normal/Debug oracle and ABI audits pass.
+- Performance gate: generated and handwritten Universal HPy modules pass ten
   versioned runtime budgets, footprint budgets, binary audits, and Debug leak
   checks. CI writes a timestamped JSON history artifact.
 - Diagnostic catalog, Python compileall, CI YAML parsing, and `git diff
   --check` pass.
+- The build-once portability artifact now contains the frontend-independent
+  handwritten `ahpy_minimal` oracle followed by constant-only, single-function,
+  heap-type and large function-corpus generated rungs. All ten isolated stages
+  pass locally on CPython 3.11/HPy 0.9. Hosted run `31573340325` proved the
+  handwritten oracle on PyPy before the old artifact crashed at
+  `import-answer`, while GraalPy failed native discovery at `import-minimal`;
+  rerun the ten-stage ladder to narrow PyPy further. The smoke writes verified
+  hashes, provenance, ordered stdout/stderr and exit/signal classification to
+  JSON even on failure; CI uploads it with `if: always()`.
 - Clean release artifact: the warning-free, self-contained
-  `ahpy_compiler-3.3.0.1.dev0.tar.gz` passes safety/completeness; the no-index
-  wheel installs in a new venv with exact HPy 0.9.0/setuptools 80.9.0; the
+  `ahpy_compiler-3.3.0.1.dev0.tar.gz` now requires unchanged committed release
+  inputs and proves every non-generated member is tracked and byte-identical;
+  its six-component license/SBOM evidence and all artifact hashes are
+  independently required by the no-upload publisher. The no-index
+  wheel installs in a new venv with exact HPy 0.9.0/setuptools 83.0.0; the
   frontend and maintained PEP 517 example pass normal/Debug plus verified
-  uninstall/reinstall. CI execution is declared; hosted evidence is pending.
+  uninstall/reinstall. Exact clean commit `3f30148ca` locally passed all 736
+  sdist-member checks and TestPyPI no-upload selection on 2026-08-12. Hosted
+  Linux execution is historical-green in run `29685285138`; current-HEAD
+  replacement evidence remains pending quota.
 
 The generated runtime, fault, fuzz, reproducibility, setuptools/wheel,
 portability, sanitizer declarations, and CPython semantic oracles have dedicated
@@ -177,7 +283,9 @@ audit/changelog fragments in the same change.
    `__new__` gates; keep weakref/`__dict__`/iter slots rejected on 0.9.
    **(compile-time diagnostics added for freelist, multiple inheritance,
    metaclass, variable-size layout, and existing `__dealloc__` wall; slot early
-   returns done for len/bool/hash/contains/call/property)**
+   returns done for len/bool/hash/contains/call/property; slotless
+   `__format__`/`__bytes__`/`__complex__`/`__round__` and synchronous
+   `__enter__`/`__exit__` methods green)**
 10. Close M5 local GC/clear/finalize/resurrection stress; hosted
     all-interpreter promotion waits on Phase U2.
     **(local cycle/finalize/resurrect/field-clear oracle green on Python
@@ -187,19 +295,35 @@ audit/changelog fragments in the same change.
 
 A1 is done. Proceed when unblocked:
 
-- A2 hosted platform/compiler matrix — origin/push prerequisite complete;
-  inspect and repair the first hosted run before promoting any support claim.
-- A3 same-binary PyPy/GraalPy hosted hashes — blocked until hosted jobs.
+- A2 hosted platform/compiler matrix — complete for the initial stable
+  CPython 3.11/HPy 0.9 baseline.
+  **(push run `29685285138` is green for all six Linux/macOS/Windows compiler
+  jobs, both sanitizer jobs, pinned HPy development on Python 3.11, portability,
+  and compiler/quality. Exact URLs, runner images, compiler versions, and
+  binary hashes are recorded in `docs/ahpy/audits/m8-platform-ci-repairs.md`.)**
+- A3 same-binary PyPy/GraalPy hosted hashes — evidence captured; compatibility
+  remains blocked on the target runtimes.
+  **(run `29685285138` revalidated the unchanged artifact hashes, then PyPy
+  terminated at its first bundled-bridge import and GraalPy reported no bridge
+  or native `.hpy0` import hook. Both remain allowed-failure early warnings.)**
 - A4 nightly contract tests / wording guards (local remaining pieces).
-  **(manifest status-set guards, stable-vs-nightly separation, hosted-pending
-  wording checks, ASan `detect_leaks=0` documentation, and nightly job
-  contract tests are local-green; hosted evidence remains open)**
+  **(manifest status-set guards, stable-vs-nightly separation, support wording,
+  ASan `detect_leaks=0`, 30-minute runtime bounds, and nightly job contracts
+  are local-green. Manual run `29906185775` records HPy 0.9 failing to build on
+  CPython 3.15.0-beta.4 before aHPy and HPy master resolving to the pinned
+  `b57a33c1...` commit before its missing `-O0` profile caused an optimized
+  build hang. Both runtime steps now use `-O0` plus a 30-minute bound. Manual
+  run `29912162645`, job `88897432348`, is the first bounded green HPy-master
+  execution (19-second runtime); the CPython 3.15/HPy 0.9 lane remains
+  externally red.)**
 - A5 Linux LSan/Valgrind positive-control lane; Windows AppVerifier when a
   Windows environment exists.
-  **(the schedule/manual Linux job now makes the positive control and all five
-  real generated-corpus runtime processes mandatory under Valgrind; it remains
-  allowed-failure/hosted-pending until suppression review and a first green.
-  Windows remains open.)**
+  **(Linux is promoted: manual run `29906185775`, job `88878105102`, detected
+  the 64-byte positive control, recorded five clean real-corpus logs, and used
+  no active suppression. Its schedule/manual job is now required. Windows is
+  also promoted: manual run `30431371077`, job `90509136349`, proved full-page
+  heap, the native-overrun positive control, verifier injection in all five
+  clean real-corpus processes, and successful cleanup.)**
 - A6 package reproducibility — after Phase U3 Universal packaging formats.
 
 ### Phase U3 — M6 advanced families (one gated family at a time)
@@ -215,18 +339,107 @@ after HPy/PyPA standardize them, clean sdist/install, and new-user scripts.
 uninstall/reinstall, normal/Debug, and documented new-user execution are now
 green; frontend archives are byte-reproducible; publication, standardized
 tags, cross-interpreter package installation, standardized Universal
-extension-wheel reproducibility, and hosted evidence remain open.)**
+extension-wheel reproducibility remain open; hosted Linux packaging is green
+in run `29685285138`.)**
 
 ### Phase U5 — M9 performance, M10 pilots, M11 upstreaming/release
 
 Section 8 items 1–9 plus the stable-release definition in `TODO.md`. Tag no
 stable release until every declared support-tier gate is green.
 
-## 4. Immediate queue — finish M8 without false claims
+## 4. Immediate queue — production-readiness closure order
 
 Work on these in order unless an earlier dependency is externally blocked.
-After A1, prefer Phase U1 local semantic work while A2/A3 remain externally
-blocked.
+This list is the operational priority view; the detailed acceptance criteria
+remain in the phase and milestone sections below and in `TODO.md`.
+
+1. Close PRD-0 on one exact HEAD: all five required aggregate contexts must be
+   green, allowed-failure jobs must remain outside support claims, live ruleset
+   evidence and exact run/job links must be synchronized across the roadmap,
+   validation matrix, M8 audit, this handoff, and draft PR #2.
+2. Freeze PRD-1's first-release support contract: exact Cython/HPy/Python
+   revisions, OS/compiler/build-frontend matrix, product tier, status
+   vocabulary, and HPy public-API limitations.
+3. Close PRD-2 and PRD-3 for the declared release scope: core
+   ownership/cleanup/module-state and pure HPy extension-type/GC/finalizer
+   correctness, including normal/Trace/Debug and fault paths.
+4. Resolve every PRD-4 advanced family independently: fully implement and
+   prove it or reject it fail-closed with a source-located diagnostic and
+   migration guidance.
+5. Complete PRD-5 cross-interpreter, platform, compiler, sanitizer, and
+   native-memory evidence without promoting PyPy/GraalPy or moving nightlies
+   before real green hosted proof.
+6. Complete PRD-6 and PRD-7 packaging, reproducibility, provenance,
+   publication rehearsal, performance, and footprint gates.
+7. Complete PRD-8's four real-world pilots, compatibility dashboard, porting
+   guide, and shared conformance corpus for the author's language runtime.
+8. Complete PRD-9 upstream/rebase, security, maintenance, and ownership
+   obligations.
+9. Complete PRD-10 release-candidate and stable-release gates. Do not merge the
+   draft PR or tag a stable release without explicit user authorization and
+   every declared release gate green.
+
+Current item: **PRD-5 Universal portability and native-memory evidence**;
+only publication of the exact HPy Python 3.14 upstream crash report remains
+open.
+PRD-0 CI-policy implementation head
+`e791c8983bcb1a3c38aa932617a91ea976cb5c55` has green aHPy, benchmark,
+coverage, and sanitizer required aggregates. HPy development on Python 3.14
+and same-binary PyPy/GraalPy remain the three expected allowed failures. Its
+full Cython graph found a PyPy 3.9-only fixture error before backend execution:
+`SimpleNamespace(self=...)` conflicts with PyPy's named receiver. Replacement
+commit `1b3805e30` assigns the same AST field after construction and passes all
+248 `TestHPyModuleWriter` tests under both local CPython and PyPy, plus the
+full 431 compiler and 153 quality suites under CPython. Roadmap HEAD
+`7ad48c495e9410ec1aa0ab28cdd2a7201282e991` exposed a cold-cache capacity
+failure rather than a test assertion: Ubuntu shared-utility C++ job
+`90261190485` continued compiling and passing tests until its 80-minute
+timeout, with only 19.78% ccache hits and seven outer workers. The local repair
+bounds non-Windows shared-utility mode to four outer workers and gives only
+that heavy lane a 120-minute fail-closed ceiling; its focused regression and
+all 153 quality tests pass. Repair HEAD
+`8ed77677ee6bd69fdc93a81bdfe3e704ea7d924b` now has green
+[`aHPy required checks` job 90283757405](https://github.com/mburakmmm/aHPy/actions/runs/30361153504/job/90283757405),
+[`benchmark required checks` job 90296401321](https://github.com/mburakmmm/aHPy/actions/runs/30361153497/job/90296401321),
+[`coverage required checks` job 90291908521](https://github.com/mburakmmm/aHPy/actions/runs/30361153526/job/90291908521),
+and
+[`sanitizers-success` job 90296760091](https://github.com/mburakmmm/aHPy/actions/runs/30361153809/job/90296760091).
+The repaired shared-utility C++ job `90281110328` passed in 14m39s, PyPy 3.9
+job `90288783333` is green, and the complete 103-job Cython graph passed with
+[`ci-success` job 90328870116](https://github.com/mburakmmm/aHPy/actions/runs/30361153866/job/90328870116).
+All five required contexts are therefore green on the same repair HEAD, and
+the final evidence is published in the repository documentation and draft PR.
+PRD-0 is closed. PRD-1 freezes an unpublished `preview` in
+`tests/ahpy/release-contract.toml`: `aHPy-compiler==3.3.0.1.dev0`, Cython
+`3.3.0b1` at base `86b94cef002aa23aea0b390335ea3d9e9b62c19e`,
+CPython 3.11, HPy 0.9.0/setuptools 83.0.0, and the six hosted
+platform/compiler lanes. The compiler CLI is supported within the documented
+source subset; direct build, setuptools/cythonize, PEP 517, CMake, Meson, and
+scikit-build-core retain exact partial scopes. The separate
+known-limitations document locks HPy 0.9 gaps, and a quality test prevents
+manifest/code/CI/document drift. `release_contract.py` now exposes the same
+exact schema, repository-pin, six-platform, seven-frontend, hosted-evidence and
+documentation checks as a standalone JSON/text CLI that is explicitly invoked
+by the Universal workflow. Verify the documentation-only evidence
+commit's required contexts without creating a recursive evidence commit.
+PRD-2 is closed for the preview scope: 432 compiler/seam tests, 159 quality
+tests, generated normal/Trace/Debug execution, all 150 isolated fault
+selectors, and 38 CPython C/C++ oracle executions pass; source/binary audits
+show no CPython/Hybrid leakage, and M2/M3/M4 records assign every excluded
+family a fail-closed non-supported status. PRD-3 is also closed for the
+preview: the M5 record binds constructor/partial-object cleanup,
+traverse/cyclic GC, finalizer error/resurrection, inheritance, fields,
+descriptors, numeric/mapping slots, and three-subinterpreter isolation to the
+same executable gates; unsupported HPy 0.9 type shapes have exact diagnostics.
+PRD-4 is closed through `tests/ahpy/advanced-surface.toml` and its audit:
+all 18 advanced families are either the fully tested narrow `nogil` partial
+slice or deterministic blocked/rejected preview behavior with migration
+guidance; C++, annotation, profile, linetrace, embedded signatures, and C-line
+traceback instrumentation now fail before output. PRD-5's same-binary,
+stable/development HPy, platform/compiler, sanitizer, Valgrind, AppVerifier,
+and reproducible portability gates are complete; publish the prepared HPy
+Python 3.14 heap-type crash report without promoting the three allowed-failure
+early warnings.
 
 ### A1. Resolve the parallel fault-gate transient — completed
 
@@ -271,14 +484,15 @@ Required next implementation:
   evidence. Update `TODO.md`, the validation matrix, and an M8 audit together.
 
 Acceptance result: five bounded rounds finished with every child exit code
-zero, no timeout, and all 640 fault selectors. The subsequent sequential
+zero, no timeout, and all 750 fault selectors. The subsequent sequential
 128-case fault gate passed. The generated corpus also passed five times in the
 stress profile. A post-stress ordinary O3 retry remained inside Apple Clang's
 `bootstrap_types.c` optimization beyond 15 minutes and was terminated/reaped;
   that historical run was not green. A later isolated, single-compiler M9 gate
   regenerated the current 4.98 MB/87,259-line corpus and measured Apple Clang
   21 at 1.59 seconds `-O0` and 5.29 seconds `-O3`; both are now guarded by a
-  60-second per-profile liveness ceiling. The earlier >15-minute state is not
+  required 60-second O0 liveness ceiling. O3 remains a bounded diagnostic after
+  Ubuntu GCC 13 exceeded both 60- and 180-second hosted trials. The earlier >15-minute state is not
   reproducible in a single-compiler run. During the first borrowed-handle
   validation, accidentally launching the same full-corpus command twice made
   two `bootstrap_answer.c -O3` compiler processes exceed four CPU minutes;
@@ -288,17 +502,17 @@ stress profile. A post-stress ordinary O3 retry remained inside Apple Clang's
 
 ### A2. Hosted platform/compiler matrix
 
-The workflow already declares Linux x64 GCC/Clang, Linux ARM64 GCC, macOS
-Intel/ARM64 Clang, and Windows x64 MSVC. The repository and authorized push now
-exist; first hosted aHPy run `29490045367` started from commit `39c7c6830`.
+The workflow declares Linux x64 GCC/Clang, Linux ARM64 GCC, macOS Intel/ARM64
+Clang, and Windows x64 MSVC. Push run `29685285138` validated every mandatory
+platform job from commit `02d9f8cdd`.
 
 - Preserve `origin` as `https://github.com/mburakmmm/aHPy.git` and keep
   `upstream` pointed at official Cython.
-- Treat the first run as pending evidence until every required job completes.
-- Record run URLs, exact runner images, compiler versions, and artifact hashes.
-- Fix failures with focused regressions.
-- Promote a platform/compiler only after its required job is green from a clean
-  checkout. Remove no mandatory lane to make the matrix green.
+- Preserve run/job URLs, exact runner images, compiler versions, and artifact
+  hashes in `docs/ahpy/audits/m8-platform-ci-repairs.md`.
+- Keep all six jobs mandatory and repair future regressions with focused tests.
+- Do not extend this baseline to alternate interpreters or moving nightlies;
+  their independent evidence remains allowed-failure.
 
 ### A3. Same-binary PyPy/GraalPy evidence
 
@@ -308,6 +522,9 @@ exist; first hosted aHPy run `29490045367` started from commit `39c7c6830`.
 - Resolve failures before removing `continue-on-error`.
 - Update `tests/ahpy/interpreters.toml`, support/validation matrices, and an
   audit with hosted URLs. A rebuilt target artifact does not satisfy this gate.
+- Preserve the handwritten-first `import-minimal`/`minimal-semantics` stages;
+  publish neither prepared upstream report until a hosted run records the
+  exact minimal binary digest and failure classification.
 
 ### A4. Nightly early-warning lanes
 
@@ -416,8 +633,14 @@ Implement one independently gated family at a time:
 4. Buffer acquire/release and typed memoryviews.
    **(ADR 0008 separates HPy 0.9's available producer slots from its missing
    public consumer API. Typed buffer/memoryview arguments now fail early with
-   one actionable diagnostic before CPython MemoryView utilities run; producer
-   implementation remains open.)**
+   one actionable diagnostic before CPython MemoryView utilities run. The
+   writable one-dimensional fixed native-scalar/private fixed-array producer is implemented with
+   object-owned shape/stride storage, one runtime-owned duplicated exporter
+   handle, public HPy slots, all 13 enabled format mappings for both layouts,
+   `long`/`double` scalar and four-element `long` array retained-view mutation,
+   ordinary derived-type slot inheritance, Normal/Trace/Debug execution, and
+   both Dup failure paths. Readonly, broader exporters, and all consumers
+   remain gated.)**
 5. Fused types and specialization dispatch.
    **(ADR 0009 defines neutral specialization descriptors, a pure-HPy
    callable/subscriptable dispatcher, typed conversion, and interpreter-owned
@@ -425,11 +648,15 @@ Implement one independently gated family at a time:
    machinery; implementation remains open.)**
 6. `nogil`, Python-state transitions, exception reacquisition, `prange`,
    OpenMP, synchronization, and free-threading.
-   **(ADR 0010 and a runtime-tested first slice now permit only non-empty
-   blocks of discarded, argumentless calls to validated external C functions
-   declared `noexcept nogil`; emission uses public HPy leave/re-enter APIs and
-   a local `HPyThreadState`. Typed arguments/results, nested `with gil`, native
-   failures, and callbacks remain open. ADR 0011 now defines the neutral
+   **(ADR 0010 and runtime-tested slices now permit non-empty blocks of
+   discarded or retained scalar calls to validated external C functions
+   declared `noexcept nogil` or exact signed `except -1 nogil`; emission
+   preconverts arguments, supports local/global/attribute/item/slice targets,
+   snapshots errno before public-HPy re-entry, and validates held/released/
+   discarded error paths. Explicit non-empty `with gil` islands between native
+   intervals now run their supported Python body while execution is active and
+   pass callback success/failure oracles. Compound targets, other native
+   failures, and C-boundary callbacks remain open. ADR 0011 now defines the neutral
    parallel plan and native-only worker path; `prange`/`parallel()` fail closed
    because HPy 0.9 has no public arbitrary-worker attach/error transport.
    OpenMP implementation and free-threading remain open.)**
@@ -451,7 +678,7 @@ implementation.
    **(completed: `direct_build.py` exposes a versioned plan/API/CLI with exact
    Universal compile/link inputs, safe artifact rules, source/binary audits,
    POSIX/MSVC plan tests, and real public-loader normal/Debug integration;
-   hosted stable-matrix executions remain evidence-pending.)**
+   all six hosted stable-matrix executions are green in run `29685285138`.)**
 2. Add a maintained isolated PEP 517 backend/path.
    **(completed locally: `aHPy-compiler` has a separate exact versioned
    identity, `ahpy_build_backend` rejects Cython/unrelated-`ahpy` substitution
@@ -475,40 +702,53 @@ implementation.
 6. Add isolated minimal, extension-type, external-C, and packaging examples.
 7. Have a new-user clean-environment script execute documentation literally.
    **(completed locally by `release_artifact_integration.py` and
-   `docs/ahpy/onboarding.md`; hosted evidence remains open.)**
+   `docs/ahpy/onboarding.md`; hosted Linux evidence is green in run
+   `29685285138`.)**
+8. Sign approved release artifacts and publish strict verification guidance.
+   **(the tag-only `ahpy-release-attestations.yml` gate now rebuilds clean and
+   reproducible evidence, creates keyless Sigstore SLSA/SPDX attestations, and
+   retains offline bundles; the item stays open until an approved
+   `ahpy-v<version>` tag is signed and verified.)**
+9. Rehearse TestPyPI without granting build code a publishing credential.
+   **(`prepare_publish_dist.py` copies only the exact frontend sdist/pure wheel
+   from a validated bundle; the manual workflow defaults to no upload and
+   isolates OIDC to an explicit `testpypi` environment job. Actual index
+   configuration/upload still requires project-owner approval.)**
 
 ## 8. Performance, pilots, upstreaming, and release queue
 
-1. Extend the handwritten HPy benchmark reference beyond the current nine
-   operations to iteration and memoryviews once those generated Universal
-   paths exist. Extension-type creation/method calls and a shared
-   Python-independent external-C wrapper now have equivalent generated and
-   handwritten references; do not fabricate iteration/memoryview numbers.
+1. Keep the generated and handwritten HPy benchmark references aligned across
+   the current ten operations. Supported sequence-index iteration now has an
+   equivalent reference; typed memoryviews remain HPy 0.9
+   blocked/non-comparable, so do not fabricate a memoryview number.
 2. Keep the completed classic Cython, HPy CPython ABI, and HPy Universal ABI
    benchmark profiles separate; never combine their overheads into one number.
    Add hosted history before enforcing non-Universal release budgets.
 3. Record compile time, native compiler time, C size, binary size, peak memory,
    HPy Trace API counts, and handle churn. Optimize duplicate/close pairs only
    after ownership proofs and tests.
-   **(Trace measurement completed for all nine comparable operations: exact
+   **(Trace measurement completed for all ten comparable operations: exact
    per-API deltas and dup/close churn are in benchmark JSON; arithmetic,
    container, attribute, call, extension-type, and external-C overhead is
-   quantified. Separate-clean-process peak RSS, frontend/native build times,
-   and source/binary sizes are also recorded. The currently blocked
-   iteration/memoryview families remain open; remove no cleanup without
+   quantified. Sequence-index iteration is 36 generated versus 18 handwritten
+   calls per iteration after borrowing only its call-scoped source argument;
+   rebindable owned locals remain materialized. Its 1.86–2.00× local range and
+   temporary 2.50× ceiling await hosted calibration. Separate-clean-process peak RSS,
+   frontend/native build times, and source/binary sizes are also recorded.
+   Typed memoryviews remain blocked; remove no cleanup without
    ownership/failure proofs.)**
    **(The first ownership-proven optimization is complete: benchmark call
    contracts are genuinely positional-only on both sides, and direct live Name
    handles are borrowed for attribute receivers and zero-argument callables.
    Both paths now match the reference at 1 API call/iteration with zero
-   Dup/Close churn; normal/Trace/Debug and 128 fault selectors are green.)**
+   Dup/Close churn; normal/Trace/Debug and 150 fault selectors are green.)**
    **(The second ownership-proven optimization is complete: two-or-more
    required positional-only functions use `HPyFunc_VARARGS` without a keyword
    parser/tracker; direct live Names feed borrowing binary and fixed sequence
    builder APIs under a left-to-right evaluation proof. Arithmetic/container
    now match the references at 1/4 API calls with zero Dup/Close churn and
    0.97×/1.07× tightened-budget ratios. Their ceilings are 1.5×; 185 emitter tests,
-   normal/Trace/Debug, and 128 fault selectors are green. Closure call slots
+   normal/Trace/Debug, and 150 fault selectors are green. Closure call slots
    accept empty `**{}` but reject non-empty keywords for no-, one-, and
    multi-argument positional-only nested functions.)**
    **(The third ownership-proven optimization is complete: extension-field
@@ -516,7 +756,7 @@ implementation.
    type/module owners load lazily; positional-only initializers bypass keyword
    trackers. Type creation/method ratios are 1.02×/0.96× under new 1.5×
    ceilings, Trace is 3/2 and 2.003/2.002 calls with zero generated Dup/Close,
-   and 186 emitter tests plus normal/Trace/Debug and 128 fault selectors are
+   and 186 emitter tests plus normal/Trace/Debug and 150 fault selectors are
    green. Lazy owner names are part of branch lifetime snapshots; the isolated
    4.65 MB large-type C corpus compiles at O0/O3.)**
    **(The fourth ownership-proven optimization is complete: representable
@@ -525,23 +765,159 @@ implementation.
    out-of-portable-range values retain checked HPy conversion. External-C
    Trace is now 1/1 call with zero Dup/Close churn, Universal/HPy-CPython
    ratios are 0.99×/1.00×, its ceiling is 1.5×, and 188 emitter tests plus
-   normal/Trace/Debug and 128 fault selectors are green.)**
+   normal/Trace/Debug and 150 fault selectors are green.)**
    **(The large-type compile is now isolated in this gate: current Apple Clang
    21 evidence is 1.59 seconds `-O0`, 5.29 seconds `-O3`, ratio 3.32×, under a
-   60-second per-profile timeout. Preserve hosted history before tightening.)**
+   60-second per-profile ceiling. O0 is required; O3 is diagnostic because
+   Ubuntu GCC 13 exceeded both 60- and 180-second hosted trials while O0 stayed
+   near 5 seconds. Preserve further hosted history before changing policy.)**
 4. Turn the current conservative regression ceilings into release budgets only
-   after hosted history exists. Document interpreter/HPy overhead separately
-   from backend overhead.
-5. Select and report four pilots: pure Cython, Python-independent C wrapper,
-   extension type with GC/inheritance, and deliberately blocked CPython/NumPy
-   API project. Convert recurring changes into support or migration rules.
-6. Publish a compatibility dashboard, porting guide, and issue template; share
-   the conformance corpus with the user's language without coupling frontends.
+   after hosted history exists. Every new report now records exact source and
+   GitHub run provenance plus its complete machine-readable budget policy.
+   Schema-v3 evidence classifies the checked-in ceilings as regression-only,
+   non-release, hosted-history-pending, and `candidate_binding = "unbound"`;
+   inconsistent states fail closed. `calibrate_performance_budgets.py` rejects local,
+   mixed, duplicate, failing, or byte-unstable evidence and requires five
+   same-commit hosted records before emitting a proposal; a CLI minimum cannot
+   weaken the policy minimum. The manual read-only
+   `ahpy-performance-calibration.yml` workflow collects five isolated samples
+   for one selected commit and aggregates only after all pass. Dispatch it on
+   an approved release-candidate commit, review the proposed headroom, then
+   validate any versioned ceiling on that same candidate. The proposal covers
+   runtime ratios, frontend/native build time, peak RSS, footprint, and
+   large-type frontend/O0 evidence; absolute values remain cohort-bound.
+   Platform, compiler command/flags, peak iterations, and native timeout are
+   cohort identity and may not be pooled.
+   A future approved release policy records its reviewed calibration-source
+   commit and uses `candidate_binding = "hosted-checkout"`. Do not try to place
+   a commit's own hash inside the versioned file that determines that hash.
+   Candidate identity belongs to the immutable schema-v3 report; release mode
+   passes only in GitHub Actions when source commit equals hosted GitHub SHA.
+   Local, invalid, or stale-checkout evidence fails before ratios can be
+   treated as a release result.
+   The report now embeds the complete validated budget contract, not just its
+   path and compact policy. Calibration rejects policy/contract, environment,
+   measurement, large-type enforcement, or cross-sample contract drift and
+   retains the exact input contract in the proposal. Never infer an applied
+   ceiling from a mutable repository path alone.
+   Regression policy must not contain `release_absolute`. A future approved
+   release contract requires exactly six calibrated limits for frontend/native
+   build time, generated peak RSS and ratio, and large-type frontend/O0 time;
+   missing, non-finite, or exceeded evidence fails closed. Do not populate
+   these fields from local samples.
+   `validate_performance_budget_promotion.py` now verifies that all ten runtime,
+   three footprint, and six absolute ceilings exactly match the reviewed
+   schema-v3 proposal and rejects input-contract, calibration-source,
+   environment/measurement/native-policy, or sample-floor drift. It is
+   read-only and does not replace maintainer review or same-HEAD hosted proof.
+   Document interpreter/HPy overhead separately from backend overhead.
+5. The four pilot categories are selected and pinned in
+   `tests/ahpy/pilots.toml`: cython-package-example, murmurhash, frozenlist, and the
+   deliberately blocked NumPy C-API bezier source. `pilot_matrix.py` validates
+   exact commits, licenses, source paths, expected initial diagnostics, and
+   recorded port changes; `run_pilots.py` verifies pristine detached checkouts
+   and produces strict initial-scan evidence. The dashboard now merges that
+   matrix with per-pilot integration reports gate by gate, validates port
+   contracts, and fails on equal-timestamp conflicts. The full local merge
+   reports cypack `pass`, murmurhash and frozenlist as their declared partial
+   contracts, and bezier `blocked`; the workflow retains all four JSON inputs
+   plus the rendered dashboard. Hosted proof is still open. Convert recurring
+   changes into support or migration rules.
+   The maintained cypack 0.1.7 port fixture already passes three-module
+   setuptools Universal generation/build, source/binary audits, selected
+   upstream semantics, and normal/Trace/Debug locally. Its exact-one-wheel
+   audit, no-dependency isolated install, installed normal/Trace/Debug modes,
+   and provenance-bound comparable `axpy`/Fibonacci measurement also pass
+   locally; the hosted workflow artifact remains open and no performance
+   ceiling is inferred from the local sample.
+   The deliberately blocked bezier source now has an exact manifest contract
+   for `numpy-c-api` diagnostics at upstream `_speedup.pyx:37:1` and `:38:1`;
+   `run_pilots.py` rejects missing or shifted locations, not just a matching
+   action label.
+   The murmurhash manifest header paths were corrected against its pinned Git
+   tree. A maintained scalar adapter now links the exact upstream
+   `MurmurHash3.cpp`/header, keeps pointers inside a C++ shim, and passes
+   generate/build, source/binary audit, normal/Trace/Debug, semantic-reference,
+   pre-native conversion-failure checks, and a provenance-bound seven-sample
+   `hash_u64`/Python-oracle comparison locally. The full upstream
+   `hash(str | bytes)` API remains explicitly unsupported; CI retains the
+   complete exact checkout matrix plus this pilot's execution JSON. The
+   comparison is subset-only and never an enforced release budget.
+   The frozenlist supported-subset fixture now passes object-field cyclic GC,
+   same-module inheritance, mutation/freeze/hash, constructor-failure cleanup,
+   source/binary audit, and normal/Trace/Debug. It exposed and drove a real
+   `__hash__` emitter fix: fitting `HPy_hash_t` values are converted directly,
+   overflow alone falls back to `HPy_Hash`, and `-1` maps to `-2`. Atomic
+   free-threading, iterators, rich comparison, copying, and MutableSequence
+   registration remain explicitly outside the result; the supported
+   construct/mutate/freeze/hash subset has its own provenance-bound Python
+   comparison, while omitted surfaces receive no number. Checkout/run JSON is
+   wired into CI.
+   Recurring pilot changes are now stable scanner rules instead of generic
+   advice: `compiled-entry-point`, `cython-module-cimport`, and
+   `cpp-runtime-boundary` join the existing pointer, CPython, and NumPy boundary
+   actions. Cypack and frozenlist manifests require these precise IDs and the
+   exact pinned rescans pass.
+6. Publish a compatibility dashboard, porting guide, and issue template. The
+   checksummed `ahpy-universal-conformance-v1` JSON now shares 21 semantic
+   cases through a standard-library runner and explicit surface-to-module
+   mappings, without Cython imports, `.pyx` paths, or frontend nodes. Preserve
+   that boundary when adding language-specific adapters; hosted pilot dashboard
+   evidence remains open.
 7. Coordinate the backend seam with Cython/HPy maintainers, submit neutral
    refactors as small PRs, maintain a rebase log, and file HPy gaps with minimal
    reproductions.
+   The first build-layer dependency inversion is implemented locally:
+   `Cython.Build.register_runtime_backend_build_hook()` owns a neutral,
+   fail-closed registry and installed entry-point discovery; `ahpy_hpy_compat`
+   registers from the integration side, so Cython build core no longer imports
+   or names an aHPy module. Clean wheels must expose exactly one provider.
+   CPython and Universal compilations also start concurrently in a regression
+   test and retain disjoint generated-runtime boundaries. `ModuleNode` now asks
+   the immutable runtime service for a validated complete-module emitter;
+   CPython keeps the established default writer and the Universal writer owns
+   its validation, rendering and output transaction. The
+   proposed independent upstream slices, evidence requirements and maintainer
+   questions are frozen in `docs/ahpy/upstream-seam-plan.md`; no upstream
+   acceptance or PR is claimed yet.
 8. Complete security, support, contributor, debugging, release, provenance,
    limitation, and maintenance-cadence documentation before a release candidate.
+   Local PRD-9 preparation now includes a strict machine-readable maintenance
+   policy, explicit `@mburakmmm` CODEOWNERS and one-person bus-factor disclosure,
+   an operational GitHub private vulnerability reporting channel verified as
+   enabled through the repository API on 2026-08-12,
+   supported-line/EOL/backport/deprecation/cadence procedures, expanded
+   Dependabot coverage, and immutable CodeQL v4.36.0 plus Dependency Review
+   v5.0.0 workflow pins. Keep the publication/automation tasks open until the
+   first hosted security scans are retained on the pushed commit.
+   The machine-readable recovery policy and
+   `release_recovery_drill.py` exercise a no-publication correctness backport
+   with `cherry-pick -x`, its original regression test, unchanged support scope
+   and mandatory matrix. Ordinary defects require a reasoned yank plus a new
+   version; deletion is exceptional and security work remains private until
+   disclosure. Universal CI retains the JSON result, but the drill never
+   creates a real release branch or mutates a package index.
+   The append-only `rebase-log.toml` now records the initial exact Cython base
+   without mislabeling it as a transition; its validator chains future rebases,
+   requires per-path conflict classifications and decisions, and matches the
+   final commit to package/release metadata. No newer upstream base has been
+   accepted yet.
+   `debugging.md` now preserves the first failing source/compiler/generated-C/
+   native/import/runtime/ownership boundary, and `upstream-dependencies.md`
+   distinguishes hosted evidence, handwritten reproductions, prepared reports,
+   filed links, and unsupported/blocked status. Do not publish the prepared HPy
+   crash report or new PyPy/GraalPy reports without owner authorization.
+   The production documentation contract now freezes 28 user, contributor,
+   architecture, debugging and release documents across five exact categories.
+   Its validator requires critical headings, index reachability and all local
+   Markdown link targets, and Universal CI retains the schema-versioned JSON.
+   Keep that manifest synchronized whenever a production-facing document moves
+   or gains a replacement.
+   Maintenance policy v1 also freezes all six compatibility surfaces, the
+   preview/stable notice and removal boundary, four mandatory notice channels,
+   three migration evidence classes and owner-approved emergency exceptions.
+   Keep release/support matrices, CODEOWNERS and the monthly/quarterly cadence
+   synchronized with that machine contract.
 9. Tag no stable release until every declared support-tier gate is green.
 
 ## 9. Validation commands
@@ -564,9 +940,9 @@ git diff --check
     Cython.Compiler.Tests.TestCode
 .venv-hpy09/bin/python -m unittest discover -s Tools/ahpy -p 'test_*.py'
 .venv-hpy09/bin/python Tools/ahpy/report_coverage.py \
-    --fail-under backend=71 \
-    --fail-under frontend_seam=25 \
-    --fail-under quality_tools=35
+    --fail-under backend=100 \
+    --fail-under frontend_seam=45 \
+    --fail-under quality_tools=100
 
 .venv-hpy09/bin/python Tools/ahpy/test_generated_hpy.py \
     --python .venv-hpy09/bin/python

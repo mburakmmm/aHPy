@@ -65,7 +65,7 @@ def subscripted_types_assignments_to_variable():
     tb: tuple[str, cython.int] = ('bar', 1)
     z: cython.int = ta[1]
     zz: cython.float = 1.0
-    tb[1] = zz
+    tb[1] = zz  # currently not an error
     h: cython.int
     for h in ta:
         pass
@@ -74,7 +74,7 @@ def subscripted_types_assignments_to_variable():
     lb: list[cython.int] = [1]
     a: cython.int = la[0]
     aa: cython.float = 1.0
-    lb[0] = aa
+    lb[0] = aa  # currently not an error
     i: cython.int
     for i in la:
         pass
@@ -83,7 +83,7 @@ def subscripted_types_assignments_to_variable():
     db: dict[str, cython.int] = {"a": 1.0}
     b: cython.int = da[1]
     bb: cython.float = 1.0
-    db[0] = bb
+    db[0] = bb  # currently not an error
     j: cython.int
     for j in da:
         pass
@@ -225,6 +225,7 @@ def forbidden_tuple_assignments():
     a: tuple[str, int] = ('bar', 1)
     b: tuple[int, str] = a
     c: tuple[None, int] = a
+    d: tuple[str, ...] = a
 
 
 def invalid_type_count():
@@ -238,15 +239,57 @@ def invalid_type_count():
     dict2: dict[int, int, int]
 
 
+def invalid_ellipsis():
+    t_ok: tuple[str, ...]
+    t1: tuple[..., str]
+    t2: tuple[int, str, ...]
+    t3: tuple[int, ..., str]
+    l1: list[int, ...]
+    l2: list[...]
+    s1: set[str, ...]
+    s2: set[...]
+    fs1: frozenset[str, ...]
+    fs2: frozenset[...]
+    d1: dict[..., str]
+    d2: dict[str, ...]
+    d3: dict[..., ...]
+    fd1: frozendict[str, ...]
+    fd2: frozendict[..., str]
+    fd3: frozendict[..., ...]
+
+
 _WARNINGS = """
-231:15: Cannot specialise 'list' with 2 types, ignoring.
-232:15: Cannot specialise 'list' with 3 types, ignoring.
-233:13: Cannot specialise 'set' with 2 types, ignoring.
-234:13: Cannot specialise 'set' with 3 types, ignoring.
-235:25: Cannot specialise 'frozenset' with 2 types, ignoring.
-236:25: Cannot specialise 'frozenset' with 3 types, ignoring.
-237:15: Cannot specialise 'dict' with 1 types, ignoring.
-238:15: Cannot specialise 'dict' with 3 types, ignoring.
+109:48: Unknown type declaration in annotation, ignoring
+109:64: Unknown type declaration in annotation, ignoring
+
+232:15: Cannot specialise 'list[T]' with 2 types, ignoring
+233:15: Cannot specialise 'list[T]' with 3 types, ignoring
+234:13: Cannot specialise 'set[T]' with 2 types, ignoring
+235:13: Cannot specialise 'set[T]' with 3 types, ignoring
+236:25: Cannot specialise 'frozenset[T]' with 2 types, ignoring
+237:25: Cannot specialise 'frozenset[T]' with 3 types, ignoring
+238:15: Cannot specialise 'dict[T,T]' with 1 type, ignoring
+239:15: Cannot specialise 'dict[T,T]' with 3 types, ignoring
+
+244:13: Cannot specialise 'tuple' with Ellipsis after types, ignoring
+245:13: Cannot specialise 'tuple' with Ellipsis after types, ignoring
+246:13: Cannot specialise 'tuple' with Ellipsis after types, ignoring
+247:12: Cannot specialise 'list' with Ellipsis, ignoring
+248:12: Cannot specialise 'list' with Ellipsis, ignoring
+249:11: Cannot specialise 'set' with Ellipsis, ignoring
+250:11: Cannot specialise 'set' with Ellipsis, ignoring
+251:18: Cannot specialise 'frozenset' with Ellipsis, ignoring
+252:18: Cannot specialise 'frozenset' with Ellipsis, ignoring
+253:12: Cannot specialise 'dict' with Ellipsis, ignoring
+254:12: Cannot specialise 'dict' with Ellipsis, ignoring
+255:12: Cannot specialise 'dict' with Ellipsis, ignoring
+256:19: Cannot specialise 'frozendict' with Ellipsis, ignoring
+257:19: Cannot specialise 'frozendict' with Ellipsis, ignoring
+258:19: Cannot specialise 'frozendict' with Ellipsis, ignoring
+
+# Spurious warnings from utility code - not part of the core test
+26:4: 'cpdef_method' redeclared
+36:4: 'cpdef_cname_method' redeclared
 """
 
 _ERRORS = """
@@ -290,12 +333,9 @@ _ERRORS = """
 59:9: Cannot assign type 'frozenset[float] object' to 'dict[float,float] object'
 60:9: Cannot assign type 'list[float] object' to 'dict[float,float] object'
 66:22: Cannot assign type 'float' to 'int'
-68:12: Cannot assign type 'float' to 'int'
 75:22: Cannot assign type 'float' to 'int'
-77:12: Cannot assign type 'float' to 'int'
 79:13: Cannot assign type 'float' to 'int'
 84:22: Cannot assign type 'float' to 'int'
-86:12: Cannot assign type 'float' to 'int'
 88:13: Cannot assign type 'float' to 'int'
 93:8: Cannot convert Python object to 'int *'
 93:13: Cannot assign type 'int' to 'int *'
@@ -349,4 +389,5 @@ _ERRORS = """
 221:27: Cannot convert 'bytes' object to str implicitly, decoding required
 226:25: Cannot assign type 'tuple[str object,int object] object' to 'tuple[int object,str object] object'
 227:26: Cannot assign type 'tuple[str object,int object] object' to 'tuple[int object] object'
+228:25: Cannot assign type 'tuple[str object,int object] object' to 'tuple[str object,...] object'
 """

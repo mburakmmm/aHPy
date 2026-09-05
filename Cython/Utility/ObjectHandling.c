@@ -230,6 +230,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*pro
 /////////////// IterNext ///////////////
 //@requires: Exceptions.c::PyThreadStateGet
 //@requires: Exceptions.c::PyErrFetchRestore
+//@requires: Exceptions.c::GivenExceptionMatches
 //@requires: RaiseErrorWithObjectType
 //@requires: GetBuiltinName
 //@requires: IterNextPlain
@@ -301,7 +302,7 @@ static CYTHON_INLINE int __Pyx_IterFinish(void); /*proto*/
 
 /////////////// IterFinish ///////////////
 //@requires: Exceptions.c::PyThreadStateGet
-//@requires: Exceptions.c::PyErrFetchRestore
+//@requires: Exceptions.c::GivenExceptionMatches
 
 // When PyIter_Next(iter) has returned NULL in order to signal termination,
 // this function does the right cleanup and returns 0 on success.  If it
@@ -1141,7 +1142,8 @@ static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases) {
     return metaclass;
 }
 
-/////////////// Py3MetaclassGet.proto ///////////////
+/////////////// Py3MetaclassGet.export ///////////////
+//@feature: PythonClasses
 
 static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw); /*proto*/
 
@@ -1205,7 +1207,8 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
     return result;
 }
 
-/////////////// Py3UpdateBases.proto ///////////////
+/////////////// Py3UpdateBases.export ///////////////
+//@feature: PythonClasses
 
 static PyObject* __Pyx_PEP560_update_bases(PyObject *bases); /* proto */
 
@@ -1329,7 +1332,8 @@ error:
     return NULL;
 }
 
-/////////////// Py3ClassCreate.proto ///////////////
+/////////////// Py3ClassCreate.export ///////////////
+//@feature: PythonClasses
 
 static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *qualname,
                                            PyObject *mkw, PyObject *modname, PyObject *doc); /*proto*/
@@ -1410,6 +1414,7 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type); /*pr
 
 /////////////// ExtTypeTest ///////////////
 //@requires: RaiseErrorWithObjectTypes
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
     if (unlikely(!type)) {
@@ -1835,22 +1840,29 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
 #endif
 
 
-/////////////// UnpackUnboundCMethod.proto ///////////////
-//@requires:  Synchronization.c::Atomics
+/////////////// UnpackUnboundCMethod_decl.proto ///////////////
 
 typedef struct {
     PyObject *type;
     PyObject **method_name;
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
-    // 0 for uninitialized, 1 for initializing, 2 for initialized
-    __pyx_atomic_int_type initialized;
-#endif
     // "func" is set on first access (direct C function pointer)
     PyCFunction func;
     // "method" is set on first access (fallback)
     PyObject *method;
     int flag;
+
+// The rest is module specific and must not be used by the exported shared module code!
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+    // 0 for uninitialized, 1 for initializing, 2 for initialized
+    __pyx_atomic_int_type initialized;
+#endif
 } __Pyx_CachedCFunction;
+
+
+/////////////// UnpackUnboundCMethod.proto ///////////////
+//@requires:  Synchronization.c::Atomics
+//@requires: UnpackUnboundCMethod_decl
+//@requires: UnpackUnboundCMethod_impl
 
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
 static CYTHON_INLINE int __Pyx_CachedCFunction_GetAndSetInitializing(__Pyx_CachedCFunction *cfunc) {
@@ -1878,9 +1890,18 @@ static CYTHON_INLINE void __Pyx_CachedCFunction_SetFinishedInitializing(__Pyx_Ca
 #define __Pyx_CachedCFunction_SetFinishedInitializing(cfunc)
 #endif
 
-/////////////// UnpackUnboundCMethod ///////////////
+
+/////////////// UnpackUnboundCMethod_impl.export ///////////////
+//@feature: DEFAULTS
+
+static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target); /*proto*/
+
+
+/////////////// UnpackUnboundCMethod_impl ///////////////
+//@requires: UnpackUnboundCMethod_decl
 //@requires: PyObjectGetAttrStr
 //@requires: Exceptions.c::IgnoreException
+//@requires: ModuleSetupCode.c::FastTypeChecks
 
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030C0000
 static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *kwargs) {
@@ -1973,6 +1994,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     ((__Pyx_PyCFunctionFast)(void(*)(void))(PyCFunction)(cfunc)->func)(self, args, nargs)
 #define __Pyx_CallCFunctionFastWithKeywords(cfunc, self, args, nargs, kwnames) \
     ((__Pyx_PyCFunctionFastWithKeywords)(void(*)(void))(PyCFunction)(cfunc)->func)(self, args, nargs, kwnames)
+
 
 /////////////// CallUnboundCMethod0.proto ///////////////
 
@@ -2395,72 +2417,35 @@ static PyObject *__Pyx_Object_VectorcallMethodKwds(PyObject *name, PyObject *con
 
 /////////////// PyObjectCallMethod0.proto ///////////////
 
-static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name); /*proto*/
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name); /*proto*/
 
 /////////////// PyObjectCallMethod0 ///////////////
-//@requires: PyObjectGetMethod
-//@requires: PyObjectCallOneArg
-//@requires: PyObjectCallNoArg
 
-static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name) {
 #if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || !CYTHON_COMPILING_IN_LIMITED_API)
-    PyObject *args[1] = {obj};
-    // avoid unused functions
-    (void) __Pyx_PyObject_CallOneArg;
-    (void) __Pyx_PyObject_CallNoArg;
-    return PyObject_VectorcallMethod(method_name, args, 1 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+    return PyObject_VectorcallMethod(method_name, &obj, 1 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+#elif CYTHON_COMPILING_IN_LIMITED_API
+    return PyObject_CallMethodObjArgs(obj, method_name, NULL);
 #else
-    PyObject *method = NULL, *result = NULL;
-    int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
-    if (likely(is_method)) {
-        result = __Pyx_PyObject_CallOneArg(method, obj);
-        Py_DECREF(method);
-        return result;
-    }
-    if (unlikely(!method)) goto bad;
-    result = __Pyx_PyObject_CallNoArg(method);
-    Py_DECREF(method);
-bad:
-    return result;
+    return PyObject_CallMethodNoArgs(obj, method_name);
 #endif
 }
 
 
 /////////////// PyObjectCallMethod1.proto ///////////////
 
-static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg); /*proto*/
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg); /*proto*/
 
 /////////////// PyObjectCallMethod1 ///////////////
-//@requires: PyObjectGetMethod
-//@requires: PyObjectCallOneArg
-//@requires: PyObjectCall2Args
 
-#if !(CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || !CYTHON_COMPILING_IN_LIMITED_API))
-static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
-    // Separate function to avoid excessive inlining.
-    PyObject *result = __Pyx_PyObject_CallOneArg(method, arg);
-    Py_DECREF(method);
-    return result;
-}
-#endif
-
-static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
 #if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || !CYTHON_COMPILING_IN_LIMITED_API)
     PyObject *args[2] = {obj, arg};
-    // avoid unused functions
-    (void) __Pyx_PyObject_CallOneArg;
-    (void) __Pyx_PyObject_Call2Args;
     return PyObject_VectorcallMethod(method_name, args, 2 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+#elif CYTHON_COMPILING_IN_LIMITED_API
+    return PyObject_CallMethodObjArgs(obj, method_name, arg, NULL);
 #else
-    PyObject *method = NULL, *result;
-    int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
-    if (likely(is_method)) {
-        result = __Pyx_PyObject_Call2Args(method, obj, arg);
-        Py_DECREF(method);
-        return result;
-    }
-    if (unlikely(!method)) return NULL;
-    return __Pyx__PyObject_CallMethod1(method, arg);
+    return PyObject_CallMethodOneArg(obj, method_name, arg);
 #endif
 }
 
@@ -3129,7 +3114,8 @@ static void __Pyx__RaiseErrorWithTypeAndVarargs(PyObject* exc_type, const char* 
 /////////////// RaiseErrorWithObjectTypes.proto ///////////////
 
 #define __Pyx_RaiseErrorWithObjectTypes1(exc_type, message, arg, obj1, obj2) __Pyx_RaiseErrorWithTypes1(exc_type, message, arg, Py_TYPE(obj1), Py_TYPE(obj2))
-#define __Pyx_RaiseTypeErrorWithTypes(message, type_obj1, type_obj2) __Pyx_RaiseErrorWithTypes1(PyExc_TypeError, "%s" message, "", type_obj1, type_obj2)
+#define __Pyx_RaiseTypeErrorWithObjectTypes(message, obj1, obj2) __Pyx_RaiseTypeErrorWithTypes(message, Py_TYPE(obj1), Py_TYPE(obj2))
+#define __Pyx_RaiseTypeErrorWithTypes(message, type_obj1, type_obj2) __Pyx_RaiseErrorWithTypes1(PyExc_TypeError, "%.1s" message, "", type_obj1, type_obj2)
 
 CYTHON_UNUSED
 static void __Pyx_RaiseErrorWithTypes1(PyObject* exc_type, const char *message, const char *arg, PyTypeObject *type_obj1, PyTypeObject *type_obj2); /*proto*/
@@ -3230,14 +3216,20 @@ __Pyx_PyType_GetFullyQualifiedName(PyTypeObject* tp)
 
 /////////////// RaiseUnexpectedTypeError.proto ///////////////
 
+// Used by "except *" implementation in Py<=3.11, so avoid bothering
+// newer Python users with a warning if it's not used otherwise.
+CYTHON_UNUSED
 static int __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj); /*proto*/
 
 /////////////// RaiseUnexpectedTypeError ///////////////
 //@requires: RaiseErrorWithObjectType1
 
 static int __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj) {
+    // Only used for builtin types (including exceptions),
+    // so name length 42 should be largely enough.
+    // The longest is currently 25 in Py3.15.
     __Pyx_RaiseTypeErrorWithObjectType1(
-        "Expected %s, got " __Pyx_FMT_TYPENAME,
+        "Expected %.42s, got " __Pyx_FMT_TYPENAME,
         expected, obj);
     return 0;
 }

@@ -1,0 +1,12 @@
+# aHPy currently has one explicitly named project/security/release maintainer.
+# Expand ownership before claiming a higher bus factor or independent approval.
+* @mburakmmm
+
+/Cython/Compiler/HPyModuleWriter.py @mburakmmm
+/Cython/Compiler/HandleModel.py @mburakmmm
+/Cython/Compiler/RuntimeAPI.py @mburakmmm
+/Tools/ahpy/ @mburakmmm
+/tests/ahpy/ @mburakmmm
+/.github/workflows/ahpy-* @mburakmmm
+/SECURITY.md @mburakmmm
+/docs/ahpy/ @mburakmmm

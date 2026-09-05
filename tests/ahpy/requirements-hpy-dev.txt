@@ -1,4 +1,4 @@
 # Pinned early-warning lane. This does not expand release support claims.
-setuptools==80.9.0
+setuptools==83.0.0
 wheel==0.47.0
 hpy @ git+https://github.com/hpyproject/hpy.git@b57a33c1cec766a1cc3e89f6fd1e2eff73ba9381

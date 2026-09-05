@@ -19,10 +19,13 @@ copies of generated user code.
 ## Decision
 
 1. aHPy is developed on the current Cython source tree, not as a postprocessor.
-2. Backend selection applies to a complete extension module.
+2. Backend selection applies to a complete extension module. `ModuleNode`
+   delegates alternate complete-module emission through an immutable runtime
+   contract while the established CPython writer remains the default oracle.
 3. Compiler nodes retain responsibility for syntax-specific code structure.
-4. Runtime-dependent operations use a typed `RuntimeAPI` service with explicit
-   capabilities and ownership contracts.
+4. Runtime-dependent operations use an immutable, compilation-context-owned
+   typed `RuntimeAPI` service with explicit capabilities and ownership
+   contracts; backend selection never uses mutable process-global state.
 5. C macros/helpers may share operations only when CPython and HPy semantics are
    genuinely equivalent.
 6. Structurally different operations such as builders, globals, module specs,
@@ -31,6 +34,10 @@ copies of generated user code.
    do not carry a second CPython implementation behind preprocessor branches.
 8. The existing CPython backend remains the regression oracle throughout the
    implementation.
+9. Build-system preparation uses a backend-neutral callable registry exported
+   by `Cython.Build` plus a namespaced installed entry-point group; backend
+   distributions own registration and Cython core never names or imports an
+   `ahpy_*` packaging module.
 
 ## Consequences
 
@@ -38,3 +45,6 @@ copies of generated user code.
 - Handle storage and ownership must be modeled before broad feature support.
 - Unsupported operations are capability errors, never implicit ABI changes.
 - The design can be proposed upstream in small, independently testable changes.
+- The proposed patch boundaries and downstream-only policy are recorded in
+  [`upstream-seam-plan.md`](../upstream-seam-plan.md); local implementation is
+  not upstream acceptance.

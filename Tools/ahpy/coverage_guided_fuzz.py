@@ -23,6 +23,7 @@ if str(ROOT) not in sys.path:
 from Cython.Compiler import Main, Options
 from Cython.Compiler.RuntimeAPI import HPY_UNIVERSAL_BACKEND
 
+from artifact_utils import require_universal_binary
 from test_generated_hpy import run, verify_binary_boundary, verify_source_boundary
 
 
@@ -330,6 +331,8 @@ def build_and_run(python, seed=DEFAULT_SEED, candidate_count=DEFAULT_CANDIDATES)
         setup = temp / "setup.py"
         setup.write_text(
             "from setuptools import Extension, setup\n"
+            "from ahpy_hpy_compat import install_hpy_universal_loader_compat\n"
+            "install_hpy_universal_loader_compat()\n"
             "setup(name='ahpy-guided-fuzz', version='0.0.0', "
             "packages=[], py_modules=[], "
             "hpy_ext_modules=[Extension('guided_surface', "
@@ -341,13 +344,11 @@ def build_and_run(python, seed=DEFAULT_SEED, candidate_count=DEFAULT_CANDIDATES)
             python, str(setup), "--hpy-abi=universal", "build",
             "--build-base", str(build_root),
         ], cwd=temp, env=environment, stdout=subprocess.DEVNULL)
-        binaries = list(build_root.rglob(MODULE_NAME + "*.hpy0.*"))
-        if len(binaries) != 1:
-            raise AssertionError("expected one .hpy0 binary, got %r" % binaries)
-        verify_binary_boundary(binaries[0])
+        binary = require_universal_binary(build_root, MODULE_NAME)
+        verify_binary_boundary(binary)
 
         runtime_environment = environment.copy()
-        runtime_environment["PYTHONPATH"] = str(binaries[0].parent)
+        runtime_environment["PYTHONPATH"] = str(binary.parent)
         run([
             python, "-c", _runtime_program(source, functions, False),
         ], cwd=temp, env=runtime_environment)

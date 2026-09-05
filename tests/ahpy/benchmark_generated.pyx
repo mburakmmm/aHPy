@@ -1,3 +1,6 @@
+# mode: compile
+# distutils: sources = ../../../../tests/ahpy/benchmark_external.c
+
 """Representative runtime paths for the aHPy performance regression gate."""
 
 
@@ -37,6 +40,13 @@ def call_zero(callable_object, /):
 
 def raise_value():
     raise ValueError("aHPy benchmark")
+
+
+def sequence_last(values, /):
+    result = None
+    for value in values:
+        result = value
+    return result
 
 
 def external_add():

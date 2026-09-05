@@ -13,6 +13,7 @@ import sys
 from tempfile import TemporaryDirectory
 import unittest
 
+from artifact_utils import require_universal_binary
 from test_generated_hpy import run, verify_binary_boundary, verify_source_boundary
 
 
@@ -59,7 +60,7 @@ REJECTED_CASES = (
         "generator-yield",
         "def rejected():\n"
         "    yield 1\n",
-        "GeneratorDefNode is not implemented",
+        "HPy 0.9 lacks the public iterator-next API",
     ),
     (
         "nested-nested-def",
@@ -127,10 +128,11 @@ REJECTED_CASES = (
         "pure Universal HPy __dealloc__ is not implemented",
     ),
     (
-        "variable-size-layout",
+        "general-array-layout",
         "cdef class RejectedVarSize:\n"
         "    cdef int items[4]\n",
-        "pure Universal HPy variable-size extension layout is not implemented",
+        "C array extension fields are only implemented as the private storage "
+        "of the canonical one-dimensional fixed-array buffer",
     ),
 )
 
@@ -294,6 +296,8 @@ def build_and_run(python, seed=DEFAULT_SEED, case_count=DEFAULT_CASES):
         setup = temp / "setup.py"
         setup.write_text(
             "from setuptools import Extension, setup\n"
+            "from ahpy_hpy_compat import install_hpy_universal_loader_compat\n"
+            "install_hpy_universal_loader_compat()\n"
             "setup(name='ahpy-supported-fuzz', version='0.0.0', "
             "packages=[], py_modules=[], "
             "hpy_ext_modules=[Extension('fuzz_surface', "
@@ -308,13 +312,11 @@ def build_and_run(python, seed=DEFAULT_SEED, case_count=DEFAULT_CASES):
             "build",
             "--build-base", str(build_root),
         ], cwd=temp, env=environment, stdout=subprocess.DEVNULL)
-        binaries = list(build_root.rglob(MODULE_NAME + "*.hpy0.*"))
-        if len(binaries) != 1:
-            raise AssertionError("expected one .hpy0 binary, got %r" % binaries)
-        verify_binary_boundary(binaries[0])
+        binary = require_universal_binary(build_root, MODULE_NAME)
+        verify_binary_boundary(binary)
 
         runtime_environment = environment.copy()
-        runtime_environment["PYTHONPATH"] = str(binaries[0].parent)
+        runtime_environment["PYTHONPATH"] = str(binary.parent)
         program = _runtime_program(source, functions, False)
         run([python, "-c", program], cwd=temp, env=runtime_environment)
         debug_environment = runtime_environment.copy()

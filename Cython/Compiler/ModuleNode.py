@@ -6,7 +6,12 @@
 import cython
 cython.declare(Naming=object, Options=object, PyrexTypes=object, TypeSlots=object,
                error=object, warning=object, py_object_type=object, UtilityCode=object,
-               EncodedString=object, itertools=object, operator=object, re=object)
+               IncludeCode=object, TempitaUtilityCode=object,
+               EncodedString=object, itertools=object, operator=object, re=object,
+               defaultdict=object, json=object, os=object, sys=object,
+               CPtrType=object, Code=object, Nodes=object,
+               bytes_literal=object, has_np_pythran=object,
+)
 
 from collections import defaultdict
 import itertools
@@ -15,7 +20,7 @@ import operator
 import os
 import re
 import sys
-from typing import Sequence
+from typing import Sequence, Optional
 
 from .PyrexTypes import CPtrType
 from . import Future
@@ -28,20 +33,23 @@ from . import TypeSlots
 from . import PyrexTypes
 from . import Pythran
 
-from .Errors import error, warning, CompileError, format_position
-from .PyrexTypes import py_object_type, get_all_subtypes
+from .Errors import error, warning, CompileError
+from .PyrexTypes import py_object_type
 from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_version, is_cython_generated_file
 from .Code import UtilityCode, IncludeCode, TempitaUtilityCode
 from .StringEncoding import EncodedString, bytes_literal, encoded_string_or_bytes_literal
 from .Pythran import has_np_pythran
-from .RuntimeAPI import RuntimeCodeGenerationKind, RuntimeSequenceKind
+from .RuntimeAPI import RuntimeSequenceKind
 
 
+@cython.cfunc
 def replace_suffix_encoded(path, newsuf):
     # calls replace suffix and returns a EncodedString or BytesLiteral with the encoding set
     newpath = replace_suffix(path, newsuf)
     return as_encoded_filename(newpath)
 
+
+@cython.cfunc
 def as_encoded_filename(path):
     # wraps the path with either EncodedString or BytesLiteral (depending on its input type)
     # and sets the encoding to the file system encoding
@@ -59,6 +67,7 @@ def check_c_declarations(module_node):
     return module_node
 
 
+@cython.cfunc
 def generate_c_code_config(env, options):
     if Options.annotate or options.annotate:
         emit_linenums = False
@@ -74,12 +83,14 @@ def generate_c_code_config(env, options):
         emit_code_comments=env.directives['emit_code_comments'],
         c_line_in_traceback=options.c_line_in_traceback)
 
+
 # The code required to generate one comparison from another.
 # The keys are (from, to).
 # The comparison operator always goes first, with equality possibly second.
 # The first value specifies if the comparison is inverted. The second is the
 # logic op to use, and the third is if the equality is inverted or not.
-TOTAL_ORDERING = {
+# Type is "dict[tuple[str, str], tuple[cython.bint, str, Optional[bool]]]", but Shadow.py doesn't allow it.
+TOTAL_ORDERING = cython.declare(dict, {
     # a > b from (not a < b) and (a != b)
     ('__lt__', '__gt__'): (True, '&&', True),
     # a <= b from (a < b) or (a == b)
@@ -107,7 +118,7 @@ TOTAL_ORDERING = {
     ('__ge__', '__gt__'): (False, '&&', True),
     # a < b from (not a >= b)
     ('__ge__', '__lt__'): (True, '', None),
-}
+})
 
 class SharedUtilityExporter:
     """
@@ -312,11 +323,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.referenced_modules = []
         self.find_referenced_modules(env, self.referenced_modules, {})
         self.sort_cdef_classes(env)
-        if (
-            self.scope.context.runtime_api.code_generation_kind()
-            is RuntimeCodeGenerationKind.HPY_UNIVERSAL_BOOTSTRAP
-        ):
-            self.generate_hpy_universal_code(options, result)
+        module_emitter = self.scope.context.runtime_api.module_emitter()
+        if module_emitter is not None:
+            module_emitter.emit(self, options, result)
             return
         self.generate_c_code(env, options, result)
         self.generate_h_code(env, options, result)
@@ -327,9 +336,330 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         from . import ExprNodes, FusedNode
         from .HPyModuleWriter import (
             _external_c_scalar_kind,
+            _extension_field_storage,
             _resolve_extension_field_storage_type,
             _supports_extension_field_storage,
         )
+
+        def validate_scalar_buffer_methods(class_node, methods, fields):
+            """Validate the source-compatible HPy buffer producer slice."""
+            buffer_methods = [
+                method for method in methods
+                if method.name in ("__getbuffer__", "__releasebuffer__")
+            ]
+            if not buffer_methods:
+                return True
+
+            def reject(node, detail):
+                diagnostics.unsupported(
+                    node,
+                    "pure Universal HPy native buffer producers require "
+                    "paired canonical __getbuffer__(self, Py_buffer *view, "
+                    "int flags) and __releasebuffer__(self, Py_buffer *view) "
+                    "methods for one writable native scalar or fixed-array "
+                    "field: %s" % detail,
+                )
+                return False
+
+            methods_by_name = {
+                method.name: method for method in buffer_methods
+            }
+            if (
+                len(buffer_methods) != 2
+                or set(methods_by_name) != {
+                    "__getbuffer__", "__releasebuffer__"
+                }
+            ):
+                return reject(
+                    buffer_methods[0],
+                    "both methods must be declared exactly once",
+                )
+
+            get_method = methods_by_name["__getbuffer__"]
+            release_method = methods_by_name["__releasebuffer__"]
+            if (
+                len(get_method.args) != 3
+                or str(get_method.args[1].type) != "Py_buffer *"
+                or str(get_method.args[2].type) != "int"
+                or get_method.decorators
+                or get_method.return_type_annotation is not None
+                or any(argument.default is not None
+                       for argument in get_method.args)
+            ):
+                return reject(get_method, "the getbuffer signature is invalid")
+            if (
+                len(release_method.args) != 2
+                or str(release_method.args[1].type) != "Py_buffer *"
+                or release_method.decorators
+                or release_method.return_type_annotation is not None
+                or any(argument.default is not None
+                       for argument in release_method.args)
+            ):
+                return reject(
+                    release_method, "the releasebuffer signature is invalid")
+
+            release_body = (
+                list(release_method.body.stats)
+                if type(release_method.body) is Nodes.StatListNode
+                else [release_method.body]
+            )
+            if release_body and (
+                len(release_body) != 1
+                or type(release_body[0]) is not Nodes.PassStatNode
+            ):
+                return reject(
+                    release_method.body,
+                    "the allocation-free release method body must be pass",
+                )
+
+            body = (
+                list(get_method.body.stats)
+                if type(get_method.body) is Nodes.StatListNode
+                else [get_method.body]
+            )
+            expected_members = (
+                "buf", "obj", "len", "itemsize", "readonly", "ndim",
+                "format", "shape", "strides", "suboffsets", "internal",
+            )
+            if len(body) != len(expected_members) + 2:
+                return reject(
+                    get_method.body,
+                    "the body must first initialize object-owned shape and "
+                    "stride fields, then every HPy_buffer field exactly once "
+                    "in canonical order",
+                )
+            view_name = get_method.args[1].name
+            self_name = get_method.args[0].name
+            metadata = []
+            for statement in body[:2]:
+                lhs = getattr(statement, "lhs", None)
+                if (
+                    type(statement) is not Nodes.SingleAssignmentNode
+                    or type(lhs) is not ExprNodes.AttributeNode
+                    or type(lhs.obj) is not ExprNodes.NameNode
+                    or lhs.obj.name != self_name
+                ):
+                    return reject(
+                        statement,
+                        "shape and stride metadata must be object-owned fields",
+                    )
+                metadata.append((lhs, statement.rhs))
+            assignments = {}
+            for statement, expected_member in zip(body[2:], expected_members):
+                lhs = getattr(statement, "lhs", None)
+                if (
+                    type(statement) is not Nodes.SingleAssignmentNode
+                    or type(lhs) is not ExprNodes.AttributeNode
+                    or lhs.attribute != expected_member
+                    or type(lhs.obj) is not ExprNodes.NameNode
+                    or lhs.obj.name != view_name
+                ):
+                    return reject(
+                        statement,
+                        "the descriptor must initialize view.%s next" %
+                            expected_member,
+                    )
+                assignments[expected_member] = statement.rhs
+
+            buffer_rhs = assignments["buf"]
+            buffer_value = buffer_rhs
+            if type(buffer_value) is ExprNodes.CoerceToTempNode:
+                buffer_value = buffer_value.arg
+            field_node = (
+                buffer_value.operand
+                if type(buffer_value) is ExprNodes.AmpersandNode
+                else buffer_value
+            )
+            if (
+                type(field_node) is not ExprNodes.AttributeNode
+                or type(field_node.obj) is not ExprNodes.NameNode
+                or field_node.obj.name != self_name
+            ):
+                return reject(
+                    buffer_rhs,
+                    "view.buf must identify one native field on self",
+                )
+            field = next(
+                (entry for entry in fields if entry.name == field_node.attribute),
+                None,
+            )
+            if field is None:
+                return reject(field_node, "the exported field does not exist")
+            resolved_field_type = _resolve_extension_field_storage_type(
+                field.type)
+            is_fixed_array = bool(
+                resolved_field_type is not None
+                and resolved_field_type.is_array
+            )
+            if is_fixed_array:
+                if (
+                    not isinstance(resolved_field_type.size, int)
+                    or resolved_field_type.size <= 0
+                    or resolved_field_type.base_type.is_array
+                    or field.visibility != "private"
+                ):
+                    return reject(
+                        field_node,
+                        "array exporters require one private, positive, "
+                        "compile-time-sized one-dimensional C array",
+                    )
+                value_type = _resolve_extension_field_storage_type(
+                    resolved_field_type.base_type)
+                element_count = resolved_field_type.size
+            else:
+                value_type = resolved_field_type
+                element_count = 1
+            try:
+                _, _, storage_kind = _extension_field_storage(
+                    value_type, "buffer_field")
+            except AssertionError:
+                return reject(field_node, "the exported field is not portable")
+            format_by_storage = {
+                "char": b"c",
+                "signed-char": b"b",
+                "unsigned-char": b"B",
+                "signed-short": b"h",
+                "unsigned-short": b"H",
+                "signed-int": b"i",
+                "unsigned-int": b"I",
+                "signed-long": b"l",
+                "unsigned-long": b"L",
+                "signed-long-long": b"q",
+                "unsigned-long-long": b"Q",
+                "float": b"f",
+                "double": b"d",
+            }
+            expected_format = format_by_storage.get(storage_kind)
+            if expected_format is None or field.visibility == "readonly":
+                return reject(
+                    field_node,
+                    "the producer slice supports writable fixed C integer/"
+                    "float scalar or one-dimensional array fields, excluding "
+                    "bint, Py_ssize_t, and long double",
+                )
+
+            shape_lhs, shape_rhs = metadata[0]
+            stride_lhs, stride_rhs = metadata[1]
+            shape_field = next(
+                (entry for entry in fields if entry.name == shape_lhs.attribute),
+                None,
+            )
+            stride_field = next(
+                (entry for entry in fields if entry.name == stride_lhs.attribute),
+                None,
+            )
+            if (
+                shape_field is None
+                or stride_field is None
+                or _resolve_extension_field_storage_type(shape_field.type)
+                    is not PyrexTypes.c_py_ssize_t_type
+                or _resolve_extension_field_storage_type(stride_field.type)
+                    is not PyrexTypes.c_py_ssize_t_type
+                or shape_field.visibility != "private"
+                or stride_field.visibility != "private"
+            ):
+                return reject(
+                    shape_lhs,
+                    "shape and stride storage must be distinct private "
+                    "Py_ssize_t fields",
+                )
+            if shape_field is stride_field:
+                return reject(
+                    stride_lhs, "shape and stride require distinct fields")
+
+            def is_name(node, name):
+                return type(node) is ExprNodes.NameNode and node.name == name
+
+            def is_self_address(node, field_name):
+                operand = getattr(node, "operand", None)
+                return (
+                    type(node) is ExprNodes.AmpersandNode
+                    and type(operand) is ExprNodes.AttributeNode
+                    and operand.attribute == field_name
+                    and is_name(operand.obj, self_name)
+                )
+
+            def is_self_field(node, field_name):
+                return (
+                    type(node) is ExprNodes.AttributeNode
+                    and node.attribute == field_name
+                    and is_name(node.obj, self_name)
+                )
+
+            def is_self_field_sizeof(node, field_name):
+                return (
+                    type(node) is ExprNodes.SizeofVarNode
+                    and is_self_field(node.operand, field_name)
+                )
+
+            def is_int(node, value):
+                return (
+                    type(node) is ExprNodes.IntNode
+                    and node.constant_result == value
+                )
+
+            def is_sizeof_type(node, expected_type):
+                return (
+                    type(node) is ExprNodes.SizeofTypeNode
+                    and _resolve_extension_field_storage_type(node.arg_type)
+                        is expected_type
+                )
+
+            valid_buffer_pointer = (
+                is_self_field(buffer_value, field.name)
+                if is_fixed_array
+                else is_self_address(buffer_value, field.name)
+            )
+            valid_buffer_length = (
+                is_self_field_sizeof(assignments["len"], field.name)
+                if is_fixed_array
+                else is_sizeof_type(assignments["len"], value_type)
+            )
+            checks = (
+                (valid_buffer_pointer, buffer_rhs,
+                 "view.buf must be self.<array_field> for fixed arrays or "
+                 "&self.<scalar_field> for scalars"),
+                (is_int(shape_rhs, element_count), shape_rhs,
+                 "the object-owned shape field must match the exported "
+                 "element count"),
+                (is_sizeof_type(stride_rhs, value_type),
+                 stride_rhs,
+                 "the object-owned stride must be sizeof(element_type)"),
+                (is_name(assignments["obj"], self_name),
+                 assignments["obj"], "view.obj must be self"),
+                (valid_buffer_length, assignments["len"],
+                 "view.len must be sizeof(self.<array_field>) for fixed "
+                 "arrays or sizeof(field_type) for scalars"),
+                (is_sizeof_type(assignments["itemsize"], value_type),
+                 assignments["itemsize"],
+                 "view.itemsize must be sizeof(element_type)"),
+                (is_int(assignments["readonly"], 0), assignments["readonly"],
+                 "the initial producer must set view.readonly to 0"),
+                (is_int(assignments["ndim"], 1), assignments["ndim"],
+                 "the producer must set view.ndim to 1"),
+                (type(assignments["format"]) is ExprNodes.BytesNode
+                 and assignments["format"].value == expected_format,
+                 assignments["format"],
+                 "view.format must match the exported native field"),
+                (is_self_address(assignments["shape"], shape_field.name),
+                 assignments["shape"],
+                 "view.shape must point to the object-owned shape field"),
+                (is_self_address(assignments["strides"], stride_field.name),
+                 assignments["strides"],
+                 "view.strides must point to the object-owned stride field"),
+                (type(assignments["suboffsets"]) is ExprNodes.NullNode,
+                 assignments["suboffsets"], "view.suboffsets must be NULL"),
+                (type(assignments["internal"]) is ExprNodes.NullNode,
+                 assignments["internal"], "view.internal must be NULL"),
+            )
+            for valid, node, detail in checks:
+                if not valid:
+                    return reject(node, detail)
+            get_method.ahpy_universal_buffer_spec = (
+                field, shape_field, stride_field,
+                expected_format.decode("ascii"), element_count)
+            release_method.ahpy_universal_buffer_release = True
+            return True
 
         top_level_stats = (
             list(self.body.stats)
@@ -359,11 +689,24 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if type(stat) in (Nodes.CImportStatNode, Nodes.FromCImportStatNode):
                 module_name = str(stat.module_name)
                 if module_name == "cpython" or module_name.startswith("cpython."):
+                    is_buffer_frontend_type = (
+                        type(stat) is Nodes.FromCImportStatNode
+                        and module_name == "cpython.buffer"
+                        and len(stat.imported_names) == 1
+                        and stat.imported_names[0][1:] == ("Py_buffer", None)
+                    )
+                    if is_buffer_frontend_type:
+                        # Py_buffer is accepted only as Cython's source-level
+                        # descriptor spelling.  The backend validates its use
+                        # and emits HPy_buffer without including Python.h.
+                        continue
                     diagnostics.unsupported(
                         stat,
                         "cpython.* cimports expose the CPython C API and are "
-                        "not available in Universal HPy mode; port the "
-                        "dependency to public HPy APIs",
+                        "not available in Universal HPy mode; only the exact "
+                        "Py_buffer frontend type is translated to a validated "
+                        "HPy_buffer producer descriptor; port the dependency "
+                        "to public HPy APIs",
                     )
                 elif module_name == "cython":
                     continue
@@ -476,17 +819,32 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         )
                         block_is_supported = False
                         continue
-                    if (
-                        function_type.exception_value is not None
-                        or function_type.exception_check
-                    ):
+                    errno_sentinel = None
+                    if function_type.exception_check:
                         diagnostics.unsupported(
                             declaration,
-                            "external C functions with Cython/Python exception "
-                            "contracts are not available in Universal HPy mode",
+                            "external C exception checks require Python "
+                            "exception state; Universal HPy supports only "
+                            "noexcept or an exact except -1 errno sentinel "
+                            "contract",
                         )
                         block_is_supported = False
                         continue
+                    if function_type.exception_value is not None:
+                        exception_value = function_type.exception_value
+                        if (
+                            not storage_kind.startswith("signed-")
+                            or exception_value.python_value != -1
+                        ):
+                            diagnostics.unsupported(
+                                declaration,
+                                "Universal HPy external C errno contracts "
+                                "require a signed integer result and exact "
+                                "except -1; other sentinels remain unsupported",
+                            )
+                            block_is_supported = False
+                            continue
+                        errno_sentinel = "-1"
                     if not re.match(
                         r"^[A-Za-z_][A-Za-z0-9_]*$", str(entry.cname)
                     ):
@@ -498,12 +856,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         block_is_supported = False
                         continue
                     validated_entries.append(
-                        (entry, storage_kind, argument_kinds))
+                        (entry, storage_kind, argument_kinds, errno_sentinel))
                 if block_is_supported:
-                    for entry, storage_kind, argument_kinds in validated_entries:
+                    for (
+                        entry,
+                        storage_kind,
+                        argument_kinds,
+                        errno_sentinel,
+                    ) in validated_entries:
                         entry.ahpy_universal_external_c_scalar_kind = storage_kind
                         entry.ahpy_universal_external_c_argument_kinds = (
                             argument_kinds)
+                        if errno_sentinel is not None:
+                            entry.ahpy_universal_external_c_errno_sentinel = (
+                                errno_sentinel)
                     external_c_blocks.append(stat)
                 continue
             if type(stat) is Nodes.CEnumDefNode:
@@ -605,9 +971,22 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     )
                     if type(accessor) is Nodes.DefNode
                 ]
+                buffer_methods = [
+                    method for method in user_methods
+                    if method.name in ("__getbuffer__", "__releasebuffer__")
+                ]
+                buffer_methods_valid = validate_scalar_buffer_methods(
+                    stat, user_methods, fields)
                 supported_fields = [
                     field for field in fields
-                    if _supports_extension_field_storage(field.type)
+                    if (
+                        _supports_extension_field_storage(field.type)
+                        or any(
+                            getattr(method, "ahpy_universal_buffer_spec", ())
+                            and method.ahpy_universal_buffer_spec[0] is field
+                            for method in user_methods
+                        )
+                    )
                     and field.visibility in ("private", "public", "readonly")
                     and field.name != "__weakref__"
                 ]
@@ -668,6 +1047,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     method for method in user_methods
                     if method.name == "__new__"
                 ]
+                invalid_slotless_protocol_methods = [
+                    method for method in user_methods
+                    if (
+                        method.name in ("__bytes__", "__complex__")
+                        and len(method.args) != 1
+                    ) or (
+                        method.name == "__round__"
+                        and len(method.args) not in (1, 2)
+                    )
+                ]
+                invalid_context_manager_methods = [
+                    method for method in user_methods
+                    if (
+                        method.name == "__enter__"
+                        and len(method.args) != 1
+                    ) or (
+                        method.name == "__exit__"
+                        and len(method.args) != 4
+                    )
+                ]
                 initial_numeric_method_names = (
                     "__add__", "__radd__", "__iadd__",
                     "__sub__", "__rsub__", "__isub__",
@@ -689,6 +1088,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 ]
                 array_fields = [
                     field for field in fields if field.type.is_array
+                ]
+                unsupported_array_fields = [
+                    field for field in array_fields
+                    if not any(
+                        getattr(method, "ahpy_universal_buffer_spec", ())
+                        and method.ahpy_universal_buffer_spec[0] is field
+                        for method in user_methods
+                    )
                 ]
                 reserved_runtime_entries = sorted(
                     name for name, entry in extension_type.scope.entries.items()
@@ -716,13 +1123,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         "module-state bookkeeping have no validated HPy 0.9 "
                         "Universal ABI equivalent",
                     )
-                elif array_fields:
+                elif unsupported_array_fields:
                     diagnostics.unsupported(
-                        array_fields[0],
-                        "pure Universal HPy variable-size extension layout is "
-                        "not implemented: C array extension fields with "
-                        "non-zero itemsize require a separately validated HPy "
-                        "member layout and type-spec contract",
+                        unsupported_array_fields[0],
+                        "pure Universal HPy C array extension fields are only "
+                        "implemented as the private storage of the canonical "
+                        "one-dimensional fixed-array buffer producer; general "
+                        "array field access/member exposure remains outside "
+                        "the validated type-layout contract",
                     )
                 elif reserved_runtime_entries:
                     diagnostics.unsupported(
@@ -818,6 +1226,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         "partial-object cleanup; custom allocation requires "
                         "its own constructor and layout validator",
                     )
+                elif buffer_methods and not buffer_methods_valid:
+                    # The source-positioned buffer contract diagnostic was
+                    # emitted by validate_scalar_buffer_methods().
+                    pass
+                elif invalid_slotless_protocol_methods:
+                    diagnostics.unsupported(
+                        invalid_slotless_protocol_methods[0],
+                        "pure Universal HPy slotless protocol methods require "
+                        "__bytes__(self), __complex__(self), or "
+                        "__round__(self[, ndigits]); no synthetic HPy type "
+                        "slot or mismatched callable signature is permitted",
+                    )
+                elif invalid_context_manager_methods:
+                    diagnostics.unsupported(
+                        invalid_context_manager_methods[0],
+                        "pure Universal HPy synchronous context-manager "
+                        "methods require __enter__(self) and "
+                        "__exit__(self, exc_type, exc_value, traceback); "
+                        "asynchronous context methods remain separately gated",
+                    )
                 elif (
                     stat.visibility != "private"
                     or len(supported_fields) != len(fields)
@@ -831,12 +1259,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                 "__neg__", "__pos__", "__abs__",
                                 "__invert__", "__int__", "__float__",
                                 "__index__", "__contains__", "__call__",
-                                "__format__",
+                                "__format__", "__bytes__", "__complex__",
+                                "__round__", "__enter__", "__exit__",
                                 "__cinit__",
                                 *initial_numeric_method_names,
                                 "__pow__", "__rpow__", "__ipow__",
                                 "__lt__", "__le__", "__eq__", "__ne__",
-                                "__gt__", "__ge__", "__del__"))
+                                "__gt__", "__ge__", "__del__",
+                                "__getbuffer__", "__releasebuffer__"))
                         or (method.name in (
                                 "__repr__", "__str__", "__len__", "__hash__",
                                 "__bool__", "__neg__", "__pos__", "__abs__",
@@ -853,6 +1283,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             and len(method.args) != 2)
                         or (method.name == "__format__"
                             and len(method.args) != 2)
+                        or (method.name in ("__bytes__", "__complex__")
+                            and len(method.args) != 1)
+                        or (method.name == "__round__"
+                            and len(method.args) not in (1, 2))
+                        or (method.name == "__enter__"
+                            and len(method.args) != 1)
+                        or (method.name == "__exit__"
+                            and len(method.args) != 4)
                         or (method.name in initial_numeric_method_names
                             and len(method.args) != 2)
                         or (method.name in (
@@ -869,7 +1307,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             method.name.startswith("__")
                             and method.name not in (
                                 "__cinit__", "__init__", "__call__",
-                                "__pow__", "__rpow__", "__ipow__")
+                                "__pow__", "__rpow__", "__ipow__",
+                                "__round__")
                             and any(argument.default is not None
                                     for argument in method.args)
                         )
@@ -914,7 +1353,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         "and undecorated instance methods in the enabled "
                         "ordinary, property, __cinit__/__init__/__call__, "
                         "value, length, mapping, hash, bool, unary/conversion, "
-                        "contains, format, "
+                        "contains, slotless protocol, "
                         "rich-comparison, or __del__ families "
                         "(unsupported "
                         "entries: %s)" %
@@ -926,6 +1365,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type(stat) is Nodes.SingleAssignmentNode
                 and type(stat.rhs) is ExprNodes.PyCFunctionNode
             ):
+                continue
+            if type(stat) is Nodes.PassStatNode:
                 continue
             if (
                 type(stat) is Nodes.SingleAssignmentNode
@@ -995,25 +1436,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         """Compatibility helper returning only strict bootstrap functions."""
         methods, _, _, _ = self.hpy_bootstrap_contents(diagnostics)
         return methods
-
-    def generate_hpy_universal_code(self, options, result):
-        if options.cplus:
-            raise CompileError(
-                self.pos,
-                "aHPy bootstrap backend: C++ output is not implemented yet",
-            )
-        if Options.annotate or options.annotate:
-            raise CompileError(
-                self.pos,
-                "aHPy bootstrap backend: annotated output is not implemented yet",
-            )
-        from .HPyModuleWriter import UniversalHPyModuleWriter
-        self.assure_safe_target(result.c_file, allow_failed=True)
-        output = UniversalHPyModuleWriter(
-            self, self.scope.context.runtime_api).render()
-        with open_new_file(result.c_file) as output_file:
-            output_file.write(output)
-        result.c_file_generated = 1
 
     def has_imported_c_functions(self):
         for module in self.referenced_modules:
@@ -1596,6 +2018,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                    "please install development version of Python.")
         code.putln("#elif PY_VERSION_HEX < 0x03090000")
         code.putln("    #error Cython requires Python 3.9+.")
+        code.putln("#elif defined(Py_LIMITED_API) && (Py_LIMITED_API & 0xFFFF0000) > (PY_VERSION_HEX & 0xFFFF0000)")
+        code.putln("    #error 'Py_LIMITED_API' can only select past Python X.Y versions, not future ones.")
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
@@ -1726,12 +2150,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('static PyObject *%s;' % Naming.preimport_cname)
         code.putln('#endif')
 
-        code.putln('static int %s;' % Naming.lineno_cname)
-        code.putln('static int %s = 0;' % Naming.clineno_cname)
         code.putln('static const char * const %s = %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
-        code.putln('static const char *%s;' % Naming.filename_cname)
 
-        env.use_utility_code(UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
         env.use_utility_code(UtilityCode.load("GetRuntimeVersion", "ModuleSetupCode.c"))
         env.use_utility_code(UtilityCode.load_cached("AddModuleRef", "ModuleSetupCode.c"))
         if has_np_pythran(env):
@@ -3269,7 +3689,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if total_ordering:
             # Check this is valid - we must have at least 1 operation defined.
-            comp_names = [from_name for from_name, to_name in TOTAL_ORDERING if from_name in comp_entry]
+            comp_names: list[str] = [from_name for from_name, to_name in TOTAL_ORDERING if from_name in comp_entry]
             if not comp_names:
                 if '__eq__' not in comp_entry and '__ne__'  not in comp_entry:
                     warning(scope.parent_type.pos,
@@ -3299,6 +3719,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry is None:
                 assert total_ordering
                 # We need to generate this from the other methods.
+                invert_comp: bool
+                comp_op: str
                 invert_comp, comp_op, invert_equals = TOTAL_ORDERING[ordering_source, cmp_method]
 
                 # First we always do the comparison.
@@ -4378,7 +4800,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 assert re.match("^[a-zA-Z0-9_]+$", cname)
                 self.cfunc_name = "__Pyx_modinit_%s" % cname
                 self.description = code_type
-                self.tempdecl_code = None
                 self.call_code = None
 
             def set_call_code(self, code):
@@ -4392,7 +4813,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     f"int {self.cfunc_name}({Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})",
                     scope, refnanny=True)
                 code.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
-                self.tempdecl_code = code.insertion_point()
                 code.put_setup_refcount_context(EncodedString(self.cfunc_name))
                 # Leave a grepable marker that makes it easy to find the generator source.
                 code.putln("/*--- %s ---*/" % self.description)
@@ -4401,15 +4821,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             def __exit__(self, exc_type, exc_value, exc_tb):
                 if exc_type is not None:
                     # Don't generate any code or do any validations on errors.
-                    self.tempdecl_code = self.call_code = None
+                    self.call_code = None
                     return
 
                 code = function_code
                 code.put_finish_refcount_context()
                 code.putln("return 0;")
-
-                self.tempdecl_code.put_temp_declarations(code.funcstate)
-                self.tempdecl_code = None
 
                 needs_error_handling = code.label_used(code.error_label)
                 if needs_error_handling:
@@ -5096,7 +5513,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 # cimport/export code for functions and pointers.
 
 @cython.cfunc
-def _deduplicate_inout_signatures(item_tuples) -> tuple[list[str], tuple[str, ...], tuple[str, ...]]:
+def _deduplicate_inout_signatures(item_tuples) -> tuple[list[str], tuple, tuple]:
     # We can save runtime space for identical signatures by reusing the same C strings.
     # To deduplicate the signatures, we sort by them and store duplicates as empty C strings.
     signatures, names, items = zip(*sorted(item_tuples))

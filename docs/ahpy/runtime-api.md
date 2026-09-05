@@ -54,6 +54,25 @@ generation methods. This makes the boundary output-neutral while later changes
 can provide HPy implementations without scattering backend-name branches across
 compiler nodes.
 
+### Complete-module emission
+
+`RuntimeModuleEmitter` is the validated immutable contract for an alternate
+backend that replaces the complete module output transaction. It binds one
+non-empty backend identity to one callable. The default CPython runtime returns
+no alternate emitter, so `ModuleNode` continues through Cython's established C,
+header, and API writers unchanged. Universal mode returns its callback lazily;
+that callback alone validates unsupported C++/annotation/instrumentation modes,
+renders `UniversalHPyModuleWriter`, protects the target path, writes the output,
+and marks the result generated. Invalid or non-callable contracts fail before
+code generation.
+
+This removes the Universal backend enum and complete-writer construction from
+`ModuleNode` and keeps selection in the compilation-context-owned runtime
+service. A synchronized
+two-thread regression compiles CPython and Universal modules concurrently and
+checks that their `Python.h`/`PyInit_*` and `hpy.h`/`HPy_MODINIT` boundaries do
+not cross-contaminate.
+
 ## First neutralized operations
 
 The central C code writer now obtains its runtime API from the module's
@@ -138,11 +157,11 @@ results through signed/unsigned `HPyLong_From*` or `HPyFloat_FromDouble`. The
 field writer separately checks each narrower target's platform limits before
 casting.
 
-The current HPy backends remain gated before code generation. The separate
-builder storage and its cleanup paths become executable after the M2 handle
-ownership model is in place. A static compiler test prevents the principal C
-code emitters from reintroducing direct fixed-size construction calls outside
-the runtime boundary.
+The HPy CPython ABI backend remains gated before code generation. The strict
+Universal backend executes its implemented builder storage and cleanup paths;
+unsupported surfaces still fail before output. A static compiler test prevents
+the principal C code emitters from reintroducing direct fixed-size construction
+calls outside the runtime boundary.
 
 Authoritative references verified on 2026-07-14:
 

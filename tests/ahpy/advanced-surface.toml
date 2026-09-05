@@ -1,0 +1,109 @@
+schema_version = 1
+
+[[families]]
+id = "generic-iteration"
+status = "blocked"
+evidence = "docs/ahpy/audits/m6-generator-gap-validation.md"
+migration = "Use sequence-index loops or the documented inlined sequence consumers."
+
+[[families]]
+id = "generators"
+status = "blocked"
+evidence = "docs/ahpy/adr/0006-generator-suspension-model.md"
+migration = "Keep generator ownership in Python or wait for public HPy iterator/exception-state APIs."
+
+[[families]]
+id = "async"
+status = "blocked"
+evidence = "docs/ahpy/adr/0007-async-suspension-model.md"
+migration = "Keep async orchestration in Python and call supported synchronous Universal functions."
+
+[[families]]
+id = "buffer-producer"
+status = "partial"
+evidence = "docs/ahpy/adr/0008-buffer-ownership-model.md"
+migration = "Use the validated writable one-dimensional native-scalar or private positive compile-time-sized native C-array exporter contract, including ordinary derived-type slot inheritance; keep multidimensional/general array fields, readonly exporters, auxiliary allocations, and consumers outside the current subset."
+
+[[families]]
+id = "buffer-consumer-memoryview"
+status = "blocked"
+evidence = "docs/ahpy/audits/m6-buffer-gap-validation.md"
+migration = "Move buffer acquisition to Python or a separately built non-Universal boundary."
+
+[[families]]
+id = "fused-types"
+status = "rejected"
+evidence = "docs/ahpy/audits/m6-fused-dispatch-validation.md"
+migration = "Write explicit non-fused entry points for each supported specialization."
+
+[[families]]
+id = "nogil-reentry"
+status = "partial"
+evidence = "docs/ahpy/audits/m6-nogil-validation.md"
+migration = "Use only the validated external-C scalar calls and explicit with-gil islands."
+
+[[families]]
+id = "parallel-openmp-free-threading"
+status = "blocked"
+evidence = "docs/ahpy/audits/m6-parallel-gap-validation.md"
+migration = "Keep parallel workers Python-independent and outside the Universal module."
+
+[[families]]
+id = "python-state-callbacks"
+status = "rejected"
+evidence = "docs/ahpy/external-c.md"
+migration = "Invoke Python callbacks only after the validated explicit with-gil re-entry."
+
+[[families]]
+id = "capsules-cross-module-api"
+status = "rejected"
+evidence = "docs/ahpy/runtime-api.md"
+migration = "Use module-level Python calls or a handle-free external C library boundary."
+
+[[families]]
+id = "cxx-raii"
+status = "rejected"
+evidence = "docs/ahpy/support-matrix.md"
+migration = "Generate C or isolate C++ behind a Python-independent C wrapper."
+
+[[families]]
+id = "instrumentation-tracebacks"
+status = "rejected"
+evidence = "Cython/Compiler/Tests/TestHPyModuleWriter.py"
+migration = "Disable generated profile, linetrace, embedsignature, annotation, and C-line traceback options."
+
+[[families]]
+id = "pickling-signatures-code-objects"
+status = "blocked"
+evidence = "docs/ahpy/known-limitations.md"
+migration = "Provide explicit Python wrappers for metadata, signatures, and pickling."
+
+[[families]]
+id = "embedding"
+status = "rejected"
+evidence = "docs/ahpy/context-model.md"
+migration = "Load the generated module through a supported CPython 3.11 HPy loader process."
+
+[[families]]
+id = "third-party-cpython-capi"
+status = "blocked"
+evidence = "docs/ahpy/known-limitations.md"
+migration = "Require the dependency to expose a public HPy or Python-independent C API."
+
+[[families]]
+id = "sets"
+status = "blocked"
+evidence = "docs/ahpy/support-matrix.md"
+migration = "Use a list/dict representation or construct sets in Python outside the Universal subset."
+
+[[families]]
+id = "exception-state"
+status = "blocked"
+evidence = "docs/ahpy/support-matrix.md"
+migration = "Use the documented terminal handler subset or move richer exception control to Python."
+
+[[families]]
+id = "method-function-introspection"
+status = "blocked"
+evidence = "docs/ahpy/module-state.md"
+migration = "Publish explicit metadata objects instead of relying on Python function/code-object attributes."

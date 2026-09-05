@@ -1,64 +1,83 @@
-name: Bug Report
-description: File a bug report
+name: aHPy bug report
+description: Report a compiler, generated-code, build, or runtime defect
 title: "[BUG] "
+labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        **PLEASE READ THIS FIRST:**
-        - DO NOT use the bug and feature tracker for general questions and support requests.
-        Use the [`cython-users`](https://groups.google.com/g/cython-users) mailing list instead.
-        It has a wider audience, so you get more and better answers.
-        - Do not ask for binary wheels. Cython works just fine with its Python wheel.
-        - Did you search for SIMILAR ISSUES already?
-        Please do, it helps to save us precious time that we otherwise could not invest into development.
-        - Did you try the LATEST MASTER BRANCH or pre-release?
-        It might already have what you want to report.
-        Specifically, the legacy stable 0.29.x release series receives only important low-risk bug fixes.
-        Also see the [Changelog](https://github.com/cython/cython/blob/master/CHANGES.rst) regarding recent changes
-  - type: textarea
-    id: describe
+        Thanks for helping improve aHPy. Check the [support matrix](https://github.com/mburakmmm/aHPy/blob/main/docs/ahpy/support-matrix.md) before filing: an explicitly rejected or blocked HPy 0.9 surface is not yet a supported-feature regression.
+
+        Do not include secrets. Report security vulnerabilities privately through [GitHub Security Advisories](https://github.com/mburakmmm/aHPy/security/advisories/new).
+  - type: dropdown
+    id: area
     attributes:
-      label: "Describe the bug"
-      description: "A clear and concise description of what the bug is."
-      placeholder: "Tell us what you see!"
+      label: Affected area
+      options:
+        - Compiler or diagnostic
+        - Generated Universal HPy C
+        - Runtime semantics or handle ownership
+        - Build system or packaging
+        - CI, tests, or documentation
+        - Other
     validations:
       required: true
   - type: textarea
     id: reproduce
     attributes:
-      label: "Code to reproduce the behaviour:"
+      label: Minimal reproduction
+      description: Include the smallest .py/.pyx source and the exact command used.
       value: |
         ```cython
-        # example code
+        # minimal source
         ```
+
+        ```console
+        python -m cython --runtime-backend=hpy-universal -3 module.pyx
+        ```
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: Include the complete diagnostic, traceback, generated-code audit, or runtime failure.
+    validations:
+      required: true
   - type: textarea
     id: expected
     attributes:
-      label: "Expected behaviour"
-      description: "A clear and concise description of what you expected to happen."
-  - type: markdown
-    attributes:
-      value: |
-        **Environment** - please complete the following information:
+      label: Expected result
+      description: Describe the expected Python semantics or fail-closed diagnostic.
+    validations:
+      required: true
   - type: input
-    id: environment_os
+    id: revision
     attributes:
-      label: "OS"
-      placeholder: "e.g. Linux, Windows, macOS"
+      label: aHPy revision
+      description: Commit SHA or aHPy-compiler version. Prefer a full commit SHA.
+      placeholder: 40-character commit SHA
+    validations:
+      required: true
   - type: input
-    id: environment_python_v
+    id: environment
     attributes:
-      label: "Python version"
-      placeholder: "e.g. 3.10.2"
-  - type: input
-    id: environment_cython_v
-    attributes:
-      label: "Cython version"
-      placeholder: "e.g. 3.0.0a11"
+      label: Python, HPy, OS, architecture, and compiler
+      placeholder: CPython 3.11.15; HPy 0.9.0; Ubuntu 24.04 x86-64; GCC 14
+    validations:
+      required: true
   - type: textarea
-    id: context
+    id: doctor
     attributes:
-      label: Additional context
-      description: Add any other context about the problem here.
-
+      label: Doctor output
+      description: Paste `python Tools/ahpy/doctor.py --python <python> --json` output when the failure reaches a native build.
+      render: json
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched existing issues and tested the current `main` or linked development revision.
+          required: true
+        - label: I confirmed that this is an aHPy issue rather than a request for support from upstream Cython or HPy.
+          required: true

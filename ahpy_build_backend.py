@@ -7,6 +7,7 @@ import shlex
 
 from setuptools import build_meta as _backend
 
+from ahpy_hpy_compat import install_hpy_universal_loader_compat
 from ahpy_version import AHPY_DISTRIBUTION, AHPY_VERSION
 
 
@@ -55,6 +56,7 @@ def universal_config_settings(config_settings=None):
 
 def _settings(config_settings):
     assert_ahpy_frontend()
+    install_hpy_universal_loader_compat()
     return universal_config_settings(config_settings)
 
 

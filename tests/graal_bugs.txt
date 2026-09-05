@@ -125,6 +125,12 @@ test_dataclasses
 test_unicode
 unicodeliterals
 
+# Universal-only aHPy runtime fixtures are executed by the dedicated HPy
+# workflow.  Classic Cython output reaches GraalPy's unimplemented
+# PyUnicode_DecodeUnicodeEscape surface before their Universal contract can
+# be exercised.  Keep compile-only aHPy fixtures in the generic test suite.
+^ahpy[.](bootstrap_answer|bootstrap_types|fault_injection)$
+
 # PyThreadState_Swap not implemented
 reimport_from_subinterpreter
 

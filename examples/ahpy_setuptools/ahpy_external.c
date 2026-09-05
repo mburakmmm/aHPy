@@ -1,5 +1,7 @@
 #include "ahpy_external.h"
 
+#include <errno.h>
+
 static int ahpy_external_byte_call_count;
 static long long ahpy_external_nogil_probe_call_count;
 
@@ -50,7 +52,28 @@ long long ahpy_external_nogil_probe(void)
     return ahpy_external_nogil_probe_call_count;
 }
 
+long long ahpy_external_nogil_advance(long long amount)
+{
+    ahpy_external_nogil_probe_call_count += amount;
+    return ahpy_external_nogil_probe_call_count;
+}
+
 long long ahpy_external_nogil_probe_calls(void)
 {
     return ahpy_external_nogil_probe_call_count;
+}
+
+long long ahpy_external_errno_advance(long long amount)
+{
+    if (amount < 0) {
+        errno = EDOM;
+        return -1;
+    }
+    ahpy_external_nogil_probe_call_count += amount;
+    return ahpy_external_nogil_probe_call_count;
+}
+
+long long ahpy_external_missing_errno(void)
+{
+    return -1;
 }

@@ -1362,6 +1362,8 @@ class TemplatedTypeNode(CBaseTypeNode):
                     error(template_node.pos, "unknown type in template argument")
                     ttype = error_type
                 # For Python generics we can be a bit more flexible and allow None.
+                if template_node.constant_result is Ellipsis:
+                    ttype = Ellipsis
             template_types.append(ttype)
 
         if base_type.python_type_constructor_name:
@@ -2395,6 +2397,10 @@ class FuncDefNode(StatNode, BlockNode):
                 assure_gil('error')
                 code.put_xdecref(cname, type, have_gil=gil_owned['error'])
 
+            if code.funcstate.has_except_star:
+                tempvardecl_code.putln(
+                    f"int {Naming.skip_add_traceback_cname} = 0;")
+
             # Clean up buffers -- this calls a Python function
             # so need to save and restore error state
             buffers_present = len(used_buffer_entries) > 0
@@ -3285,9 +3291,6 @@ class DefNode(FuncDefNode):
             code.unsupported(self, "decorated def functions are not implemented")
         if self.return_type_annotation is not None:
             code.unsupported(self, "return annotations are not implemented")
-        if not code.is_c_identifier(self.name):
-            code.unsupported(self, "function name is not a C identifier")
-
         body = code.stats(self.body)
         if not body or not self._hpy_bootstrap_statement_terminates(body[-1]):
             code.unsupported(
@@ -5393,9 +5396,11 @@ class PyClassDefNode(ClassDefNode):
     #  orig_bases  None or ExprNode  "bases" before transformation by PEP560 __mro_entries__,
     #                                used to create the __orig_bases__ attribute
 
-    child_attrs = ["doc_node", "body", "dict", "metaclass", "mkw", "bases", "class_result",
+    child_attrs = ["doc_node", "body", "dict", "metaclass", "mkw", "bases",
+                   "classobj", "class_result",
                    "target", "class_cell", "decorators", "orig_bases"]
     decorators = None
+    class_result_before_decorators = None
     class_result = None
     is_py3_style_class = False  # Python3 style class (kwargs)
     metaclass = None
@@ -5503,7 +5508,9 @@ class PyClassDefNode(ClassDefNode):
         return cenv
 
     def analyse_declarations(self, env):
-        unwrapped_class_result = class_result = self.classobj
+        from .ExprNodes import CloneNode
+        unwrapped_class_result = self.classobj
+        class_result = CloneNode(unwrapped_class_result)
         if self.decorators:
             from .ExprNodes import SimpleCallNode
             for decorator in self.decorators[::-1]:
@@ -5521,7 +5528,6 @@ class PyClassDefNode(ClassDefNode):
         self.target.analyse_target_declaration(env)
         cenv = self.create_scope(env)
         cenv.directives = env.directives
-        cenv.class_obj_cname = self.target.entry.cname
         if self.doc_node:
             self.doc_node.analyse_target_declaration(cenv)
         self.body.analyse_declarations(cenv)
@@ -5586,7 +5592,7 @@ class PyClassDefNode(ClassDefNode):
             code.putln("}")
             self.orig_bases.generate_disposal_code(code)
             self.orig_bases.free_temps(code)
-        cenv.namespace_cname = cenv.class_obj_cname = self.dict.result()
+        cenv.namespace_cname = self.dict.result()
 
         class_cell = self.class_cell
         if class_cell is not None and not class_cell.is_active:
@@ -5595,16 +5601,19 @@ class PyClassDefNode(ClassDefNode):
         if class_cell is not None:
             class_cell.generate_evaluation_code(code)
         self.body.generate_execution_code(code)
+        self.classobj.generate_evaluation_code(code)
         self.class_result.generate_evaluation_code(code)
         if class_cell is not None:
             class_cell.generate_injection_code(
-                code, self.class_result.result())
+                code, self.classobj.result())
         if class_cell is not None:
             class_cell.generate_disposal_code(code)
             class_cell.free_temps(code)
 
-        cenv.namespace_cname = cenv.class_obj_cname = self.classobj.result()
+        cenv.namespace_cname = self.classobj.result()
         self.target.generate_assignment_code(self.class_result, code)
+        self.classobj.generate_disposal_code(code)
+        self.classobj.free_temps(code)
         self.dict.generate_disposal_code(code)
         self.dict.free_temps(code)
         if self.metaclass:
@@ -6196,9 +6205,6 @@ class CClassDefNode(ClassDefNode):
                     typeptr_cname,
                     type.vtabptr_cname,
                 ))
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached('MergeVTables', 'ImportExport.c'))
-                code.put_error_if_neg(entry.pos, "__Pyx_MergeVtables(%s)" % typeptr_cname)
             if not type.scope.is_internal and not type.scope.directives.get('internal'):
                 # scope.is_internal is set for types defined by
                 # Cython (such as closures), the 'internal'
@@ -7698,7 +7704,7 @@ class RaiseStatNode(StatNode):
             return
         elif self.builtin_exc_name == 'StopIteration' and not self.exc_type:
             code.putln('%s = 1;' % Naming.error_without_exception_cname)
-            code.putln('%s;' % code.error_goto(None))
+            code.putln(code.error_goto(self.pos))
             code.funcstate.error_without_exception = True
             return
 
@@ -9262,6 +9268,8 @@ class ExceptClauseNode(Node):
     #  function_name  string             qualified name of enclosing function
     #  exc_vars       (string * 3)       local exception variables
     #  is_except_as   bool               Py3-style "except ... as xyz"
+    #  add_traceback  bool               Can be used internally to suppress traceback
+    #  is_except_star bool               Is an except star clause
 
     # excinfo_target is never set by the parser, but can be set by a transform
     # in order to extract more extensive information about the exception as a
@@ -9272,6 +9280,7 @@ class ExceptClauseNode(Node):
     exc_value = None
     excinfo_target = None
     is_except_as = False
+    never_add_traceback = False
 
     def analyse_declarations(self, env):
         if self.target:
@@ -9340,7 +9349,7 @@ class ExceptClauseNode(Node):
             exc_tests = []
             if exc_type:
                 code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
+                    UtilityCode.load_cached("GivenExceptionMatches", "Exceptions.c"))
                 if len(patterns) == 2:
                     exc_tests.append(code.globalstate.runtime_api.exception_matches(
                         patterns[0], exc_type, patterns[1], use_utility_code=True))
@@ -9352,7 +9361,7 @@ class ExceptClauseNode(Node):
                     )
             elif len(patterns) == 2:
                 code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
+                    UtilityCode.load_cached("GivenExceptionMatches", "Exceptions.c"))
                 exc_tests.append(code.globalstate.runtime_api.exception_matches(
                     patterns[0], second_pattern_cname=patterns[1],
                     use_utility_code=True))
@@ -9391,7 +9400,7 @@ class ExceptClauseNode(Node):
             self.body_may_need_exception()
         )
 
-        if needs_exception or tracing:
+        if (needs_exception or tracing) and not self.never_add_traceback:
             code.put_add_traceback(self.function_name)
 
         if tracing:
@@ -9472,6 +9481,341 @@ class ExceptClauseNode(Node):
         if self.target:
             self.target.annotate(code)
         self.body.annotate(code)
+
+
+class ExceptStarChainNode(StatListNode):
+    """
+    Implements an 'except*' handler (Python 3.11+ / PEP-654).
+    See https://docs.python.org/3/reference/compound_stmts.html#except-star
+
+    Uses a stat list node for implementation (since it's
+    mostly implemented in terms of a generated tree of other nodes).
+    However, also handles some of
+    the temporary variables that its children will need.
+
+    The advantage of this is that approach is that a lot can be handled
+    by the existing flow control structures
+    """
+
+    get_exception_type = PyrexTypes.CFuncType(
+            PyrexTypes.py_object_type, [])
+
+    def __init__(self, pos, except_clauses):
+        from . import ExprNodes
+
+        super().__init__(pos, stats=[])
+
+        self.in_progress_exception_group = ExprNodes.PyTempNode(self.pos, None)
+        self.original_exception_group = ExprNodes.PyTempNode(self.pos, None)
+        self.matched_exception_group = ExprNodes.PyTempNode(self.pos, None)
+        self.exception_list = ExprNodes.TempNode(self.pos, Builtin.list_type)
+        self.exception_list.may_be_none = lambda: False
+        self.internal_exception_set = ExprNodes.PyTempNode(self.pos, None)
+
+        for clause in except_clauses:
+            append_to_list = ExprStatNode(
+                clause.pos,
+                expr=ExprNodes.SimpleCallNode(
+                    clause.pos,
+                    function=ExprNodes.AttributeNode(
+                        clause.pos, obj=ExprNodes.CloneNode(self.exception_list), attribute="append"
+                    ),
+                    args=[
+                        # Py3.11 only C API (but that's OK - nothing else works on earlier versions)
+                        ExprNodes.PythonCapiCallNode(
+                            clause.pos, function_name="PyErr_GetHandledException",
+                            func_type=self.get_exception_type,
+                            args=[]
+                        )
+                    ]
+                )
+            )
+            on_exception_raised_in_body = ExceptClauseNode(
+                clause.pos, pattern=[], body=append_to_list, target=None, never_add_traceback=True
+            )
+
+            star_except_test_setup = StarExceptTestSetupNode(
+                clause.pos,
+                pattern=clause.pattern,
+                in_progress_exception_group=self.in_progress_exception_group,
+                matched_exception_group=self.matched_exception_group,
+                internal_exception_set=self.internal_exception_set,
+            )
+
+            this_clause_stats = [
+                star_except_test_setup
+            ]
+
+            if_clause = IfClauseNode(
+                clause.pos,
+                condition = ExprNodes.PrimaryCmpNode(
+                    clause.pos,
+                    operator='is_not',
+                    operand1=ExprNodes.CloneNode(self.matched_exception_group),
+                    operand2=ExprNodes.NoneNode(clause.pos)
+                ),
+                body=StatListNode(
+                    clause.pos, stats=[
+                        # Set the wrapped exception group to be the "handled exception"
+                        StarExceptSetExceptionNode(
+                            clause.pos,
+                            exception=self.matched_exception_group)
+                    ]
+                )  # fill in stats fully later
+            )
+            if_statement = IfStatNode(
+                clause.pos,
+                if_clauses=[if_clause],
+                else_clause=None
+            )
+
+            this_clause_stats.append(if_statement)
+
+            if clause.target:
+                if_clause.body.stats.append(
+                    # Not using a Clone node here skips a bit of reference counting
+                    # so is actually desirable
+                    SingleAssignmentNode(
+                        clause.pos, lhs=clause.target, rhs=self.matched_exception_group
+                    )
+                )
+
+                # make sure we clean up the target
+                if_clause.body.stats.append(TryFinallyStatNode(
+                    clause.pos,
+                    body=clause.body,
+                    finally_clause=StatListNode(
+                        clause.pos,
+                        stats=[
+                            DelStatNode(
+                                clause.pos,
+                                args=[ExprNodes.NameNode(
+                                    clause.target.pos, name=clause.target.name)],
+                                    ignore_nonexisting=True)
+                        ]
+                    )
+                ))
+            else:
+                if_clause.body.stats.append(clause.body)
+
+            try_except = TryExceptStatNode(
+                clause.pos,
+                body=StatListNode(clause.pos, stats=this_clause_stats),
+                except_clauses=[on_exception_raised_in_body],
+                else_clause=None,
+            )
+
+            self.stats.append(try_except)
+
+        self.stats.append(
+            StarExceptPrepAndReraiseNode(
+                self.pos,
+                exception_list=self.exception_list,
+                original_exception_group=self.original_exception_group,
+                in_progress_exception_group=self.in_progress_exception_group,
+                internal_exception_set=self.internal_exception_set
+            )
+        )
+
+    def analyse_expressions(self, env):
+        from .UtilityCode import CythonUtilityCode
+        env.use_utility_code(CythonUtilityCode.load_cached("ExceptStar", "Exceptions_Cy.pyx"))
+        env.use_utility_code(UtilityCode.load_cached("ExceptStar", "Exceptions.c"))
+        return super().analyse_expressions(env)
+
+    def generate_execution_code(self, code):
+        # generates special code to skip "add_traceback"
+        code.funcstate.has_except_star = True
+
+        temps = [self.in_progress_exception_group, self.original_exception_group,
+                 self.matched_exception_group, self.exception_list,
+                 self.internal_exception_set]
+        for t in temps:
+            t.allocate(code)
+        code.putln("#if __PYX_LIMITED_VERSION_HEX < 0x030B0000")
+        code.putln('#error "Starred exceptions require runtime support so only work on Python 3.11 or later"')
+        code.putln("#endif")
+        runtime_api = code.globalstate.runtime_api
+        list_builder = runtime_api.sequence_builder(RuntimeSequenceKind.LIST)
+        code.putln("%s = %s; %s" % (
+            self.exception_list.result(),
+            runtime_api.sequence_builder_new(list_builder, "0"),
+            code.error_goto_if_null(self.exception_list.result(), self.pos)))
+        code.put_gotref(self.exception_list.result(), PyrexTypes.py_object_type)
+        code.putln("%s = %s = %s;" % (
+            self.original_exception_group.result(),
+            self.in_progress_exception_group.result(),
+            code.funcstate.exc_vars[1]
+        ))
+        code.put_incref(self.original_exception_group.result(), PyrexTypes.py_object_type)
+        code.put_incref(self.in_progress_exception_group.result(), PyrexTypes.py_object_type)
+        code.putln(f"{self.internal_exception_set.result()} = NULL;")
+        super().generate_execution_code(code)
+        for t in temps:
+            if t is self.matched_exception_group or t is self.internal_exception_set:
+                code.put_xdecref_clear(t.result(), t.type)
+            else:
+                code.put_decref_clear(t.result(), t.type)
+            t.release(code)
+
+
+class StarExceptSetExceptionNode(StatNode):
+    child_attrs = []
+
+    def analyse_expressions(self, env):
+        return self
+
+    def generate_execution_code(self, code):
+        vars = code.funcstate.exc_vars
+        for v in vars:
+            code.put_xdecref(v, PyrexTypes.py_object_type)
+        code.putln(f"{vars[0]} = (PyObject*)Py_TYPE({self.exception.result()});")
+        code.putln(f"{vars[1]} = {self.exception.result()};")
+        code.putln(f"{vars[2]} = PyException_GetTraceback({self.exception.result()});")
+        for v in vars[:2]:
+            code.put_incref(v, PyrexTypes.py_object_type)
+        # Also set the handled exception (for Python's benefit, when it sets __context__)
+        code.putln(f"PyErr_SetHandledException({self.exception.result()});")
+        code.put_xgotref(vars[2], PyrexTypes.py_object_type)
+
+
+class StarExceptTestSetupNode(StatNode):
+    child_attrs = ["pattern"]
+
+    def analyse_declarations(self, env):
+        for p in self.pattern:
+            p.analyse_declarations(env)
+
+    def analyse_expressions(self, env):
+        self.pattern = [
+            p.analyse_expressions(env).coerce_to_pyobject(env) for p in self.pattern
+        ]
+        return self
+
+    def generate_set_internal_exception_code(self, code):
+        # if we do hit an error, it doesn't override "internal exception set"
+        runtime_api = code.globalstate.runtime_api
+        code.putln(f"if (!{self.internal_exception_set.result()}) {{")
+        code.putln("PyObject *tp, *tb;")
+        code.putln(runtime_api.fetch_exception(
+            "&tp", f"&{self.internal_exception_set.result()}", "&tb") + ";")
+        code.put_incref(self.internal_exception_set.result(), PyrexTypes.py_object_type)
+        code.putln(runtime_api.restore_exception(
+            "tp", self.internal_exception_set.result(), "tb") + ";")
+        code.putln("}")
+
+    def generate_execution_code(self, code):
+        match_result_found_label = code.new_label()
+
+        # an exception handling block we can jump into in the event of an error
+        # while validating/matching this exception
+        code.putln("if ((0)) {")
+        code.putln("/* handle exception in validation/matching of the exception group */")
+        set_internal_exception_label = code.new_label()
+        code.use_label(set_internal_exception_label)
+        code.put_label(set_internal_exception_label)
+        self.generate_set_internal_exception_code(code)
+        code.putln(code.error_goto(self.pos))
+        code.putln("}")
+
+        for p in self.pattern:
+            p.generate_evaluation_code(code)
+            code.putln(
+                f"if (__Pyx_ValidateStarCatchPattern({p.result_as(py_object_type)})) {{")
+            code.put_goto(set_internal_exception_label)
+            code.putln("}")
+
+        # if the in progress exception is None (i.e. it's already been handled, completely),
+        # then it definitely won't match any of the patterns, so skip
+        code.put_xdecref_set(self.matched_exception_group.result(),
+                        self.matched_exception_group.type, "Py_None")
+        code.put_incref("Py_None", py_object_type)
+
+        code.put(f"if ({self.in_progress_exception_group.result()} == Py_None) ")
+        code.put_goto(match_result_found_label)
+
+        exception_test_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
+        if len(self.pattern) == 1:
+            # skip building the tuple
+            code.putln(f"{exception_test_temp} = {self.pattern[0].result_as(py_object_type)};")
+            code.put_incref(exception_test_temp, py_object_type)
+        else:
+            tuple_parts = [p.result_as(py_object_type) for p in self.pattern]
+            tuple_expression = code.globalstate.runtime_api.sequence_pack(
+                RuntimeSequenceKind.TUPLE, tuple_parts)
+            code.putln(f"{exception_test_temp} = {tuple_expression};")
+            code.put(f"if (unlikely(!{exception_test_temp})) ")
+            code.put_goto(set_internal_exception_label)
+            code.put_gotref(exception_test_temp, py_object_type)
+
+        code.put_xgiveref(self.in_progress_exception_group.result(), py_object_type)
+        code.put_xgiveref(self.matched_exception_group.result(), py_object_type)
+        group_match_failed_temp = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
+        code.putln("%s = __Pyx_ExceptionGroupMatch(%s, &%s, &%s);" % (
+            group_match_failed_temp,
+            exception_test_temp,
+            self.in_progress_exception_group.result(),
+            self.matched_exception_group.result()))
+        code.put_gotref(self.in_progress_exception_group.result(), py_object_type)
+        code.put_gotref(self.matched_exception_group.result(), py_object_type)
+        code.put_decref_clear(exception_test_temp, py_object_type)
+        code.funcstate.release_temp(exception_test_temp)
+        code.put(f"if (unlikely({group_match_failed_temp})) ")
+        code.put_goto(set_internal_exception_label)
+        code.funcstate.release_temp(group_match_failed_temp)
+
+        code.put_label(match_result_found_label)
+        for p in self.pattern:
+            p.generate_disposal_code(code)
+            p.free_temps(code)
+
+
+class StarExceptPrepAndReraiseNode(StatNode):
+    child_attrs = []
+
+    def analyse_expressions(self, env):
+        return self
+
+    def generate_execution_code(self, code):
+        # If we've had an internal exception while validating/matching one of the star exceptions
+        # this takes precedence
+        code.putln(f"if (unlikely({self.internal_exception_set.result()})) {{")
+        code.putln(f"__Pyx_RaisePreppedException({self.internal_exception_set.result()});")
+        code.put_decref_clear(self.internal_exception_set.result(), PyrexTypes.py_object_type)
+        code.putln(code.error_goto(None))
+        code.putln("}")
+
+        code.putln("{")
+        code.putln(f"Py_ssize_t {Naming.quick_temp_cname} = __Pyx_PyList_GET_SIZE({self.exception_list.py_result()});")
+        code.putln("#if !CYTHON_ASSUME_SAFE_SIZE")
+        code.putln(code.error_goto_if_neg(Naming.quick_temp_cname, self.pos))
+        code.putln("#endif")
+        code.putln(f"if ({Naming.quick_temp_cname} || {self.in_progress_exception_group.result()} != Py_None) {{")
+        code.putln(f"if ({self.in_progress_exception_group.result()} != Py_None) {{")
+        code.putln("if (PyList_Append(%s, %s) < 0) %s" % (
+            self.exception_list.py_result(),
+            self.in_progress_exception_group.result(),
+            code.error_goto(self.pos)))
+        code.putln("}")  # in_progress_exception_group != None
+        to_reraise = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=False)
+
+        # What's slightly unclear here is how to handle exceptions raised during
+        # PyExc_PrepReraiseStar. Ideally they shouldn't happen of course, but we can't
+        # do the "right" thing and add them to the list of exceptions raised in the try-except*
+        # and the prep those...
+        code.putln("%s = __Pyx_PyExc_PrepReraiseStar(%s, %s); %s" % (
+            to_reraise, self.original_exception_group.result(), self.exception_list.result(),
+            code.error_goto_if_null(to_reraise, self.pos)
+        ))
+        code.put_gotref(to_reraise, PyrexTypes.py_object_type)
+        # The exception already has the correct traceback, so don't add to it.
+        code.putln(f"{Naming.skip_add_traceback_cname} = 1;")
+        code.putln(f"__Pyx_RaisePreppedException({to_reraise});")
+        code.put_decref_clear(to_reraise, PyrexTypes.py_object_type)
+        code.putln(code.error_goto(None))
+        code.funcstate.release_temp(to_reraise)
+        code.putln("}")  # size != 0 or inprogress_exception_group != None
+        code.putln("}")  # scope around size temp
 
 
 class TryFinallyStatNode(StatNode):
@@ -10920,6 +11264,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
         self.any_label_used = False
         self.breaking_label_used = False
+        self.return_label_used = False
         self.error_label_used = False
 
         self.parallel_private_temps = []
@@ -10931,6 +11276,8 @@ class ParallelStatNode(StatNode, ParallelNode):
             if code.label_used(label):
                 self.breaking_label_used = (self.breaking_label_used or
                                             label != code.continue_label)
+                self.return_label_used = (self.return_label_used or
+                                            label == code.return_label)
                 self.any_label_used = True
 
         if self.any_label_used:
@@ -11470,7 +11817,10 @@ class ParallelRangeNode(ParallelStatNode):
             code.end_block()  # end else block
 
         # ------ cleanup ------
-        self.end_parallel_control_flow_block(code)  # end parallel control flow block
+        self.end_parallel_control_flow_block(
+            code,
+            return_=self.return_label_used
+        )  # end parallel control flow block
 
         # And finally, release our privates and write back any closure
         # variables

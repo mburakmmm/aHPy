@@ -1,0 +1,91 @@
+schema_version = 1
+selected_at = "2026-08-02"
+
+[[pilots]]
+id = "cypack-pure-cython"
+category = "pure-cython"
+project = "cython-package-example"
+repository = "https://github.com/FedericoStra/cython-package-example.git"
+commit = "7dfb3905259c5c7a82770806e5e558999eef79ce"
+upstream_version = "0.1.7"
+license_spdx = "MIT"
+license_file = "LICENSE.txt"
+source_paths = [
+  "src/cypack/answer.pyx",
+  "src/cypack/fibonacci.pyx",
+  "src/cypack/utils.pyx",
+]
+expected_initial_status = "rejected"
+expected_action_ids = ["compiled-entry-point", "cython-module-cimport"]
+expected_diagnostics = []
+source_changes = [
+  "Lower typed cpdef/cdef entry points to the supported def boundary while preserving the_answer, fib, and axpy Python behavior.",
+  "Replace the cross-module Cython cimport of axpy with an ordinary Python import so no Cython C API crosses module boundaries.",
+  "Keep the unrelated helper.c-backed wrong-answer extension outside this pure-Cython pilot and run only the selected modules' upstream tests.",
+]
+
+[[pilots]]
+id = "murmurhash-external-c"
+category = "external-c"
+project = "murmurhash"
+repository = "https://github.com/explosion/murmurhash.git"
+commit = "58831632dab79389a5cee7715fb688ef2297ff78"
+upstream_version = "master snapshot 2026-03-27"
+license_spdx = "MIT"
+license_file = "LICENSE"
+source_paths = [
+  "murmurhash/mrmr.pyx",
+  "murmurhash/MurmurHash2.cpp",
+  "murmurhash/include/murmurhash/MurmurHash2.h",
+  "murmurhash/MurmurHash3.cpp",
+  "murmurhash/include/murmurhash/MurmurHash3.h",
+]
+expected_initial_status = "rejected"
+expected_action_ids = ["native-pointer-boundary"]
+expected_diagnostics = []
+source_changes = [
+  "Isolate pointer and byte-buffer access outside the Universal translation unit.",
+  "Expose a Python-independent, fixed-width scalar shim or keep this pilot blocked until public HPy buffer acquisition exists.",
+  "Preserve noexcept nogil declarations only for native calls that cannot inspect Python or HPy state.",
+]
+
+[[pilots]]
+id = "frozenlist-extension-type"
+category = "extension-type-gc-inheritance"
+project = "frozenlist"
+repository = "https://github.com/aio-libs/frozenlist.git"
+commit = "351ad4bb62b30d943b0aa7463a0f85f7339b6ada"
+upstream_version = "master snapshot 2026-07-31"
+license_spdx = "Apache-2.0"
+license_file = "LICENSE"
+source_paths = ["frozenlist/_frozenlist.pyx"]
+expected_initial_status = "rejected"
+expected_action_ids = ["cpp-runtime-boundary", "direct-cpython-cimport"]
+expected_diagnostics = []
+source_changes = [
+  "Replace PyBool_FromLong with ordinary Python bool construction through the public HPy path.",
+  "Replace the C++ atomic field with a supported native field or isolate synchronization behind a Python-independent C shim.",
+  "Retain the object-valued _items field as the GC ownership probe and add a same-module derived-type fixture for inheritance validation.",
+  "Keep iterator-only methods outside the HPy 0.9 subset while sequence, mutation, hashing, and GC behavior are validated.",
+]
+
+[[pilots]]
+id = "bezier-numpy-blocked"
+category = "cpython-numpy-blocked"
+project = "bezier"
+repository = "https://github.com/dhermes/bezier.git"
+commit = "cf18953a491e8568e4a4344327ed441d3e8956da"
+upstream_version = "2024.6.21.dev1"
+license_spdx = "Apache-2.0"
+license_file = "LICENSE"
+source_paths = ["src/python/bezier/_speedup.pyx"]
+expected_initial_status = "rejected"
+expected_action_ids = ["numpy-c-api"]
+expected_diagnostics = [
+  "src/python/bezier/_speedup.pyx:37:1:numpy-c-api",
+  "src/python/bezier/_speedup.pyx:38:1:numpy-c-api",
+]
+source_changes = [
+  "No Universal fallback is permitted while ndarray, dtype, and typed-memoryview declarations require the NumPy CPython C API.",
+  "Keep the project blocked with a source-located numpy-c-api migration diagnostic until a public HPy-compatible array boundary is selected.",
+]

@@ -1,6 +1,6 @@
-from .Dependencies import cythonize
+from .Dependencies import cythonize, register_runtime_backend_build_hook
 
-__all__ = ["cythonize"]
+__all__ = ["cythonize", "register_runtime_backend_build_hook"]
 
 
 def __getattr__(name):

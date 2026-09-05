@@ -91,6 +91,11 @@ def _build_once(python, root):
         raise AssertionError(
             "expected exactly one sdist and one wheel, got %r" %
             [path.name for path in artifacts])
+    # Only the two immutable archives are needed for the cross-root byte
+    # comparison.  Drop the copied source and its build tree before creating
+    # the second root so the gate does not require space for both builds at
+    # once.
+    shutil.rmtree(source)
     return dist
 
 

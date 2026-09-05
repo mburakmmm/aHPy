@@ -1,32 +1,13 @@
-schema_version = 1
-
-[[case]]
-order = 1
-path = "tests/run/ahpy_module_functions.pyx"
-features = ["module-function", "typed-argument", "return", "defaults", "keywords"]
-
-[[case]]
-order = 2
-path = "tests/run/ahpy_containers.pyx"
-features = ["list-builder", "tuple-builder", "dict", "set", "mutation"]
-
-[[case]]
-order = 3
-path = "tests/run/ahpy_exceptions.pyx"
-features = ["raise", "match", "propagate", "chain", "exception-cleanup"]
-
-[[case]]
-order = 4
-path = "tests/run/ahpy_imports_globals.pyx"
-features = ["import", "global", "builtin-cache", "attribute", "call"]
-
-[[case]]
-order = 5
-path = "tests/run/ahpy_cleanup_paths.pyx"
-features = ["owned-temporary", "early-return", "loop-return", "failure-cleanup"]
+schema_version = 2
+protocol = "ahpy-universal-conformance-v1"
+suite = "ahpy/conformance-v1.json"
+suite_sha256 = "f477171db8a5da3c2dae73918eb487cca035b98b0386aefd428f682ba8ed7563"
+runner = "Tools/ahpy/run_conformance.py"
+module_contract = "python-callable-surface-map"
+frontend_sources_required = false
 
 [required_gates]
-cpython_baseline = true
+semantic_contract = true
 hpy_debug = true
 forbidden_legacy_source = true
 forbidden_legacy_symbols = true

@@ -25,7 +25,8 @@ let the paths drift and could silently produce a non-Universal artifact.
 4. CMake uses a `MODULE` target; Meson uses `shared_module`. Neither path
    invokes setuptools or guesses Python library linkage.
 5. Windows exports use CMake linker options or Meson's module-definition file.
-   Actual Windows support remains pending a green hosted MSVC run.
+   Actual Windows execution of these CMake/Meson paths remains pending; the
+   separate direct-build MSVC path is hosted-green.
 6. The scikit-build-core example invokes the installed aHPy frontend inside a
    real PEP 517 isolated environment, generates the contract there, builds the
    CMake target, and installs a small loader that calls public

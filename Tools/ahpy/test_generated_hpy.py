@@ -8,6 +8,8 @@ import shutil
 import subprocess
 from tempfile import TemporaryDirectory
 
+from artifact_utils import require_universal_binary
+
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "tests" / "ahpy" / "bootstrap_answer.pyx"
@@ -16,6 +18,10 @@ RETRY_MODULE_NAME = "retry_case"
 RETRY_SOURCE = ROOT / "tests" / "ahpy" / "retry_case.pyx"
 TYPE_SOURCE = ROOT / "tests" / "ahpy" / "bootstrap_types.pyx"
 TYPE_MODULE_NAME = "bootstrap_types"
+QUALIFIED_SOURCE = ROOT / "tests" / "ahpy" / "qualified_module.pyx"
+QUALIFIED_MODULE_NAME = "ahpy_package.qualified_module"
+CONSTANT_SOURCE = ROOT / "tests" / "ahpy" / "constants_only.pyx"
+CONSTANT_MODULE_NAME = "constants_only"
 
 
 def run(command, **kwargs):
@@ -25,6 +31,13 @@ def run(command, **kwargs):
         raise AssertionError(
             "command failed with exit status %d: %s" % (
                 exc.returncode, " ".join(map(str, command[:2])))) from None
+
+
+def write_runtime_check(directory, name, source):
+    """Write a runtime check without placing its source on the command line."""
+    path = directory / name
+    path.write_text(source, encoding="utf8")
+    return path
 
 
 def verify_source_boundary(generated, required=None):
@@ -46,6 +59,8 @@ def verify_source_boundary(generated, required=None):
         "HPyMember_OBJECT",
     )
     found = [name for name in forbidden if name in source]
+    if re.search(r"\bPy_buffer\b", source):
+        found.append("Py_buffer")
     if found:
         raise AssertionError(
             "forbidden source-boundary spellings found: %s" %
@@ -65,6 +80,8 @@ def verify_source_boundary(generated, required=None):
             "ctx->h_ComplexType",
             "ctx->h_ListType",
             "ctx->h_TupleType",
+            "ctx->h_UnicodeType",
+            "HPy_Type(",
             "HPyListBuilder_New",
             "HPyListBuilder_Cancel",
             "HPyTupleBuilder_New",
@@ -143,9 +160,6 @@ def build_and_run(python, runtime_prefix=()):
         temp = Path(temp_dir)
         generated = temp / (MODULE_NAME + ".c")
         environment = os.environ.copy()
-        sanitizer_preload = environment.get("AHPY_DYLD_INSERT_LIBRARIES")
-        if sanitizer_preload:
-            environment["DYLD_INSERT_LIBRARIES"] = sanitizer_preload
         environment["PYTHONPATH"] = str(ROOT)
         run([
             python,
@@ -190,6 +204,9 @@ def build_and_run(python, runtime_prefix=()):
             type_generated,
             required=(
                 "#include <hpy.h>",
+                "HPy_buffer",
+                "HPy_bf_getbuffer",
+                "HPy_bf_releasebuffer",
                 "HPyType_HELPERS",
                 "HPyDef_METH",
                 "HPyField",
@@ -258,15 +275,58 @@ def build_and_run(python, runtime_prefix=()):
             ),
         )
 
+        qualified_generated = temp / "qualified_module.c"
+        run([
+            python,
+            "-m", "cython",
+            "--runtime-backend=hpy-universal",
+            "--module-name", QUALIFIED_MODULE_NAME,
+            "-3",
+            "-o", str(qualified_generated),
+            str(QUALIFIED_SOURCE),
+        ], cwd=ROOT, env=environment)
+        verify_source_boundary(
+            qualified_generated,
+            required=(
+                "#include <hpy.h>",
+                "HPyDef_METH",
+                "HPy_MODINIT(qualified_module,",
+            ),
+        )
+
+        constant_generated = temp / (CONSTANT_MODULE_NAME + ".c")
+        run([
+            python,
+            "-m", "cython",
+            "--runtime-backend=hpy-universal",
+            "-3",
+            "-o", str(constant_generated),
+            str(CONSTANT_SOURCE),
+        ], cwd=ROOT, env=environment)
+        verify_source_boundary(
+            constant_generated,
+            required=(
+                "#include <hpy.h>",
+                "HPyDef_SLOT",
+                "HPy_mod_exec",
+                "HPy_MODINIT(constants_only,",
+            ),
+        )
+
         setup = temp / "setup.py"
         setup.write_text(
             "from setuptools import Extension, setup\n"
+            "from ahpy_hpy_compat import install_hpy_universal_loader_compat\n"
+            "install_hpy_universal_loader_compat()\n"
             "setup(name='ahpy-generated-bootstrap', version='0.0.0', "
             "packages=[], py_modules=[], "
             "hpy_ext_modules=[Extension('bootstrap_answer', "
             "['bootstrap_answer.c']), Extension('retry_case', "
             "['retry_case.c']), Extension('bootstrap_types', "
-            "['bootstrap_types.c'])])\n",
+            "['bootstrap_types.c']), Extension("
+            "'ahpy_package.qualified_module', "
+            "['qualified_module.c']), Extension('constants_only', "
+            "['constants_only.c'])])\n",
             encoding="utf8",
         )
         build_root = temp / "build"
@@ -278,30 +338,59 @@ def build_and_run(python, runtime_prefix=()):
             "--build-base", str(build_root),
         ], cwd=temp, env=environment, stdout=subprocess.DEVNULL)
 
-        binaries = list(build_root.rglob(MODULE_NAME + "*.hpy0.*"))
-        if len(binaries) != 1:
-            raise AssertionError("expected one .hpy0 binary, got %r" % binaries)
-        build_lib = binaries[0].parent
+        binary = require_universal_binary(build_root, MODULE_NAME)
+        build_lib = binary.parent
         if not build_lib.joinpath(MODULE_NAME + ".py").exists():
             raise AssertionError("HPy universal loader stub was not generated")
-        verify_binary_boundary(binaries[0])
-        retry_binaries = list(build_root.rglob(RETRY_MODULE_NAME + "*.hpy0.*"))
-        if len(retry_binaries) != 1:
-            raise AssertionError(
-                "expected one retry .hpy0 binary, got %r" % retry_binaries)
-        verify_binary_boundary(retry_binaries[0])
-        type_binaries = list(build_root.rglob(TYPE_MODULE_NAME + "*.hpy0.*"))
-        if len(type_binaries) != 1:
-            raise AssertionError(
-                "expected one pure-type .hpy0 binary, got %r" % type_binaries)
-        verify_binary_boundary(type_binaries[0])
+        verify_binary_boundary(binary)
+        retry_binary = require_universal_binary(build_root, RETRY_MODULE_NAME)
+        verify_binary_boundary(retry_binary)
+        type_binary = require_universal_binary(build_root, TYPE_MODULE_NAME)
+        verify_binary_boundary(type_binary)
+        qualified_binary = require_universal_binary(
+            build_root, QUALIFIED_MODULE_NAME)
+        verify_binary_boundary(qualified_binary)
+        constant_binary = require_universal_binary(
+            build_root, CONSTANT_MODULE_NAME)
+        verify_binary_boundary(constant_binary)
 
         retry_dependency = temp / "ahpy_retry_dependency.py"
         retry_dependency.write_text("# VALUE is added after the failed import.\n")
 
         semantic_check = (
             "import importlib, sys, gc, operator, warnings, ctypes; "
-            "import bootstrap_answer, bootstrap_types; "
+            "import bootstrap_answer, bootstrap_types, constants_only; "
+            "assert constants_only.__doc__ == "
+            "'constant-only module documentation'; "
+            "assert constants_only.VALUE == 47; "
+            "assert constants_only.NAME == 'sabit'; "
+            "from ahpy_package import qualified_module; "
+            "assert qualified_module.__doc__ == "
+            "'qualified \"module\" documentation\\nikinci satır'; "
+            "assert qualified_module.answer.__doc__ == "
+            "'answer documentation'; "
+            "assert qualified_module.answer() == 42; "
+            "assert qualified_module.selam_ç() == 43; "
+            "assert qualified_module.closure_unicode(qualified_module) "
+            "is qualified_module; "
+            "assert qualified_module.__name__ == 'ahpy_package.qualified_module'; "
+            "qualified_box = qualified_module.QualifiedBox(); "
+            "assert qualified_module.QualifiedBox.__doc__ == "
+            "'qualified box documentation'; "
+            "assert qualified_module.QualifiedBox.answer.__doc__ == "
+            "'box answer documentation'; "
+            "assert qualified_box.answer() == 42; "
+            "assert qualified_box.değer() == 44; "
+            "assert qualified_box.başlık == 46; "
+            "assert qualified_module.QualifiedBox.başlık.__doc__ == "
+            "'birinci \"satır\" \\\\ yolu\\n        ikinci satır'; "
+            "unicode_box = qualified_module.DeğerKutusu(qualified_box); "
+            "assert unicode_box.answer() == 45; "
+            "assert unicode_box.içerik is qualified_box; "
+            "assert qualified_module.DeğerKutusu.__module__ == "
+            "'ahpy_package.qualified_module'; "
+            "assert qualified_module.QualifiedBox.__module__ == "
+            "'ahpy_package.qualified_module'; "
             "marker_instance = bootstrap_types.make_marker(); "
             "assert type(marker_instance) is bootstrap_types.Marker; "
             "assert bootstrap_types.marker_type() is bootstrap_types.Marker; "
@@ -413,6 +502,49 @@ def build_and_run(python, runtime_prefix=()):
             "    pass\n"
             "else:\n"
             "    raise AssertionError('native bitwise method accepted overflow')\n"
+            "scalar_buffer = bootstrap_types.ScalarBuffer(41); "
+            "scalar_view = memoryview(scalar_buffer); "
+            "assert scalar_view.format == 'l'; "
+            "assert scalar_view.shape == (1,); "
+            "assert scalar_view.strides == (ctypes.sizeof(ctypes.c_long),); "
+            "assert scalar_view.itemsize == ctypes.sizeof(ctypes.c_long); "
+            "assert scalar_view.nbytes == ctypes.sizeof(ctypes.c_long); "
+            "assert scalar_view.readonly is False; "
+            "assert scalar_view[0] == 41; "
+            "scalar_view[0] = -17; "
+            "assert scalar_buffer.value == -17; "
+            "del scalar_buffer; gc.collect(); "
+            "assert scalar_view[0] == -17; "
+            "scalar_view.release(); "
+            "derived_buffer = bootstrap_types.DerivedScalarBuffer(73); "
+            "derived_view = memoryview(derived_buffer); "
+            "assert derived_view.format == 'l'; "
+            "assert derived_view.shape == (1,); "
+            "derived_view[0] = -29; "
+            "assert derived_buffer.value == -29; "
+            "derived_view.release(); "
+            "double_buffer = bootstrap_types.DoubleBuffer(1.25); "
+            "double_view = memoryview(double_buffer); "
+            "assert double_view.format == 'd'; "
+            "assert double_view.shape == (1,); "
+            "assert double_view.itemsize == ctypes.sizeof(ctypes.c_double); "
+            "double_view[0] = -2.5; "
+            "assert double_buffer.value == -2.5; "
+            "double_view.release(); "
+            "array_buffer = bootstrap_types.FixedArrayBuffer(); "
+            "array_view = memoryview(array_buffer); "
+            "assert array_view.format == 'l'; "
+            "assert array_view.shape == (4,); "
+            "assert array_view.strides == (ctypes.sizeof(ctypes.c_long),); "
+            "assert array_view.itemsize == ctypes.sizeof(ctypes.c_long); "
+            "assert array_view.nbytes == 4 * ctypes.sizeof(ctypes.c_long); "
+            "assert array_view.readonly is False; "
+            "array_view[0] = 11; array_view[1] = -7; "
+            "array_view[2] = 23; array_view[3] = 5; "
+            "assert list(array_view) == [11, -7, 23, 5]; "
+            "del array_buffer; gc.collect(); "
+            "assert list(array_view) == [11, -7, 23, 5]; "
+            "array_view.release(); "
             "bint_box = bootstrap_types.BintBox([]); "
             "assert bint_box.enabled is False; assert bint_box.frozen is False; "
             "\ntry:\n"
@@ -824,6 +956,68 @@ def build_and_run(python, runtime_prefix=()):
             "    assert exc.args == ('missing',)\n"
             "else:\n"
             "    raise AssertionError('__format__ lost lookup error')\n"
+            "protocol = bootstrap_types.ProtocolMethods("
+            "b'payload', 3 + 4j, {None: 11, 2: 12.5}); "
+            "assert bytes(protocol) == b'payload'; "
+            "assert complex(protocol) == 3 + 4j; "
+            "assert round(protocol) == 11; assert round(protocol, 2) == 12.5; "
+            "derived_protocol = bootstrap_types.DerivedProtocolMethods("
+            "b'derived', 5 + 6j, {None: 17, 1: 18}); "
+            "assert bytes(derived_protocol) == b'derived'; "
+            "assert complex(derived_protocol) == 5 + 6j; "
+            "assert round(derived_protocol, 1) == 18\n"
+            "try:\n"
+            "    bytes(bootstrap_types.ProtocolMethods("
+            "'bad', 1 + 0j, {None: 1}))\n"
+            "except TypeError:\n"
+            "    pass\n"
+            "else:\n"
+            "    raise AssertionError('__bytes__ accepted a non-bytes result')\n"
+            "try:\n"
+            "    complex(bootstrap_types.ProtocolMethods("
+            "b'ok', 'bad', {None: 1}))\n"
+            "except TypeError:\n"
+            "    pass\n"
+            "else:\n"
+            "    raise AssertionError('__complex__ accepted a non-complex result')\n"
+            "try:\n"
+            "    round(protocol, 99)\n"
+            "except KeyError as exc:\n"
+            "    assert exc.args == (99,)\n"
+            "else:\n"
+            "    raise AssertionError('__round__ lost lookup error')\n"
+            "events = []\n"
+            "with bootstrap_types.ContextMethods(events, False) as manager:\n"
+            "    assert manager is not None\n"
+            "    events.append('body')\n"
+            "assert events == ['enter', 'body', None]\n"
+            "suppressed_events = []\n"
+            "with bootstrap_types.ContextMethods(suppressed_events, True):\n"
+            "    raise ValueError('suppressed')\n"
+            "assert suppressed_events == ['enter', ValueError]\n"
+            "propagated_events = []\n"
+            "try:\n"
+            "    with bootstrap_types.DerivedContextMethods("
+            "propagated_events, False):\n"
+            "        raise KeyError('propagated')\n"
+            "except KeyError as exc:\n"
+            "    assert exc.args == ('propagated',)\n"
+            "else:\n"
+            "    raise AssertionError('__exit__ suppressed a false result')\n"
+            "assert propagated_events == ['enter', KeyError]\n"
+            "class BrokenExitEvents(list):\n"
+            "    def append(self, value):\n"
+            "        if self:\n"
+            "            raise RuntimeError('exit failed')\n"
+            "        super().append(value)\n"
+            "try:\n"
+            "    with bootstrap_types.ContextMethods("
+            "BrokenExitEvents(), False):\n"
+            "        pass\n"
+            "except RuntimeError as exc:\n"
+            "    assert str(exc) == 'exit failed'\n"
+            "else:\n"
+            "    raise AssertionError('__exit__ lost its body error')\n"
             "assert len(bootstrap_types.Sized(3)) == 3; "
             "assert bool(bootstrap_types.Sized(0)) is False; "
             "\ntry:\n"
@@ -845,6 +1039,9 @@ def build_and_run(python, runtime_prefix=()):
             "else:\n"
             "    raise AssertionError('__len__ accepted an overflowing result')\n"
             "assert hash(bootstrap_types.HashBox(5)) == hash(5); "
+            "within_hash_range = (1 << 62) + 123; "
+            "assert hash(bootstrap_types.HashBox(within_hash_range)) == "
+            "within_hash_range; "
             "assert hash(bootstrap_types.HashBox(1 << 100)) == hash(1 << 100); "
             "assert hash(bootstrap_types.HashBox(-1)) == -2; "
             "\ntry:\n"
@@ -1519,6 +1716,15 @@ def build_and_run(python, runtime_prefix=()):
             "assert bootstrap_answer.handle_with_local(fail_value, marker) == 42\n"
             "assert bootstrap_answer.handle_linear_try(lambda: None, marker) == [marker]\n"
             "assert bootstrap_answer.handle_linear_try(fail_value, marker) == ('handled',)\n"
+            "handler_marker = object()\n"
+            "assert bootstrap_answer.handle_general_body(lambda: 7, handler_marker) == 7\n"
+            "assert bootstrap_answer.handle_general_body(fail_value, handler_marker) == [handler_marker, handler_marker]\n"
+            "try:\n"
+            "    bootstrap_answer.translate_value_error(fail_value)\n"
+            "except TypeError as error:\n"
+            "    assert error.args == (['translated'],)\n"
+            "else:\n"
+            "    raise AssertionError('missing translated handler error')\n"
             "try:\n"
             "    bootstrap_answer.handle_value_or_type(lambda: 1 / 0)\n"
             "except ZeroDivisionError:\n"
@@ -1669,15 +1875,28 @@ def build_and_run(python, runtime_prefix=()):
             "retry_case = importlib.import_module('retry_case')\n"
             "assert retry_case.dependency_value() == 73\n"
         )
+        retry_check_path = write_runtime_check(
+            temp, "retry_check.py", retry_check)
+        semantic_check_path = write_runtime_check(
+            temp, "semantic_check.py", semantic_check)
         run_runtime(
-            [python, "-c", retry_check], cwd=temp, env=runtime_environment)
+            [python, str(retry_check_path)],
+            cwd=temp,
+            env=runtime_environment,
+        )
         run_runtime(
-            [python, "-c", semantic_check], cwd=temp, env=runtime_environment)
+            [python, str(semantic_check_path)],
+            cwd=temp,
+            env=runtime_environment,
+        )
 
         trace_environment = runtime_environment.copy()
         trace_environment["HPY"] = "trace"
         run_runtime(
-            [python, "-c", semantic_check], cwd=temp, env=trace_environment)
+            [python, str(semantic_check_path)],
+            cwd=temp,
+            env=trace_environment,
+        )
 
         runtime_environment["HPY"] = "debug"
         debug_retry_check = (
@@ -1696,8 +1915,10 @@ def build_and_run(python, runtime_prefix=()):
             "assert retry_case.dependency_value() == 73\n"
             "detector.stop()"
         )
+        debug_retry_check_path = write_runtime_check(
+            temp, "debug_retry_check.py", debug_retry_check)
         run_runtime(
-            [python, "-c", debug_retry_check],
+            [python, str(debug_retry_check_path)],
             cwd=temp,
             env=runtime_environment,
         )
@@ -2203,6 +2424,68 @@ def build_and_run(python, runtime_prefix=()):
             "    assert exc.args == ('missing',)\n"
             "else:\n"
             "    raise AssertionError('__format__ lost lookup error')\n"
+            "protocol = bootstrap_types.ProtocolMethods("
+            "b'payload', 3 + 4j, {None: 11, 2: 12.5}); "
+            "assert bytes(protocol) == b'payload'; "
+            "assert complex(protocol) == 3 + 4j; "
+            "assert round(protocol) == 11; assert round(protocol, 2) == 12.5; "
+            "derived_protocol = bootstrap_types.DerivedProtocolMethods("
+            "b'derived', 5 + 6j, {None: 17, 1: 18}); "
+            "assert bytes(derived_protocol) == b'derived'; "
+            "assert complex(derived_protocol) == 5 + 6j; "
+            "assert round(derived_protocol, 1) == 18\n"
+            "try:\n"
+            "    bytes(bootstrap_types.ProtocolMethods("
+            "'bad', 1 + 0j, {None: 1}))\n"
+            "except TypeError:\n"
+            "    pass\n"
+            "else:\n"
+            "    raise AssertionError('__bytes__ accepted a non-bytes result')\n"
+            "try:\n"
+            "    complex(bootstrap_types.ProtocolMethods("
+            "b'ok', 'bad', {None: 1}))\n"
+            "except TypeError:\n"
+            "    pass\n"
+            "else:\n"
+            "    raise AssertionError('__complex__ accepted a non-complex result')\n"
+            "try:\n"
+            "    round(protocol, 99)\n"
+            "except KeyError as exc:\n"
+            "    assert exc.args == (99,)\n"
+            "else:\n"
+            "    raise AssertionError('__round__ lost lookup error')\n"
+            "events = []\n"
+            "with bootstrap_types.ContextMethods(events, False) as manager:\n"
+            "    assert manager is not None\n"
+            "    events.append('body')\n"
+            "assert events == ['enter', 'body', None]\n"
+            "suppressed_events = []\n"
+            "with bootstrap_types.ContextMethods(suppressed_events, True):\n"
+            "    raise ValueError('suppressed')\n"
+            "assert suppressed_events == ['enter', ValueError]\n"
+            "propagated_events = []\n"
+            "try:\n"
+            "    with bootstrap_types.DerivedContextMethods("
+            "propagated_events, False):\n"
+            "        raise KeyError('propagated')\n"
+            "except KeyError as exc:\n"
+            "    assert exc.args == ('propagated',)\n"
+            "else:\n"
+            "    raise AssertionError('__exit__ suppressed a false result')\n"
+            "assert propagated_events == ['enter', KeyError]\n"
+            "class BrokenExitEvents(list):\n"
+            "    def append(self, value):\n"
+            "        if self:\n"
+            "            raise RuntimeError('exit failed')\n"
+            "        super().append(value)\n"
+            "try:\n"
+            "    with bootstrap_types.ContextMethods("
+            "BrokenExitEvents(), False):\n"
+            "        pass\n"
+            "except RuntimeError as exc:\n"
+            "    assert str(exc) == 'exit failed'\n"
+            "else:\n"
+            "    raise AssertionError('__exit__ lost its body error')\n"
             "assert len(bootstrap_types.Sized(3)) == 3; "
             "assert bool(bootstrap_types.Sized(0)) is False; "
             "\ntry:\n"
@@ -2609,6 +2892,13 @@ def build_and_run(python, runtime_prefix=()):
             "assert bootstrap_answer.format_greeting('hpy') == 'hello hpy!'; "
             "assert bootstrap_answer.format_repr('hpy') == \"'hpy'\"; "
             "assert bootstrap_answer.format_padded(7, 3) == '  7'; "
+            "assert bootstrap_answer.format_method('hpy') == \"value='hpy'\"; "
+            "assert bootstrap_answer.checked_str_result(lambda: 'ok') == 'ok'; "
+            "assert bootstrap_answer.checked_str_result(lambda: None) is None; "
+            "exec(\"try:\\n bootstrap_answer.checked_str_result(lambda: 42)\\n"
+            "except TypeError as error:\\n assert str(error) == "
+            "'Expected str, got an incompatible return value'\\n"
+            "else:\\n raise AssertionError('invalid str return was accepted')\"); "
             "assert bootstrap_answer.walrus_threshold((1, 2, 3), 2) == 3; "
             "assert bootstrap_answer.walrus_threshold((1,), 2) == 0; "
             "assert bootstrap_answer.walrus_product(3, 4) == 49; "
@@ -2762,6 +3052,15 @@ def build_and_run(python, runtime_prefix=()):
             "assert bootstrap_answer.handle_with_local(fail_value, marker) == 42\n"
             "assert bootstrap_answer.handle_linear_try(lambda: None, marker) == [marker]\n"
             "assert bootstrap_answer.handle_linear_try(fail_value, marker) == ('handled',)\n"
+            "handler_marker = object()\n"
+            "assert bootstrap_answer.handle_general_body(lambda: 7, handler_marker) == 7\n"
+            "assert bootstrap_answer.handle_general_body(fail_value, handler_marker) == [handler_marker, handler_marker]\n"
+            "try:\n"
+            "    bootstrap_answer.translate_value_error(fail_value)\n"
+            "except TypeError as error:\n"
+            "    assert error.args == (['translated'],)\n"
+            "else:\n"
+            "    raise AssertionError('missing translated handler error')\n"
             "try:\n"
             "    bootstrap_answer.handle_value_or_type(lambda: 1 / 0)\n"
             "except ZeroDivisionError:\n"
@@ -3106,6 +3405,7 @@ def build_and_run(python, runtime_prefix=()):
             "assert bootstrap_answer.for_dynamic_consume([0, 2, -1]) == [2]\n"
             "assert bootstrap_answer.for_dynamic_consume((0, 2, 3)) == [2, 3, 'done']\n"
             "assert bootstrap_answer.for_dynamic_consume([]) == ['done']\n"
+            "assert bootstrap_answer.for_dynamic_rebind_source((1, 2, 3)) == [1, 2, 3]\n"
             "assert bootstrap_answer.empty_sequence_for(()) == 100\n"
             "assert bootstrap_answer.empty_sequence_for((1, 2)) == 103\n"
             "try:\n"
@@ -3256,8 +3556,13 @@ def build_and_run(python, runtime_prefix=()):
             "    raise AssertionError('duplicate expanded keyword did not fail')\n"
             "detector.stop()"
         )
+        debug_check_path = write_runtime_check(
+            temp, "debug_check.py", debug_check)
         run_runtime(
-            [python, "-c", debug_check], cwd=temp, env=runtime_environment)
+            [python, str(debug_check_path)],
+            cwd=temp,
+            env=runtime_environment,
+        )
 
 
 def main():
