@@ -1,0 +1,81 @@
+{
+  "artifacts": {
+    "binary": "frozenlist_port.hpy0.so",
+    "generated_source": "frozenlist_port.c"
+  },
+  "backend": "hpy-universal",
+  "gates": {
+    "binary-audit": "pass",
+    "constructor-failure": "pass",
+    "debug": "pass",
+    "gc-cycle": "pass",
+    "generate": "pass",
+    "inheritance": "pass",
+    "native-build": "pass",
+    "normal": "pass",
+    "performance": "pass",
+    "port-patch": "pass",
+    "source-audit": "pass",
+    "tests": "pass",
+    "trace": "pass"
+  },
+  "generated_at": "2026-08-14T11:03:54.421878+00:00",
+  "performance": {
+    "budget_enforced": false,
+    "comparison": "supported-subset-to-equivalent-python",
+    "environment": {
+      "hpy_version": "0.9.0",
+      "machine": "x86_64",
+      "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+      "python_implementation": "CPython",
+      "python_version": "3.11.15"
+    },
+    "schema_version": 1,
+    "workloads": {
+      "mutation-freeze-hash": {
+        "compiled_ns_per_call": 5134.2798,
+        "compiled_to_python_ratio": 9.566035679331316,
+        "iterations": 10000,
+        "python_reference_ns_per_call": 536.7197,
+        "repeats": 7
+      }
+    }
+  },
+  "pilot": "frozenlist-extension-type",
+  "port_contract": {
+    "free_threading_atomic_semantics": false,
+    "object_field_gc": true,
+    "omitted_surfaces": [
+      "iterator-protocol",
+      "rich-comparison",
+      "copy-and-deepcopy",
+      "mutable-sequence-registration"
+    ],
+    "same_module_inheritance": true,
+    "status": "supported-subset"
+  },
+  "provenance": {
+    "head": "351ad4bb62b30d943b0aa7463a0f85f7339b6ada",
+    "license_file": "LICENSE",
+    "license_sha256": "6fd5243e92dd7f98ec69c7ac377728e74905709ff527a5bf98d6d0263c04f5b6",
+    "origin": "https://github.com/aio-libs/frozenlist.git",
+    "pristine": true,
+    "source_paths": [
+      "frozenlist/_frozenlist.pyx"
+    ],
+    "source_sha256": {
+      "frozenlist/_frozenlist.pyx": "26f27a30206848ce5c532dffa53224df73c5334cbe159def849f36f355703961"
+    }
+  },
+  "python": "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python",
+  "schema_version": 1,
+  "timings_seconds": {
+    "build": 2.633496072000014,
+    "debug": 0.028869990999993433,
+    "normal": 0.029871315999997705,
+    "performance": 0.46306944299999486,
+    "total": 3.2364814930000136,
+    "trace": 0.028223277000023472
+  },
+  "upstream_commit": "351ad4bb62b30d943b0aa7463a0f85f7339b6ada"
+}

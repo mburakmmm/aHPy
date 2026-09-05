@@ -1,0 +1,76 @@
+{
+  "artifacts": {
+    "binary": "ahpy_murmurhash_pilot.hpy0.so",
+    "generated_source": "ahpy_murmurhash_pilot.c"
+  },
+  "backend": "hpy-universal",
+  "gates": {
+    "binary-audit": "pass",
+    "conversion-failure": "pass",
+    "debug": "pass",
+    "generate": "pass",
+    "native-build": "pass",
+    "normal": "pass",
+    "performance": "pass",
+    "port-patch": "pass",
+    "source-audit": "pass",
+    "tests": "pass",
+    "trace": "pass"
+  },
+  "generated_at": "2026-08-14T11:03:51.107006+00:00",
+  "performance": {
+    "budget_enforced": false,
+    "comparison": "scalar-adapter-to-equivalent-python",
+    "environment": {
+      "hpy_version": "0.9.0",
+      "machine": "x86_64",
+      "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+      "python_implementation": "CPython",
+      "python_version": "3.11.15"
+    },
+    "schema_version": 1,
+    "workloads": {
+      "hash-u64": {
+        "compiled_ns_per_call": 201.9816,
+        "compiled_to_python_ratio": 0.10516007190646931,
+        "iterations": 50000,
+        "python_reference_ns_per_call": 1920.70618,
+        "repeats": 7
+      }
+    }
+  },
+  "pilot": "murmurhash-external-c",
+  "port_contract": {
+    "input": "uint64-little-endian",
+    "status": "partial-scalar-adapter",
+    "upstream_python_bytes_api_supported": false
+  },
+  "provenance": {
+    "head": "58831632dab79389a5cee7715fb688ef2297ff78",
+    "license_file": "LICENSE",
+    "origin": "https://github.com/explosion/murmurhash.git",
+    "pristine": true,
+    "source_paths": [
+      "murmurhash/mrmr.pyx",
+      "murmurhash/MurmurHash2.cpp",
+      "murmurhash/include/murmurhash/MurmurHash2.h",
+      "murmurhash/MurmurHash3.cpp",
+      "murmurhash/include/murmurhash/MurmurHash3.h"
+    ],
+    "source_sha256": {
+      "murmurhash/MurmurHash3.cpp": "e4b9eb0ed842dde715d06bdcec40eee2486402cc18ed9d982cba3acb4b1c799c",
+      "murmurhash/include/murmurhash/MurmurHash3.h": "93cca441e8c16106f4a1f936c2e0bd85a04954f83ef965781e81908967bea6d0"
+    }
+  },
+  "python": "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python",
+  "schema_version": 1,
+  "timings_seconds": {
+    "build": 2.008830101000001,
+    "debug": 0.026697345000002315,
+    "normal": 0.026904643999984046,
+    "performance": 0.8123615860000086,
+    "total": 2.953047280000021,
+    "trace": 0.02789020700001288
+  },
+  "upstream_commit": "58831632dab79389a5cee7715fb688ef2297ff78"
+}

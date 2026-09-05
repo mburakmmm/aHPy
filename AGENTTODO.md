@@ -7,6 +7,13 @@ agent must keep all three synchronized when implementation status changes.
 
 ## 1. Snapshot and source of truth
 
+- PRD-8 evidence reconciliation (2026-09-05): hosted run `31794650087`,
+  artifact `9216896185`, and all four pilot JSON reports were revalidated.
+  `docs/ahpy/compatibility-dashboard.md` reproduces the hosted artifact byte
+  for byte; inputs are retained under `docs/ahpy/audits/evidence/` with hashes
+  and scope limits in `m10-hosted-pilot-evidence.md`. Port results are cypack
+  pass, murmurhash/frozenlist partial, bezier blocked. Release budgets and
+  full upstream-library API compatibility are not implied.
 - Current continuation (2026-09-05): the owner authorized integrating this
   branch into `main` and continuing the complete roadmap there. PR #2 is
   mergeable but its required `ci-success` failed on the two Python 3.9

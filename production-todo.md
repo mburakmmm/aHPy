@@ -42,7 +42,7 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 | 5 | PRD-5 — Portability/native memory | **DIŞ BAĞIMLILIK** | Universal binary ve platform kanıtı |
 | 6 | PRD-6 — Paketleme/dağıtım | **DIŞ BAĞIMLILIK** | Kurulabilir ve doğrulanabilir artifact |
 | 7 | PRD-7 — Performans/footprint | **DIŞ BAĞIMLILIK** | Hosted örnekler sonrası sürüm bütçeleri |
-| 8 | PRD-8 — Gerçek kütüphane pilotları | **AKTİF** | GitHub beklerken ilerleyen yerel çalışma kanıtı |
+| 8 | PRD-8 — Gerçek kütüphane pilotları | **TAMAMLANDI — İLAN EDİLEN ALT KÜMELER** | Dört pilotun saklanan hosted raporu ve dashboard'u |
 | 9 | PRD-9 — Upstream/güvenlik/bakım | **BEKLİYOR** | Sürdürülebilir production işletimi |
 | 10 | PRD-10 — RC/stable yayın | **BEKLİYOR** | İmzalı ve kanıtlı production release |
 
@@ -482,25 +482,33 @@ maintainer onayı veya current-candidate same-HEAD hosted kanıtı yerine geçme
 - [x] CPython/NumPy C API nedeniyle bilerek blocked olacak pilotu seç.
 - [x] Her pilot için upstream sürüm/commit ve lisans kaydı tut.
 - [x] Her pilot için gereken kaynak değişikliklerini kaydet.
-- [ ] Her pilotun build, test, normal/Trace/Debug ve performance sonuçlarını
+- [x] Her pilotun build, test, normal/Trace/Debug ve performance sonuçlarını
       kaydet.
 - [x] Ortak portlama değişikliklerini backend desteğine veya migration
       kuralına dönüştür.
 - [x] Blocked pilotun source-located diagnostics kalitesini doğrula.
-- [ ] CI artifact'lerinden compatibility dashboard üret.
+- [x] CI artifact'lerinden compatibility dashboard üret.
 - [x] Library-author porting guide yayımla.
 - [x] Bug/compatibility issue template ekle.
 - [x] HPy conformance corpus'unu kullanıcının programlama diliyle paylaşırken
       Cython frontend internallerine bağımlılık oluşturma.
 
-Yerel ara kanıt: pinned `cython-package-example` 0.1.7 port fixture'ının üç
+Hosted kanıt (2026-09-05 doğrulaması): `31794650087` koşusunun
+`9216896185` artifact'i dört pilot JSON raporunu ve birleşik dashboard'u
+yayımladı. Dört JSON kalıcı audit girdisi olarak saklandı; yeniden üretim
+hosted dashboard ile byte düzeyinde aynı. Commit/ağaç kimliği, SHA-256
+değerleri, performans oranları ve kapsam sınırları
+`docs/ahpy/audits/m10-hosted-pilot-evidence.md` dosyasında kayıtlıdır.
+Bu sonuç PRD-7 release bütçesi veya bütün upstream API'lerin desteği değildir.
+
+Tarihsel yerel ara kanıt: pinned `cython-package-example` 0.1.7 port fixture'ının üç
 modülü ilan edilen setuptools Universal yolunda generate/native-build,
 source/binary audit, seçili upstream semantiği ve normal/Trace/Debug
 `LeakDetector` kapılarını geçiyor. Host-tagged wheel içerik audit'i, dependency
 olmadan isolated target kurulumu, kurulu normal/Trace/Debug çalıştırmaları ve
 aynı süreçteki eşdeğer Python fonksiyonlarına karşı provenance-bound yedi
 tekrarlı `axpy`/Fibonacci ölçümü de yerelde geçiyor; hosted artifact gelmeden
-PRD-8 çıkış kapısı işaretlenmeyecek ve yerel ölçüm release bütçesi sayılmayacak.
+PRD-8 çıkış kapısı o aşamada işaretlenmemişti; yerel ölçüm release bütçesi sayılmaz.
 Pinned bezier `_speedup.pyx` kaynağının SHA-256 değeri
 `f99e5053f1c942bbc443fa3399c1c67243c46cf078c664a00cc9433ae2993a05` olarak
 doğrulandı; NumPy C-API kuralı exact upstream satırlarında `37:1` ve `38:1`
@@ -535,8 +543,8 @@ Tam dört-pilot pristine checkout/scan matrisi ile üç port integration raporu
 yerelde tek dashboard'a kapı bazında birleştirildi: cypack `pass`, murmurhash
 `partial-scalar-adapter`, frozenlist `supported-subset`, bezier ise beklenen
 `blocked` sonucunu veriyor. Workflow aynı dört JSON girdisini ve üretilen
-Markdown dashboard'u immutable artifact grubuna ekliyor; GitHub yazma limiti
-nedeniyle hosted artifact kanıtı ve ilgili checkbox açık kalıyor.
+Markdown dashboard'u immutable artifact grubuna ekliyor; önceki GitHub yazma
+limiti sonrasında hosted kanıt yukarıdaki audit ile doğrulandı.
 Dashboard başarılı performans kapısı için eksiksiz sonlu örneklem, karşılaştırma
 kimliği, ortam provenance'ı ve `budget_enforced = false` ister; bezier matrisi
 ise NumPy C-API sınırı nedeniyle gerekçeli `blocked` kaydı üretir ve sayı üretmez.
@@ -557,7 +565,7 @@ gizleyemez.
 
 ### PRD-8 çıkış kapısı
 
-- [ ] Dört pilotun raporu ve yeniden çalıştırılabilir CI kanıtı yayımlandı.
+- [x] Dört pilotun raporu ve yeniden çalıştırılabilir CI kanıtı yayımlandı.
 - [x] En az bir gerçek üçüncü taraf proje ilan edilen production yolunda
       source/binary/Debug kapılarını geçiyor.
 

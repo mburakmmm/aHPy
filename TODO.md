@@ -1422,19 +1422,24 @@ until its full existing Cython test subset and new HPy-specific tests pass.
 
 ## M10 - Real-library pilots and ecosystem adoption
 
-- [ ] Select a pure Cython pilot with no direct Python C-API dependency.
-- [ ] Select a Cython wrapper around a Python-independent C library.
-- [ ] Select a project using extension types, GC, and inheritance.
-- [ ] Select one deliberately blocked CPython/NumPy C-API project to validate
+- [x] Select a pure Cython pilot with no direct Python C-API dependency.
+- [x] Select a Cython wrapper around a Python-independent C library.
+- [x] Select a project using extension types, GC, and inheritance.
+- [x] Select one deliberately blocked CPython/NumPy C-API project to validate
       diagnostics.
-- [ ] Record required source changes, unsupported constructs, build changes,
+- [x] Record required source changes, unsupported constructs, build changes,
       test results, and performance for every pilot.
 - [ ] Convert recurring source changes into compiler support or documented
       migration rules.
-- [ ] Publish a compatibility dashboard generated from CI artifacts.
+- [x] Publish a compatibility dashboard generated from CI artifacts.
 - [ ] Provide a library-author porting guide and issue template.
 - [ ] Share the HPy conformance corpus with the author's programming language
       without coupling that language frontend to Cython internals.
+
+M10 selection, port-result and dashboard evidence is recorded in
+`docs/ahpy/audits/m10-hosted-pilot-evidence.md` with retained hosted JSON.
+The murmurhash/frozenlist scopes remain partial and bezier remains blocked;
+these checkboxes do not claim complete upstream-library API support.
 
 ## M11 - Upstreaming, release, and maintenance
 
