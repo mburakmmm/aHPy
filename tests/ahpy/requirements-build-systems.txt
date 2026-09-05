@@ -1,6 +1,6 @@
 # Maintained M7 build-system integration lane.
-meson==1.11.2
+meson==1.12.0
 ninja==1.13.0
 scikit-build-core==1.0.3
-cmake==4.3.4
-build==1.5.0
+cmake==4.4.2
+build==1.6.0
