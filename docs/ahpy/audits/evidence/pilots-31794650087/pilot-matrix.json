@@ -1,0 +1,544 @@
+{
+  "backend": "hpy-universal",
+  "checkout_root": "/home/runner/work/_temp/ahpy-pilots",
+  "expectations_met": true,
+  "generated_at": "2026-08-14T11:03:26.157704+00:00",
+  "manifest_selected_at": "2026-08-02",
+  "pilots": [
+    {
+      "category": "pure-cython",
+      "checkout": "/home/runner/work/_temp/ahpy-pilots/cypack-pure-cython",
+      "id": "cypack-pure-cython",
+      "initial_scan": {
+        "category": "pure-cython",
+        "commit": "7dfb3905259c5c7a82770806e5e558999eef79ce",
+        "expectation_met": true,
+        "expected": {
+          "required_action_ids": [
+            "compiled-entry-point",
+            "cython-module-cimport"
+          ],
+          "required_diagnostics": [],
+          "status": "rejected"
+        },
+        "id": "cypack-pure-cython",
+        "missing_action_ids": [],
+        "missing_diagnostics": [],
+        "observed": {
+          "action_ids": [
+            "compiled-entry-point",
+            "cython-module-cimport"
+          ],
+          "diagnostics": [
+            "src/cypack/answer.pyx:1:1:cython-module-cimport"
+          ],
+          "status": "rejected"
+        },
+        "scan": {
+          "backend": "hpy-universal",
+          "schema_version": 1,
+          "sources": [
+            {
+              "diagnostics": [
+                {
+                  "action": {
+                    "id": "cython-module-cimport",
+                    "text": "Replace a cross-module Cython cimport with an ordinary Python boundary. For a Python-independent external C declaration, keep the native ABI behind the reviewed scalar rules in external-c.md."
+                  },
+                  "column": 0,
+                  "line": 1,
+                  "message": "module-level FromCImportStatNode is not implemented by the bootstrap Universal HPy emitter",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/cypack-pure-cython/src/cypack/answer.pyx"
+                },
+                {
+                  "action": {
+                    "id": "cython-module-cimport",
+                    "text": "Replace cross-module cimport calls with an ordinary Python import and Python-callable boundary; Universal modules cannot exchange Cython's generated module C API."
+                  },
+                  "column": 1,
+                  "line": 1,
+                  "message": "relative Cython module C-API dependency detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/cypack-pure-cython/src/cypack/answer.pyx"
+                }
+              ],
+              "path": "/home/runner/work/_temp/ahpy-pilots/cypack-pure-cython/src/cypack/answer.pyx",
+              "status": "rejected"
+            },
+            {
+              "diagnostics": [
+                {
+                  "action": {
+                    "id": "compiled-entry-point",
+                    "text": "Expose the Python-visible entry point as def. Keep a native-only helper outside the Universal translation unit or express its proven scalar behavior through a supported Python/HPy boundary."
+                  },
+                  "column": 0,
+                  "line": 1,
+                  "message": "module-level CFuncDefNode is not implemented by the bootstrap Universal HPy emitter",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/cypack-pure-cython/src/cypack/fibonacci.pyx"
+                }
+              ],
+              "path": "/home/runner/work/_temp/ahpy-pilots/cypack-pure-cython/src/cypack/fibonacci.pyx",
+              "status": "rejected"
+            },
+            {
+              "diagnostics": [
+                {
+                  "action": {
+                    "id": "compiled-entry-point",
+                    "text": "Expose the Python-visible entry point as def. Keep a native-only helper outside the Universal translation unit or express its proven scalar behavior through a supported Python/HPy boundary."
+                  },
+                  "column": 0,
+                  "line": 1,
+                  "message": "module-level CFuncDefNode is not implemented by the bootstrap Universal HPy emitter",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/cypack-pure-cython/src/cypack/utils.pyx"
+                }
+              ],
+              "path": "/home/runner/work/_temp/ahpy-pilots/cypack-pure-cython/src/cypack/utils.pyx",
+              "status": "rejected"
+            }
+          ],
+          "summary": {
+            "compatible": 0,
+            "compiler-error": 0,
+            "rejected": 3,
+            "total": 3
+          }
+        }
+      },
+      "provenance": {
+        "head": "7dfb3905259c5c7a82770806e5e558999eef79ce",
+        "license_file": "LICENSE.txt",
+        "origin": "https://github.com/FedericoStra/cython-package-example.git",
+        "pristine": true,
+        "source_paths": [
+          "src/cypack/answer.pyx",
+          "src/cypack/fibonacci.pyx",
+          "src/cypack/utils.pyx"
+        ]
+      }
+    },
+    {
+      "category": "external-c",
+      "checkout": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c",
+      "id": "murmurhash-external-c",
+      "initial_scan": {
+        "category": "external-c",
+        "commit": "58831632dab79389a5cee7715fb688ef2297ff78",
+        "expectation_met": true,
+        "expected": {
+          "required_action_ids": [
+            "native-pointer-boundary"
+          ],
+          "required_diagnostics": [],
+          "status": "rejected"
+        },
+        "id": "murmurhash-external-c",
+        "missing_action_ids": [],
+        "missing_diagnostics": [],
+        "observed": {
+          "action_ids": [
+            "cython-module-cimport",
+            "native-pointer-boundary"
+          ],
+          "diagnostics": [
+            "murmurhash/mrmr.pyx:11:28:native-pointer-boundary",
+            "murmurhash/mrmr.pyx:12:28:native-pointer-boundary",
+            "murmurhash/mrmr.pyx:15:22:native-pointer-boundary",
+            "murmurhash/mrmr.pyx:21:22:native-pointer-boundary",
+            "murmurhash/mrmr.pyx:24:27:native-pointer-boundary",
+            "murmurhash/mrmr.pyx:30:29:native-pointer-boundary",
+            "murmurhash/mrmr.pyx:30:67:native-pointer-boundary",
+            "murmurhash/mrmr.pyx:34:29:native-pointer-boundary",
+            "murmurhash/mrmr.pyx:34:67:native-pointer-boundary",
+            "murmurhash/mrmr.pyx:6:29:native-pointer-boundary",
+            "murmurhash/mrmr.pyx:6:70:native-pointer-boundary",
+            "murmurhash/mrmr.pyx:7:30:native-pointer-boundary",
+            "murmurhash/mrmr.pyx:7:66:native-pointer-boundary",
+            "murmurhash/mrmr.pyx:8:30:native-pointer-boundary",
+            "murmurhash/mrmr.pyx:8:66:native-pointer-boundary"
+          ],
+          "status": "rejected"
+        },
+        "scan": {
+          "backend": "hpy-universal",
+          "schema_version": 1,
+          "sources": [
+            {
+              "diagnostics": [
+                {
+                  "action": {
+                    "id": "cython-module-cimport",
+                    "text": "Replace a cross-module Cython cimport with an ordinary Python boundary. For a Python-independent external C declaration, keep the native ABI behind the reviewed scalar rules in external-c.md."
+                  },
+                  "column": 0,
+                  "line": 2,
+                  "message": "module-level FromCImportStatNode is not implemented by the bootstrap Universal HPy emitter",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx"
+                },
+                {
+                  "action": {
+                    "id": "native-pointer-boundary",
+                    "text": "Keep pointer and buffer ownership outside the Universal translation unit; expose a reviewed Python-independent scalar C shim or wait for a selected public HPy buffer acquisition and release contract."
+                  },
+                  "column": 29,
+                  "line": 6,
+                  "message": "native void pointer detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx"
+                },
+                {
+                  "action": {
+                    "id": "native-pointer-boundary",
+                    "text": "Keep pointer and buffer ownership outside the Universal translation unit; expose a reviewed Python-independent scalar C shim or wait for a selected public HPy buffer acquisition and release contract."
+                  },
+                  "column": 70,
+                  "line": 6,
+                  "message": "native void pointer detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx"
+                },
+                {
+                  "action": {
+                    "id": "native-pointer-boundary",
+                    "text": "Keep pointer and buffer ownership outside the Universal translation unit; expose a reviewed Python-independent scalar C shim or wait for a selected public HPy buffer acquisition and release contract."
+                  },
+                  "column": 30,
+                  "line": 7,
+                  "message": "native void pointer detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx"
+                },
+                {
+                  "action": {
+                    "id": "native-pointer-boundary",
+                    "text": "Keep pointer and buffer ownership outside the Universal translation unit; expose a reviewed Python-independent scalar C shim or wait for a selected public HPy buffer acquisition and release contract."
+                  },
+                  "column": 66,
+                  "line": 7,
+                  "message": "native void pointer detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx"
+                },
+                {
+                  "action": {
+                    "id": "native-pointer-boundary",
+                    "text": "Keep pointer and buffer ownership outside the Universal translation unit; expose a reviewed Python-independent scalar C shim or wait for a selected public HPy buffer acquisition and release contract."
+                  },
+                  "column": 30,
+                  "line": 8,
+                  "message": "native void pointer detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx"
+                },
+                {
+                  "action": {
+                    "id": "native-pointer-boundary",
+                    "text": "Keep pointer and buffer ownership outside the Universal translation unit; expose a reviewed Python-independent scalar C shim or wait for a selected public HPy buffer acquisition and release contract."
+                  },
+                  "column": 66,
+                  "line": 8,
+                  "message": "native void pointer detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx"
+                },
+                {
+                  "action": {
+                    "id": "native-pointer-boundary",
+                    "text": "Keep pointer and buffer ownership outside the Universal translation unit; expose a reviewed Python-independent scalar C shim or wait for a selected public HPy buffer acquisition and release contract."
+                  },
+                  "column": 28,
+                  "line": 11,
+                  "message": "native void pointer detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx"
+                },
+                {
+                  "action": {
+                    "id": "native-pointer-boundary",
+                    "text": "Keep pointer and buffer ownership outside the Universal translation unit; expose a reviewed Python-independent scalar C shim or wait for a selected public HPy buffer acquisition and release contract."
+                  },
+                  "column": 28,
+                  "line": 12,
+                  "message": "native void pointer detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx"
+                },
+                {
+                  "action": {
+                    "id": "native-pointer-boundary",
+                    "text": "Keep pointer and buffer ownership outside the Universal translation unit; expose a reviewed Python-independent scalar C shim or wait for a selected public HPy buffer acquisition and release contract."
+                  },
+                  "column": 22,
+                  "line": 15,
+                  "message": "native void pointer detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx"
+                },
+                {
+                  "action": {
+                    "id": "native-pointer-boundary",
+                    "text": "Keep pointer and buffer ownership outside the Universal translation unit; expose a reviewed Python-independent scalar C shim or wait for a selected public HPy buffer acquisition and release contract."
+                  },
+                  "column": 22,
+                  "line": 21,
+                  "message": "native void pointer detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx"
+                },
+                {
+                  "action": {
+                    "id": "native-pointer-boundary",
+                    "text": "Keep pointer and buffer ownership outside the Universal translation unit; expose a reviewed Python-independent scalar C shim or wait for a selected public HPy buffer acquisition and release contract."
+                  },
+                  "column": 27,
+                  "line": 24,
+                  "message": "native void pointer detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx"
+                },
+                {
+                  "action": {
+                    "id": "native-pointer-boundary",
+                    "text": "Keep pointer and buffer ownership outside the Universal translation unit; expose a reviewed Python-independent scalar C shim or wait for a selected public HPy buffer acquisition and release contract."
+                  },
+                  "column": 29,
+                  "line": 30,
+                  "message": "native void pointer detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx"
+                },
+                {
+                  "action": {
+                    "id": "native-pointer-boundary",
+                    "text": "Keep pointer and buffer ownership outside the Universal translation unit; expose a reviewed Python-independent scalar C shim or wait for a selected public HPy buffer acquisition and release contract."
+                  },
+                  "column": 67,
+                  "line": 30,
+                  "message": "native void pointer detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx"
+                },
+                {
+                  "action": {
+                    "id": "native-pointer-boundary",
+                    "text": "Keep pointer and buffer ownership outside the Universal translation unit; expose a reviewed Python-independent scalar C shim or wait for a selected public HPy buffer acquisition and release contract."
+                  },
+                  "column": 29,
+                  "line": 34,
+                  "message": "native void pointer detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx"
+                },
+                {
+                  "action": {
+                    "id": "native-pointer-boundary",
+                    "text": "Keep pointer and buffer ownership outside the Universal translation unit; expose a reviewed Python-independent scalar C shim or wait for a selected public HPy buffer acquisition and release contract."
+                  },
+                  "column": 67,
+                  "line": 34,
+                  "message": "native void pointer detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx"
+                }
+              ],
+              "path": "/home/runner/work/_temp/ahpy-pilots/murmurhash-external-c/murmurhash/mrmr.pyx",
+              "status": "rejected"
+            }
+          ],
+          "summary": {
+            "compatible": 0,
+            "compiler-error": 0,
+            "rejected": 1,
+            "total": 1
+          }
+        }
+      },
+      "provenance": {
+        "head": "58831632dab79389a5cee7715fb688ef2297ff78",
+        "license_file": "LICENSE",
+        "origin": "https://github.com/explosion/murmurhash.git",
+        "pristine": true,
+        "source_paths": [
+          "murmurhash/mrmr.pyx",
+          "murmurhash/MurmurHash2.cpp",
+          "murmurhash/include/murmurhash/MurmurHash2.h",
+          "murmurhash/MurmurHash3.cpp",
+          "murmurhash/include/murmurhash/MurmurHash3.h"
+        ]
+      }
+    },
+    {
+      "category": "extension-type-gc-inheritance",
+      "checkout": "/home/runner/work/_temp/ahpy-pilots/frozenlist-extension-type",
+      "id": "frozenlist-extension-type",
+      "initial_scan": {
+        "category": "extension-type-gc-inheritance",
+        "commit": "351ad4bb62b30d943b0aa7463a0f85f7339b6ada",
+        "expectation_met": true,
+        "expected": {
+          "required_action_ids": [
+            "cpp-runtime-boundary",
+            "direct-cpython-cimport"
+          ],
+          "required_diagnostics": [],
+          "status": "rejected"
+        },
+        "id": "frozenlist-extension-type",
+        "missing_action_ids": [],
+        "missing_diagnostics": [],
+        "observed": {
+          "action_ids": [
+            "cpp-runtime-boundary",
+            "direct-cpython-cimport"
+          ],
+          "diagnostics": [
+            "frozenlist/_frozenlist.pyx:3:1:direct-cpython-cimport",
+            "frozenlist/_frozenlist.pyx:5:1:cpp-runtime-boundary"
+          ],
+          "status": "rejected"
+        },
+        "scan": {
+          "backend": "hpy-universal",
+          "schema_version": 1,
+          "sources": [
+            {
+              "diagnostics": [
+                {
+                  "action": {
+                    "id": "direct-cpython-cimport",
+                    "text": "Replace direct cpython.* declarations with Python-independent C APIs or an explicitly designed public HPy boundary."
+                  },
+                  "column": 0,
+                  "line": 4,
+                  "message": "cpython.* cimports expose the CPython C API and are not available in Universal HPy mode; only the exact Py_buffer frontend type is translated to a validated HPy_buffer producer descriptor; port the dependency to public HPy APIs",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/frozenlist-extension-type/frozenlist/_frozenlist.pyx"
+                },
+                {
+                  "action": {
+                    "id": "cpp-runtime-boundary",
+                    "text": "Keep libcpp/C++ runtime types outside the Universal translation unit. Use a supported native scalar field only when its semantics are equivalent, or isolate the C++ behavior behind a Python-independent C-compatible shim."
+                  },
+                  "column": 1,
+                  "line": 5,
+                  "message": "C++ runtime-library dependency detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/frozenlist-extension-type/frozenlist/_frozenlist.pyx"
+                },
+                {
+                  "action": {
+                    "id": "direct-cpython-cimport",
+                    "text": "Replace direct cpython.* declarations with Python-independent C APIs or an explicitly designed public HPy boundary."
+                  },
+                  "column": 1,
+                  "line": 3,
+                  "message": "direct cpython.* dependency detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/frozenlist-extension-type/frozenlist/_frozenlist.pyx"
+                }
+              ],
+              "path": "/home/runner/work/_temp/ahpy-pilots/frozenlist-extension-type/frozenlist/_frozenlist.pyx",
+              "status": "rejected"
+            }
+          ],
+          "summary": {
+            "compatible": 0,
+            "compiler-error": 0,
+            "rejected": 1,
+            "total": 1
+          }
+        }
+      },
+      "provenance": {
+        "head": "351ad4bb62b30d943b0aa7463a0f85f7339b6ada",
+        "license_file": "LICENSE",
+        "origin": "https://github.com/aio-libs/frozenlist.git",
+        "pristine": true,
+        "source_paths": [
+          "frozenlist/_frozenlist.pyx"
+        ]
+      }
+    },
+    {
+      "category": "cpython-numpy-blocked",
+      "checkout": "/home/runner/work/_temp/ahpy-pilots/bezier-numpy-blocked",
+      "gates": {
+        "performance": {
+          "reason": "NumPy CPython C API boundary prevents a comparable Universal port; no performance ratio is produced",
+          "status": "blocked"
+        }
+      },
+      "id": "bezier-numpy-blocked",
+      "initial_scan": {
+        "category": "cpython-numpy-blocked",
+        "commit": "cf18953a491e8568e4a4344327ed441d3e8956da",
+        "expectation_met": true,
+        "expected": {
+          "required_action_ids": [
+            "numpy-c-api"
+          ],
+          "required_diagnostics": [
+            "src/python/bezier/_speedup.pyx:37:1:numpy-c-api",
+            "src/python/bezier/_speedup.pyx:38:1:numpy-c-api"
+          ],
+          "status": "rejected"
+        },
+        "id": "bezier-numpy-blocked",
+        "missing_action_ids": [],
+        "missing_diagnostics": [],
+        "observed": {
+          "action_ids": [
+            "cpp-runtime-boundary",
+            "numpy-c-api"
+          ],
+          "diagnostics": [
+            "src/python/bezier/_speedup.pyx:35:1:cpp-runtime-boundary",
+            "src/python/bezier/_speedup.pyx:37:1:numpy-c-api",
+            "src/python/bezier/_speedup.pyx:38:1:numpy-c-api"
+          ],
+          "status": "rejected"
+        },
+        "scan": {
+          "backend": "hpy-universal",
+          "schema_version": 1,
+          "sources": [
+            {
+              "diagnostics": [
+                {
+                  "action": {
+                    "id": "cpp-runtime-boundary",
+                    "text": "Keep libcpp/C++ runtime types outside the Universal translation unit. Use a supported native scalar field only when its semantics are equivalent, or isolate the C++ behavior behind a Python-independent C-compatible shim."
+                  },
+                  "column": 1,
+                  "line": 35,
+                  "message": "C++ runtime-library dependency detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/bezier-numpy-blocked/src/python/bezier/_speedup.pyx"
+                },
+                {
+                  "action": {
+                    "id": "numpy-c-api",
+                    "text": "Keep NumPy values behind the ordinary Python object boundary or replace the C-API dependency with a Python-independent scalar C shim; HPy 0.9 Universal mode cannot expose NumPy's CPython C API."
+                  },
+                  "column": 1,
+                  "line": 37,
+                  "message": "NumPy C API dependency detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/bezier-numpy-blocked/src/python/bezier/_speedup.pyx"
+                },
+                {
+                  "action": {
+                    "id": "numpy-c-api",
+                    "text": "Keep NumPy values behind the ordinary Python object boundary or replace the C-API dependency with a Python-independent scalar C shim; HPy 0.9 Universal mode cannot expose NumPy's CPython C API."
+                  },
+                  "column": 1,
+                  "line": 38,
+                  "message": "NumPy C API dependency detected by source scan",
+                  "path": "/home/runner/work/_temp/ahpy-pilots/bezier-numpy-blocked/src/python/bezier/_speedup.pyx"
+                }
+              ],
+              "path": "/home/runner/work/_temp/ahpy-pilots/bezier-numpy-blocked/src/python/bezier/_speedup.pyx",
+              "status": "rejected"
+            }
+          ],
+          "summary": {
+            "compatible": 0,
+            "compiler-error": 0,
+            "rejected": 1,
+            "total": 1
+          }
+        }
+      },
+      "provenance": {
+        "head": "cf18953a491e8568e4a4344327ed441d3e8956da",
+        "license_file": "LICENSE",
+        "origin": "https://github.com/dhermes/bezier.git",
+        "pristine": true,
+        "source_paths": [
+          "src/python/bezier/_speedup.pyx"
+        ]
+      }
+    }
+  ],
+  "schema_version": 1
+}

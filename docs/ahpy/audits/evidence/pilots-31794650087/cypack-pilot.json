@@ -1,0 +1,94 @@
+{
+  "artifacts": {
+    "binaries": [
+      "utils.hpy0.so",
+      "answer.hpy0.so",
+      "fibonacci.hpy0.so"
+    ],
+    "generated_sources": [
+      "utils.c",
+      "answer.c",
+      "fibonacci.c"
+    ],
+    "wheel": "ahpy_cypack_pilot-0.1.7-cp311-cp311-linux_x86_64.whl",
+    "wheel_tags": [
+      "cp311-cp311-linux_x86_64"
+    ]
+  },
+  "backend": "hpy-universal",
+  "gates": {
+    "binary-audit": "pass",
+    "debug": "pass",
+    "generate": "pass",
+    "installed-debug": "pass",
+    "installed-normal": "pass",
+    "installed-trace": "pass",
+    "native-build": "pass",
+    "normal": "pass",
+    "performance": "pass",
+    "port-patch": "pass",
+    "source-audit": "pass",
+    "tests": "pass",
+    "trace": "pass",
+    "wheel-audit": "pass",
+    "wheel-build": "pass",
+    "wheel-install": "pass"
+  },
+  "generated_at": "2026-08-14T11:03:48.069890+00:00",
+  "performance": {
+    "budget_enforced": false,
+    "comparison": "compiled-port-to-equivalent-python",
+    "environment": {
+      "hpy_version": "0.9.0",
+      "machine": "x86_64",
+      "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+      "python_implementation": "CPython",
+      "python_version": "3.11.15"
+    },
+    "schema_version": 1,
+    "workloads": {
+      "axpy": {
+        "compiled_ns_per_call": 145.15376,
+        "compiled_to_python_ratio": 1.8052185445552213,
+        "iterations": 100000,
+        "python_reference_ns_per_call": 80.40786,
+        "repeats": 7
+      },
+      "fibonacci": {
+        "compiled_ns_per_call": 6105.38095,
+        "compiled_to_python_ratio": 2.045676674321253,
+        "iterations": 20000,
+        "python_reference_ns_per_call": 2984.5288,
+        "repeats": 7
+      }
+    }
+  },
+  "pilot": "cypack-pure-cython",
+  "port_contract": {
+    "omitted_upstream_surfaces": [
+      "cypack.sub.wrong"
+    ],
+    "selected_modules": [
+      "cypack.utils",
+      "cypack.answer",
+      "cypack.fibonacci"
+    ],
+    "status": "selected-source-port"
+  },
+  "python": "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python",
+  "schema_version": 1,
+  "timings_seconds": {
+    "build": 3.321994872999994,
+    "debug": 0.043164756999999554,
+    "installed_debug": 0.04448038800001086,
+    "installed_normal": 0.04263547099998277,
+    "installed_trace": 0.04202399199999718,
+    "normal": 0.04700622199999316,
+    "performance": 1.513491786000003,
+    "total": 6.252311840000004,
+    "trace": 0.04566648599998757,
+    "wheel_build": 0.664402186000018,
+    "wheel_install": 0.3664211550000118
+  },
+  "upstream_commit": "7dfb3905259c5c7a82770806e5e558999eef79ce"
+}
