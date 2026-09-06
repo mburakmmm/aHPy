@@ -49,7 +49,22 @@ from the Limited API before 3.11. The existing version-dependent
 `tests/memoryview_tests.txt` exclusion now covers those exact fixtures.
 Local CPython 3.11.15 with `CFLAGS=-O0` passed four ordinary C/C++ and four
 Limited API 3.11 compile/import selections; Limited API 3.9 selected zero
-of these unsupported buffer cases. Replacement hosted evidence is pending.
+of these unsupported buffer cases. The final replacement evidence is green
+on source commit `880d46d7d348df759ef062711ab3b4876bd648b8`:
+
+| Required context | Final PR #2 result |
+|---|---|
+| `aHPy required checks` | [green job 101305755328](https://github.com/mburakmmm/aHPy/actions/runs/33965384474/job/101305755328) |
+| `benchmark required checks` | [green job 101312916039](https://github.com/mburakmmm/aHPy/actions/runs/33965384376/job/101312916039) |
+| `coverage required checks` | [green job 101309923914](https://github.com/mburakmmm/aHPy/actions/runs/33965384373/job/101309923914) |
+| `sanitizers-success` | [green job 101310136258](https://github.com/mburakmmm/aHPy/actions/runs/33965384666/job/101310136258) |
+| `ci-success` | [green job 101322836499](https://github.com/mburakmmm/aHPy/actions/runs/33965384777/job/101322836499) |
+
+PR [#2](https://github.com/mburakmmm/aHPy/pull/2) therefore merged into
+`main` as `22d8cbe1b50506f65e01be7ff05081616c656f2d`. Its dedicated aHPy graph
+recorded 136 passing jobs, 12 policy skips, and only the three declared
+experimental HPy-development 3.14, same-binary PyPy, and same-binary GraalPy
+failures; none weaken a required context or the frozen preview contract.
 
 CI-policy implementation commit
 `e791c8983bcb1a3c38aa932617a91ea976cb5c55` has the following hosted
@@ -674,8 +689,8 @@ and C/C++ oracle gates; they are not folded into an inflated Python percentage.
 `Tools/ahpy/benchmark_hpy.py` compiles the same ten operations as generated
 Universal HPy and as a handwritten public-HPy reference, validates semantics
 and Debug handle cleanup, then alternates both modules across seven repeats.
-The versioned budget file is machine-classified as regression-only and rejects
-relative runtime regressions in identity,
+The versioned budget file is now machine-classified as an approved release
+contract and rejects relative runtime regressions in identity,
 arithmetic, container, attribute, nested-call, and exception paths, plus large
 extension-type construction/method calls, a shared Python-independent
 external-C function, and generated-C or binary growth. Relative same-process comparisons are mandatory;
@@ -697,7 +712,8 @@ calls. With direct-name borrowing enabled only for API-borrowed attribute
 receivers and zero-argument callables, the follow-up Universal ratios were
 0.82× identity, 0.87× attribute, and 1.02× call. Trace reports exactly one API
 call and zero Dup/Close churn on both generated and reference attribute/call
-paths; the corresponding ceilings are now 1.5×.
+paths; the reviewed release ceilings are 1.26× identity, 1.21× attribute, and
+1.23× call.
 
 The next follow-up emits `HPyFunc_VARARGS` for two-or-more required
 positional-only arguments, binding the call-scoped borrowed `args[]` handles
@@ -705,7 +721,8 @@ without the keyword parser/tracker. Direct Name operands are also borrowed for
 binary APIs and fixed sequence-builder items under an evaluation-order proof.
 Arithmetic now matches the reference at 1 API call and container construction
 at 4, both with zero Dup/Close churn. Their tightened-budget Universal ratios
-were 0.97× and 1.07×, so both runtime ceilings are 1.5×. Normal/Trace/Debug,
+were 0.97× and 1.07×. Their reviewed release ceilings are both 1.27×.
+Normal/Trace/Debug,
 186 emitter tests, side-effectful-right evaluation regressions, closure and
 extension-method signature checks, and all 150 fault selectors pass.
 
@@ -715,8 +732,9 @@ global/builtin/closure access, and binds positional-only initializer slot
 arrays without a tracker. Type-method Trace is now 2.003 calls versus 2.002 for
 the reference with zero generated Dup/Close; type construction is 3 versus 2,
 where the sole extra call is the generated `__cinit__` `AsStruct`. Tightened-
-budget Universal ratios were 1.02× type creation and 0.96× type method, so both
-ceilings are 1.5×. The branch snapshot regression and isolated large-type native
+budget Universal ratios were 1.02× type creation and 0.96× type method. Their
+reviewed release ceilings are 1.25× and 1.24×. The branch snapshot regression
+and isolated large-type native
 compile prevent lazy owner C names from escaping their declaration scope.
 
 The external-C literal follow-up bypasses the HPy object round trip only for
@@ -724,7 +742,8 @@ side-effect-free numeric constants proven portable for the declared scalar C
 type. Dynamic, non-finite, ambiguous plain-`char`, and out-of-range values stay
 on the checked conversion path. External-C Trace is now exactly 1 generated
 and 1 reference API call per iteration with zero Dup/Close churn; the measured
-Universal ratio is 0.99× and its ceiling is now 1.5×. Normal/Trace/Debug,
+Universal ratio is 0.99× and its reviewed release ceiling is 1.22×.
+Normal/Trace/Debug,
 188 emitter tests, the checked-fallback regressions, and all 150 fault selectors
 pass.
 
@@ -733,8 +752,8 @@ for a field-returning extension method, and 5.70× for the external-C wrapper
 before its literal-lowering optimization.
 The generated and reference extensions compile the same external C source.
 Supported sequence-index iteration now has equivalent generated/handwritten
-semantics and an initial 2.50× ceiling around the observed 1.86–2.00× local range;
-hosted same-HEAD calibration remains mandatory. True iterator-protocol and
+semantics and a reviewed 2.36× release ceiling around the 1.65–1.97× hosted
+range. Candidate same-HEAD validation remains mandatory. True iterator-protocol and
 typed-memoryview numbers remain deliberately absent while those HPy 0.9
 surfaces are blocked.
 
@@ -761,12 +780,17 @@ ratio is treated as a release threshold. The initial evidence and exact
 measurement contract are in `audits/m9-abi-performance-baseline.md`.
 
 Each new benchmark history record also contains exact source-commit and GitHub
-Actions run provenance plus the complete schema-v3 budget policy. The current
-policy is non-release, hosted-history-pending, and unbound to a candidate
-commit, so these conservative ceilings cannot satisfy a release gate.
-When a reviewed policy is eventually promoted to release, the benchmark gate
-requires a recorded calibration-source commit, `hosted-checkout` candidate
-binding, hosted execution, and equality between source commit and GitHub SHA.
+Actions run provenance plus the complete schema-v3 budget policy. Manual run
+[34029830808](https://github.com/mburakmmm/aHPy/actions/runs/34029830808)
+collected five unique, violation-free samples from exact main commit
+`22d8cbe1b50506f65e01be7ff05081616c656f2d`; all passed Debug leak checking,
+and proposal job
+[101477446766](https://github.com/mburakmmm/aHPy/actions/runs/34029830808/job/101477446766)
+completed successfully. The reviewed proposal's 20% headroom is now promoted
+exactly into the release policy, which records that calibration-source commit
+and uses `hosted-checkout` candidate binding.
+The benchmark gate requires hosted execution and equality between source
+commit and GitHub SHA.
 The exact current candidate is recorded in the immutable report rather than
 self-referentially inside its own versioned policy; local or stale-checkout
 results fail independently of timing ratios.
@@ -775,8 +799,8 @@ operation/footprint ceiling, environment pin, measurement setting, and
 large-type compile rule. Calibration rejects compact-policy mismatch, runtime
 environment/measurement/enforcement drift, or any contract difference among
 samples, then retains the exact input contract in the proposal.
-The regression contract deliberately contains no absolute host ceiling. A
-release contract must add exactly six proposal-backed limits covering
+The approved release contract contains exactly six proposal-backed limits
+covering
 frontend/native build time, generated peak RSS and ratio, and large-type
 frontend/O0 time. Missing, non-finite, or over-limit evidence is independently
 release-blocking.
@@ -792,8 +816,9 @@ Its output includes runtime, frontend/native build-time, peak-RSS, footprint,
 and large-type frontend/O0 distributions, is explicitly proposal-only, and
 cannot rewrite the versioned budget. The collection and
 maintainer review procedure is documented in
-`performance-release-gate.md`; hosted same-HEAD history is still required
-before the current conservative ceilings become release budgets.
+`performance-release-gate.md`; the evidence and review are retained in
+`audits/m9-hosted-performance-calibration.md`. A separate same-HEAD hosted
+candidate run is still required before closing PRD-7.
 `Tools/ahpy/validate_performance_budget_promotion.py` then verifies exact
 proposal equality for the ten runtime, three footprint, and six absolute
 release ceilings and rejects embedded-contract, calibration-source,
@@ -805,7 +830,7 @@ source is an incoming call-scoped argument. Rebindable owned locals retain
 materialization, and a body that rebinds the original argument name passes
 normal/Trace/Debug plus all 150 fault selectors. Generated Trace falls from 38
 to 36 calls per iteration (9 Dup/17 Close versus the reference's 1/8); the
-temporary runtime ceiling remains unchanged pending hosted calibration.
+runtime ceiling is now 2.36× from the reviewed hosted calibration.
 The manual-only `ahpy-performance-calibration.yml` workflow provides the
 bounded collection path: five isolated Ubuntu/Python 3.11/HPy 0.9 matrix
 samples for one exact selected commit, distinct sample provenance and

@@ -59,9 +59,10 @@ implementations, and binds the result to Python, HPy, platform and machine
 provenance. It is a comparable measurement, not an enforced release budget;
 the local sample currently records compiled-to-Python ratios without turning
 them into support promises. The integration is in `ahpy-universal.yml` and its
-JSON is retained with packaging evidence. This remains local proof until a
-green hosted artifact exists, so the compatibility dashboard keeps the project
-at `not-run`.
+JSON is retained with packaging evidence. The successful hosted run
+`31794650087` now supplies these results; its immutable artifact identity,
+retained JSON, payload hashes and exact source tree are recorded in
+[the M10 hosted audit](audits/m10-hosted-pilot-evidence.md).
 
 The deliberately blocked bezier source was checked at the pinned commit: its
 `_speedup.pyx` SHA-256 is
@@ -198,8 +199,10 @@ python3 Tools/ahpy/build_pilot_dashboard.py \
 The complete pinned checkout/scan plus all three integration reports pass this
 merge locally: cypack reaches `pass`, murmurhash remains the declared
 `partial-scalar-adapter`, frozenlist remains the declared `supported-subset`,
-and bezier remains intentionally `blocked`. The committed dashboard stays
-manifest-only until an immutable hosted artifact proves those same results.
+and bezier remains intentionally `blocked`. The committed dashboard now
+reproduces the hosted artifact byte for byte from four retained JSON inputs;
+see [the M10 hosted audit](audits/m10-hosted-pilot-evidence.md) for the
+regeneration command and the limits of this pilot evidence.
 
 ## Evidence still required
 

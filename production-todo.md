@@ -34,44 +34,45 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 
 | Sıra | Faz | Durum | Production sonucuna katkısı |
 | ---: | --- | --- | --- |
-| 0 | PRD-0 — Mevcut dalı yeşile getir | **AKTİF — REBASE TEKRAR DOĞRULAMA** | Güvenilir aynı-HEAD CI tabanı |
+| 0 | PRD-0 — Mevcut dalı yeşile getir | **TAMAMLANDI** | Güvenilir aynı-HEAD CI tabanı |
 | 1 | PRD-1 — Destek sözleşmesini dondur | **TAMAMLANDI** | İlk sürümün dürüst kapsamı |
 | 2 | PRD-2 — Core compiler/module state | **TAMAMLANDI** | Ownership ve semantic correctness |
 | 3 | PRD-3 — Pure HPy extension type | **TAMAMLANDI** | Type/GC/finalizer güvenliği |
 | 4 | PRD-4 — Advanced Cython aileleri | **TAMAMLANDI** | Implement veya fail-closed sonucu |
 | 5 | PRD-5 — Portability/native memory | **DIŞ BAĞIMLILIK** | Universal binary ve platform kanıtı |
 | 6 | PRD-6 — Paketleme/dağıtım | **DIŞ BAĞIMLILIK** | Kurulabilir ve doğrulanabilir artifact |
-| 7 | PRD-7 — Performans/footprint | **DIŞ BAĞIMLILIK** | Hosted örnekler sonrası sürüm bütçeleri |
-| 8 | PRD-8 — Gerçek kütüphane pilotları | **AKTİF** | GitHub beklerken ilerleyen yerel çalışma kanıtı |
+| 7 | PRD-7 — Performans/footprint | **AKTİF — HOSTED KALİBRASYON** | Hosted örnekler sonrası sürüm bütçeleri |
+| 8 | PRD-8 — Gerçek kütüphane pilotları | **TAMAMLANDI — İLAN EDİLEN ALT KÜMELER** | Dört pilotun saklanan hosted raporu ve dashboard'u |
 | 9 | PRD-9 — Upstream/güvenlik/bakım | **BEKLİYOR** | Sürdürülebilir production işletimi |
 | 10 | PRD-10 — RC/stable yayın | **BEKLİYOR** | İmzalı ve kanıtlı production release |
 
 ### Şu anki kritik yol
 
-2026-09-05 kararı: proje sahibi `codex/ahpy-bootstrap` içeriğinin `main`e
-alınmasını onayladı. PR #2 mevcut koruma kuralları üzerinden birleştirilecek;
-bu geçiş preview seviyesini veya production çıkış koşullarını değiştirmez.
-Kalibrasyon workflow'u `main`e geldiğinde manual dispatch engeli de kalkar.
+2026-09-05/06 sonucu: `codex/ahpy-bootstrap`, koruma kurallarındaki beş
+zorunlu kapı yeşil olduktan sonra PR #2 ile `main`e birleştirildi. Main commit'i
+`22d8cbe1b50506f65e01be7ff05081616c656f2d`, doğrulanan son kaynak commit'i
+`880d46d7d348df759ef062711ab3b4876bd648b8`'dir. Bu geçiş preview seviyesini
+veya production çıkış koşullarını değiştirmez. Manual beş örnekli performans
+kalibrasyonu run `34029830808` ile tam bu main commit'inde başlatıldı.
 
-1. Final kanıt commit'inin required context'lerini yeniden yeşil doğrula ve
-   final run/job bağlantılarını commit döngüsü yaratmadan PR açıklamasında tut.
+1. Run `34029830808` içindeki beş ham hosted performans artifact'ini ve
+   proposal-only kalibrasyon çıktısını bağımsız incele; eşikleri otomatik
+   uygulama ve promotion sonrası aynı-HEAD doğrulamasını zorunlu tut.
 2. Hazır Python 3.14 + HPy-development `SIGSEGV` raporunu proje sahibi açıkça
    onayladığında HPy upstream'e yayımla ve sonucu PRD-5 audit'ine bağla.
 3. `aHPy-compiler` ad ayırma, gerçek TestPyPI upload'u ve ilk imzalı tag gibi
    owner-onaylı dış PRD-6 eylemlerini yayın yetkisi verilmeden uygulama.
-4. Aynı release-candidate commit'inde en az beş benzersiz hosted performans
-   raporu topla, fail-closed kalibrasyon önerisini incele ve eşikleri yeniden
-   same-HEAD doğrula.
-5. Hosted release bütçeleri kilitlenmeyi beklerken dört gerçek kütüphane
-   pilotunun bağımsız yerel build/test/diagnostic işlerini ilerlet; yalnız
-   hosted kanıt isteyen çıkış kapılarını açık bırak.
+4. Pilot kapsamını yeni kütüphanelerle büyütürken mevcut cypack geçişi,
+   murmurhash/frozenlist kısmi desteği ve bezier engelini olduğundan geniş
+   göstermeden saklanan kanıtlara bağla.
 
 ## Başlangıç durumu
 
 - Başlangıç tarihi: 2026-07-28.
 - Başlangıç commit'i: `0924dc88049a514382b2befaae7b70074645f25b`.
 - PRD-0 CI uygulama commit'i: `e791c8983bcb1a3c38aa932617a91ea976cb5c55`.
-- Çalışma dalı: `codex/ahpy-bootstrap`.
+- Entegre geliştirme dalı: `codex/ahpy-bootstrap`; PR #2 ile `main`e
+  birleştirildi.
 - Release dalı değildir; release politikası gereği production hattı daha sonra
   `ahpy/<cython-major>.<cython-minor>` biçiminde açılacaktır.
 - Stabil yerel ortam: CPython 3.11.15 + HPy 0.9.0.
@@ -125,14 +126,21 @@ Güncel Cython rebase'i sonrası yenileme (2026-08-14):
 - [x] Yerelde 441 compiler/seam, 532 quality-tool, C/C++ fixture import,
       dual-interpreter coverage ve Universal normal/Trace/Debug kapılarını
       geçir.
-- [ ] Bu düzeltmeleri tek commit olarak push et ve beş mandatory aggregate
+- [x] Bu düzeltmeleri tek commit olarak push et ve beş mandatory aggregate
       context'i aynı HEAD üzerinde yeniden yeşil doğrula.
 - [x] `652cd3f` koşusunun son hatasını sınıflandır: Python 3.9 Limited API
       `Py_buffer` sunmadığından iki aHPy buffer fixture'ı derlenemiyor.
 - [x] Mevcut pre-3.11 buffer seçim kuralına yalnız `bootstrap_types` ve
       `fault_injection` ekle; normal C/C++ ve Limited API 3.11 seçimlerinde
       toplam sekiz compile/import doğrulamasını geçir.
-- [ ] Düzeltmenin hosted beş kapısını doğrula ve PR #2'yi `main`e birleştir.
+- [x] Düzeltmenin hosted beş kapısını doğrula ve PR #2'yi `main`e birleştir.
+  - [x] `aHPy required checks` — run `33965384474`, job `101305755328`.
+  - [x] `benchmark required checks` — run `33965384376`, job `101312916039`.
+  - [x] `ci-success` — run `33965384777`, job `101322836499`.
+  - [x] `coverage required checks` — run `33965384373`, job `101309923914`.
+  - [x] `sanitizers-success` — run `33965384666`, job `101310136258`.
+  - [x] PR #2, `main` commit
+        `22d8cbe1b50506f65e01be7ff05081616c656f2d` olarak birleşti.
 
 - [x] Son commit için devam eden bütün GitHub Actions işlerinin bitmesini
       bekle ve sonuçları kaydet.
@@ -170,9 +178,9 @@ Güncel Cython rebase'i sonrası yenileme (2026-08-14):
 
 ### PRD-0 çıkış kapısı
 
-- [ ] Güncel rebase HEAD'i üzerinde clean-build mandatory CI tamamen yeşil.
-- [ ] Kırmızı kalan her iş açıkça allowed-failure ve destek iddiası dışında.
-- [ ] README ve kanıt belgeleri güncel commit/run durumunu gösteriyor.
+- [x] Güncel rebase HEAD'i üzerinde clean-build mandatory CI tamamen yeşil.
+- [x] Kırmızı kalan her iş açıkça allowed-failure ve destek iddiası dışında.
+- [x] README ve kanıt belgeleri güncel commit/run durumunu gösteriyor.
 
 ## PRD-1 — İlk production sürümünün destek sözleşmesini dondur
 
@@ -400,14 +408,14 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
       ailesi de iki tarafta aynı semantic oracle ile ölçülür.
 - [x] Classic Cython, HPy CPython ABI ve HPy Universal ABI sonuçlarını ayrı
       raporla; cross-ABI aggregate oran yayımlama.
-- [ ] Calls, arithmetic, containers, attributes, exceptions, types ve
+- [x] Calls, arithmetic, containers, attributes, exceptions, types ve
       external-C için hosted history biriktir.
 - [x] Release kapsamında desteklenen sequence-index iteration benchmark'ını
       ekle; HPy 0.9 public buffer consumer API sunmadığı için memoryview'i
       “blocked/non-comparable” ve performans sayısı olmadan bırak.
 - [x] Compile time, C compiler time, generated C boyutu, binary boyutu ve peak
       memory ölç.
-- [ ] Gürültü analiziyle mutlak/nispi release eşiklerini versiyonla.
+- [x] Gürültü analiziyle mutlak/nispi release eşiklerini versiyonla.
   - [x] Her yeni rapora exact kaynak/GitHub run provenance ekle; en az beş
         benzersiz, başarılı, aynı-commit ve aynı-kohort hosted rapor olmadan
         bütçe önerisi üretmeyen fail-closed kalibratörü ekle.
@@ -435,24 +443,27 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
         tavanı release TOML ile birebir karşılaştıran; input contract,
         calibration-source, environment/measurement/native policy veya sample
         floor drift'ini reddeden read-only promotion validator ekle.
-  - [ ] Aynı release-candidate HEAD'i için hosted geçmişi topla, headroom
-        önerisini incele ve release eşiklerini ayrı bir same-HEAD koşuyla
-        doğrula.
+  - [x] Exact main commit'i için beş hosted sample topla, raw/proposal
+        hash'lerini ve %20 headroom'u incele, release eşiklerini birebir
+        versiyonla.
+  - [ ] Versiyonlanan release eşiklerini yeni candidate HEAD'inde ayrı bir
+        hosted koşuyla doğrula.
 - [x] Eşik aşımında fail-closed CI ve anlamlı rapor üret.
 - [x] HPy runtime/interpreter maliyetini aHPy overhead'inden ayrı göster.
 - [x] Ownership kanıtı olmadan Dup/Close optimizasyonu yapma; call-frame
       lifetime kanıtı yalnız incoming sequence argümanını borrow eder, rebind
       edilebilir owned local kaynakları materialize etmeye devam eder.
 
-Mevcut `performance-budgets.toml` artık açıkça yalnız regresyon korumasıdır:
-`release_enforced = false`, calibration hosted geçmişi bekliyor,
-`candidate_binding = "unbound"` ve calibration source boştur. Loader bu
-alanların çelişkili
-kombinasyonunu; kalibratör ise farklı policy'leri veya beşten düşük bir CLI
-minimumunu reddeder. Bu hazırlık release eşiği uydurmaz; gerçek hosted history,
-maintainer incelemesi ve same-HEAD doğrulaması açık kalır.
-Approved duruma geçirilecek gelecekteki policy de tek başına yeterli değildir:
-policy reviewed calibration-source commit'ini kaydeder; mevcut candidate hash'i
+`performance-budgets.toml`, run `34029830808` içindeki beş exact-main hosted
+sample'ın proposal-only çıktısından birebir promoted release sözleşmesidir:
+`release_enforced = true`, `calibration_status = "approved"`,
+`candidate_binding = "hosted-checkout"` ve calibration source
+`22d8cbe1b50506f65e01be7ff05081616c656f2d`'dir. Loader çelişkili policy
+kombinasyonlarını; kalibratör ise farklı policy'leri veya beşten düşük bir CLI
+minimumunu reddeder. Promotion sonucu 10 runtime, 3 footprint ve 6 absolute
+alanın tamamında proposal ile exact eşleşir. Yeni candidate için same-HEAD
+hosted doğrulaması açık kalır.
+Policy reviewed calibration-source commit'ini kaydeder; mevcut candidate hash'i
 öz-referanslı biçimde policy'ye yazmak yerine immutable benchmark raporu taşır.
 Gate hosted execution ile source commit / `GITHUB_SHA` eşitliğini zorunlu tutar;
 local veya stale-checkout kanıtı release sonucu olamaz.
@@ -471,7 +482,7 @@ maintainer onayı veya current-candidate same-HEAD hosted kanıtı yerine geçme
 ### PRD-7 çıkış kapısı
 
 - [ ] Bütün yayımlanan bütçeler aynı release candidate üzerinde yeşil.
-- [ ] Sonuçlar timestamped, immutable CI artifact olarak saklanıyor.
+- [x] Sonuçlar timestamped, immutable CI artifact olarak saklanıyor.
 - [x] Desteklenmeyen aileler için uydurma performans sayısı yayımlanmıyor.
 
 ## PRD-8 — Gerçek kütüphane pilotlarını tamamla
@@ -482,25 +493,33 @@ maintainer onayı veya current-candidate same-HEAD hosted kanıtı yerine geçme
 - [x] CPython/NumPy C API nedeniyle bilerek blocked olacak pilotu seç.
 - [x] Her pilot için upstream sürüm/commit ve lisans kaydı tut.
 - [x] Her pilot için gereken kaynak değişikliklerini kaydet.
-- [ ] Her pilotun build, test, normal/Trace/Debug ve performance sonuçlarını
+- [x] Her pilotun build, test, normal/Trace/Debug ve performance sonuçlarını
       kaydet.
 - [x] Ortak portlama değişikliklerini backend desteğine veya migration
       kuralına dönüştür.
 - [x] Blocked pilotun source-located diagnostics kalitesini doğrula.
-- [ ] CI artifact'lerinden compatibility dashboard üret.
+- [x] CI artifact'lerinden compatibility dashboard üret.
 - [x] Library-author porting guide yayımla.
 - [x] Bug/compatibility issue template ekle.
 - [x] HPy conformance corpus'unu kullanıcının programlama diliyle paylaşırken
       Cython frontend internallerine bağımlılık oluşturma.
 
-Yerel ara kanıt: pinned `cython-package-example` 0.1.7 port fixture'ının üç
+Hosted kanıt (2026-09-05 doğrulaması): `31794650087` koşusunun
+`9216896185` artifact'i dört pilot JSON raporunu ve birleşik dashboard'u
+yayımladı. Dört JSON kalıcı audit girdisi olarak saklandı; yeniden üretim
+hosted dashboard ile byte düzeyinde aynı. Commit/ağaç kimliği, SHA-256
+değerleri, performans oranları ve kapsam sınırları
+`docs/ahpy/audits/m10-hosted-pilot-evidence.md` dosyasında kayıtlıdır.
+Bu sonuç PRD-7 release bütçesi veya bütün upstream API'lerin desteği değildir.
+
+Tarihsel yerel ara kanıt: pinned `cython-package-example` 0.1.7 port fixture'ının üç
 modülü ilan edilen setuptools Universal yolunda generate/native-build,
 source/binary audit, seçili upstream semantiği ve normal/Trace/Debug
 `LeakDetector` kapılarını geçiyor. Host-tagged wheel içerik audit'i, dependency
 olmadan isolated target kurulumu, kurulu normal/Trace/Debug çalıştırmaları ve
 aynı süreçteki eşdeğer Python fonksiyonlarına karşı provenance-bound yedi
 tekrarlı `axpy`/Fibonacci ölçümü de yerelde geçiyor; hosted artifact gelmeden
-PRD-8 çıkış kapısı işaretlenmeyecek ve yerel ölçüm release bütçesi sayılmayacak.
+PRD-8 çıkış kapısı o aşamada işaretlenmemişti; yerel ölçüm release bütçesi sayılmaz.
 Pinned bezier `_speedup.pyx` kaynağının SHA-256 değeri
 `f99e5053f1c942bbc443fa3399c1c67243c46cf078c664a00cc9433ae2993a05` olarak
 doğrulandı; NumPy C-API kuralı exact upstream satırlarında `37:1` ve `38:1`
@@ -535,8 +554,8 @@ Tam dört-pilot pristine checkout/scan matrisi ile üç port integration raporu
 yerelde tek dashboard'a kapı bazında birleştirildi: cypack `pass`, murmurhash
 `partial-scalar-adapter`, frozenlist `supported-subset`, bezier ise beklenen
 `blocked` sonucunu veriyor. Workflow aynı dört JSON girdisini ve üretilen
-Markdown dashboard'u immutable artifact grubuna ekliyor; GitHub yazma limiti
-nedeniyle hosted artifact kanıtı ve ilgili checkbox açık kalıyor.
+Markdown dashboard'u immutable artifact grubuna ekliyor; önceki GitHub yazma
+limiti sonrasında hosted kanıt yukarıdaki audit ile doğrulandı.
 Dashboard başarılı performans kapısı için eksiksiz sonlu örneklem, karşılaştırma
 kimliği, ortam provenance'ı ve `budget_enforced = false` ister; bezier matrisi
 ise NumPy C-API sınırı nedeniyle gerekçeli `blocked` kaydı üretir ve sayı üretmez.
@@ -557,7 +576,7 @@ gizleyemez.
 
 ### PRD-8 çıkış kapısı
 
-- [ ] Dört pilotun raporu ve yeniden çalıştırılabilir CI kanıtı yayımlandı.
+- [x] Dört pilotun raporu ve yeniden çalıştırılabilir CI kanıtı yayımlandı.
 - [x] En az bir gerçek üçüncü taraf proje ilan edilen production yolunda
       source/binary/Debug kapılarını geçiyor.
 

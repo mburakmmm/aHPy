@@ -1,15 +1,16 @@
 schema_version = 1
 
 [policy]
-# These ceilings catch gross regressions; they are deliberately not release
-# budgets until five same-HEAD hosted samples produce and a maintainer approves
-# a calibration proposal.
-classification = "regression"
-release_enforced = false
-calibration_status = "hosted-history-pending"
+# Approved from the five immutable hosted samples and proposal in Actions run
+# 34029830808. Every threshold below is the observed cohort maximum plus the
+# proposal's exact 20% headroom; a new candidate remains bound by its own
+# GitHub checkout identity rather than embedding its self-referential hash.
+classification = "release"
+release_enforced = true
+calibration_status = "approved"
 minimum_hosted_reports = 5
-candidate_binding = "unbound"
-calibration_source_commit = ""
+candidate_binding = "hosted-checkout"
+calibration_source_commit = "22d8cbe1b50506f65e01be7ff05081616c656f2d"
 
 [environment]
 abi = "universal"
@@ -29,32 +30,34 @@ timeout_seconds = 60
 enforce_o3 = false
 
 [runtime_ratio]
-# aHPy median / equivalent handwritten Universal HPy median. These initial
-# budgets detect large regressions without pretending that shared CI runners
-# provide release-grade absolute timings.
-identity = 1.50
-# Positional-only dispatch and direct-name borrowing make these paths match
-# the handwritten HPy Trace/API contract; retain headroom for shared runners.
-arithmetic = 1.50
-container = 1.50
-attribute = 1.50
-call = 1.50
-exception = 1.50
-# Lazy type/module owners and borrowed HPyField operands make these paths
-# equivalent to the handwritten reference apart from cinit's separate AsStruct.
-type_create = 1.50
-type_method = 1.50
+# aHPy median / equivalent handwritten Universal HPy median. These are the
+# exact proposal maxima from the reviewed five-sample Ubuntu cohort.
+identity = 1.26
+arithmetic = 1.27
+container = 1.27
+attribute = 1.21
+call = 1.23
+exception = 1.22
+type_create = 1.25
+type_method = 1.24
 # Sequence-index iteration is the supported HPy 0.9 iteration surface; true
 # iterator-protocol loops remain blocked and receive no performance number. The
-# initial 2.50x ceiling contains the observed 1.86x-2.00x local
-# generated/reference range; hosted same-HEAD calibration must replace it for
-# a release.
-iteration = 2.50
+# reviewed hosted range was 1.65x-1.97x; the release ceiling includes the
+# proposal's exact 20% headroom.
+iteration = 2.36
 # Portable literal arguments bypass the Python-object round trip and match the
 # handwritten one-call Trace contract. Dynamic values remain checked.
-external_c = 1.50
+external_c = 1.22
 
 [footprint]
-generated_c_bytes = 750000
-generated_binary_bytes = 2000000
-binary_to_reference_ratio = 20.0
+generated_c_bytes = 36420
+generated_binary_bytes = 296372
+binary_to_reference_ratio = 1.42
+
+[release_absolute]
+cython_seconds = 1.77
+native_build_seconds = 4.51
+generated_peak_rss_bytes = 27726644
+generated_to_reference_peak_rss_ratio = 1.20
+large_type_frontend_seconds = 2.92
+large_type_o0_seconds = 6.62

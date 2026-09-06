@@ -7,24 +7,29 @@ agent must keep all three synchronized when implementation status changes.
 
 ## 1. Snapshot and source of truth
 
-- Current continuation (2026-09-05): the owner authorized integrating this
-  branch into `main` and continuing the complete roadmap there. PR #2 is
-  mergeable but its required `ci-success` failed on the two Python 3.9
-  Limited API buffer fixtures; all four other required aggregates passed on
-  `652cd3f66341e08a383fe565ee89849f44eec1a1`. The existing pre-3.11 buffer
-  exclusion now covers exactly `ahpy.bootstrap_types` and
-  `ahpy.fault_injection`. Local ordinary C/C++ and Limited API 3.11 each
-  compile/import all four selections successfully; Limited API 3.9 selects
-  neither unsupported buffer fixture. Push the repair, await the five
-  required checks, and merge PR #2 through the existing ruleset. Once the
-  workflow is on `main`, dispatch the five-sample performance calibration;
-  the previously proposed PR-label workaround is unnecessary.
+- PRD-8 evidence reconciliation (2026-09-05): hosted run `31794650087`,
+  artifact `9216896185`, and all four pilot JSON reports were revalidated.
+  `docs/ahpy/compatibility-dashboard.md` reproduces the hosted artifact byte
+  for byte; inputs are retained under `docs/ahpy/audits/evidence/` with hashes
+  and scope limits in `m10-hosted-pilot-evidence.md`. Port results are cypack
+  pass, murmurhash/frozenlist partial, bezier blocked. Release budgets and
+  full upstream-library API compatibility are not implied.
+- Current continuation (2026-09-06): PR #2 merged the complete aHPy line into
+  `main` as `22d8cbe1b50506f65e01be7ff05081616c656f2d`. Its final source commit
+  `880d46d7d348df759ef062711ab3b4876bd648b8` passed all five required
+  contexts, including the repaired Python 3.9 Limited API selection. Manual
+  performance calibration run `34029830808` is collecting five isolated
+  hosted samples from that exact main commit. Continue PRD-7 by reviewing its
+  immutable raw artifacts and proposal; never promote the proposed budgets
+  automatically.
 - Snapshot date: 2026-08-14 (Cursor/Codex continuation, writable scalar and
   fixed-array buffer producer slices, handwritten-first cross-interpreter
   evidence, dynamic fault-count reporting, and local coverage audited and
   reconciled).
 - Workspace: `/Users/melihburakmemis/Documents/aHPy`.
-- Branch: `codex/ahpy-bootstrap`.
+- Integration branch: `codex/ahpy-bootstrap` (merged into `main` by PR #2).
+- Current evidence branch: `codex/production-evidence`, based on
+  `22d8cbe1b50506f65e01be7ff05081616c656f2d`.
 - Upstream Cython baseline: `86b94cef002aa23aea0b390335ea3d9e9b62c19e`.
 - The accepted base was merged as
   `a1dc62c0084cc426090b38137eefb3c9ef82dcab` with the exact two parents and
@@ -67,10 +72,10 @@ agent must keep all three synchronized when implementation status changes.
 - `.DS_Store` and
   `docs/examples/userguide/wrapping_CPlusPlus/rect_with_attributes.cpp` are
   user-owned/unrelated. Leave them untouched.
-- `origin` is `https://github.com/mburakmmm/aHPy.git`; the original Cython
-  baseline is published as `main`, `codex/ahpy-bootstrap` is pushed, and
-  draft PR [#2](https://github.com/mburakmmm/aHPy/pull/2) carries the aHPy
-  integration.
+- `origin` is `https://github.com/mburakmmm/aHPy.git`; `main` now contains the
+  aHPy integration, and merged PR
+  [#2](https://github.com/mburakmmm/aHPy/pull/2) retains its full review and
+  required-check history.
 - Live repository ruleset
   [19886870](https://github.com/mburakmmm/aHPy/rules/19886870) protects `main`
   and future `ahpy/**` release branches without bypass actors. It requires
@@ -353,10 +358,9 @@ Work on these in order unless an earlier dependency is externally blocked.
 This list is the operational priority view; the detailed acceptance criteria
 remain in the phase and milestone sections below and in `TODO.md`.
 
-1. Close PRD-0 on one exact HEAD: all five required aggregate contexts must be
-   green, allowed-failure jobs must remain outside support claims, live ruleset
-   evidence and exact run/job links must be synchronized across the roadmap,
-   validation matrix, M8 audit, this handoff, and draft PR #2.
+1. PRD-0 is closed: all five required aggregate contexts passed on final
+   source commit `880d46d7d348df759ef062711ab3b4876bd648b8`, and PR #2 merged as
+   `22d8cbe1b50506f65e01be7ff05081616c656f2d`.
 2. Freeze PRD-1's first-release support contract: exact Cython/HPy/Python
    revisions, OS/compiler/build-frontend matrix, product tier, status
    vocabulary, and HPy public-API limitations.
@@ -379,9 +383,11 @@ remain in the phase and milestone sections below and in `TODO.md`.
    draft PR or tag a stable release without explicit user authorization and
    every declared release gate green.
 
-Current item: **PRD-5 Universal portability and native-memory evidence**;
-only publication of the exact HPy Python 3.14 upstream crash report remains
-open.
+Current item: **PRD-7 hosted release-performance calibration**. Run
+`34029830808` binds five isolated samples to exact main commit
+`22d8cbe1b50506f65e01be7ff05081616c656f2d`; review every raw artifact and
+the proposal before versioning any ceiling. PRD-5 remains externally open
+only for publication of the exact HPy Python 3.14 upstream crash report.
 PRD-0 CI-policy implementation head
 `e791c8983bcb1a3c38aa932617a91ea976cb5c55` has green aHPy, benchmark,
 coverage, and sanitizer required aggregates. HPy development on Python 3.14
@@ -732,8 +738,9 @@ implementation.
    container, attribute, call, extension-type, and external-C overhead is
    quantified. Sequence-index iteration is 36 generated versus 18 handwritten
    calls per iteration after borrowing only its call-scoped source argument;
-   rebindable owned locals remain materialized. Its 1.86–2.00× local range and
-   temporary 2.50× ceiling await hosted calibration. Separate-clean-process peak RSS,
+   rebindable owned locals remain materialized. Its historical 1.86–2.00×
+   local range was superseded by the 1.65–1.97× hosted range and reviewed
+   2.36× release ceiling. Separate-clean-process peak RSS,
    frontend/native build times, and source/binary sizes are also recorded.
    Typed memoryviews remain blocked; remove no cleanup without
    ownership/failure proofs.)**
@@ -747,15 +754,16 @@ implementation.
    parser/tracker; direct live Names feed borrowing binary and fixed sequence
    builder APIs under a left-to-right evaluation proof. Arithmetic/container
    now match the references at 1/4 API calls with zero Dup/Close churn and
-   0.97×/1.07× tightened-budget ratios. Their ceilings are 1.5×; 185 emitter tests,
+   0.97×/1.07× historical ratios. Their release ceilings are 1.27×; 185 emitter tests,
    normal/Trace/Debug, and 150 fault selectors are green. Closure call slots
    accept empty `**{}` but reject non-empty keywords for no-, one-, and
    multi-argument positional-only nested functions.)**
    **(The third ownership-proven optimization is complete: extension-field
    owners/values stay borrowed under call-lifetime and evaluation-order proofs;
    type/module owners load lazily; positional-only initializers bypass keyword
-   trackers. Type creation/method ratios are 1.02×/0.96× under new 1.5×
-   ceilings, Trace is 3/2 and 2.003/2.002 calls with zero generated Dup/Close,
+   trackers. Historical type creation/method ratios are 1.02×/0.96×; their
+   release ceilings are 1.25×/1.24×. Trace is 3/2 and 2.003/2.002 calls with
+   zero generated Dup/Close,
    and 186 emitter tests plus normal/Trace/Debug and 150 fault selectors are
    green. Lazy owner names are part of branch lifetime snapshots; the isolated
    4.65 MB large-type C corpus compiles at O0/O3.)**
@@ -764,32 +772,33 @@ implementation.
    literals directly, while dynamic, non-finite, ambiguous `char`, and
    out-of-portable-range values retain checked HPy conversion. External-C
    Trace is now 1/1 call with zero Dup/Close churn, Universal/HPy-CPython
-   ratios are 0.99×/1.00×, its ceiling is 1.5×, and 188 emitter tests plus
+   ratios are 0.99×/1.00×, its release ceiling is 1.22×, and 188 emitter tests plus
    normal/Trace/Debug and 150 fault selectors are green.)**
    **(The large-type compile is now isolated in this gate: current Apple Clang
    21 evidence is 1.59 seconds `-O0`, 5.29 seconds `-O3`, ratio 3.32×, under a
    60-second per-profile ceiling. O0 is required; O3 is diagnostic because
    Ubuntu GCC 13 exceeded both 60- and 180-second hosted trials while O0 stayed
    near 5 seconds. Preserve further hosted history before changing policy.)**
-4. Turn the current conservative regression ceilings into release budgets only
-   after hosted history exists. Every new report now records exact source and
+4. Maintain the promoted release budgets from reviewed hosted history. Every
+   new report records exact source and
    GitHub run provenance plus its complete machine-readable budget policy.
-   Schema-v3 evidence classifies the checked-in ceilings as regression-only,
-   non-release, hosted-history-pending, and `candidate_binding = "unbound"`;
-   inconsistent states fail closed. `calibrate_performance_budgets.py` rejects local,
+   Run `34029830808` supplied five exact-main hosted schema-v3 reports and a
+   reviewed proposal. The checked-in policy now promotes all 19 proposal
+   ceilings exactly, records its calibration source, and uses enforced
+   `hosted-checkout` release binding; inconsistent states fail closed.
+   `calibrate_performance_budgets.py` rejects local,
    mixed, duplicate, failing, or byte-unstable evidence and requires five
    same-commit hosted records before emitting a proposal; a CLI minimum cannot
    weaken the policy minimum. The manual read-only
    `ahpy-performance-calibration.yml` workflow collects five isolated samples
-   for one selected commit and aggregates only after all pass. Dispatch it on
-   an approved release-candidate commit, review the proposed headroom, then
-   validate any versioned ceiling on that same candidate. The proposal covers
+   for one selected commit and aggregates only after all pass. The reviewed
+   proposal covers
    runtime ratios, frontend/native build time, peak RSS, footprint, and
    large-type frontend/O0 evidence; absolute values remain cohort-bound.
    Platform, compiler command/flags, peak iterations, and native timeout are
    cohort identity and may not be pooled.
-   A future approved release policy records its reviewed calibration-source
-   commit and uses `candidate_binding = "hosted-checkout"`. Do not try to place
+   The approved release policy records its reviewed calibration-source commit
+   and uses `candidate_binding = "hosted-checkout"`. Do not try to place
    a commit's own hash inside the versioned file that determines that hash.
    Candidate identity belongs to the immutable schema-v3 report; release mode
    passes only in GitHub Actions when source commit equals hosted GitHub SHA.
@@ -821,15 +830,17 @@ implementation.
    contracts, and fails on equal-timestamp conflicts. The full local merge
    reports cypack `pass`, murmurhash and frozenlist as their declared partial
    contracts, and bezier `blocked`; the workflow retains all four JSON inputs
-   plus the rendered dashboard. Hosted proof is still open. Convert recurring
-   changes into support or migration rules.
+   plus the rendered dashboard. Run `31794650087` artifact `9216896185` is
+   retained and independently reproduced in
+   `docs/ahpy/audits/m10-hosted-pilot-evidence.md`. Convert recurring changes
+   into support or migration rules.
    The maintained cypack 0.1.7 port fixture already passes three-module
    setuptools Universal generation/build, source/binary audits, selected
    upstream semantics, and normal/Trace/Debug locally. Its exact-one-wheel
    audit, no-dependency isolated install, installed normal/Trace/Debug modes,
    and provenance-bound comparable `axpy`/Fibonacci measurement also pass
-   locally; the hosted workflow artifact remains open and no performance
-   ceiling is inferred from the local sample.
+   locally and in the retained hosted workflow artifact; no release
+   performance ceiling is inferred from the pilot sample.
    The deliberately blocked bezier source now has an exact manifest contract
    for `numpy-c-api` diagnostics at upstream `_speedup.pyx:37:1` and `:38:1`;
    `run_pilots.py` rejects missing or shifted locations, not just a matching
@@ -862,8 +873,8 @@ implementation.
    checksummed `ahpy-universal-conformance-v1` JSON now shares 21 semantic
    cases through a standard-library runner and explicit surface-to-module
    mappings, without Cython imports, `.pyx` paths, or frontend nodes. Preserve
-   that boundary when adding language-specific adapters; hosted pilot dashboard
-   evidence remains open.
+   that boundary when adding language-specific adapters; the retained hosted
+   pilot dashboard proves only the declared subsets.
 7. Coordinate the backend seam with Cython/HPy maintainers, submit neutral
    refactors as small PRs, maintain a rebase log, and file HPy gaps with minimal
    reproductions.
