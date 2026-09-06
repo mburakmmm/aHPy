@@ -14,7 +14,7 @@ Target issue tracker: `https://github.com/oracle/graalpython/issues`
 - Builder: CPython 3.11.15, HPy 0.9.0, setuptools 83.0.0, Ubuntu 24.04 x86-64.
 - Target: `graalpy-25.1.3` from `actions/setup-python`.
 - Artifact: unchanged Universal `.hpy0.so`; no target-side rebuild.
-- Current evidence: GitHub Actions run `31573340325`, job `94040063153`.
+- Current evidence: GitHub Actions run `34030366000`, job `101478712970`.
 
 ## Minimal source
 
@@ -56,14 +56,20 @@ import suffix, imports the unchanged module, and returns `42`, `None`, and
 
 ## Current actual result
 
-In run `31573340325`, job `94040063153`, GraalPy 25.1.3 reported
+In run `34030366000`, job `101478712970`, GraalPy 25.1.3 reported
 `EXTENSION_SUFFIXES` as `.graalpy250-312-native-x86_64-linux.so`, `.so`, and
 `.pyd`, exposed neither
 `hpy.universal` nor a native `.hpy0` suffix. Native-only staging therefore
 failed at the first module import with `ModuleNotFoundError`. The artifact was
 not rebuilt, renamed to a CPython suffix, or routed through a CPython C-API
 fallback. The unchanged handwritten binary SHA-256 was
-`5b62871da8259c7976cd553b2378c16c4d542c4c685c2657da6c4cc5baf35cce`.
+`fd4be0297fcc40c74941d8db59d443be722b9985b070b6668428dd5376f498b5`.
+Artifact `9988411879` has GitHub archive digest
+`50fc6bd9b3d13fdcbd60f2ac912dabfb85d7dac00e574618dd254d091d1f5cd7`;
+the retained JSON SHA-256 is
+`697353d1c6e7c4025c71b16d91ce15a39f326126942a240a3a32bedc7bf67b71`.
+The byte-identical JSON is retained at
+[`evidence/portability-34030366000/portability-result-GraalPy-25.1.3.json`](evidence/portability-34030366000/portability-result-GraalPy-25.1.3.json).
 
 ## Filing guard
 

@@ -228,15 +228,15 @@ Interpreters exposing `hpy.universal` use the unchanged Python stubs; native
 HPy interpreters receive a temporary directory containing only byte-identical
 `.hpy0` binaries so a CPython loader stub cannot shadow their native importer.
 Their exact setup identifiers and evidence job IDs live in
-`tests/ahpy/interpreters.toml`. Run 31573340325 supplied the first
-handwritten-first hosted classification: PyPy job 94040063173 passed
-`import-minimal` and `minimal-semantics`, then the old six-stage artifact
-terminated with signal 11 at `import-answer`; GraalPy job 94040063153 exposed
-neither `hpy.universal` nor a native `.hpy0` import suffix and failed with
-`ModuleNotFoundError` at `import-minimal`. Both remain allowed-failure early
-warnings. Only a future green hosted execution may remove `continue-on-error`
-or alter support. The expanded ten-stage artifact passes locally on CPython
-3.11.15/HPy 0.9.0 and will narrow the PyPy failure on its next hosted run.
+`tests/ahpy/interpreters.toml`. Run `34030366000` supplies the current
+handwritten-first hosted classification: PyPy job `101478712931` passes
+handwritten import/semantics, constant-only import/semantics, and Fibonacci
+import before signal 11 at `fibonacci-semantics`; GraalPy job `101478712970`
+exposes neither `hpy.universal` nor a native `.hpy0` import suffix and fails
+with `ModuleNotFoundError` at `import-minimal`. Both remain allowed-failure
+early warnings. Only a future green hosted execution may remove
+`continue-on-error` or alter support. A native backtrace remains necessary
+before the reduced PyPy result is filed upstream.
 The smoke driver writes `portability-result-<target>.json` even when manifest
 verification, a normal exit, or a signal terminates the gate. Each report
 contains the complete verified file list, manifest SHA-256, loader/provenance,
@@ -753,9 +753,9 @@ before its literal-lowering optimization.
 The generated and reference extensions compile the same external C source.
 Supported sequence-index iteration now has equivalent generated/handwritten
 semantics and a reviewed 2.36× release ceiling around the 1.65–1.97× hosted
-range. Candidate same-HEAD validation remains mandatory. True iterator-protocol and
-typed-memoryview numbers remain deliberately absent while those HPy 0.9
-surfaces are blocked.
+range. PR #12 candidate run `34030366000` passed that ceiling on the exact
+hosted checkout. True iterator-protocol and typed-memoryview numbers remain
+deliberately absent while those HPy 0.9 surfaces are blocked.
 
 Peak RSS is measured in two separate clean children, each running 10,000
 iterations per operation, so one module cannot inherit the other's process
@@ -817,8 +817,12 @@ and large-type frontend/O0 distributions, is explicitly proposal-only, and
 cannot rewrite the versioned budget. The collection and
 maintainer review procedure is documented in
 `performance-release-gate.md`; the evidence and review are retained in
-`audits/m9-hosted-performance-calibration.md`. A separate same-HEAD hosted
-candidate run is still required before closing PRD-7.
+`audits/m9-hosted-performance-calibration.md`. PR #12 hosted run `34030366000`
+then passed all 19 promoted ceilings on exact merge checkout
+`d5811407c193db75f0680d7a01d3cf8ead10ef27`; source/GitHub SHA equality,
+empty violations, HPy Debug evidence, artifact `9988460306`, and both archive
+and JSON hashes are retained in that audit. PRD-7 is therefore closed without
+weakening the preview support contract.
 `Tools/ahpy/validate_performance_budget_promotion.py` then verifies exact
 proposal equality for the ten runtime, three footprint, and six absolute
 release ceilings and rejects embedded-contract, calibration-source,

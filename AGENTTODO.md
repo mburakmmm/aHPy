@@ -18,18 +18,23 @@ agent must keep all three synchronized when implementation status changes.
   `main` as `22d8cbe1b50506f65e01be7ff05081616c656f2d`. Its final source commit
   `880d46d7d348df759ef062711ab3b4876bd648b8` passed all five required
   contexts, including the repaired Python 3.9 Limited API selection. Manual
-  performance calibration run `34029830808` is collecting five isolated
-  hosted samples from that exact main commit. Continue PRD-7 by reviewing its
-  immutable raw artifacts and proposal; never promote the proposed budgets
-  automatically.
+  performance calibration run `34029830808` produced five isolated hosted
+  samples from that exact main commit; all 19 reviewed ceilings were promoted
+  without adjustment. PR #12 run `34030366000` then passed those ceilings on
+  exact candidate checkout `d5811407c193db75f0680d7a01d3cf8ead10ef27` with
+  empty violations and HPy Debug evidence. All five protected aggregates then
+  passed and PR #12 merged as
+  `5e75d69351ad9043b53c9bf0bc4c23314db4ca40` on 2026-09-06; full Cython
+  `ci-success` job `101498163637` was green. PRD-7 is complete; continue PRD-9
+  without treating performance evidence as expanded feature support.
 - Snapshot date: 2026-08-14 (Cursor/Codex continuation, writable scalar and
   fixed-array buffer producer slices, handwritten-first cross-interpreter
   evidence, dynamic fault-count reporting, and local coverage audited and
   reconciled).
 - Workspace: `/Users/melihburakmemis/Documents/aHPy`.
 - Integration branch: `codex/ahpy-bootstrap` (merged into `main` by PR #2).
-- Current evidence branch: `codex/production-evidence`, based on
-  `22d8cbe1b50506f65e01be7ff05081616c656f2d`.
+- Current closeout branch: `codex/production-closeout`, based on merged main
+  `5e75d69351ad9043b53c9bf0bc4c23314db4ca40`.
 - Upstream Cython baseline: `86b94cef002aa23aea0b390335ea3d9e9b62c19e`.
 - The accepted base was merged as
   `a1dc62c0084cc426090b38137eefb3c9ef82dcab` with the exact two parents and
@@ -203,12 +208,12 @@ Last verified local gates:
 - The build-once portability artifact now contains the frontend-independent
   handwritten `ahpy_minimal` oracle followed by constant-only, single-function,
   heap-type and large function-corpus generated rungs. All ten isolated stages
-  pass locally on CPython 3.11/HPy 0.9. Hosted run `31573340325` proved the
-  handwritten oracle on PyPy before the old artifact crashed at
-  `import-answer`, while GraalPy failed native discovery at `import-minimal`;
-  rerun the ten-stage ladder to narrow PyPy further. The smoke writes verified
-  hashes, provenance, ordered stdout/stderr and exit/signal classification to
-  JSON even on failure; CI uploads it with `if: always()`.
+  pass locally on CPython 3.11/HPy 0.9. Hosted run `34030366000` proved the
+  handwritten and constant-only oracles plus Fibonacci import on PyPy before
+  signal 11 at `fibonacci-semantics`; GraalPy again failed native discovery at
+  `import-minimal`. Capture a native PyPy backtrace before filing. The smoke
+  writes verified hashes, provenance, ordered stdout/stderr and exit/signal
+  classification to JSON even on failure; CI uploads it with `if: always()`.
 - Clean release artifact: the warning-free, self-contained
   `ahpy_compiler-3.3.0.1.dev0.tar.gz` now requires unchanged committed release
   inputs and proves every non-generated member is tracked and byte-identical;
@@ -383,11 +388,14 @@ remain in the phase and milestone sections below and in `TODO.md`.
    draft PR or tag a stable release without explicit user authorization and
    every declared release gate green.
 
-Current item: **PRD-7 hosted release-performance calibration**. Run
-`34029830808` binds five isolated samples to exact main commit
-`22d8cbe1b50506f65e01be7ff05081616c656f2d`; review every raw artifact and
-the proposal before versioning any ceiling. PRD-5 remains externally open
-only for publication of the exact HPy Python 3.14 upstream crash report.
+Current item: **PRD-9 upstream, security, and sustainable maintenance**. PRD-7
+is closed by calibration run `34029830808` and candidate run `34030366000`;
+the exact artifact hashes are retained in the M9 hosted audit. Security run
+`34030365881` passed Dependency Review and Python/C++ CodeQL. Continue by
+reconciling Dependabot's stale alerts and preparing independently reviewable
+upstream reports; do not publish an external issue or PR without owner
+authorization. PRD-5 remains externally open only for publication of the
+exact HPy Python 3.14 upstream crash report.
 PRD-0 CI-policy implementation head
 `e791c8983bcb1a3c38aa932617a91ea976cb5c55` has green aHPy, benchmark,
 coverage, and sanitizer required aggregates. HPy development on Python 3.14
@@ -899,8 +907,11 @@ implementation.
    enabled through the repository API on 2026-08-12,
    supported-line/EOL/backport/deprecation/cadence procedures, expanded
    Dependabot coverage, and immutable CodeQL v4.36.0 plus Dependency Review
-   v5.0.0 workflow pins. Keep the publication/automation tasks open until the
-   first hosted security scans are retained on the pushed commit.
+   v5.0.0 workflow pins. PR #12 security run `34030365881` retained the first
+   green hosted Dependency Review and Python/C++ CodeQL result on exact branch
+   HEAD `1ecb2d132853a0b270605c4ce1990db1032ae10c`; dependency/security
+   automation is therefore operational, while upstream publication remains
+   owner-gated.
    The machine-readable recovery policy and
    `release_recovery_drill.py` exercise a no-publication correctness backport
    with `cherry-pick -x`, its original regression test, unchanged support scope
@@ -908,6 +919,11 @@ implementation.
    version; deletion is exceptional and security work remains private until
    disclosure. Universal CI retains the JSON result, but the drill never
    creates a real release branch or mutates a package index.
+   Together with the validated release/support contracts, CODEOWNERS,
+   publishing guide, append-only rebase log, and reproducible recovery drill,
+   this closes the user-visible policy and non-tacit-process PRD-9 exit items.
+   PRD-9 itself remains open solely where real upstream issue/PR links or a
+   release branch require an explicit external action.
    The append-only `rebase-log.toml` now records the initial exact Cython base
    without mislabeling it as a transition; its validator chains future rebases,
    requires per-path conflict classifications and decisions, and matches the

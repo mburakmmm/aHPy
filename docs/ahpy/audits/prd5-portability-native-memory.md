@@ -44,34 +44,36 @@ The current required aggregate is green in
 ## Excluded alternate interpreters
 
 The identical CPython-built handwritten-first artifact in
-[run 31573340325](https://github.com/mburakmmm/aHPy/actions/runs/31573340325)
+[run 34030366000](https://github.com/mburakmmm/aHPy/actions/runs/34030366000)
 provides the current early-warning classification:
 
-- PyPy 7.3.23 passes the handwritten `import-minimal` and
-  `minimal-semantics` stages, then terminates with signal 11 at
-  `import-answer` in
-  [job 94040063173](https://github.com/mburakmmm/aHPy/actions/runs/31573340325/job/94040063173).
+- PyPy 7.3.23 passes handwritten import/semantics, constant-only
+  import/semantics, and Fibonacci import, then terminates with signal 11 at
+  `fibonacci-semantics` in
+  [job 101478712931](https://github.com/mburakmmm/aHPy/actions/runs/34030366000/job/101478712931).
 - GraalPy 25.1.3 exposes neither `hpy.universal` nor a native `.hpy0` import
   suffix; the byte-identical native-only stage fails with
   `ModuleNotFoundError` in
-  [job 94040063153](https://github.com/mburakmmm/aHPy/actions/runs/31573340325/job/94040063153).
+  [job 101478712970](https://github.com/mburakmmm/aHPy/actions/runs/34030366000/job/101478712970).
 
 Both are listed as unsupported in the frozen release contract and remain
 allowed-failure CI signals. Their red results cannot broaden or weaken the
 required CPython support claim.
 
-The current diagnostic revision keeps that handwritten oracle first, then adds
+The diagnostic revision keeps that handwritten oracle first, then adds
 generated constant-only and single-function modules before the heap-type and
 large function corpora. All ten stages pass locally on CPython 3.11.15/HPy
-0.9.0. Its next hosted run will determine whether PyPy first fails in basic
-generated module execution, type creation, or only the large corpus. Prepared
-PyPy and GraalPy report drafts live beside this audit; the PyPy report remains
-guarded pending that narrower result, while the GraalPy report is technically
-complete but still requires owner authorization before external publication.
+0.9.0. The hosted result now narrows PyPy to execution of the generated
+Fibonacci function after its import succeeds. Prepared PyPy and GraalPy report
+drafts live beside this audit; PyPy still needs a native backtrace and both
+reports require owner authorization before external publication.
 The cross-interpreter workflow now persists a schema-versioned JSON result with
 the verified manifest/file hashes, target and loader provenance, ordered stage
 stdout/stderr, and exact exit-or-signal classification under `if: always()`.
 Missing evidence is itself a workflow artifact failure.
+The current PyPy and GraalPy JSON payloads are retained byte-for-byte under
+`evidence/portability-34030366000/`; their SHA-256 values are recorded in the
+target-specific upstream report drafts.
 
 ## Python 3.14 minimal reproducer
 

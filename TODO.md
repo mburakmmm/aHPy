@@ -1394,7 +1394,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         arguments; retain owned materialization for rebindable locals. Trace
         drops from 38 to 36 calls/iteration while normal/Trace/Debug and all
         150 fault selectors remain green.
-- [ ] Define and enforce release performance budgets.
+- [x] Define and enforce release performance budgets.
   - [x] Record exact source/GitHub-run provenance in every new benchmark
         artifact and add a fail-closed proposal generator requiring at least
         five unique successful hosted reports from one exact commit and
@@ -1417,7 +1417,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
         `22d8cbe1b50506f65e01be7ff05081616c656f2d`, review the immutable
         artifacts and 20% headroom, and version all 19 proposed ceilings
         exactly.
-  - [ ] Validate the promoted release ceilings again on the new candidate
+  - [x] Validate the promoted release ceilings again on the new candidate
         HEAD before closing the parent release-budget gate.
 - [x] Document interpreter/HPy reference cost separately from aHPy overhead by
       retaining standalone classic timings and same-ABI handwritten HPy

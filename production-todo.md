@@ -41,9 +41,9 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 | 4 | PRD-4 — Advanced Cython aileleri | **TAMAMLANDI** | Implement veya fail-closed sonucu |
 | 5 | PRD-5 — Portability/native memory | **DIŞ BAĞIMLILIK** | Universal binary ve platform kanıtı |
 | 6 | PRD-6 — Paketleme/dağıtım | **DIŞ BAĞIMLILIK** | Kurulabilir ve doğrulanabilir artifact |
-| 7 | PRD-7 — Performans/footprint | **AKTİF — HOSTED KALİBRASYON** | Hosted örnekler sonrası sürüm bütçeleri |
+| 7 | PRD-7 — Performans/footprint | **TAMAMLANDI** | Kalibre edilmiş sürüm bütçeleri ve same-HEAD hosted kanıtı |
 | 8 | PRD-8 — Gerçek kütüphane pilotları | **TAMAMLANDI — İLAN EDİLEN ALT KÜMELER** | Dört pilotun saklanan hosted raporu ve dashboard'u |
-| 9 | PRD-9 — Upstream/güvenlik/bakım | **BEKLİYOR** | Sürdürülebilir production işletimi |
+| 9 | PRD-9 — Upstream/güvenlik/bakım | **AKTİF** | Upstream raporları ve sürdürülebilir production işletimi |
 | 10 | PRD-10 — RC/stable yayın | **BEKLİYOR** | İmzalı ve kanıtlı production release |
 
 ### Şu anki kritik yol
@@ -446,7 +446,7 @@ Her aile için yalnızca iki kabul edilebilir sonuç vardır:
   - [x] Exact main commit'i için beş hosted sample topla, raw/proposal
         hash'lerini ve %20 headroom'u incele, release eşiklerini birebir
         versiyonla.
-  - [ ] Versiyonlanan release eşiklerini yeni candidate HEAD'inde ayrı bir
+  - [x] Versiyonlanan release eşiklerini yeni candidate HEAD'inde ayrı bir
         hosted koşuyla doğrula.
 - [x] Eşik aşımında fail-closed CI ve anlamlı rapor üret.
 - [x] HPy runtime/interpreter maliyetini aHPy overhead'inden ayrı göster.
@@ -461,8 +461,17 @@ sample'ın proposal-only çıktısından birebir promoted release sözleşmesidi
 `22d8cbe1b50506f65e01be7ff05081616c656f2d`'dir. Loader çelişkili policy
 kombinasyonlarını; kalibratör ise farklı policy'leri veya beşten düşük bir CLI
 minimumunu reddeder. Promotion sonucu 10 runtime, 3 footprint ve 6 absolute
-alanın tamamında proposal ile exact eşleşir. Yeni candidate için same-HEAD
-hosted doğrulaması açık kalır.
+alanın tamamında proposal ile exact eşleşir. PR #12'nin immutable merge
+checkout'u `d5811407c193db75f0680d7a01d3cf8ead10ef27`, hosted run
+`34030366000` / job `101478641962` içinde aynı 19 tavanı geçti; raporda source
+commit ile `GITHUB_SHA` birebir eşit, `violations` boş ve HPy Debug leak kontrolü
+yeşildir. Artifact `9988460306`'nın GitHub archive digest'i
+`8836fe2d9b370daffacdc915db3aa5b004e21c277f61aaffe1d6844613cde998`,
+`benchmark.json` SHA-256 değeri ise
+`280e9a2a7df7ec4a4d477e0480f4941f201f9457a980e45c128d0fe007777e82`'dir.
+Beş protected aggregate yeşil kaldıktan sonra PR #12 bu sözleşmeyi ve kanıtı
+`main` commit `5e75d69351ad9043b53c9bf0bc4c23314db4ca40` olarak birleştirdi; full Cython
+`ci-success` job kimliği `101498163637`'dir.
 Policy reviewed calibration-source commit'ini kaydeder; mevcut candidate hash'i
 öz-referanslı biçimde policy'ye yazmak yerine immutable benchmark raporu taşır.
 Gate hosted execution ile source commit / `GITHUB_SHA` eşitliğini zorunlu tutar;
@@ -481,7 +490,7 @@ maintainer onayı veya current-candidate same-HEAD hosted kanıtı yerine geçme
 
 ### PRD-7 çıkış kapısı
 
-- [ ] Bütün yayımlanan bütçeler aynı release candidate üzerinde yeşil.
+- [x] Bütün yayımlanan bütçeler aynı release candidate üzerinde yeşil.
 - [x] Sonuçlar timestamped, immutable CI artifact olarak saklanıyor.
 - [x] Desteklenmeyen aileler için uydurma performans sayısı yayımlanmıyor.
 
@@ -595,7 +604,9 @@ gizleyemez.
       `SECURITY.md` private GitHub Advisory yolunu tanımlar ve repository API
       ayarı 2026-08-12'de `enabled: true` olarak doğrulandı.
 - [x] Desteklenen Cython, HPy, Python, OS ve compiler sürüm politikasını yayımla.
-- [ ] Dependency update ve security scanning otomasyonunu ekle.
+- [x] Dependency update ve security scanning otomasyonunu ekle; PR #12 hosted
+      security run `34030365881` içinde Dependency Review ve Python/C++ CodeQL
+      işlerinin tamamı aynı exact branch HEAD'inde geçti.
 - [x] Third-party license/provenance envanterini release artifact'e bağla;
       schema-2 envanter aHPy, exact embedded Cython, örnek, HPy, setuptools ve
       PyPA build bileşenlerini artifact hash/revision'larına bağlar; SPDX
@@ -616,9 +627,13 @@ ve otomasyon dosyalarını fail-closed doğruluyor. `CODEOWNERS` mevcut project,
 security ve release sahibini açıkça kaydediyor. Yeni `ahpy-security.yml`,
 Dependency Review v5.0.0 ve CodeQL v4.36.0 `security-extended` Python/C++
 taramalarını immutable SHA'larla PR/push/weekly kapılarına bağlıyor; Dependabot
-Actions ile üç Python dependency kökünü aylık izliyor. Hosted ilk taramalar ve
-security artifact kanıtı başarıyla tamamlanmadan ilgili publication/automation
-checkbox'ları açık kalır.
+Actions, `.github`, repository root ve `tests/ahpy` dependency köklerini aylık
+izliyor. PR #12 security run `34030365881` exact branch HEAD
+`1ecb2d132853a0b270605c4ce1990db1032ae10c` üzerinde Dependency Review ile
+Python/C++ CodeQL işlerini yeşil tamamladı; automation maddesi kapanmıştır.
+Mevcut Dependabot uyarıları güvenli pinler main'e ulaştıktan sonra repository
+yeniden taramasıyla ayrıca uzlaştırılmalıdır; dış upstream publication
+checkbox'ları owner onayı olmadan kapatılamaz.
 Append-only `rebase-log.toml`, ilk
 `b99cb0e3b5425e11414cadd24168a6cc850e8000` baseline seçimini gerçek bir rebase
 gibi göstermeden koruyor ve 2026-08-12 tarihinde 120 upstream commit içeren
@@ -678,9 +693,9 @@ tek kaynak olarak yayımlanır.
 ### PRD-9 çıkış kapısı
 
 - [ ] Açık upstream bağımlılıkları issue/reproducer bağlantısına sahip.
-- [ ] Güvenlik bildirimi, destek süresi ve bakım sorumluluğu kullanıcı için
+- [x] Güvenlik bildirimi, destek süresi ve bakım sorumluluğu kullanıcı için
       açık.
-- [ ] Fork güncelleme ve release üretme süreci tek kişilik örtük bilgiye
+- [x] Fork güncelleme ve release üretme süreci tek kişilik örtük bilgiye
       bağlı değil.
 
 ## PRD-10 — Release candidate ve stable yayın
@@ -775,6 +790,6 @@ Agent'lar ve geliştiriciler aşağıdaki sırayı korumalıdır:
 9. PRD-9: upstream, güvenlik ve bakım.
 10. PRD-10: release candidate ve stable yayın.
 
-Bir sonraki aktif yerel hedef PRD-7 release performans/footprint bütçeleridir;
-PRD-5 upstream raporu ile PRD-6 name/sign/upload adımları açık owner yetkisi
-gerektiren dış eylemler olarak bekler.
+Bir sonraki aktif yerel hedef PRD-9 dependency/security otomasyonu ve upstream
+handoff kanıtlarıdır; PRD-5 upstream raporu ile PRD-6 name/sign/upload adımları
+açık owner yetkisi gerektiren dış eylemler olarak bekler.

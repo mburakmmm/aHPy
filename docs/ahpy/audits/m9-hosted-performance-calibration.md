@@ -1,7 +1,7 @@
 # M9 hosted release-performance calibration
 
-Status: five-sample proposal reviewed and promoted; candidate same-HEAD hosted
-validation remains required.
+Status: complete; five-sample proposal reviewed and promoted, then validated
+on the candidate's exact hosted checkout.
 
 ## Immutable GitHub evidence
 
@@ -59,6 +59,27 @@ calibration source, and activates hosted-checkout release enforcement. The
 read-only promotion validator reports `status=valid`, `report_count=5`, and
 `checked_fields=19`.
 
-This review does not prove the modified candidate commit by itself. Its hosted
-benchmark must still bind that new checkout to GitHub SHA and pass every
-promoted relative, footprint, and absolute ceiling before PRD-7 closes.
+## Candidate same-HEAD validation
+
+PR #12 run
+[`34030366000`](https://github.com/mburakmmm/aHPy/actions/runs/34030366000)
+validated the promoted policy on immutable merge checkout
+`d5811407c193db75f0680d7a01d3cf8ead10ef27`. Compiler/quality job
+[`101478641962`](https://github.com/mburakmmm/aHPy/actions/runs/34030366000/job/101478641962)
+passed the release-performance step and the resulting `benchmark.json` records
+both `source_commit` and the hosted GitHub SHA as that exact value. Its
+`violations` list is empty and HPy Debug leak checking passed.
+
+Artifact `9988460306` has GitHub archive digest
+`8836fe2d9b370daffacdc915db3aa5b004e21c277f61aaffe1d6844613cde998`;
+the retained JSON payload has SHA-256
+`280e9a2a7df7ec4a4d477e0480f4941f201f9457a980e45c128d0fe007777e82`.
+All ten runtime, three footprint, and six absolute measurements are below the
+promoted limits. This independently satisfies the PRD-7 same-HEAD performance
+exit condition; it does not expand the preview feature or interpreter support
+contract.
+
+All five protected aggregate contexts, including full Cython `ci-success` job
+[`101498163637`](https://github.com/mburakmmm/aHPy/actions/runs/34030366090/job/101498163637),
+were green before PR #12 merged this policy and evidence to `main` as
+`5e75d69351ad9043b53c9bf0bc4c23314db4ca40` on 2026-09-06.

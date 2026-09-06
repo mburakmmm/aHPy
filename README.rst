@@ -37,6 +37,10 @@ The complete aHPy development line was integrated into ``main`` by
 contexts passed on its final source HEAD.  The remaining production and
 release gates are listed in `production-todo.md <production-todo.md>`_.
 Development on ``main`` retains the preview support contract.
+`PR #12 <https://github.com/mburakmmm/aHPy/pull/12>`_ subsequently merged the
+retained pilot evidence and calibrated release budgets as
+``5e75d69351ad9043b53c9bf0bc4c23314db4ca40`` after the same five protected
+aggregates passed again.
 
 Core guarantees
 ---------------
@@ -104,7 +108,7 @@ Validation snapshot
 
 The current local M9 snapshot records:
 
-* 441 focused compiler tests and 530 quality-tool tests (two expected
+* 441 focused compiler tests and 532 quality-tool tests (two expected
   platform skips);
 * 971 focused coverage tests on CPython 3.11 and 3.14;
 * 100% executable Python-line coverage for the three Universal backend
@@ -112,8 +116,9 @@ The current local M9 snapshot records:
   and 100% quality-tool floors (current quality-tool coverage is 100%);
 * normal, HPy Trace, and HPy Debug execution;
 * 150 isolated allocation/API fault selectors;
-* ten generated-versus-handwritten Universal HPy regression ceilings, marked
-  machine-readably as non-release until same-HEAD hosted calibration;
+* ten generated-versus-handwritten Universal HPy runtime ceilings, three
+  footprint ceilings, and six absolute release ceilings calibrated from five
+  exact-main hosted samples and passed again on an exact candidate checkout;
 * reproducible frontend wheel/sdist and portability artifacts;
 * pinned real-world cypack, murmurhash and frozenlist pilots: cypack locally passes
   Universal source/binary audits, host-tagged wheel install, installed
@@ -132,19 +137,22 @@ The current local M9 snapshot records:
 The CPython 3.11/HPy 0.9 stable baseline is green on hosted Linux x86-64 and
 ARM64, macOS Intel and ARM64, and Windows x64.  Same-binary PyPy and GraalPy
 executions are recorded as allowed-failure early warnings: their selected
-runtimes currently remain outside the support claim.  Hosted run 31573340325
-proved that PyPy passes the unchanged handwritten public-HPy module before
-crashing while importing the large generated function corpus; GraalPy exposes
-neither ``hpy.universal`` nor a native ``.hpy0`` suffix and cannot discover the
-same handwritten binary.  The artifact now adds generated constant-only and
-single-function rungs and runs the generated heap-type corpus before that large
-module, giving the next hosted result an exact first-failing feature boundary.
+runtimes currently remain outside the support claim.  Hosted run 34030366000
+proved that PyPy passes the unchanged handwritten public-HPy module, generated
+constant-only module, and generated Fibonacci import before signal 11 in the
+isolated Fibonacci semantics stage.  GraalPy exposes neither
+``hpy.universal`` nor a native ``.hpy0`` suffix and cannot discover the same
+handwritten binary.  The retained failure JSONs bind these classifications to
+exact file, manifest, artifact, and loader provenance; neither result expands
+the support contract.
 See
 `the validation matrix <docs/ahpy/validation-matrix.md>`_ and
 `the focused-coverage audit
-<docs/ahpy/audits/m8-focused-backend-coverage.md>`_; performance evidence
-remains in the
-`M9 ABI audit <docs/ahpy/audits/m9-abi-performance-baseline.md>`_.
+<docs/ahpy/audits/m8-focused-backend-coverage.md>`_; performance evidence is
+retained in the
+`M9 ABI audit <docs/ahpy/audits/m9-abi-performance-baseline.md>`_ and
+`hosted calibration audit
+<docs/ahpy/audits/m9-hosted-performance-calibration.md>`_.
 
 The schedule/manual Linux Valgrind definite-leak job is a required native
 memory gate.  A separate Windows Application Verifier and GFlags full-page-
@@ -159,6 +167,14 @@ HEAD before PR #2 produced main commit
 ``22d8cbe1b50506f65e01be7ff05081616c656f2d``.  Exact run and job links are
 recorded in
 `the validation matrix <docs/ahpy/validation-matrix.md>`_.
+
+The promoted release-performance policy passed PR #12's immutable hosted
+candidate checkout in run ``34030366000``.  The same branch HEAD also passed
+Dependency Review and Python/C++ CodeQL in security run ``34030365881``;
+these results close the performance evidence and first hosted security-
+automation gates without changing aHPy's preview product level.  Full Cython
+run ``34030366090`` completed with green ``ci-success`` job ``101498163637``
+before the PR merged to ``main``.
 
 Documentation map
 -----------------
