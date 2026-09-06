@@ -319,16 +319,16 @@ promotion uses `calibrate_performance_budgets.py`, which accepts at least five
 unique successful reports for one exact commit and cohort, rejects local or
 mixed evidence, and emits a proposal without editing the versioned budget.
 Schema-v3 reports also embed the complete budget policy. The checked-in policy
-is machine-classified as non-release regression protection with hosted history
-pending; inconsistent policy combinations and attempts to lower its five-run
-minimum fail closed.
+is an approved, enforced release contract promoted from five samples at exact
+calibration commit `22d8cbe1b50506f65e01be7ff05081616c656f2d`; inconsistent
+policy combinations and attempts to lower its five-run minimum fail closed.
 Each report additionally embeds the entire validated budget contract rather
 than only its repository path: exact operation/footprint ceilings, environment,
 measurement, and large-type settings. Calibration rejects policy/contract,
 measurement, environment, enforcement, or cross-sample contract drift and
 copies the exact input contract into its proposal.
-If a future policy is promoted to `release`, the benchmark additionally
-requires `hosted-checkout` candidate binding, a full calibration-source commit,
+For the promoted `release` policy, the benchmark additionally requires
+`hosted-checkout` candidate binding, a full calibration-source commit,
 hosted GitHub Actions provenance, and equality between the checked-out source
 commit and GitHub SHA. The current candidate hash lives in the immutable report
 rather than self-referentially inside the versioned policy; a local or stale
@@ -338,8 +338,8 @@ ARCHFLAGS, measurement settings, peak-memory iterations, and native timeout.
 The proposal retains runtime, frontend/native build-time, peak-RSS, footprint,
 and large-type frontend/O0 distributions; absolute values are never pooled
 across unlike hosted cohorts.
-Regression policy forbids a `release_absolute` table. A future approved release
-contract must provide the six calibrated frontend/native time, generated peak
+Regression policy forbids a `release_absolute` table. The approved release
+contract provides the six calibrated frontend/native time, generated peak
 RSS/ratio, and large-type frontend/O0 ceilings; missing, non-finite, or exceeded
 runtime evidence fails the benchmark gate.
 `validate_performance_budget_promotion.py` is the separate review verifier. It
@@ -353,7 +353,9 @@ The manual `ahpy-performance-calibration.yml` workflow collects five isolated
 runner samples for the selected commit and invokes that proposal gate only
 after every matrix entry succeeds.
 The collection and review contract is in
-`docs/ahpy/performance-release-gate.md`.
+`docs/ahpy/performance-release-gate.md`; run `34029830808` and its exact
+promotion review are recorded in
+`docs/ahpy/audits/m9-hosted-performance-calibration.md`.
 
 The benchmark also launches a separate HPy Trace child for 1,000 calls per
 operation and records exact API deltas, calls per iteration, plus

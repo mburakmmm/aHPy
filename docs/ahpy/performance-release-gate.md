@@ -1,10 +1,9 @@
 # Release performance budget calibration
 
-aHPy's ordinary benchmark gate uses conservative relative ceilings to catch
-large regressions on shared CI runners. Those ceilings are not automatically
-release budgets. A release budget must be derived from repeated, immutable
-GitHub Actions evidence for one exact release-candidate commit and one
-measurement cohort.
+aHPy's benchmark gate now uses approved relative, footprint, and cohort-bound
+absolute release ceilings derived from repeated, immutable GitHub Actions
+evidence for one exact calibration commit and one measurement cohort. New
+candidates must pass the same contract from their own exact hosted checkout.
 
 `Tools/ahpy/calibrate_performance_budgets.py` implements that boundary. It is a
 proposal generator, not a budget editor. It never modifies
@@ -49,15 +48,14 @@ contract; a matching file path or policy label alone is insufficient. The
 proposal retains that input contract so an immutable artifact remains
 auditable after the repository budget file changes.
 
-The checked-in policy is deliberately `classification = "regression"`,
-`release_enforced = false`, and `calibration_status =
-"hosted-history-pending"`. It also declares a minimum of five hosted reports
-with `candidate_binding = "unbound"` and no calibration source commit. The
-loader rejects inconsistent combinations;
-therefore these conservative ceilings cannot be presented as approved release
-budgets. A future release budget must be explicitly approved and enforced, use
-`candidate_binding = "hosted-checkout"`, and cite the full commit from which
-its reviewed calibration proposal was derived.
+The checked-in policy is `classification = "release"`, `release_enforced =
+true`, `calibration_status = "approved"`, and `candidate_binding =
+"hosted-checkout"`. It cites calibration source
+`22d8cbe1b50506f65e01be7ff05081616c656f2d` and retains the five-report floor.
+The raw samples, proposal, artifact digests, payload hashes, distributions,
+and review decision are recorded in
+[`m9-hosted-performance-calibration.md`](audits/m9-hosted-performance-calibration.md).
+The loader rejects every inconsistent release-policy combination.
 
 Candidate identity is executable, not self-referential metadata. A versioned
 file cannot contain the Git hash of the commit that contains that same value.
@@ -140,18 +138,19 @@ proposal; environment, measurement, large-type compile policy, sample floor,
 and calibration-source drift fail closed. It emits a schema-versioned result
 but never rewrites the budget or grants approval.
 
-The checked-in regression policy intentionally has no `release_absolute`
-table. An approved release policy must add exactly six positive finite limits:
+The checked-in approved policy contains exactly six positive finite
+`release_absolute` limits:
 `cython_seconds`, `native_build_seconds`, `generated_peak_rss_bytes`,
 `generated_to_reference_peak_rss_ratio`, `large_type_frontend_seconds`, and
-`large_type_o0_seconds`. They map directly to the proposal's build-time,
-peak-memory, and large-type distributions. Release-mode benchmarking fails on
-missing/non-finite evidence or any exceeded limit; regression mode rejects an
-absolute table rather than presenting uncalibrated local values as portable
-release budgets.
+`large_type_o0_seconds`. They map directly to the reviewed proposal's
+build-time, peak-memory, and large-type distributions. Release-mode
+benchmarking fails on missing/non-finite evidence or any exceeded limit;
+regression mode still rejects an absolute table rather than presenting
+uncalibrated local values as portable release budgets.
 
 `proposal_only: true` and `apply_automatically: false` are mandatory. A
 maintainer must review the raw hosted artifacts, runner noise, proposed
 headroom, and support contract before changing the versioned budget. The
-budget change then needs its own same-HEAD hosted validation; local absolute
+budget change then needs its own same-HEAD hosted validation. That candidate
+validation is the remaining gate after run `34029830808`; local absolute
 timings and unlike host cohorts must never be pooled.

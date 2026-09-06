@@ -15,6 +15,29 @@ import benchmark_hpy
 
 class BenchmarkHPyTest(unittest.TestCase):
     @staticmethod
+    def _regression_budget_text():
+        release = benchmark_hpy.DEFAULT_BUDGETS.read_text(encoding="utf8")
+        regression = release.split("\n[release_absolute]\n", 1)[0] + "\n"
+        return regression.replace(
+            'classification = "release"', 'classification = "regression"', 1
+        ).replace(
+            "release_enforced = true", "release_enforced = false", 1
+        ).replace(
+            'calibration_status = "approved"',
+            'calibration_status = "hosted-history-pending"',
+            1,
+        ).replace(
+            'candidate_binding = "hosted-checkout"',
+            'candidate_binding = "unbound"',
+            1,
+        ).replace(
+            'calibration_source_commit = '
+            '"22d8cbe1b50506f65e01be7ff05081616c656f2d"',
+            'calibration_source_commit = ""',
+            1,
+        )
+
+    @staticmethod
     def _module():
         def raise_value():
             raise ValueError("aHPy benchmark")
@@ -219,14 +242,14 @@ class BenchmarkHPyTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "budgets.toml"
             path.write_text(
-                benchmark_hpy.DEFAULT_BUDGETS.read_text(encoding="utf8").replace(
-                    "identity = 1.50\n", "", 1),
+                self._regression_budget_text().replace(
+                    "identity = 1.26\n", "", 1),
                 encoding="utf8")
             with self.assertRaisesRegex(ValueError, "runtime ratio keys differ"):
                 benchmark_hpy.load_budgets(path)
 
     def test_budget_schema_rejects_invalid_types_and_measurements(self):
-        original = benchmark_hpy.DEFAULT_BUDGETS.read_text(encoding="utf8")
+        original = self._regression_budget_text()
         cases = (
             (
                 original.replace(
@@ -234,7 +257,7 @@ class BenchmarkHPyTest(unittest.TestCase):
                 "schema_version must be 1",
             ),
             (
-                original.replace("identity = 1.50", "identity = 0", 1),
+                original.replace("identity = 1.26", "identity = 0", 1),
                 "budget identity must be positive",
             ),
             (
@@ -325,11 +348,11 @@ class BenchmarkHPyTest(unittest.TestCase):
                 "large_type_compile must contain exactly",
             ),
             (
-                original.replace("generated_c_bytes = 750000\n", "", 1),
+                original.replace("generated_c_bytes = 36420\n", "", 1),
                 "footprint must contain exactly",
             ),
             (
-                original.replace("identity = 1.50", 'identity = "slow"', 1),
+                original.replace("identity = 1.26", 'identity = "slow"', 1),
                 "positive and finite",
             ),
         )
@@ -407,12 +430,13 @@ class BenchmarkHPyTest(unittest.TestCase):
         budgets = benchmark_hpy.load_budgets(benchmark_hpy.DEFAULT_BUDGETS)
         self.assertEqual(budgets["schema_version"], 1)
         self.assertEqual(budgets["policy"], {
-            "classification": "regression",
-            "release_enforced": False,
-            "calibration_status": "hosted-history-pending",
+            "classification": "release",
+            "release_enforced": True,
+            "calibration_status": "approved",
             "minimum_hosted_reports": 5,
-            "candidate_binding": "unbound",
-            "calibration_source_commit": "",
+            "candidate_binding": "hosted-checkout",
+            "calibration_source_commit":
+                "22d8cbe1b50506f65e01be7ff05081616c656f2d",
         })
         self.assertEqual(
             budgets["large_type_compile"]["timeout_seconds"], 60)
@@ -422,48 +446,25 @@ class BenchmarkHPyTest(unittest.TestCase):
         json.dumps(budgets, sort_keys=True)
 
     def test_approved_release_budget_requires_exact_commit(self):
-        original = benchmark_hpy.DEFAULT_BUDGETS.read_text(encoding="utf8")
-        release = original.replace(
-            'classification = "regression"', 'classification = "release"', 1
-        ).replace(
-            "release_enforced = false", "release_enforced = true", 1
-        ).replace(
-            'calibration_status = "hosted-history-pending"',
-            'calibration_status = "approved"',
-            1,
-        ).replace(
-            'candidate_binding = "unbound"',
-            'candidate_binding = "hosted-checkout"',
-            1,
-        ).replace(
-            'calibration_source_commit = ""',
-            'calibration_source_commit = "%s"' % ("a" * 40),
-            1,
-        )
-        release_absolute = (
-            "\n[release_absolute]\n"
-            "cython_seconds = 1.0\n"
-            "native_build_seconds = 2.0\n"
-            "generated_peak_rss_bytes = 1000\n"
-            "generated_to_reference_peak_rss_ratio = 1.5\n"
-            "large_type_frontend_seconds = 3.0\n"
-            "large_type_o0_seconds = 4.0\n"
-        )
+        release = benchmark_hpy.DEFAULT_BUDGETS.read_text(encoding="utf8")
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "release-budgets.toml"
-            path.write_text(release, encoding="utf8")
+            without_absolute = release.split("\n[release_absolute]\n", 1)[0]
+            path.write_text(without_absolute + "\n", encoding="utf8")
             with self.assertRaisesRegex(ValueError, "release_absolute"):
                 benchmark_hpy.load_budgets(path)
-            release += release_absolute
             path.write_text(release, encoding="utf8")
             self.assertTrue(
                 benchmark_hpy.load_budgets(path)["policy"]["release_enforced"])
             path.write_text(
-                release.replace("a" * 40, "short", 1), encoding="utf8")
+                release.replace(
+                    "22d8cbe1b50506f65e01be7ff05081616c656f2d",
+                    "short", 1),
+                encoding="utf8")
             with self.assertRaisesRegex(ValueError, "full calibration"):
                 benchmark_hpy.load_budgets(path)
             path.write_text(
-                release.replace("cython_seconds = 1.0",
+                release.replace("cython_seconds = 1.77",
                                 "cython_seconds = 0", 1),
                 encoding="utf8",
             )

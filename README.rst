@@ -31,10 +31,12 @@ in `the support matrix <docs/ahpy/support-matrix.md>`_.  The authoritative work
 queue and agent hand-off are `TODO.md <TODO.md>`_ and
 `AGENTTODO.md <AGENTTODO.md>`_.
 
-The current integration into ``main`` is tracked in
-`PR #2 <https://github.com/mburakmmm/aHPy/pull/2>`_; the remaining production
-and release gates are listed in `production-todo.md <production-todo.md>`_.
-Moving development to ``main`` retains the preview support contract.
+The complete aHPy development line was integrated into ``main`` by
+`PR #2 <https://github.com/mburakmmm/aHPy/pull/2>`_ at commit
+``22d8cbe1b50506f65e01be7ff05081616c656f2d`` after all five required
+contexts passed on its final source HEAD.  The remaining production and
+release gates are listed in `production-todo.md <production-todo.md>`_.
+Development on ``main`` retains the preview support contract.
 
 Core guarantees
 ---------------
@@ -120,7 +122,7 @@ The current local M9 snapshot records:
   exact upstream C++ implementation without claiming its bytes API, and
   frozenlist passes an explicit extension-type/GC/inheritance subset; their
   reports merge locally with the exact four-project checkout/scan matrix into
-  a fail-closed dashboard, while hosted artifact proof remains pending;
+  a fail-closed dashboard backed by retained hosted artifact evidence;
 * sdist and frontend-wheel metadata bound to the exact aHPy source commit,
   embedded Cython base commit, and HPy compatibility contract;
 * a retained release bundle whose complete artifact set, checksums, SPDX 2.3
@@ -150,10 +152,12 @@ heap diagnostic is declared with a native overrun positive control and five
 real generated-runtime checks, but remains allowed-failure until its first
 hosted artifact is reviewed; it does not expand the supported baseline.
 
-Production branch-policy validation is green on repair commit
-``8ed77677ee6bd69fdc93a81bdfe3e704ea7d924b``: the aHPy, benchmark, full
+Production branch-policy validation is green on integration source commit
+``880d46d7d348df759ef062711ab3b4876bd648b8``: the aHPy, benchmark, full
 Cython, coverage, and sanitizer aggregate contexts all passed on the same
-HEAD.  Exact run and job links are recorded in
+HEAD before PR #2 produced main commit
+``22d8cbe1b50506f65e01be7ff05081616c656f2d``.  Exact run and job links are
+recorded in
 `the validation matrix <docs/ahpy/validation-matrix.md>`_.
 
 Documentation map

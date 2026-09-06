@@ -1413,9 +1413,12 @@ until its full existing Cython test subset and new HPy-specific tests pass.
   - [x] Include frontend/native build time, generated/reference peak RSS, and
         large-type frontend/O0 distributions in the fail-closed hosted
         proposal without auto-applying absolute cross-host limits.
-  - [ ] Collect the minimum hosted same-HEAD history, review the proposed
-        headroom, version the release ceilings, and validate them again on the
-        same release candidate.
+  - [x] Collect five hosted samples from exact main commit
+        `22d8cbe1b50506f65e01be7ff05081616c656f2d`, review the immutable
+        artifacts and 20% headroom, and version all 19 proposed ceilings
+        exactly.
+  - [ ] Validate the promoted release ceilings again on the new candidate
+        HEAD before closing the parent release-budget gate.
 - [x] Document interpreter/HPy reference cost separately from aHPy overhead by
       retaining standalone classic timings and same-ABI handwritten HPy
       baselines; publish no aggregate cross-ABI ratio.
