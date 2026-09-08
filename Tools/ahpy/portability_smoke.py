@@ -21,6 +21,8 @@ from tempfile import TemporaryDirectory
 STAGES = (
     "import-minimal",
     "minimal-semantics",
+    "minimal-keywords-positional",
+    "minimal-keywords-named",
     "import-constants",
     "constants-semantics",
     "import-fibonacci",
@@ -107,6 +109,16 @@ def run_stage(stage, artifact_dir):
         assert module.answer() == 42
         assert module.return_none() is None
         assert module.make_pair() == [1, 2]
+        return
+    if stage == "minimal-keywords-positional":
+        import ahpy_minimal as module
+
+        assert module.keyword_count(42) == 0
+        return
+    if stage == "minimal-keywords-named":
+        import ahpy_minimal as module
+
+        assert module.keyword_count(value=42) == 1
         return
     if stage == "import-constants":
         import constants_only  # noqa: F401

@@ -2,8 +2,9 @@
 
 Status: hosted failure reduced to the generated Fibonacci semantics rung while
 the handwritten and constant-only oracles pass. A bounded hosted native
-backtrace reaches PyPy's `pypy_g_HPy_Length`; a handwritten keyword-call
-reproducer and owner filing authorization remain required.
+backtrace reaches PyPy's `pypy_g_HPy_Length`; hosted execution of the new
+handwritten keyword-call reproducer and owner filing authorization remain
+required.
 
 Target issue tracker: `https://github.com/pypy/pypy/issues`
 
@@ -91,8 +92,8 @@ stage under a 120-second, non-interactive debugger bound. The schema-v2 report
 retains the debugger version, detected signal, frame count, bounded output and
 failure status without replacing the primary stage failure. Run `34265271840`
 now retains a hosted `native_backtrace.status == "captured"` result for the
-small `fibonacci-semantics` crash. Before filing, reproduce or refute the same
-positional-call keyword-vector path with a handwritten `HPyFunc_KEYWORDS`
-method so the report does not assign a generated-call-contract defect to PyPy
-without direct evidence. Do not describe the passing handwritten module or the
-passing Fibonacci import as the reproducer.
+small `fibonacci-semantics` crash. The next artifact adds positional and named
+stages around a handwritten `HPyFunc_KEYWORDS` method; retain its PyPy result
+before filing so the report does not assign a generated-call-contract defect
+to PyPy without direct evidence. Do not describe the passing handwritten
+no-argument methods or the passing Fibonacci import as the reproducer.

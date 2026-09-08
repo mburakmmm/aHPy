@@ -221,7 +221,8 @@ file and Python loader unchanged, and records SHA-256 plus size metadata. PyPy
 7.3.23 (Python 3.11.15 compatible) and GraalPy
 25.1.3 (Python 3.12 compatible) download that one artifact rather than
 rebuilding it. The smoke driver verifies every manifest digest before running
-ten isolated stages ordered from the handwritten oracle through progressively
+twelve isolated stages ordered from handwritten no-argument and
+keyword-signature oracles through progressively
 larger generated surfaces. A signal or nonzero exit therefore identifies the
 exact failing stage and whether the fault exists without generated aHPy code.
 Interpreters exposing `hpy.universal` use the unchanged Python stubs; native
@@ -240,8 +241,10 @@ early warnings. Only a future green hosted execution may remove
 a 120-second bound and records debugger version, signal, frame count and
 bounded output in schema-v2 JSON. The retained PyPy report records
 `native_backtrace.status = captured`, `SIGSEGV`, 65 frames, and
-`pypy_g_HPy_Length` at frame zero. A handwritten `HPyFunc_KEYWORDS` isolation
-remains necessary before the reduced PyPy result is filed upstream.
+`pypy_g_HPy_Length` at frame zero. Positional and named-call stages for a
+handwritten `HPyFunc_KEYWORDS` method now precede generated modules; their
+hosted PyPy result remains necessary before the reduced result is filed
+upstream.
 The smoke driver writes `portability-result-<target>.json` even when manifest
 verification, a normal exit, or a signal terminates the gate. Each report
 contains the complete verified file list, manifest SHA-256, loader/provenance,

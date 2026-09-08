@@ -30,7 +30,13 @@ def verify_source_boundary():
     found = [name for name in forbidden if name in source]
     if found:
         raise AssertionError("legacy C API spellings found: %s" % ", ".join(found))
-    required = ("#include <hpy.h>", "HPy_MODINIT", "HPyDef_METH")
+    required = (
+        "#include <hpy.h>",
+        "HPy_MODINIT",
+        "HPyDef_METH",
+        "HPyFunc_KEYWORDS",
+        "HPy_Length",
+    )
     missing = [name for name in required if name not in source]
     if missing:
         raise AssertionError("required HPy spellings missing: %s" % ", ".join(missing))
@@ -58,7 +64,9 @@ def build_and_run(python):
             "import ahpy_minimal; "
             "assert ahpy_minimal.answer() == 42; "
             "assert ahpy_minimal.return_none() is None; "
-            "assert ahpy_minimal.make_pair() == [1, 2]"
+            "assert ahpy_minimal.make_pair() == [1, 2]; "
+            "assert ahpy_minimal.keyword_count(42) == 0; "
+            "assert ahpy_minimal.keyword_count(value=42) == 1"
         )
         env = os.environ.copy()
         env["PYTHONPATH"] = str(build_lib)
@@ -71,6 +79,8 @@ def build_and_run(python):
             "assert ahpy_minimal.answer() == 42; "
             "assert ahpy_minimal.return_none() is None; "
             "assert ahpy_minimal.make_pair() == [1, 2]; "
+            "assert ahpy_minimal.keyword_count(42) == 0; "
+            "assert ahpy_minimal.keyword_count(value=42) == 1; "
             "detector.stop()"
         )
         run([python, "-c", debug_check], cwd=temp, env=env)

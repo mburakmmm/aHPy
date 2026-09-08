@@ -600,8 +600,10 @@ gizleyemez.
         kanıt toplayıcıyı ekle.
   - [x] Hosted PyPy işinden `native_backtrace.status == "captured"`, `SIGSEGV`
         ve 65 frame içeren JSON'u byte-identical sakla.
-  - [ ] Handwritten `HPyFunc_KEYWORDS` reproducer ile positional/no-keyword
-        çağrı yolunu ayır; ardından owner onayıyla upstream'e taşı.
+  - [x] Handwritten `HPyFunc_KEYWORDS` reproducer'a positional/no-keyword ve
+        named-call aşamalarını ekle; CPython 3.11/HPy 0.9'da ikisini doğrula.
+  - [ ] Yeni artifact'in hosted PyPy sonucunu saklayarak bridge/generated
+        sınırını ayır; ardından owner onayıyla upstream'e taşı.
 - [x] Cython upstream rebase log'unu ve conflict kararlarını güncel tut.
   - [x] Kabul edilen `86b94cef` tabanındaki astral-Unicode ve C++ template
         function-to-pointer decay regresyonlarını bağımsız testlerle onar;
@@ -678,7 +680,8 @@ saklar. PyPy sinyal yolu ayrıca koşullu `gdb` kurulumu ve 120 saniyelik bounde
 yeniden çalıştırmayla schema-v2 native backtrace alanı üretir. Run
 `34265271840`, job `102193146755`, 65-frame `SIGSEGV` trace'ini byte-identical
 saklamıştır; frame zero `pypy_g_HPy_Length`'dir. Handwritten keyword-signature
-ayrımı ve owner onayı gelmeden rapor upstream'e taşınmış sayılmaz.
+oracle'ı yerelde iki çağrı biçimini de geçer; hosted ayrım ve owner onayı
+gelmeden rapor upstream'e taşınmış sayılmaz.
 `release_contract.py` machine-readable preview sözleşmesinin exact şemasını;
 dağıtım/Cython/HPy/Python pinlerini; altı platform, yedi frontend ve hosted run
 kimliklerini; workflow ile kullanıcı belgesindeki karşılıklarını fail-closed

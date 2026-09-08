@@ -130,6 +130,7 @@ class PortabilitySmokeTest(unittest.TestCase):
         minimal.answer = lambda: 42
         minimal.return_none = lambda: None
         minimal.make_pair = lambda: [1, 2]
+        minimal.keyword_count = lambda *args, **kwargs: len(kwargs)
 
         constants = ModuleType("constants_only")
         constants.VALUE = 47

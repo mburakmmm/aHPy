@@ -62,15 +62,16 @@ required CPython support claim.
 
 The diagnostic revision keeps that handwritten oracle first, then adds
 generated constant-only and single-function modules before the heap-type and
-large function corpora. All ten stages pass locally on CPython 3.11.15/HPy
+large function corpora. All twelve stages pass locally on CPython 3.11.15/HPy
 0.9.0. The hosted result now narrows PyPy to execution of the generated
 Fibonacci function after its import succeeds. Prepared PyPy and GraalPy report
 drafts live beside this audit. Run `34265271840`, job `102193146755`, exercised
 the bounded collector and retained a 65-frame `SIGSEGV` trace whose top frame
-is PyPy's `pypy_g_HPy_Length`. A handwritten `HPyFunc_KEYWORDS` reproducer is
-still required to separate the bridge contract from generated argument
-handling; both reports also require owner authorization before external
-publication.
+is PyPy's `pypy_g_HPy_Length`. The artifact now places positional and named
+calls to a handwritten `HPyFunc_KEYWORDS` method before generated modules;
+its hosted result is still required to separate the bridge contract from
+generated argument handling. Both reports also require owner authorization
+before external publication.
 The cross-interpreter workflow now persists a schema-versioned JSON result with
 the verified manifest/file hashes, target and loader provenance, ordered stage
 stdout/stderr, and exact exit-or-signal classification under `if: always()`.

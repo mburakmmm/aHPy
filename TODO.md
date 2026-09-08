@@ -1206,15 +1206,17 @@ until its full existing Cython test subset and new HPy-specific tests pass.
           Universal artifact, then download that unchanged artifact in both
           target jobs.
     - [x] Verify every downloaded member digest, separate Python-stub and
-          native HPy loading, and isolate module imports/semantics into four
+          native HPy loading, and isolate module imports/semantics into ordered
           subprocess stages so a signal identifies its exact boundary.
     - [x] Add an explicit, bounded native-backtrace collector that runs only
           after signal termination and cannot suppress the primary JSON report.
     - [x] Retain a hosted PyPy report with a captured native signal and frames;
           run `34265271840` records `SIGSEGV`, 65 frames, and
           `pypy_g_HPy_Length` at frame zero.
-    - [ ] Isolate the positional/no-keyword `HPyFunc_KEYWORDS` call in a
-          handwritten oracle before publishing the reduced failure upstream.
+    - [x] Add positional/no-keyword and named-call `HPyFunc_KEYWORDS` stages to
+          a handwritten oracle; both pass CPython 3.11/HPy 0.9 locally.
+    - [ ] Retain their hosted PyPy classification before publishing the reduced
+          failure upstream.
     - [ ] Record the first green hosted execution on both interpreters and
           remove `continue-on-error` before claiming cross-interpreter support.
 - [x] Add the HPy 0.9 release lane and a full-commit-pinned HPy development

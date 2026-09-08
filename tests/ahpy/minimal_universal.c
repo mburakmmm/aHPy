@@ -43,10 +43,34 @@ static HPy ahpy_make_pair_impl(HPyContext *ctx, HPy self)
 }
 
 
+HPyDef_METH(ahpy_keyword_count, "keyword_count", HPyFunc_KEYWORDS)
+static HPy ahpy_keyword_count_impl(
+    HPyContext *ctx,
+    HPy self,
+    const HPy *args,
+    size_t nargs,
+    HPy kwnames)
+{
+    HPy_ssize_t keyword_count = 0;
+
+    (void)self;
+    (void)args;
+    (void)nargs;
+    if (!HPy_IsNull(kwnames)) {
+        keyword_count = HPy_Length(ctx, kwnames);
+        if (keyword_count < 0) {
+            return HPy_NULL;
+        }
+    }
+    return HPyLong_FromSsize_t(ctx, keyword_count);
+}
+
+
 static HPyDef *ahpy_defines[] = {
     &ahpy_answer,
     &ahpy_return_none,
     &ahpy_make_pair,
+    &ahpy_keyword_count,
     NULL,
 };
 
