@@ -849,8 +849,12 @@ class QualityGateTest(unittest.TestCase):
             {target["status"] for target in targets.values()},
             {"allowed-failure-early-warning"},
         )
-        self.assertEqual(targets["PyPy"]["evidence_run"], 34030366000)
-        self.assertEqual(targets["PyPy"]["evidence_job"], 101478712931)
+        self.assertEqual(targets["PyPy"]["evidence_run"], 34265271840)
+        self.assertEqual(targets["PyPy"]["evidence_job"], 102193146755)
+        self.assertEqual(
+            targets["PyPy"]["evidence_head"],
+            "97080f7e8cfeb0b58e02180e46eaec07ee0bd312",
+        )
         self.assertEqual(targets["GraalPy"]["evidence_run"], 34030366000)
         self.assertEqual(targets["GraalPy"]["evidence_job"], 101478712970)
         self.assertEqual(
@@ -865,9 +869,9 @@ class QualityGateTest(unittest.TestCase):
         )
         expected_evidence = {
             "PyPy": (
-                9988404334,
-                "2644fea636984c723f6cef2a12e28a2ca2e9dc7a119e873ac0546443553c1c36",
-                "9aaa1af38674e49b60ed1abec7684eeaf5b18d0d13e3f0b29e5f48a6a40ce0d5",
+                10071585536,
+                "8ec18d6e2c803edadec98031c50e7d39e3ed50ac01755059396e754871780f42",
+                "8d63a0a27de937214e4b697d7924e5e4273ad05fc1e87034125f484efcdcc9c1",
             ),
             "GraalPy": (
                 9988411879,
@@ -884,6 +888,25 @@ class QualityGateTest(unittest.TestCase):
             self.assertTrue(retained.is_file())
             self.assertEqual(
                 hashlib.sha256(retained.read_bytes()).hexdigest(), report_hash)
+            evidence = json.loads(retained.read_text(encoding="utf8"))
+            if name == "PyPy":
+                self.assertEqual(evidence["schema_version"], 2)
+                self.assertEqual(
+                    evidence["native_backtrace"]["status"],
+                    target["native_backtrace_status"],
+                )
+                self.assertEqual(
+                    evidence["native_backtrace"]["signal"],
+                    target["native_backtrace_signal"],
+                )
+                self.assertEqual(
+                    evidence["native_backtrace"]["frame_count"],
+                    target["native_backtrace_frame_count"],
+                )
+                self.assertIn(
+                    target["native_backtrace_top_frame"],
+                    evidence["native_backtrace"]["stdout"],
+                )
         workflow = (ROOT / ".github" / "workflows" /
                     "ahpy-universal.yml").read_text(encoding="utf8")
         job = workflow.split("  cross-interpreter:\n", 1)[1].split(

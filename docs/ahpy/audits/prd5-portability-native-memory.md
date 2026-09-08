@@ -65,16 +65,19 @@ generated constant-only and single-function modules before the heap-type and
 large function corpora. All ten stages pass locally on CPython 3.11.15/HPy
 0.9.0. The hosted result now narrows PyPy to execution of the generated
 Fibonacci function after its import succeeds. Prepared PyPy and GraalPy report
-drafts live beside this audit. A bounded, fail-safe `gdb` collector is now
-wired into the PyPy signal path, but its first hosted native backtrace is still
-required; both reports also require owner authorization before external
+drafts live beside this audit. Run `34265271840`, job `102193146755`, exercised
+the bounded collector and retained a 65-frame `SIGSEGV` trace whose top frame
+is PyPy's `pypy_g_HPy_Length`. A handwritten `HPyFunc_KEYWORDS` reproducer is
+still required to separate the bridge contract from generated argument
+handling; both reports also require owner authorization before external
 publication.
 The cross-interpreter workflow now persists a schema-versioned JSON result with
 the verified manifest/file hashes, target and loader provenance, ordered stage
 stdout/stderr, and exact exit-or-signal classification under `if: always()`.
 Missing evidence is itself a workflow artifact failure.
-The current PyPy and GraalPy JSON payloads are retained byte-for-byte under
-`evidence/portability-34030366000/`; their SHA-256 values are recorded in the
+The current PyPy JSON is retained byte-for-byte under
+`evidence/portability-34265271840/`; the unchanged GraalPy payload remains under
+`evidence/portability-34030366000/`. Their SHA-256 values are recorded in the
 target-specific upstream report drafts.
 
 ## Python 3.14 minimal reproducer

@@ -228,19 +228,20 @@ Interpreters exposing `hpy.universal` use the unchanged Python stubs; native
 HPy interpreters receive a temporary directory containing only byte-identical
 `.hpy0` binaries so a CPython loader stub cannot shadow their native importer.
 Their exact setup identifiers and evidence job IDs live in
-`tests/ahpy/interpreters.toml`. Run `34030366000` supplies the current
-handwritten-first hosted classification: PyPy job `101478712931` passes
+`tests/ahpy/interpreters.toml`. Run `34265271840` supplies the current
+handwritten-first hosted PyPy classification: job `102193146755` passes
 handwritten import/semantics, constant-only import/semantics, and Fibonacci
-import before signal 11 at `fibonacci-semantics`; GraalPy job `101478712970`
+import before signal 11 at `fibonacci-semantics`; run `34030366000` GraalPy job `101478712970`
 exposes neither `hpy.universal` nor a native `.hpy0` import suffix and fails
 with `ModuleNotFoundError` at `import-minimal`. Both remain allowed-failure
 early warnings. Only a future green hosted execution may remove
 `continue-on-error` or alter support. The PyPy job now conditionally provisions
 `gdb`; on signal termination the smoke driver reruns only the failed stage with
 a 120-second bound and records debugger version, signal, frame count and
-bounded output in schema-v2 JSON. A hosted report whose
-`native_backtrace.status` is `captured` remains necessary before the reduced
-PyPy result is filed upstream.
+bounded output in schema-v2 JSON. The retained PyPy report records
+`native_backtrace.status = captured`, `SIGSEGV`, 65 frames, and
+`pypy_g_HPy_Length` at frame zero. A handwritten `HPyFunc_KEYWORDS` isolation
+remains necessary before the reduced PyPy result is filed upstream.
 The smoke driver writes `portability-result-<target>.json` even when manifest
 verification, a normal exit, or a signal terminates the gate. Each report
 contains the complete verified file list, manifest SHA-256, loader/provenance,

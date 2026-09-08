@@ -1,5 +1,5 @@
 schema_version = 2
-validated_on = "2026-09-06"
+validated_on = "2026-09-08"
 
 [builder]
 implementation = "CPython"
@@ -12,13 +12,18 @@ matrix_name = "PyPy-7.3.23"
 setup_python = "pypy3.11-v7.3.23"
 python_compatibility = "3.11.15"
 status = "allowed-failure-early-warning"
-evidence_run = 34030366000
-evidence_job = 101478712931
-evidence_artifact_id = 9988404334
-evidence_archive_sha256 = "2644fea636984c723f6cef2a12e28a2ca2e9dc7a119e873ac0546443553c1c36"
-evidence_report_sha256 = "9aaa1af38674e49b60ed1abec7684eeaf5b18d0d13e3f0b29e5f48a6a40ce0d5"
-retained_evidence = "docs/ahpy/audits/evidence/portability-34030366000/portability-result-PyPy-7.3.23.json"
+evidence_run = 34265271840
+evidence_job = 102193146755
+evidence_head = "97080f7e8cfeb0b58e02180e46eaec07ee0bd312"
+evidence_artifact_id = 10071585536
+evidence_archive_sha256 = "8ec18d6e2c803edadec98031c50e7d39e3ed50ac01755059396e754871780f42"
+evidence_report_sha256 = "8d63a0a27de937214e4b697d7924e5e4273ad05fc1e87034125f484efcdcc9c1"
+retained_evidence = "docs/ahpy/audits/evidence/portability-34265271840/portability-result-PyPy-7.3.23.json"
 failure_stage = "fibonacci-semantics signal 11 after handwritten, constants, and Fibonacci import passed"
+native_backtrace_status = "captured"
+native_backtrace_signal = "SIGSEGV"
+native_backtrace_frame_count = 65
+native_backtrace_top_frame = "pypy_g_HPy_Length"
 reproducer = "Tools/ahpy/portability_smoke.py"
 handwritten_source = "tests/ahpy/minimal_universal.c"
 prepared_report = "docs/ahpy/audits/prd5-pypy-bridge-upstream-report.md"

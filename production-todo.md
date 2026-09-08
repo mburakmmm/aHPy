@@ -598,8 +598,10 @@ gizleyemez.
   - [x] PyPy sinyal arızasında yalnız ilk bozulan aşamayı bounded `gdb` altında
         yeniden çalıştıran ve primary raporu her koşulda koruyan schema-v2
         kanıt toplayıcıyı ekle.
-  - [ ] Hosted PyPy işinden `native_backtrace.status == "captured"`, sinyal ve
-        frame içeren JSON'u sakla; ardından owner onayıyla upstream'e taşı.
+  - [x] Hosted PyPy işinden `native_backtrace.status == "captured"`, `SIGSEGV`
+        ve 65 frame içeren JSON'u byte-identical sakla.
+  - [ ] Handwritten `HPyFunc_KEYWORDS` reproducer ile positional/no-keyword
+        çağrı yolunu ayır; ardından owner onayıyla upstream'e taşı.
 - [x] Cython upstream rebase log'unu ve conflict kararlarını güncel tut.
   - [x] Kabul edilen `86b94cef` tabanındaki astral-Unicode ve C++ template
         function-to-pointer decay regresyonlarını bağımsız testlerle onar;
@@ -673,9 +675,10 @@ CPython 3.11/HPy 0.9 yerel semantik ve iki-clean-build reproducibility kanıtı
 yeşildir. Smoke, hata halinde dahi doğrulanmış hash/provenance, sıralı stage
 çıktıları ve exit/signal sınıfını JSON'a yazar; workflow bunu `if: always()` ile
 saklar. PyPy sinyal yolu ayrıca koşullu `gdb` kurulumu ve 120 saniyelik bounded
-yeniden çalıştırmayla schema-v2 native backtrace alanı üretir; kod yerelde
-doğrulanmış olsa da gerçek hosted capture artifact'i gelmeden rapor yayıma
-hazır veya upstream'e taşınmış sayılmaz.
+yeniden çalıştırmayla schema-v2 native backtrace alanı üretir. Run
+`34265271840`, job `102193146755`, 65-frame `SIGSEGV` trace'ini byte-identical
+saklamıştır; frame zero `pypy_g_HPy_Length`'dir. Handwritten keyword-signature
+ayrımı ve owner onayı gelmeden rapor upstream'e taşınmış sayılmaz.
 `release_contract.py` machine-readable preview sözleşmesinin exact şemasını;
 dağıtım/Cython/HPy/Python pinlerini; altı platform, yedi frontend ve hosted run
 kimliklerini; workflow ile kullanıcı belgesindeki karşılıklarını fail-closed

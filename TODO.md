@@ -1210,8 +1210,11 @@ until its full existing Cython test subset and new HPy-specific tests pass.
           subprocess stages so a signal identifies its exact boundary.
     - [x] Add an explicit, bounded native-backtrace collector that runs only
           after signal termination and cannot suppress the primary JSON report.
-    - [ ] Retain a hosted PyPy report with a captured native signal and frames
-          before publishing the reduced bridge failure upstream.
+    - [x] Retain a hosted PyPy report with a captured native signal and frames;
+          run `34265271840` records `SIGSEGV`, 65 frames, and
+          `pypy_g_HPy_Length` at frame zero.
+    - [ ] Isolate the positional/no-keyword `HPyFunc_KEYWORDS` call in a
+          handwritten oracle before publishing the reduced failure upstream.
     - [ ] Record the first green hosted execution on both interpreters and
           remove `continue-on-error` before claiming cross-interpreter support.
 - [x] Add the HPy 0.9 release lane and a full-commit-pinned HPy development

@@ -1,9 +1,9 @@
 # Guarded upstream report: PyPy generated Universal HPy import crash
 
 Status: hosted failure reduced to the generated Fibonacci semantics rung while
-the handwritten and constant-only oracles pass. The bounded native-backtrace
-collector is implemented; a hosted capture and owner filing authorization
-remain required.
+the handwritten and constant-only oracles pass. A bounded hosted native
+backtrace reaches PyPy's `pypy_g_HPy_Length`; a handwritten keyword-call
+reproducer and owner filing authorization remain required.
 
 Target issue tracker: `https://github.com/pypy/pypy/issues`
 
@@ -13,11 +13,12 @@ Target issue tracker: `https://github.com/pypy/pypy/issues`
 
 ## Environment
 
-- Builder: CPython 3.11.15, HPy 0.9.0, setuptools 83.0.0, Ubuntu 24.04 x86-64.
+- Builder: CPython 3.11.16, HPy 0.9.0, setuptools 83.0.0, Ubuntu 24.04 x86-64.
 - Target: `pypy3.11-v7.3.23` from `actions/setup-python`.
 - Artifact: unchanged `.hpy0.so` plus HPy's generated `hpy.universal` loader
   stub; no rebuild occurs under PyPy.
-- Current evidence: GitHub Actions run `34030366000`, job `101478712931`.
+- Current evidence: GitHub Actions run `34265271840`, job `102193146755`,
+  exact source head `97080f7e8cfeb0b58e02180e46eaec07ee0bd312`.
 
 ## Minimal source
 
@@ -59,13 +60,13 @@ return `42`, `None`, and `[1, 2]` respectively.
 
 ## Current actual result
 
-Run `34030366000`, job `101478712931`, used artifact `9988404334`. Its GitHub
+Run `34265271840`, job `102193146755`, used artifact `10071585536`. Its GitHub
 archive digest is
-`2644fea636984c723f6cef2a12e28a2ca2e9dc7a119e873ac0546443553c1c36`
+`8ec18d6e2c803edadec98031c50e7d39e3ed50ac01755059396e754871780f42`
 and the retained JSON SHA-256 is
-`9aaa1af38674e49b60ed1abec7684eeaf5b18d0d13e3f0b29e5f48a6a40ce0d5`.
+`8d63a0a27de937214e4b697d7924e5e4273ad05fc1e87034125f484efcdcc9c1`.
 The byte-identical JSON is retained at
-[`evidence/portability-34030366000/portability-result-PyPy-7.3.23.json`](evidence/portability-34030366000/portability-result-PyPy-7.3.23.json).
+[`evidence/portability-34265271840/portability-result-PyPy-7.3.23.json`](evidence/portability-34265271840/portability-result-PyPy-7.3.23.json).
 The artifact's handwritten `ahpy_minimal.hpy0.so` has SHA-256
 `fd4be0297fcc40c74941d8db59d443be722b9985b070b6668428dd5376f498b5`.
 PyPy passed handwritten import/semantics, generated constant-only
@@ -74,6 +75,12 @@ import/semantics, and generated Fibonacci import. The isolated
 `python-stub` HPy loader. This excludes module discovery, handwritten HPy
 operations, generated module initialization, and constant lowering; the first
 known failing rung is execution of the small generated Fibonacci function.
+The schema-v2 report then reran that exact stage under GDB 15.1 and captured
+`SIGSEGV` with 65 frames. Its first four native frames are
+`pypy_g_HPy_Length`, `pypy_g_ctx_HPy_Length__star_2`, the artifact's
+`HPy_Length`, and `__pyx_hpy_def_0_fib_impl`. The same-run build artifact
+`10071556337` retains the unchanged Fibonacci binary
+`575cd832c38e6edd495f66ea69231a1f95b36f19d053b823fb47bad34c6656f8`.
 
 ## Filing guard
 
@@ -82,9 +89,10 @@ empty stderr, and signal classification. The PyPy workflow now provisions
 `gdb` conditionally and asks the smoke driver to rerun only a signal-failing
 stage under a 120-second, non-interactive debugger bound. The schema-v2 report
 retains the debugger version, detected signal, frame count, bounded output and
-failure status without replacing the primary stage failure. Treat this as
-instrumentation, not evidence: capture and retain a hosted
-`native_backtrace.status == "captured"` result for the small
-`fibonacci-semantics` crash, then reduce the generated source/runtime boundary
-before filing. Do not describe the passing handwritten module or the passing
-Fibonacci import as the reproducer.
+failure status without replacing the primary stage failure. Run `34265271840`
+now retains a hosted `native_backtrace.status == "captured"` result for the
+small `fibonacci-semantics` crash. Before filing, reproduce or refute the same
+positional-call keyword-vector path with a handwritten `HPyFunc_KEYWORDS`
+method so the report does not assign a generated-call-contract defect to PyPy
+without direct evidence. Do not describe the passing handwritten module or the
+passing Fibonacci import as the reproducer.
