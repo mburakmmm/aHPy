@@ -1,4 +1,4 @@
 # Moving HPy branch-tip early warning. Never use this for release support.
-setuptools==83.0.0
-wheel==0.47.0
+setuptools==84.0.0
+wheel==0.48.0
 hpy @ git+https://github.com/hpyproject/hpy.git@master
