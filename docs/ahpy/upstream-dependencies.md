@@ -8,7 +8,7 @@ action reproducible but cannot create its URL.
 | ID | Target | Current evidence | Upstream state | aHPy status |
 | --- | --- | --- | --- | --- |
 | `HPY-PY314-NEW` | `hpyproject/hpy` | Handwritten GC heap type and generated closure both fault in `HPy_New` on CPython 3.14.6 + HPy `b57a33c…`; CPython 3.11 + HPy 0.9 passes normal/Trace/Debug | General Python 3.13/3.14 tracking: [HPy #488](https://github.com/hpyproject/hpy/issues/488); exact crash report prepared, not filed | blocked early warning; not aHPy-generated-code proof |
-| `HPY-PYPY-BRIDGE` | PyPy bundled HPy bridge | Hosted job `101478712931` passes handwritten and generated constant-only oracles plus Fibonacci import, then exits by signal 11 in isolated `fibonacci-semantics` | Reduced report in `audits/prd5-pypy-bridge-upstream-report.md`; native backtrace and filing authorization pending | unsupported early warning |
+| `HPY-PYPY-BRIDGE` | PyPy bundled HPy bridge | Hosted job `101478712931` passes handwritten and generated constant-only oracles plus Fibonacci import, then exits by signal 11 in isolated `fibonacci-semantics`; bounded `gdb` capture is wired into the next PyPy run | Reduced report in `audits/prd5-pypy-bridge-upstream-report.md`; hosted native backtrace and filing authorization pending | unsupported early warning |
 | `HPY-GRAALPY-LOADER` | GraalPy HPy/import integration | GraalPy 25.1.3 exposes neither `hpy.universal` nor a native `.hpy0` suffix; hosted job `101478712970` fails to discover the unchanged handwritten binary | Complete hosted evidence in `audits/prd5-graalpy-loader-upstream-report.md`; owner filing authorization pending | unsupported early warning |
 | `HPY-PY315-BUILD` | HPy 0.9 / CPython 3.15 | HPy build fails under `-Werror` on `_POSIX_C_SOURCE` redefinition before aHPy executes; manual job `88897432348` retains environment evidence | Moving nightly signal; no issue filed | unsupported early warning |
 | `HPY-BUFFER-CONSUMER` | public HPy API | No selected public buffer acquire/release consumer contract for typed memoryviews and bytes-buffer wrappers in HPy 0.9 | API/design gap; no project-specific issue URL | blocked source surface |
@@ -31,7 +31,9 @@ roadmap.
 identities, reproduction commands, expected behavior, hosted evidence, and
 filing guards. Run `34030366000` proved the handwritten and constant-only
 modules on PyPy, then reduced its first failure to signal 11 while executing
-the small generated Fibonacci function; a native backtrace is still required.
+the small generated Fibonacci function. The next PyPy run will rerun only that
+signal-failing stage under bounded `gdb` and retain structured evidence; a real
+hosted capture is still required before filing.
 The same run reconfirmed GraalPy's loader gap with an unchanged handwritten
 binary and complete suffix/loader evidence. Do not publish either report
 without explicit owner authorization.

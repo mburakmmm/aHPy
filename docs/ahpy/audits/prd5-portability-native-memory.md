@@ -65,8 +65,10 @@ generated constant-only and single-function modules before the heap-type and
 large function corpora. All ten stages pass locally on CPython 3.11.15/HPy
 0.9.0. The hosted result now narrows PyPy to execution of the generated
 Fibonacci function after its import succeeds. Prepared PyPy and GraalPy report
-drafts live beside this audit; PyPy still needs a native backtrace and both
-reports require owner authorization before external publication.
+drafts live beside this audit. A bounded, fail-safe `gdb` collector is now
+wired into the PyPy signal path, but its first hosted native backtrace is still
+required; both reports also require owner authorization before external
+publication.
 The cross-interpreter workflow now persists a schema-versioned JSON result with
 the verified manifest/file hashes, target and loader provenance, ordered stage
 stdout/stderr, and exact exit-or-signal classification under `if: always()`.

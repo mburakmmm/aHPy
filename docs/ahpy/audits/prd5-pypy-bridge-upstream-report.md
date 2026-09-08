@@ -1,8 +1,9 @@
 # Guarded upstream report: PyPy generated Universal HPy import crash
 
 Status: hosted failure reduced to the generated Fibonacci semantics rung while
-the handwritten and constant-only oracles pass; native backtrace and owner
-filing authorization remain required.
+the handwritten and constant-only oracles pass. The bounded native-backtrace
+collector is implemented; a hosted capture and owner filing authorization
+remain required.
 
 Target issue tracker: `https://github.com/pypy/pypy/issues`
 
@@ -77,7 +78,13 @@ known failing rung is execution of the small generated Fibonacci function.
 ## Filing guard
 
 The expanded artifact now supplies the first failing rung, binary digest,
-empty stderr, and signal classification. Capture a native backtrace for that
-small `fibonacci-semantics` crash and reduce the generated source/runtime
-boundary before filing. Do not describe the passing handwritten module or the
-passing Fibonacci import as the reproducer.
+empty stderr, and signal classification. The PyPy workflow now provisions
+`gdb` conditionally and asks the smoke driver to rerun only a signal-failing
+stage under a 120-second, non-interactive debugger bound. The schema-v2 report
+retains the debugger version, detected signal, frame count, bounded output and
+failure status without replacing the primary stage failure. Treat this as
+instrumentation, not evidence: capture and retain a hosted
+`native_backtrace.status == "captured"` result for the small
+`fibonacci-semantics` crash, then reduce the generated source/runtime boundary
+before filing. Do not describe the passing handwritten module or the passing
+Fibonacci import as the reproducer.

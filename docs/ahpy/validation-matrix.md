@@ -235,8 +235,12 @@ import before signal 11 at `fibonacci-semantics`; GraalPy job `101478712970`
 exposes neither `hpy.universal` nor a native `.hpy0` import suffix and fails
 with `ModuleNotFoundError` at `import-minimal`. Both remain allowed-failure
 early warnings. Only a future green hosted execution may remove
-`continue-on-error` or alter support. A native backtrace remains necessary
-before the reduced PyPy result is filed upstream.
+`continue-on-error` or alter support. The PyPy job now conditionally provisions
+`gdb`; on signal termination the smoke driver reruns only the failed stage with
+a 120-second bound and records debugger version, signal, frame count and
+bounded output in schema-v2 JSON. A hosted report whose
+`native_backtrace.status` is `captured` remains necessary before the reduced
+PyPy result is filed upstream.
 The smoke driver writes `portability-result-<target>.json` even when manifest
 verification, a normal exit, or a signal terminates the gate. Each report
 contains the complete verified file list, manifest SHA-256, loader/provenance,

@@ -211,7 +211,9 @@ Last verified local gates:
   pass locally on CPython 3.11/HPy 0.9. Hosted run `34030366000` proved the
   handwritten and constant-only oracles plus Fibonacci import on PyPy before
   signal 11 at `fibonacci-semantics`; GraalPy again failed native discovery at
-  `import-minimal`. Capture a native PyPy backtrace before filing. The smoke
+  `import-minimal`. The PyPy lane now conditionally provisions `gdb` and the
+  schema-v2 smoke report captures a bounded native backtrace only after signal
+  termination; retain a hosted `captured` result before filing. The smoke
   writes verified hashes, provenance, ordered stdout/stderr and exit/signal
   classification to JSON even on failure; CI uploads it with `if: always()`.
 - Clean release artifact: the warning-free, self-contained
@@ -392,10 +394,11 @@ Current item: **PRD-9 upstream, security, and sustainable maintenance**. PRD-7
 is closed by calibration run `34029830808` and candidate run `34030366000`;
 the exact artifact hashes are retained in the M9 hosted audit. Security run
 `34030365881` passed Dependency Review and Python/C++ CodeQL. Continue by
-reconciling Dependabot's stale alerts and preparing independently reviewable
-upstream reports; do not publish an external issue or PR without owner
-authorization. PRD-5 remains externally open only for publication of the
-exact HPy Python 3.14 upstream crash report.
+capturing the newly instrumented hosted PyPy native backtrace, reconciling
+Dependabot's stale alerts only with explicit authorization, and preparing
+independently reviewable upstream reports; do not publish an external issue or
+PR without owner authorization. PRD-5 remains externally open only for
+publication of the exact HPy Python 3.14 upstream crash report.
 PRD-0 CI-policy implementation head
 `e791c8983bcb1a3c38aa932617a91ea976cb5c55` has green aHPy, benchmark,
 coverage, and sanitizer required aggregates. HPy development on Python 3.14
@@ -932,8 +935,10 @@ implementation.
    `debugging.md` now preserves the first failing source/compiler/generated-C/
    native/import/runtime/ownership boundary, and `upstream-dependencies.md`
    distinguishes hosted evidence, handwritten reproductions, prepared reports,
-   filed links, and unsupported/blocked status. Do not publish the prepared HPy
-   crash report or new PyPy/GraalPy reports without owner authorization.
+   filed links, and unsupported/blocked status. The PyPy signal path now has a
+   bounded schema-v2 native-backtrace collector; hosted capture remains open.
+   Do not publish the prepared HPy crash report or new PyPy/GraalPy reports
+   without owner authorization.
    The production documentation contract now freezes 28 user, contributor,
    architecture, debugging and release documents across five exact categories.
    Its validator requires critical headings, index reachability and all local

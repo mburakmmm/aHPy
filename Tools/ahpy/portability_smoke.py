@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -29,6 +30,9 @@ STAGES = (
     "import-answer",
     "answer-semantics",
 )
+BACKTRACE_TIMEOUT_SECONDS = 120
+BACKTRACE_VERSION_TIMEOUT_SECONDS = 10
+BACKTRACE_MAX_CHARS = 200_000
 
 
 class PortabilityStageError(RuntimeError):
@@ -205,6 +209,109 @@ def execute_stages(artifact_dir, loader_mode):
     return records
 
 
+def _bounded_output(value):
+    value = value or ""
+    if isinstance(value, bytes):
+        value = value.decode("utf8", errors="replace")
+    if len(value) <= BACKTRACE_MAX_CHARS:
+        return value, False
+    return value[:BACKTRACE_MAX_CHARS], True
+
+
+def capture_native_backtrace(artifact_dir, stage):
+    """Re-run one signal-failing stage under gdb without hiding the failure."""
+    debugger = shutil.which("gdb")
+    evidence = {
+        "schema_version": 1,
+        "stage": stage,
+        "tool": "gdb",
+        "status": "unavailable" if debugger is None else "incomplete",
+    }
+    if debugger is None:
+        evidence["reason"] = "gdb was not found on PATH"
+        return evidence
+
+    try:
+        version_result = subprocess.run(
+            [debugger, "--version"],
+            capture_output=True,
+            text=True,
+            timeout=BACKTRACE_VERSION_TIMEOUT_SECONDS,
+        )
+        version_output, version_truncated = _bounded_output(
+            version_result.stdout or version_result.stderr)
+        evidence["tool_version"] = (
+            version_output.splitlines()[0] if version_output else "unknown")
+        evidence["tool_version_returncode"] = version_result.returncode
+        evidence["tool_version_truncated"] = version_truncated
+    except (OSError, subprocess.TimeoutExpired) as failure:
+        evidence["tool_version"] = "unavailable: %s" % type(failure).__name__
+
+    command = [
+        debugger,
+        "--batch",
+        "--quiet",
+        "-ex", "set pagination off",
+        "-ex", "set debuginfod enabled off",
+        "-ex", "run",
+        "-ex", "thread apply all bt full",
+        "--args",
+        sys.executable,
+        str(Path(__file__).resolve()),
+        "--stage", stage,
+        "--artifact-dir", str(artifact_dir),
+    ]
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = str(artifact_dir)
+    environment["PYTHONFAULTHANDLER"] = "1"
+    environment["LC_ALL"] = "C"
+    evidence["command"] = command
+    evidence["timeout_seconds"] = BACKTRACE_TIMEOUT_SECONDS
+    try:
+        result = subprocess.run(
+            command,
+            cwd=artifact_dir,
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=BACKTRACE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as failure:
+        stdout, stdout_truncated = _bounded_output(failure.stdout)
+        stderr, stderr_truncated = _bounded_output(failure.stderr)
+        evidence.update({
+            "status": "timeout",
+            "stdout": stdout,
+            "stderr": stderr,
+            "stdout_truncated": stdout_truncated,
+            "stderr_truncated": stderr_truncated,
+        })
+        return evidence
+    except OSError as failure:
+        evidence.update({
+            "status": "error",
+            "reason": "%s: %s" % (type(failure).__name__, failure),
+        })
+        return evidence
+
+    stdout, stdout_truncated = _bounded_output(result.stdout)
+    stderr, stderr_truncated = _bounded_output(result.stderr)
+    combined = stdout + "\n" + stderr
+    signal_match = re.search(r"received signal ([A-Z][A-Z0-9]+)", combined)
+    frame_count = len(re.findall(r"(?m)^#\d+\s", combined))
+    evidence.update({
+        "returncode": result.returncode,
+        "stdout": stdout,
+        "stderr": stderr,
+        "stdout_truncated": stdout_truncated,
+        "stderr_truncated": stderr_truncated,
+        "signal": signal_match.group(1) if signal_match else None,
+        "frame_count": frame_count,
+        "status": "captured" if signal_match and frame_count else "incomplete",
+    })
+    return evidence
+
+
 def write_report(path, report):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -218,6 +325,7 @@ def main():
     parser.add_argument("--artifact-dir", type=Path)
     parser.add_argument("--stage", choices=STAGES)
     parser.add_argument("--report", type=Path)
+    parser.add_argument("--capture-native-backtrace", action="store_true")
     args = parser.parse_args()
     artifact_dir = (
         args.artifact_dir.resolve()
@@ -229,7 +337,7 @@ def main():
         return 0
 
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
         "status": "failed",
         "artifact_dir": str(artifact_dir),
         "stages": [],
@@ -276,6 +384,20 @@ def main():
             "kind": type(failure).__name__,
             "message": str(failure),
         }
+        if args.capture_native_backtrace and failure.records and \
+                failure.records[-1].get("termination") == "signal":
+            try:
+                report["native_backtrace"] = capture_native_backtrace(
+                    artifact_dir, failure.records[-1]["name"])
+            except Exception as backtrace_failure:
+                report["native_backtrace"] = {
+                    "schema_version": 1,
+                    "stage": failure.records[-1]["name"],
+                    "tool": "gdb",
+                    "status": "error",
+                    "reason": "%s: %s" % (
+                        type(backtrace_failure).__name__, backtrace_failure),
+                }
         if args.report is not None:
             write_report(args.report.resolve(), report)
         raise
