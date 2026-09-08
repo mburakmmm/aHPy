@@ -82,8 +82,11 @@ evidence and review contract is in
 and fail-closed CodeQL `security-extended` analysis for Python and C/C++ on
 pull requests, `main`, release branches, manual dispatches and a weekly
 schedule. Security-event write permission is scoped only to the CodeQL job;
-dependency review and checkout remain read-only. The first hosted results must
-be reviewed before a stable branch-protection context is added. See
+dependency review and checkout remain read-only. PR #12 hosted security run
+[`34030365881`](https://github.com/mburakmmm/aHPy/actions/runs/34030365881)
+passed Dependency Review and both `security-extended` CodeQL languages on exact
+branch HEAD `1ecb2d132853a0b270605c4ce1990db1032ae10c`. Security remains a
+separate scheduled/PR workflow rather than a declared stable support tier. See
 [`maintenance.md`](maintenance.md) for ownership, cadence and triage policy.
 
 The live repository ruleset is

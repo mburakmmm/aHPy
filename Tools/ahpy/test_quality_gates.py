@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import redirect_stdout
+import hashlib
 import io
 import json
 import os
@@ -838,6 +839,7 @@ class QualityGateTest(unittest.TestCase):
         manifest = tomllib.loads((
             ROOT / "tests" / "ahpy" / "interpreters.toml"
         ).read_text(encoding="utf8"))
+        self.assertEqual(manifest["schema_version"], 2)
         targets = {target["name"]: target for target in manifest["targets"]}
         self.assertEqual(
             targets["PyPy"]["setup_python"], "pypy3.11-v7.3.23")
@@ -847,10 +849,10 @@ class QualityGateTest(unittest.TestCase):
             {target["status"] for target in targets.values()},
             {"allowed-failure-early-warning"},
         )
-        self.assertEqual(targets["PyPy"]["evidence_run"], 31573340325)
-        self.assertEqual(targets["PyPy"]["evidence_job"], 94040063173)
-        self.assertEqual(targets["GraalPy"]["evidence_run"], 31573340325)
-        self.assertEqual(targets["GraalPy"]["evidence_job"], 94040063153)
+        self.assertEqual(targets["PyPy"]["evidence_run"], 34030366000)
+        self.assertEqual(targets["PyPy"]["evidence_job"], 101478712931)
+        self.assertEqual(targets["GraalPy"]["evidence_run"], 34030366000)
+        self.assertEqual(targets["GraalPy"]["evidence_job"], 101478712970)
         self.assertEqual(
             targets["PyPy"]["minimal_hosted_confirmation"], "passed")
         self.assertEqual(
@@ -859,8 +861,29 @@ class QualityGateTest(unittest.TestCase):
         )
         self.assertEqual(
             {target["minimal_binary_sha256"] for target in targets.values()},
-            {"5b62871da8259c7976cd553b2378c16c4d542c4c685c2657da6c4cc5baf35cce"},
+            {"fd4be0297fcc40c74941d8db59d443be722b9985b070b6668428dd5376f498b5"},
         )
+        expected_evidence = {
+            "PyPy": (
+                9988404334,
+                "2644fea636984c723f6cef2a12e28a2ca2e9dc7a119e873ac0546443553c1c36",
+                "9aaa1af38674e49b60ed1abec7684eeaf5b18d0d13e3f0b29e5f48a6a40ce0d5",
+            ),
+            "GraalPy": (
+                9988411879,
+                "50fc6bd9b3d13fdcbd60f2ac912dabfb85d7dac00e574618dd254d091d1f5cd7",
+                "697353d1c6e7c4025c71b16d91ce15a39f326126942a240a3a32bedc7bf67b71",
+            ),
+        }
+        for name, target in targets.items():
+            artifact_id, archive_hash, report_hash = expected_evidence[name]
+            self.assertEqual(target["evidence_artifact_id"], artifact_id)
+            self.assertEqual(target["evidence_archive_sha256"], archive_hash)
+            self.assertEqual(target["evidence_report_sha256"], report_hash)
+            retained = ROOT / target["retained_evidence"]
+            self.assertTrue(retained.is_file())
+            self.assertEqual(
+                hashlib.sha256(retained.read_bytes()).hexdigest(), report_hash)
         workflow = (ROOT / ".github" / "workflows" /
                     "ahpy-universal.yml").read_text(encoding="utf8")
         job = workflow.split("  cross-interpreter:\n", 1)[1].split(

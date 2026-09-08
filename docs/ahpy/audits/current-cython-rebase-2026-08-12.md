@@ -57,7 +57,9 @@ argument as prose. The local repair discovers any generated distribution
 metadata, defers the HPy-only hook until the fixture is executed as a build,
 and narrowly exempts that exact compiler argument. Focused C/C++ compilation,
 pure import, metadata and spelling regressions cover these boundaries; hosted
-same-HEAD confirmation remains open.
+confirmation passed on PR #2's final source commit
+`880d46d7d348df759ef062711ab3b4876bd648b8`, including all five protected
+aggregate contexts before merge.
 
 ## Validation record
 

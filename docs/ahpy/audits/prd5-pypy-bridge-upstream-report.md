@@ -1,8 +1,8 @@
 # Guarded upstream report: PyPy generated Universal HPy import crash
 
-Status: hosted failure confirmed, but the handwritten oracle passes; do not
-file until the ten-stage diagnostic artifact identifies the smallest failing
-generated-code rung.
+Status: hosted failure reduced to the generated Fibonacci semantics rung while
+the handwritten and constant-only oracles pass; native backtrace and owner
+filing authorization remain required.
 
 Target issue tracker: `https://github.com/pypy/pypy/issues`
 
@@ -16,7 +16,7 @@ Target issue tracker: `https://github.com/pypy/pypy/issues`
 - Target: `pypy3.11-v7.3.23` from `actions/setup-python`.
 - Artifact: unchanged `.hpy0.so` plus HPy's generated `hpy.universal` loader
   stub; no rebuild occurs under PyPy.
-- Current evidence: GitHub Actions run `31573340325`, job `94040063173`.
+- Current evidence: GitHub Actions run `34030366000`, job `101478712931`.
 
 ## Minimal source
 
@@ -58,17 +58,26 @@ return `42`, `None`, and `[1, 2]` respectively.
 
 ## Current actual result
 
+Run `34030366000`, job `101478712931`, used artifact `9988404334`. Its GitHub
+archive digest is
+`2644fea636984c723f6cef2a12e28a2ca2e9dc7a119e873ac0546443553c1c36`
+and the retained JSON SHA-256 is
+`9aaa1af38674e49b60ed1abec7684eeaf5b18d0d13e3f0b29e5f48a6a40ce0d5`.
+The byte-identical JSON is retained at
+[`evidence/portability-34030366000/portability-result-PyPy-7.3.23.json`](evidence/portability-34030366000/portability-result-PyPy-7.3.23.json).
 The artifact's handwritten `ahpy_minimal.hpy0.so` has SHA-256
-`5b62871da8259c7976cd553b2378c16c4d542c4c685c2657da6c4cc5baf35cce`.
-PyPy passed both its isolated import and semantics, then terminated with signal
-11 while importing `bootstrap_answer` in run `31573340325`, job `94040063173`.
-This excludes the handwritten HPy runtime operations from the report and
-assigns the next reduction step to generated output.
+`fd4be0297fcc40c74941d8db59d443be722b9985b070b6668428dd5376f498b5`.
+PyPy passed handwritten import/semantics, generated constant-only
+import/semantics, and generated Fibonacci import. The isolated
+`fibonacci-semantics` stage then terminated with signal 11 through the
+`python-stub` HPy loader. This excludes module discovery, handwritten HPy
+operations, generated module initialization, and constant lowering; the first
+known failing rung is execution of the small generated Fibonacci function.
 
 ## Filing guard
 
-Rerun the expanded artifact and retain its JSON. It tests generated
-constant-only, single-function, and heap-type rungs before the large function
-corpus. Replace this guard with the first failing rung, its binary digest, full
-stderr, signal classification, and a native backtrace before filing. Do not
-describe the passing handwritten module as the reproducer.
+The expanded artifact now supplies the first failing rung, binary digest,
+empty stderr, and signal classification. Capture a native backtrace for that
+small `fibonacci-semantics` crash and reduce the generated source/runtime
+boundary before filing. Do not describe the passing handwritten module or the
+passing Fibonacci import as the reproducer.
