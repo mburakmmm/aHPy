@@ -66,11 +66,51 @@ static HPy ahpy_keyword_count_impl(
 }
 
 
+HPyDef_METH(ahpy_range_length, "range_length", HPyFunc_O)
+static HPy ahpy_range_length_impl(HPyContext *ctx, HPy self, HPy arg)
+{
+    HPy builtins;
+    HPy range_callable;
+    HPy call_arg;
+    HPy range_object;
+    HPy_ssize_t length;
+
+    (void)self;
+    builtins = HPyImport_ImportModule(ctx, "builtins");
+    if (HPy_IsNull(builtins)) {
+        return HPy_NULL;
+    }
+    range_callable = HPy_GetAttr_s(ctx, builtins, "range");
+    HPy_Close(ctx, builtins);
+    if (HPy_IsNull(range_callable)) {
+        return HPy_NULL;
+    }
+    call_arg = HPy_Dup(ctx, arg);
+    if (HPy_IsNull(call_arg)) {
+        HPy_Close(ctx, range_callable);
+        return HPy_NULL;
+    }
+    range_object = HPy_Call(ctx, range_callable, &call_arg, 1, HPy_NULL);
+    HPy_Close(ctx, call_arg);
+    HPy_Close(ctx, range_callable);
+    if (HPy_IsNull(range_object)) {
+        return HPy_NULL;
+    }
+    length = HPy_Length(ctx, range_object);
+    HPy_Close(ctx, range_object);
+    if (length < 0) {
+        return HPy_NULL;
+    }
+    return HPyLong_FromSsize_t(ctx, length);
+}
+
+
 static HPyDef *ahpy_defines[] = {
     &ahpy_answer,
     &ahpy_return_none,
     &ahpy_make_pair,
     &ahpy_keyword_count,
+    &ahpy_range_length,
     NULL,
 };
 

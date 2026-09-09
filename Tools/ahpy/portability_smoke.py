@@ -23,6 +23,7 @@ STAGES = (
     "minimal-semantics",
     "minimal-keywords-positional",
     "minimal-keywords-named",
+    "minimal-range-length",
     "import-constants",
     "constants-semantics",
     "import-keyword-identity",
@@ -122,6 +123,12 @@ def run_stage(stage, artifact_dir):
         import ahpy_minimal as module
 
         assert module.keyword_count(value=42) == 1
+        return
+    if stage == "minimal-range-length":
+        import ahpy_minimal as module
+
+        assert module.range_length(0) == 0
+        assert module.range_length(3) == 3
         return
     if stage == "import-constants":
         import constants_only  # noqa: F401

@@ -609,8 +609,14 @@ gizleyemez.
   - [x] Tek `identity(value)` fonksiyonlu generated reducer'ı import,
         positional ve named aşamalara ayır; altı binary/15 aşamalı artifact'i
         CPython 3.11/HPy 0.9 üzerinde tamamen geçir.
-  - [ ] Reducer'ın hosted PyPy sınıflandırmasını byte-identical sakla; sonucuna
-        göre sınırı küçült ve açık owner onayıyla doğru upstream tracker'a taşı.
+  - [x] Reducer'ın hosted PyPy sınıflandırmasını byte-identical sakla; run
+        `34331675408`, generated identity positional/named çağrılarını geçirip
+        yalnız Fibonacci yürütmesinde aynı 65-frame `SIGSEGV` izini üretir.
+  - [x] Handwritten public-HPy `range_length` oracle'ı ile builtin `range`
+        import/call ve sonuç üzerindeki `HPy_Length` zincirini ayır; normal,
+        Debug ve altı binary/16 aşamalı yerel artifact'i tamamen geçir.
+  - [ ] `minimal-range-length` hosted PyPy sınıflandırmasını byte-identical
+        sakla; sonuca göre açık owner onayıyla doğru upstream tracker'a taşı.
 - [x] Cython upstream rebase log'unu ve conflict kararlarını güncel tut.
   - [x] Kabul edilen `86b94cef` tabanındaki astral-Unicode ve C++ template
         function-to-pointer decay regresyonlarını bağımsız testlerle onar;
@@ -685,11 +691,13 @@ yeşildir. Smoke, hata halinde dahi doğrulanmış hash/provenance, sıralı sta
 çıktıları ve exit/signal sınıfını JSON'a yazar; workflow bunu `if: always()` ile
 saklar. PyPy sinyal yolu ayrıca koşullu `gdb` kurulumu ve 120 saniyelik bounded
 yeniden çalıştırmayla schema-v2 native backtrace alanı üretir. Run
-`34266960354`, job `102206601623`, 65-frame `SIGSEGV` trace'ini byte-identical
+`34331675408`, job `102401673045`, 65-frame `SIGSEGV` trace'ini byte-identical
 saklamıştır; frame zero `pypy_g_HPy_Length`'dir. Handwritten keyword-signature
 oracle'ı hosted PyPy üzerinde positional ve named çağrıları geçirirken yalnız
 generated Fibonacci çağrısı çöker. Tek fonksiyonlu generated keyword-identity
-reducer'ı yerelde positional/named çağrıları geçer; bir sonraki kapı hosted
+reducer'ı hosted positional/named çağrıları da geçer; bir sonraki kapı
+Fibonacci'deki `range` sonucu/ikinci `HPy_Length` sınırını ayıran handwritten
+oracle normal ve Debug modlarında yerelde geçer; bir sonraki kapı hosted
 sonucu saklamak ve ancak owner onayıyla doğru tracker'a taşımaktır.
 `release_contract.py` machine-readable preview sözleşmesinin exact şemasını;
 dağıtım/Cython/HPy/Python pinlerini; altı platform, yedi frontend ve hosted run
