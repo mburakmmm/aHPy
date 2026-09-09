@@ -325,6 +325,32 @@ class PortabilitySmokeTest(unittest.TestCase):
         self.assertEqual(evidence["status"], "error")
         self.assertIn("cannot execute debugger", evidence["reason"])
 
+    def test_capture_native_backtrace_survives_version_probe_failure(self):
+        version_failure = portability_smoke.subprocess.TimeoutExpired(
+            ["gdb", "--version"], 10)
+        backtrace = SimpleNamespace(
+            returncode=0,
+            stdout=(
+                "Program received signal SIGSEGV, Segmentation fault.\n"
+                "#0  0x1 in first_frame ()\n"
+            ),
+            stderr="",
+        )
+        with (
+            mock.patch.object(
+                portability_smoke.shutil, "which", return_value="/usr/bin/gdb"),
+            mock.patch.object(
+                portability_smoke.subprocess, "run",
+                side_effect=[version_failure, backtrace]),
+        ):
+            evidence = portability_smoke.capture_native_backtrace(
+                Path("/artifact"), "fibonacci-semantics")
+
+        self.assertEqual(evidence["tool_version"], "unavailable: TimeoutExpired")
+        self.assertEqual(evidence["status"], "captured")
+        self.assertEqual(evidence["signal"], "SIGSEGV")
+        self.assertEqual(evidence["frame_count"], 1)
+
     def test_backtrace_output_bound_is_enforced_for_text_and_bytes(self):
         limit = portability_smoke.BACKTRACE_MAX_CHARS
         exact, exact_truncated = portability_smoke._bounded_output("x" * limit)
