@@ -229,10 +229,11 @@ Interpreters exposing `hpy.universal` use the unchanged Python stubs; native
 HPy interpreters receive a temporary directory containing only byte-identical
 `.hpy0` binaries so a CPython loader stub cannot shadow their native importer.
 Their exact setup identifiers and evidence job IDs live in
-`tests/ahpy/interpreters.toml`. Run `34265271840` supplies the current
-handwritten-first hosted PyPy classification: job `102193146755` passes
-handwritten import/semantics, constant-only import/semantics, and Fibonacci
-import before signal 11 at `fibonacci-semantics`; run `34030366000` GraalPy job `101478712970`
+`tests/ahpy/interpreters.toml`. Run `34266960354` supplies the current
+handwritten-first hosted PyPy classification: job `102206601623` passes
+handwritten import/semantics, handwritten positional and named
+`HPyFunc_KEYWORDS` calls, constant-only import/semantics, and Fibonacci import
+before signal 11 at `fibonacci-semantics`; run `34030366000` GraalPy job `101478712970`
 exposes neither `hpy.universal` nor a native `.hpy0` import suffix and fails
 with `ModuleNotFoundError` at `import-minimal`. Both remain allowed-failure
 early warnings. Only a future green hosted execution may remove
@@ -241,10 +242,10 @@ early warnings. Only a future green hosted execution may remove
 a 120-second bound and records debugger version, signal, frame count and
 bounded output in schema-v2 JSON. The retained PyPy report records
 `native_backtrace.status = captured`, `SIGSEGV`, 65 frames, and
-`pypy_g_HPy_Length` at frame zero. Positional and named-call stages for a
-handwritten `HPyFunc_KEYWORDS` method now precede generated modules; their
-hosted PyPy result remains necessary before the reduced result is filed
-upstream.
+`pypy_g_HPy_Length` at frame zero. Because positional and named calls through
+the preceding handwritten `HPyFunc_KEYWORDS` method both pass, the remaining
+fault is generated-module-specific; a smaller generated wrapper/module-exec
+reproducer is required before selecting an upstream tracker.
 The smoke driver writes `portability-result-<target>.json` even when manifest
 verification, a normal exit, or a signal terminates the gate. Each report
 contains the complete verified file list, manifest SHA-256, loader/provenance,

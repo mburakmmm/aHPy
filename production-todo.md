@@ -602,8 +602,12 @@ gizleyemez.
         ve 65 frame içeren JSON'u byte-identical sakla.
   - [x] Handwritten `HPyFunc_KEYWORDS` reproducer'a positional/no-keyword ve
         named-call aşamalarını ekle; CPython 3.11/HPy 0.9'da ikisini doğrula.
-  - [ ] Yeni artifact'in hosted PyPy sonucunu saklayarak bridge/generated
-        sınırını ayır; ardından owner onayıyla upstream'e taşı.
+  - [x] Yeni artifact'in hosted PyPy sonucunu byte-identical sakla; run
+        `34266960354`, handwritten positional ve named `HPyFunc_KEYWORDS`
+        aşamalarını geçirip generated `fibonacci-semantics` aşamasında aynı
+        65-frame `SIGSEGV` izini doğrular.
+  - [ ] Kalan generated-only wrapper/module-exec sınırını minimal artifact ile
+        ayır; ardından açık owner onayıyla doğru upstream tracker'a taşı.
 - [x] Cython upstream rebase log'unu ve conflict kararlarını güncel tut.
   - [x] Kabul edilen `86b94cef` tabanındaki astral-Unicode ve C++ template
         function-to-pointer decay regresyonlarını bağımsız testlerle onar;
@@ -678,10 +682,11 @@ yeşildir. Smoke, hata halinde dahi doğrulanmış hash/provenance, sıralı sta
 çıktıları ve exit/signal sınıfını JSON'a yazar; workflow bunu `if: always()` ile
 saklar. PyPy sinyal yolu ayrıca koşullu `gdb` kurulumu ve 120 saniyelik bounded
 yeniden çalıştırmayla schema-v2 native backtrace alanı üretir. Run
-`34265271840`, job `102193146755`, 65-frame `SIGSEGV` trace'ini byte-identical
+`34266960354`, job `102206601623`, 65-frame `SIGSEGV` trace'ini byte-identical
 saklamıştır; frame zero `pypy_g_HPy_Length`'dir. Handwritten keyword-signature
-oracle'ı yerelde iki çağrı biçimini de geçer; hosted ayrım ve owner onayı
-gelmeden rapor upstream'e taşınmış sayılmaz.
+oracle'ı hosted PyPy üzerinde positional ve named çağrıları geçirirken yalnız
+generated Fibonacci çağrısı çöker; bir sonraki kapı generated wrapper/module-exec
+sınırını küçültmek ve ancak owner onayıyla doğru tracker'a taşımaktır.
 `release_contract.py` machine-readable preview sözleşmesinin exact şemasını;
 dağıtım/Cython/HPy/Python pinlerini; altı platform, yedi frontend ve hosted run
 kimliklerini; workflow ile kullanıcı belgesindeki karşılıklarını fail-closed

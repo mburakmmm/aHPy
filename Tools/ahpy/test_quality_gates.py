@@ -849,29 +849,44 @@ class QualityGateTest(unittest.TestCase):
             {target["status"] for target in targets.values()},
             {"allowed-failure-early-warning"},
         )
-        self.assertEqual(targets["PyPy"]["evidence_run"], 34265271840)
-        self.assertEqual(targets["PyPy"]["evidence_job"], 102193146755)
+        self.assertEqual(targets["PyPy"]["evidence_run"], 34266960354)
+        self.assertEqual(targets["PyPy"]["evidence_job"], 102206601623)
         self.assertEqual(
             targets["PyPy"]["evidence_head"],
-            "97080f7e8cfeb0b58e02180e46eaec07ee0bd312",
+            "d28565fe2e6bbe3406c99ac7ac0e21d4b45d368e",
         )
         self.assertEqual(targets["GraalPy"]["evidence_run"], 34030366000)
         self.assertEqual(targets["GraalPy"]["evidence_job"], 101478712970)
         self.assertEqual(
             targets["PyPy"]["minimal_hosted_confirmation"], "passed")
         self.assertEqual(
+            targets["PyPy"]["keyword_call_hosted_confirmation"], "passed")
+        self.assertEqual(
             targets["GraalPy"]["minimal_hosted_confirmation"],
             "loader-unavailable",
         )
         self.assertEqual(
-            {target["minimal_binary_sha256"] for target in targets.values()},
-            {"fd4be0297fcc40c74941d8db59d443be722b9985b070b6668428dd5376f498b5"},
+            targets["PyPy"]["minimal_binary_sha256"],
+            "50f645206e8e728b99a022e195154018b9fd3537075d7a99598e68033ace1bdc",
+        )
+        self.assertEqual(
+            targets["GraalPy"]["minimal_binary_sha256"],
+            "fd4be0297fcc40c74941d8db59d443be722b9985b070b6668428dd5376f498b5",
+        )
+        self.assertEqual(targets["PyPy"]["build_artifact_id"], 10073132279)
+        self.assertEqual(
+            targets["PyPy"]["build_archive_sha256"],
+            "d38067dddca7ad2452dc3e39fc8b57c68706ce5d0ee6eb35e0101efc566cf118",
+        )
+        self.assertEqual(
+            targets["PyPy"]["fibonacci_binary_sha256"],
+            "575cd832c38e6edd495f66ea69231a1f95b36f19d053b823fb47bad34c6656f8",
         )
         expected_evidence = {
             "PyPy": (
-                10071585536,
-                "8ec18d6e2c803edadec98031c50e7d39e3ed50ac01755059396e754871780f42",
-                "8d63a0a27de937214e4b697d7924e5e4273ad05fc1e87034125f484efcdcc9c1",
+                10073364591,
+                "e107d1578e8e21456bf2b654d5c34090ec887f7ff54d248749721a67c8265525",
+                "414e69311af6d184140456694f4e5d6484de639d6aea60de6d1bfda16f3d00d5",
             ),
             "GraalPy": (
                 9988411879,
@@ -907,6 +922,12 @@ class QualityGateTest(unittest.TestCase):
                     target["native_backtrace_top_frame"],
                     evidence["native_backtrace"]["stdout"],
                 )
+                stages = {stage["name"]: stage for stage in evidence["stages"]}
+                self.assertEqual(
+                    stages["minimal-keywords-positional"]["status"], "passed")
+                self.assertEqual(
+                    stages["minimal-keywords-named"]["status"], "passed")
+                self.assertEqual(stages["fibonacci-semantics"]["signal"], 11)
         workflow = (ROOT / ".github" / "workflows" /
                     "ahpy-universal.yml").read_text(encoding="utf8")
         job = workflow.split("  cross-interpreter:\n", 1)[1].split(

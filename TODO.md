@@ -1211,12 +1211,15 @@ until its full existing Cython test subset and new HPy-specific tests pass.
     - [x] Add an explicit, bounded native-backtrace collector that runs only
           after signal termination and cannot suppress the primary JSON report.
     - [x] Retain a hosted PyPy report with a captured native signal and frames;
-          run `34265271840` records `SIGSEGV`, 65 frames, and
+          run `34266960354` records `SIGSEGV`, 65 frames, and
           `pypy_g_HPy_Length` at frame zero.
     - [x] Add positional/no-keyword and named-call `HPyFunc_KEYWORDS` stages to
           a handwritten oracle; both pass CPython 3.11/HPy 0.9 locally.
-    - [ ] Retain their hosted PyPy classification before publishing the reduced
-          failure upstream.
+    - [x] Retain their hosted PyPy classification: run `34266960354`, job
+          `102206601623`, passes both handwritten keyword-call stages before
+          the generated Fibonacci call reproduces the 65-frame `SIGSEGV`.
+    - [ ] Reduce the remaining generated-only wrapper/module-exec boundary
+          before publishing the failure to the owner-approved upstream tracker.
     - [ ] Record the first green hosted execution on both interpreters and
           remove `continue-on-error` before claiming cross-interpreter support.
 - [x] Add the HPy 0.9 release lane and a full-commit-pinned HPy development

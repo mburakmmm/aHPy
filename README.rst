@@ -137,8 +137,9 @@ The current local M9 snapshot records:
 The CPython 3.11/HPy 0.9 stable baseline is green on hosted Linux x86-64 and
 ARM64, macOS Intel and ARM64, and Windows x64.  Same-binary PyPy and GraalPy
 executions are recorded as allowed-failure early warnings: their selected
-runtimes currently remain outside the support claim.  Hosted run 34030366000
-proved that PyPy passes the unchanged handwritten public-HPy module, generated
+runtimes currently remain outside the support claim.  Hosted run 34266960354
+proved that PyPy passes the unchanged handwritten public-HPy module, both
+positional and named handwritten ``HPyFunc_KEYWORDS`` calls, the generated
 constant-only module, and generated Fibonacci import before signal 11 in the
 isolated Fibonacci semantics stage.  GraalPy exposes neither
 ``hpy.universal`` nor a native ``.hpy0`` suffix and cannot discover the same
