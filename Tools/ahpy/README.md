@@ -411,8 +411,10 @@ SHA-256 digests to `artifact-manifest.json`. Its hosted
 correctness build uses `-O0`; cross-interpreter portability does not depend on
 optimizer throughput.
 `portability_smoke.py` revalidates every digest and runs imports/semantics in
-ten isolated subprocess stages, ordered from the handwritten oracle through
-constant-only, single-function, heap-type, and large function corpora. Python
+fifteen isolated subprocess stages, ordered from the handwritten no-argument
+and keyword-signature oracles through constant-only, minimal generated
+keyword-identity, single-function,
+heap-type, and large function corpora. Python
 `hpy.universal` runtimes use the
 unchanged stubs; native HPy runtimes use a temporary directory containing only
 the unchanged binaries so CPython stubs cannot shadow native loading. The

@@ -1,0 +1,175 @@
+{
+  "artifact_dir": "/home/runner/work/aHPy/aHPy/portability-artifact",
+  "artifact_files": [
+    {
+      "name": "ahpy_minimal.hpy0.so",
+      "sha256": "50f645206e8e728b99a022e195154018b9fd3537075d7a99598e68033ace1bdc",
+      "size": 59840
+    },
+    {
+      "name": "ahpy_minimal.py",
+      "sha256": "05d270bcef01089ffeb266d563ff518393b87caea28edecb584349c4d1444b59",
+      "size": 483
+    },
+    {
+      "name": "bootstrap_answer.hpy0.so",
+      "sha256": "8bb18c1d0048fba0546ae8c1dda679de652604a9633986643a94fa15ca78e535",
+      "size": 3200936
+    },
+    {
+      "name": "bootstrap_answer.py",
+      "sha256": "4cae78b6d874d79728a120eb1bbc15670fc6350b10ceefe3405b4b393155e2df",
+      "size": 491
+    },
+    {
+      "name": "bootstrap_types.hpy0.so",
+      "sha256": "9d38028652103313a20d90596b50b562396c46e42c74bbc272907a3777322b9f",
+      "size": 2749568
+    },
+    {
+      "name": "bootstrap_types.py",
+      "sha256": "c112a2f990053d83f758a6c9942ad1dc83654edcabcd3963ecc42a6f13ecdbc9",
+      "size": 489
+    },
+    {
+      "name": "constants_only.hpy0.so",
+      "sha256": "f21473ee9fd8916338ad263d683bc0fd90f6b0918d70613bb4e00de59a642180",
+      "size": 59232
+    },
+    {
+      "name": "constants_only.py",
+      "sha256": "87715295c3123a0d1526de2372784ed0817743b7a1516bfa2510ad96079ba6b1",
+      "size": 487
+    },
+    {
+      "name": "fibonacci.hpy0.so",
+      "sha256": "575cd832c38e6edd495f66ea69231a1f95b36f19d053b823fb47bad34c6656f8",
+      "size": 63808
+    },
+    {
+      "name": "fibonacci.py",
+      "sha256": "d51ee1c502074b7291a45a3e961025c056cfd2285101a518b8040e800de9065b",
+      "size": 477
+    },
+    {
+      "name": "portability_smoke.py",
+      "sha256": "9304163300e696f431e0d37b51054f5d1e4741c5dda8459ab68fe69eb05769c1",
+      "size": 14684
+    }
+  ],
+  "artifact_manifest_sha256": "c2513e136645f314e73597f86081d2ecbd174b9ffc8b6ea4b065d12b825a05e6",
+  "failure": {
+    "kind": "PortabilityStageError",
+    "message": "portability stage fibonacci-semantics failed via python-stub loader with signal 11"
+  },
+  "native_backtrace": {
+    "command": [
+      "/usr/bin/gdb",
+      "--batch",
+      "--quiet",
+      "-ex",
+      "set pagination off",
+      "-ex",
+      "set debuginfod enabled off",
+      "-ex",
+      "run",
+      "-ex",
+      "thread apply all bt full",
+      "--args",
+      "/opt/hostedtoolcache/PyPy/3.11.15/x64/bin/python",
+      "/home/runner/work/aHPy/aHPy/portability-artifact/portability_smoke.py",
+      "--stage",
+      "fibonacci-semantics",
+      "--artifact-dir",
+      "/home/runner/work/aHPy/aHPy/portability-artifact"
+    ],
+    "frame_count": 65,
+    "returncode": 0,
+    "schema_version": 1,
+    "signal": "SIGSEGV",
+    "stage": "fibonacci-semantics",
+    "status": "captured",
+    "stderr": "",
+    "stderr_truncated": false,
+    "stdout": "[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/lib/x86_64-linux-gnu/libthread_db.so.1\".\n\nProgram received signal SIGSEGV, Segmentation fault.\n0x00007ffff58e69e4 in pypy_g_HPy_Length () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\n\nThread 1 (Thread 0x7ffff7e34780 (LWP 2686) \"python\"):\n#0  0x00007ffff58e69e4 in pypy_g_HPy_Length () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#1  0x00007ffff58e6c34 in pypy_g_ctx_HPy_Length__star_2 () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#2  0x00007ffff3e20034 in HPy_Length () from /home/runner/work/aHPy/aHPy/portability-artifact/fibonacci.hpy0.so\nNo symbol table info available.\n#3  0x00007ffff3e20b9d in __pyx_hpy_def_0_fib_impl () from /home/runner/work/aHPy/aHPy/portability-artifact/fibonacci.hpy0.so\nNo symbol table info available.\n#4  0x00007ffff588a79e in pypy_g_W_ExtensionFunction_u_call_varargs_kw () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#5  0x00007ffff5884265 in pypy_g_W_ExtensionFunction_u_descr_call () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#6  0x00007ffff548a1a4 in pypy_g_BuiltinCodePassThroughArguments1_funcrun_obj () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#7  0x00007ffff5537453 in pypy_g_call_valuestack__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#8  0x00007ffff5f50033 in pypy_g_CALL_METHOD__AccessDirect_star_1 () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#9  0x00007ffff552c71d in pypy_g_dispatch_bytecode__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#10 0x00007ffff54fbfd2 in pypy_g_handle_bytecode__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#11 0x00007ffff5cf5ff0 in pypy_g_portal_14 () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#12 0x00007ffff613f96b in pypy_g_ll_portal_runner__Unsigned_Bool_pypy_interpreter () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#13 0x00007ffff54b8d8a in pypy_g_execute_frame () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#14 0x00007ffff65955e6 in __vmprof_eval_vmprof () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#15 0x00007ffff55386c5 in pypy_g_CALL_FUNCTION__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#16 0x00007ffff552c8ff in pypy_g_dispatch_bytecode__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#17 0x00007ffff54fbfd2 in pypy_g_handle_bytecode__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#18 0x00007ffff5cf5ff0 in pypy_g_portal_14 () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#19 0x00007ffff613f96b in pypy_g_ll_portal_runner__Unsigned_Bool_pypy_interpreter () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#20 0x00007ffff54b8d8a in pypy_g_execute_frame () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#21 0x00007ffff65955e6 in __vmprof_eval_vmprof () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#22 0x00007ffff55386c5 in pypy_g_CALL_FUNCTION__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#23 0x00007ffff552c8ff in pypy_g_dispatch_bytecode__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#24 0x00007ffff54fbfd2 in pypy_g_handle_bytecode__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#25 0x00007ffff5cf5ff0 in pypy_g_portal_14 () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#26 0x00007ffff613f96b in pypy_g_ll_portal_runner__Unsigned_Bool_pypy_interpreter () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#27 0x00007ffff54b8d8a in pypy_g_execute_frame () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#28 0x00007ffff65955e6 in __vmprof_eval_vmprof () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#29 0x00007ffff5407113 in pypy_g_BuiltinActivation_UwS_ObjSpace_W_Root_W_Root_W_R_22 () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#30 0x00007ffff54818cf in pypy_g_BuiltinCode_funcrun_obj () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#31 0x00007ffff55386c5 in pypy_g_CALL_FUNCTION__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#32 0x00007ffff552c8ff in pypy_g_dispatch_bytecode__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#33 0x00007ffff54fbfd2 in pypy_g_handle_bytecode__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#34 0x00007ffff5cf5ff0 in pypy_g_portal_14 () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#35 0x00007ffff613f96b in pypy_g_ll_portal_runner__Unsigned_Bool_pypy_interpreter () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#36 0x00007ffff54b8d8a in pypy_g_execute_frame () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#37 0x00007ffff65955e6 in __vmprof_eval_vmprof () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#38 0x00007ffff55379e5 in pypy_g_CALL_FUNCTION_EX__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#39 0x00007ffff552cd1d in pypy_g_dispatch_bytecode__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#40 0x00007ffff54fbfd2 in pypy_g_handle_bytecode__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#41 0x00007ffff5cf5ff0 in pypy_g_portal_14 () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#42 0x00007ffff613f96b in pypy_g_ll_portal_runner__Unsigned_Bool_pypy_interpreter () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#43 0x00007ffff54b8d8a in pypy_g_execute_frame () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#44 0x00007ffff65955e6 in __vmprof_eval_vmprof () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#45 0x00007ffff55379e5 in pypy_g_CALL_FUNCTION_EX__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#46 0x00007ffff552cd1d in pypy_g_dispatch_bytecode__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#47 0x00007ffff54fbfd2 in pypy_g_handle_bytecode__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#48 0x00007ffff5cf5ff0 in pypy_g_portal_14 () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#49 0x00007ffff613f96b in pypy_g_ll_portal_runner__Unsigned_Bool_pypy_interpreter () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#50 0x00007ffff54b8d8a in pypy_g_execute_frame () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#51 0x00007ffff65955e6 in __vmprof_eval_vmprof () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#52 0x00007ffff55379e5 in pypy_g_CALL_FUNCTION_EX__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#53 0x00007ffff552cd1d in pypy_g_dispatch_bytecode__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#54 0x00007ffff54fbfd2 in pypy_g_handle_bytecode__AccessDirect_None () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#55 0x00007ffff5cf5ff0 in pypy_g_portal_14 () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#56 0x00007ffff613f96b in pypy_g_ll_portal_runner__Unsigned_Bool_pypy_interpreter () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#57 0x00007ffff54b8d8a in pypy_g_execute_frame () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#58 0x00007ffff65955e6 in __vmprof_eval_vmprof () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#59 0x00007ffff548e173 in pypy_g_call_function.star_3 () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#60 0x00007ffff54690ba in pypy_g_entry_point () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#61 0x00007ffff66e4c0f in pypy_main_startup () from /opt/hostedtoolcache/PyPy/3.11.15/x64/bin/libpypy3.11-c.so\nNo symbol table info available.\n#62 0x00007ffff3c2a1ca in ?? () from /lib/x86_64-linux-gnu/libc.so.6\nNo symbol table info available.\n#63 0x00007ffff3c2a28b in __libc_start_main () from /lib/x86_64-linux-gnu/libc.so.6\nNo symbol table info available.\n#64 0x000000000040108e in _start ()\nNo symbol table info available.\n",
+    "stdout_truncated": false,
+    "timeout_seconds": 120,
+    "tool": "gdb",
+    "tool_version": "GNU gdb (Ubuntu 15.1-1ubuntu1~24.04.1) 15.1",
+    "tool_version_returncode": 0,
+    "tool_version_truncated": false
+  },
+  "provenance": {
+    "builder": "CPython 3.11.16",
+    "executable": "/opt/hostedtoolcache/PyPy/3.11.15/x64/bin/python",
+    "extension_suffixes": [
+      ".pypy311-pp73-x86_64-linux-gnu.so"
+    ],
+    "hpy_universal_loader": true,
+    "implementation": "PyPy",
+    "loader_mode": "python-stub",
+    "python": "3.11.15"
+  },
+  "schema_version": 2,
+  "stages": [
+    {
+      "name": "import-minimal",
+      "returncode": 0,
+      "status": "passed",
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "name": "minimal-semantics",
+      "returncode": 0,
+      "status": "passed",
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "name": "minimal-keywords-positional",
+      "returncode": 0,
+      "status": "passed",
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "name": "minimal-keywords-named",
+      "returncode": 0,
+      "status": "passed",
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "name": "import-constants",
+      "returncode": 0,
+      "status": "passed",
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "name": "constants-semantics",
+      "returncode": 0,
+      "status": "passed",
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "name": "import-fibonacci",
+      "returncode": 0,
+      "status": "passed",
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "name": "fibonacci-semantics",
+      "returncode": -11,
+      "signal": 11,
+      "status": "failed",
+      "stderr": "",
+      "stdout": "",
+      "termination": "signal"
+    }
+  ],
+  "status": "failed"
+}

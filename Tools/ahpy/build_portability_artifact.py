@@ -21,6 +21,7 @@ from test_minimal_hpy import verify_source_boundary as verify_minimal_source_bou
 ROOT = Path(__file__).resolve().parents[2]
 GENERATED_SOURCES = (
     ("constants_only", ROOT / "tests" / "ahpy" / "constants_only.pyx"),
+    ("keyword_identity", ROOT / "tests" / "ahpy" / "keyword_identity.pyx"),
     (
         "fibonacci",
         ROOT / "tests" / "ahpy" / "pilot_ports" / "cypack" / "src" /

@@ -130,10 +130,14 @@ class PortabilitySmokeTest(unittest.TestCase):
         minimal.answer = lambda: 42
         minimal.return_none = lambda: None
         minimal.make_pair = lambda: [1, 2]
+        minimal.keyword_count = lambda *args, **kwargs: len(kwargs)
 
         constants = ModuleType("constants_only")
         constants.VALUE = 47
         constants.NAME = "sabit"
+
+        keyword_identity = ModuleType("keyword_identity")
+        keyword_identity.identity = lambda value: value
 
         fibonacci = ModuleType("fibonacci")
         fibonacci.fib = lambda n: 0 if n == 0 else 55
@@ -175,6 +179,7 @@ class PortabilitySmokeTest(unittest.TestCase):
                 {
                     "ahpy_minimal": minimal,
                     "constants_only": constants,
+                    "keyword_identity": keyword_identity,
                     "fibonacci": fibonacci,
                     "bootstrap_answer": answer,
                     "bootstrap_types": types,
@@ -250,6 +255,120 @@ class PortabilitySmokeTest(unittest.TestCase):
                 {"schema_version": 1, "status": "passed"},
             )
             self.assertTrue(report_path.read_text(encoding="utf8").endswith("\n"))
+
+    def test_capture_native_backtrace_is_bounded_and_structured(self):
+        stdout = (
+            "Program received signal SIGSEGV, Segmentation fault.\n"
+            "#0  0x1 in first_frame ()\n"
+            "#1  0x2 in second_frame ()\n"
+        )
+        with (
+            mock.patch.object(
+                portability_smoke.shutil, "which", return_value="/usr/bin/gdb"),
+            mock.patch.object(
+                portability_smoke.subprocess, "run",
+                side_effect=[
+                    SimpleNamespace(
+                        returncode=0, stdout="GNU gdb 15.0\n", stderr=""),
+                    SimpleNamespace(returncode=0, stdout=stdout, stderr=""),
+                ]) as run,
+        ):
+            evidence = portability_smoke.capture_native_backtrace(
+                Path("/artifact"), "fibonacci-semantics")
+        self.assertEqual(evidence["status"], "captured")
+        self.assertEqual(evidence["tool_version"], "GNU gdb 15.0")
+        self.assertEqual(evidence["signal"], "SIGSEGV")
+        self.assertEqual(evidence["frame_count"], 2)
+        self.assertFalse(evidence["stdout_truncated"])
+        command = run.call_args_list[1].args[0]
+        self.assertEqual(command[0], "/usr/bin/gdb")
+        self.assertIn("set debuginfod enabled off", command)
+        self.assertEqual(command[command.index("--stage") + 1],
+                         "fibonacci-semantics")
+        self.assertEqual(run.call_args_list[1].kwargs["timeout"], 120)
+        self.assertEqual(run.call_args_list[1].kwargs["env"]["LC_ALL"], "C")
+
+        with mock.patch.object(
+                portability_smoke.shutil, "which", return_value=None):
+            unavailable = portability_smoke.capture_native_backtrace(
+                Path("/artifact"), "fibonacci-semantics")
+        self.assertEqual(unavailable["status"], "unavailable")
+        self.assertIn("not found", unavailable["reason"])
+
+    def test_capture_native_backtrace_reports_timeout(self):
+        failure = portability_smoke.subprocess.TimeoutExpired(
+            ["gdb"], 120, output=b"partial", stderr=b"diagnostic")
+        with (
+            mock.patch.object(
+                portability_smoke.shutil, "which", return_value="/usr/bin/gdb"),
+            mock.patch.object(
+                portability_smoke.subprocess, "run", side_effect=[
+                    SimpleNamespace(
+                        returncode=0, stdout="GNU gdb 15.0\n", stderr=""),
+                    failure,
+                ]),
+        ):
+            evidence = portability_smoke.capture_native_backtrace(
+                Path("/artifact"), "fibonacci-semantics")
+        self.assertEqual(evidence["status"], "timeout")
+        self.assertEqual(evidence["stdout"], "partial")
+        self.assertEqual(evidence["stderr"], "diagnostic")
+
+        with (
+            mock.patch.object(
+                portability_smoke.shutil, "which", return_value="/usr/bin/gdb"),
+            mock.patch.object(
+                portability_smoke.subprocess, "run", side_effect=[
+                    SimpleNamespace(
+                        returncode=0, stdout="GNU gdb 15.0\n", stderr=""),
+                    OSError("cannot execute debugger"),
+                ]),
+        ):
+            evidence = portability_smoke.capture_native_backtrace(
+                Path("/artifact"), "fibonacci-semantics")
+        self.assertEqual(evidence["status"], "error")
+        self.assertIn("cannot execute debugger", evidence["reason"])
+
+    def test_capture_native_backtrace_survives_version_probe_failure(self):
+        version_failure = portability_smoke.subprocess.TimeoutExpired(
+            ["gdb", "--version"], 10)
+        backtrace = SimpleNamespace(
+            returncode=0,
+            stdout=(
+                "Program received signal SIGSEGV, Segmentation fault.\n"
+                "#0  0x1 in first_frame ()\n"
+            ),
+            stderr="",
+        )
+        with (
+            mock.patch.object(
+                portability_smoke.shutil, "which", return_value="/usr/bin/gdb"),
+            mock.patch.object(
+                portability_smoke.subprocess, "run",
+                side_effect=[version_failure, backtrace]),
+        ):
+            evidence = portability_smoke.capture_native_backtrace(
+                Path("/artifact"), "fibonacci-semantics")
+
+        self.assertEqual(evidence["tool_version"], "unavailable: TimeoutExpired")
+        self.assertEqual(evidence["status"], "captured")
+        self.assertEqual(evidence["signal"], "SIGSEGV")
+        self.assertEqual(evidence["frame_count"], 1)
+
+    def test_backtrace_output_bound_is_enforced_for_text_and_bytes(self):
+        limit = portability_smoke.BACKTRACE_MAX_CHARS
+        exact, exact_truncated = portability_smoke._bounded_output("x" * limit)
+        oversized, oversized_truncated = portability_smoke._bounded_output(
+            b"y" * (limit + 1))
+        invalid, invalid_truncated = portability_smoke._bounded_output(
+            b"valid\xff")
+
+        self.assertEqual(len(exact), limit)
+        self.assertFalse(exact_truncated)
+        self.assertEqual(len(oversized), limit)
+        self.assertTrue(oversized_truncated)
+        self.assertEqual(invalid, "valid\ufffd")
+        self.assertFalse(invalid_truncated)
 
     def test_main_dispatches_one_requested_stage(self):
         with (
@@ -343,6 +462,7 @@ class PortabilitySmokeTest(unittest.TestCase):
                 "portability_smoke.py",
                 "--artifact-dir", temp,
                 "--report", str(report_path),
+                "--capture-native-backtrace",
             ]
             with (
                 mock.patch.object(sys, "argv", argv),
@@ -359,6 +479,7 @@ class PortabilitySmokeTest(unittest.TestCase):
             ):
                 self.assertEqual(portability_smoke.main(), 0)
             report = json.loads(report_path.read_text(encoding="utf8"))
+            self.assertEqual(report["schema_version"], 2)
             self.assertEqual(report["status"], "passed")
             self.assertEqual(report["artifact_manifest_sha256"], "c" * 64)
             self.assertEqual(report["artifact_files"], manifest["files"])
@@ -370,8 +491,13 @@ class PortabilitySmokeTest(unittest.TestCase):
             )
 
             failed_report = Path(temp) / "stage-failed.json"
-            failed_records = [{"name": "import-minimal", "status": "failed"}]
-            argv[-1] = str(failed_report)
+            failed_records = [{
+                "name": "import-minimal",
+                "status": "failed",
+                "termination": "signal",
+                "signal": 11,
+            }]
+            argv[4] = str(failed_report)
             failure = portability_smoke.PortabilityStageError(
                 "minimal signal", failed_records)
             with (
@@ -384,6 +510,9 @@ class PortabilitySmokeTest(unittest.TestCase):
                     portability_smoke, "has_python_hpy_loader", return_value=True),
                 mock.patch.object(
                     portability_smoke, "execute_stages", side_effect=failure),
+                mock.patch.object(
+                    portability_smoke, "capture_native_backtrace",
+                    return_value={"status": "captured"}) as capture,
                 mock.patch("builtins.print"),
                 self.assertRaises(portability_smoke.PortabilityStageError),
             ):
@@ -393,9 +522,71 @@ class PortabilitySmokeTest(unittest.TestCase):
             self.assertEqual(report["stages"], failed_records)
             self.assertEqual(
                 report["failure"]["kind"], "PortabilityStageError")
+            self.assertEqual(report["schema_version"], 2)
+            self.assertEqual(
+                report["native_backtrace"], {"status": "captured"})
+            capture.assert_called_once_with(
+                Path(temp).resolve(), "import-minimal")
+
+            backtrace_error_report = Path(temp) / "backtrace-error.json"
+            argv[4] = str(backtrace_error_report)
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.object(
+                    portability_smoke, "verify_manifest", return_value=manifest),
+                mock.patch.object(
+                    portability_smoke, "_sha256", return_value="c" * 64),
+                mock.patch.object(
+                    portability_smoke, "has_python_hpy_loader", return_value=True),
+                mock.patch.object(
+                    portability_smoke, "execute_stages", side_effect=failure),
+                mock.patch.object(
+                    portability_smoke, "capture_native_backtrace",
+                    side_effect=RuntimeError("debugger wrapper failed")),
+                mock.patch("builtins.print"),
+                self.assertRaises(portability_smoke.PortabilityStageError),
+            ):
+                portability_smoke.main()
+            report = json.loads(
+                backtrace_error_report.read_text(encoding="utf8"))
+            self.assertEqual(report["native_backtrace"]["status"], "error")
+            self.assertIn(
+                "debugger wrapper failed",
+                report["native_backtrace"]["reason"],
+            )
+
+            exit_report = Path(temp) / "stage-exited.json"
+            argv[4] = str(exit_report)
+            exit_records = [{
+                "name": "import-minimal",
+                "status": "failed",
+                "termination": "exit",
+                "exit_code": 1,
+            }]
+            exit_failure = portability_smoke.PortabilityStageError(
+                "minimal exit", exit_records)
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.object(
+                    portability_smoke, "verify_manifest", return_value=manifest),
+                mock.patch.object(
+                    portability_smoke, "_sha256", return_value="c" * 64),
+                mock.patch.object(
+                    portability_smoke, "has_python_hpy_loader", return_value=True),
+                mock.patch.object(
+                    portability_smoke, "execute_stages", side_effect=exit_failure),
+                mock.patch.object(
+                    portability_smoke, "capture_native_backtrace") as capture,
+                mock.patch("builtins.print"),
+                self.assertRaises(portability_smoke.PortabilityStageError),
+            ):
+                portability_smoke.main()
+            report = json.loads(exit_report.read_text(encoding="utf8"))
+            self.assertNotIn("native_backtrace", report)
+            capture.assert_not_called()
 
             manifest_report = Path(temp) / "manifest-failed.json"
-            argv[-1] = str(manifest_report)
+            argv[4] = str(manifest_report)
             with (
                 mock.patch.object(sys, "argv", argv),
                 mock.patch.object(

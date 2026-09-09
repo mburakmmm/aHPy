@@ -31,9 +31,10 @@ The repairs keep the test strength:
 3. macOS forces one native architecture and uses a temporary
    ASan-linked `Py_BytesMain` launcher. A preload probe rejects the lane unless
    the compiler-selected runtime is already loaded before extension import;
-4. portability smoke revalidates the manifest and now runs ten isolated stages,
+4. portability smoke revalidates the manifest and now runs fifteen isolated stages,
    beginning with a handwritten public-HPy import and semantic oracle, then
-   constant-only, single-function, heap-type, and large function corpora.
+   constant-only, minimal generated keyword-identity, single-function,
+   heap-type, and large function corpora.
    Python-stub and native HPy import paths are explicit, while every tested
    `.hpy0` byte remains unchanged. PyPy's bundled `hpy.universal` is its native
    HPy bridge and therefore keeps using the unchanged loader stubs. GraalPy
