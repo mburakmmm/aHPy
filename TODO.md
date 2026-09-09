@@ -1218,8 +1218,11 @@ until its full existing Cython test subset and new HPy-specific tests pass.
     - [x] Retain their hosted PyPy classification: run `34266960354`, job
           `102206601623`, passes both handwritten keyword-call stages before
           the generated Fibonacci call reproduces the 65-frame `SIGSEGV`.
-    - [ ] Reduce the remaining generated-only wrapper/module-exec boundary
-          before publishing the failure to the owner-approved upstream tracker.
+    - [x] Add a one-function generated keyword-identity reducer and isolate its
+          import, positional-call, and named-call stages; all fifteen artifact
+          stages pass CPython 3.11/HPy 0.9 locally.
+    - [ ] Retain the reducer's hosted PyPy classification, then narrow the
+          remaining boundary before publishing to the owner-approved tracker.
     - [ ] Record the first green hosted execution on both interpreters and
           remove `continue-on-error` before claiming cross-interpreter support.
 - [x] Add the HPy 0.9 release lane and a full-commit-pinned HPy development

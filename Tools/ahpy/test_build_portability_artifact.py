@@ -64,6 +64,8 @@ class BuildPortabilityArtifactTest(unittest.TestCase):
                 "ahpy_minimal.py",
                 "constants_only.hpy0.so",
                 "constants_only.py",
+                "keyword_identity.hpy0.so",
+                "keyword_identity.py",
                 "fibonacci.hpy0.so",
                 "fibonacci.py",
                 "bootstrap_answer.hpy0.so",
@@ -89,6 +91,10 @@ class BuildPortabilityArtifactTest(unittest.TestCase):
             setup_texts[0],
         )
         self.assertIn(
+            "Extension('keyword_identity', ['keyword_identity.c'])",
+            setup_texts[0],
+        )
+        self.assertIn(
             "Extension('fibonacci', ['fibonacci.c'])",
             setup_texts[0],
         )
@@ -111,7 +117,10 @@ class BuildPortabilityArtifactTest(unittest.TestCase):
             for call in verify_source.call_args_list
         }
         self.assertNotIn("HPyDef_METH", required_by_module["constants_only"])
-        for module_name in ("fibonacci", "bootstrap_answer", "bootstrap_types"):
+        for module_name in (
+            "keyword_identity", "fibonacci", "bootstrap_answer",
+            "bootstrap_types",
+        ):
             self.assertIn("HPyDef_METH", required_by_module[module_name])
         for environment in environments:
             self.assertEqual(environment["SOURCE_DATE_EPOCH"], "946684800")
@@ -130,19 +139,21 @@ class BuildPortabilityArtifactTest(unittest.TestCase):
     def test_build_artifact_rejects_incomplete_or_split_build_outputs(self):
         binary_root = Path("/definitely/missing/ahpy-build")
         cases = (
-            (([],), "expected 5 Universal binaries"),
+            (([],), "expected 6 Universal binaries"),
             (([
                 binary_root / "one" / "bootstrap_answer.hpy0.so",
                 binary_root / "two" / "bootstrap_types.hpy0.so",
                 binary_root / "three" / "ahpy_minimal.hpy0.so",
                 binary_root / "four" / "constants_only.hpy0.so",
-                binary_root / "five" / "fibonacci.hpy0.so",
+                binary_root / "five" / "keyword_identity.hpy0.so",
+                binary_root / "six" / "fibonacci.hpy0.so",
             ],), "different build dirs"),
             (([
                 binary_root / "bootstrap_answer.hpy0.so",
                 binary_root / "bootstrap_types.hpy0.so",
                 binary_root / "ahpy_minimal.hpy0.so",
                 binary_root / "constants_only.hpy0.so",
+                binary_root / "keyword_identity.hpy0.so",
                 binary_root / "fibonacci.hpy0.so",
             ], []), "missing artifact file"),
         )

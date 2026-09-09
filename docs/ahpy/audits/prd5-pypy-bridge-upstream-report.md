@@ -4,8 +4,9 @@ Status: hosted failure reduced to the generated Fibonacci semantics rung while
 the handwritten no-argument, positional `HPyFunc_KEYWORDS`, named
 `HPyFunc_KEYWORDS`, and constant-only oracles pass. A bounded hosted native
 backtrace reaches PyPy's `pypy_g_HPy_Length`. The generic keyword-call bridge
-boundary is now excluded; one smaller generated reproducer and owner filing
-authorization remain required before choosing the upstream tracker.
+boundary is now excluded. A one-function generated reducer passes locally;
+its hosted classification and owner filing authorization remain required
+before choosing the upstream tracker.
 
 Target issue tracker: `https://github.com/pypy/pypy/issues`
 
@@ -104,7 +105,9 @@ now retains a hosted `native_backtrace.status == "captured"` result for the
 small `fibonacci-semantics` crash, and its preceding positional and named
 handwritten `HPyFunc_KEYWORDS` stages both pass. This proves that the generic
 keyword signature and a valid `kwnames`/`HPy_Length` path are not sufficient to
-reproduce the fault. Before filing, reduce the generated module to the smallest
-wrapper/module-exec combination that still fails so the report is routed to
-the correct aHPy, HPy, or PyPy tracker. Do not describe the passing handwritten
+reproduce the fault. The artifact now adds `keyword_identity.pyx`, whose only
+function returns its single argument, and runs import, positional-call, and
+named-call stages before Fibonacci. All three new stages pass locally on
+CPython 3.11/HPy 0.9. Before filing, retain their hosted PyPy result so the
+report is routed to the correct aHPy, HPy, or PyPy tracker. Do not describe the passing handwritten
 methods or the passing Fibonacci import as the reproducer.

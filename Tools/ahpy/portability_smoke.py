@@ -25,6 +25,9 @@ STAGES = (
     "minimal-keywords-named",
     "import-constants",
     "constants-semantics",
+    "import-keyword-identity",
+    "keyword-identity-positional",
+    "keyword-identity-named",
     "import-fibonacci",
     "fibonacci-semantics",
     "import-types",
@@ -128,6 +131,21 @@ def run_stage(stage, artifact_dir):
 
         assert module.VALUE == 47
         assert module.NAME == "sabit"
+        return
+    if stage == "import-keyword-identity":
+        import keyword_identity  # noqa: F401
+        return
+    if stage == "keyword-identity-positional":
+        import keyword_identity as module
+
+        marker = object()
+        assert module.identity(marker) is marker
+        return
+    if stage == "keyword-identity-named":
+        import keyword_identity as module
+
+        marker = object()
+        assert module.identity(value=marker) is marker
         return
     if stage == "import-fibonacci":
         import fibonacci  # noqa: F401

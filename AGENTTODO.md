@@ -207,8 +207,9 @@ Last verified local gates:
   --check` pass.
 - The build-once portability artifact now contains the frontend-independent
   handwritten `ahpy_minimal` no-argument and keyword-signature oracles,
-  followed by constant-only, single-function, heap-type and large
-  function-corpus rungs. All twelve isolated stages
+  followed by constant-only, minimal generated keyword-identity,
+  single-function, heap-type and large function-corpus rungs. All fifteen
+  isolated stages
   pass locally on CPython 3.11/HPy 0.9. Hosted run `34030366000` proved the
   handwritten and constant-only oracles plus Fibonacci import on PyPy before
   signal 11 at `fibonacci-semantics`; GraalPy again failed native discovery at
@@ -399,8 +400,9 @@ is closed by calibration run `34029830808` and candidate run `34030366000`;
 the exact artifact hashes are retained in the M9 hosted audit. Security run
 `34030365881` passed Dependency Review and Python/C++ CodeQL. Hosted run
 `34266960354` now proves both handwritten keyword-call forms pass before the
-generated Fibonacci wrapper reproduces the native fault. Continue by reducing
-that generated wrapper/module-exec boundary, reconciling Dependabot's stale
+generated Fibonacci wrapper reproduces the native fault. A one-function
+generated keyword-identity reducer is locally green in positional and named
+forms. Continue by retaining its hosted PyPy classification, reconciling Dependabot's stale
 alerts only with explicit authorization, and preparing independently
 reviewable upstream reports; do not publish an
 external issue or PR without owner authorization. PRD-5 remains externally open only for

@@ -606,8 +606,11 @@ gizleyemez.
         `34266960354`, handwritten positional ve named `HPyFunc_KEYWORDS`
         aşamalarını geçirip generated `fibonacci-semantics` aşamasında aynı
         65-frame `SIGSEGV` izini doğrular.
-  - [ ] Kalan generated-only wrapper/module-exec sınırını minimal artifact ile
-        ayır; ardından açık owner onayıyla doğru upstream tracker'a taşı.
+  - [x] Tek `identity(value)` fonksiyonlu generated reducer'ı import,
+        positional ve named aşamalara ayır; altı binary/15 aşamalı artifact'i
+        CPython 3.11/HPy 0.9 üzerinde tamamen geçir.
+  - [ ] Reducer'ın hosted PyPy sınıflandırmasını byte-identical sakla; sonucuna
+        göre sınırı küçült ve açık owner onayıyla doğru upstream tracker'a taşı.
 - [x] Cython upstream rebase log'unu ve conflict kararlarını güncel tut.
   - [x] Kabul edilen `86b94cef` tabanındaki astral-Unicode ve C++ template
         function-to-pointer decay regresyonlarını bağımsız testlerle onar;
@@ -685,8 +688,9 @@ yeniden çalıştırmayla schema-v2 native backtrace alanı üretir. Run
 `34266960354`, job `102206601623`, 65-frame `SIGSEGV` trace'ini byte-identical
 saklamıştır; frame zero `pypy_g_HPy_Length`'dir. Handwritten keyword-signature
 oracle'ı hosted PyPy üzerinde positional ve named çağrıları geçirirken yalnız
-generated Fibonacci çağrısı çöker; bir sonraki kapı generated wrapper/module-exec
-sınırını küçültmek ve ancak owner onayıyla doğru tracker'a taşımaktır.
+generated Fibonacci çağrısı çöker. Tek fonksiyonlu generated keyword-identity
+reducer'ı yerelde positional/named çağrıları geçer; bir sonraki kapı hosted
+sonucu saklamak ve ancak owner onayıyla doğru tracker'a taşımaktır.
 `release_contract.py` machine-readable preview sözleşmesinin exact şemasını;
 dağıtım/Cython/HPy/Python pinlerini; altı platform, yedi frontend ve hosted run
 kimliklerini; workflow ile kullanıcı belgesindeki karşılıklarını fail-closed

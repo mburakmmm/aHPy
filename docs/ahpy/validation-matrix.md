@@ -214,14 +214,15 @@ warnings with unconditional evidence upload.
 ## Same-binary interpreter gate
 
 The builder job uses CPython 3.11 and HPy 0.9 exactly once. It builds a
-handwritten public-HPy oracle before generating constant-only, single-function,
-pure-extension-type and large module-function corpora, audits all five binaries,
+handwritten public-HPy oracle before generating constant-only, minimal
+keyword-identity, single-function, pure-extension-type and large module-function
+corpora, audits all six binaries,
 copies each `.hpy0`
 file and Python loader unchanged, and records SHA-256 plus size metadata. PyPy
 7.3.23 (Python 3.11.15 compatible) and GraalPy
 25.1.3 (Python 3.12 compatible) download that one artifact rather than
 rebuilding it. The smoke driver verifies every manifest digest before running
-twelve isolated stages ordered from handwritten no-argument and
+fifteen isolated stages ordered from handwritten no-argument and
 keyword-signature oracles through progressively
 larger generated surfaces. A signal or nonzero exit therefore identifies the
 exact failing stage and whether the fault exists without generated aHPy code.
@@ -245,7 +246,8 @@ bounded output in schema-v2 JSON. The retained PyPy report records
 `pypy_g_HPy_Length` at frame zero. Because positional and named calls through
 the preceding handwritten `HPyFunc_KEYWORDS` method both pass, the remaining
 fault is generated-module-specific; a smaller generated wrapper/module-exec
-reproducer is required before selecting an upstream tracker.
+reproducer now passes locally in positional and named forms and requires a
+hosted PyPy result before selecting an upstream tracker.
 The smoke driver writes `portability-result-<target>.json` even when manifest
 verification, a normal exit, or a signal terminates the gate. Each report
 contains the complete verified file list, manifest SHA-256, loader/provenance,

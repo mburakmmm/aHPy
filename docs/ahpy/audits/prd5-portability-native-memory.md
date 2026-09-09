@@ -61,8 +61,9 @@ allowed-failure CI signals. Their red results cannot broaden or weaken the
 required CPython support claim.
 
 The diagnostic revision keeps that handwritten oracle first, then adds
-generated constant-only and single-function modules before the heap-type and
-large function corpora. All twelve stages pass locally on CPython 3.11.15/HPy
+generated constant-only, minimal keyword-identity, and single-function modules
+before the heap-type and large function corpora. All fifteen stages pass
+locally on CPython 3.11.15/HPy
 0.9.0. The hosted result now narrows PyPy to execution of the generated
 Fibonacci function after its import succeeds. Prepared PyPy and GraalPy report
 drafts live beside this audit. Run `34266960354`, job `102206601623`, exercised
@@ -70,8 +71,9 @@ the bounded collector and retained a 65-frame `SIGSEGV` trace whose top frame
 is PyPy's `pypy_g_HPy_Length`. The preceding positional and named calls to a
 handwritten `HPyFunc_KEYWORDS` method both pass, separating the generic bridge
 signature from the remaining generated-only failure. A smaller generated
-wrapper/module-exec reduction and owner authorization are still required before
-external publication.
+wrapper/module-exec reducer now passes locally in positional and named forms;
+its hosted PyPy classification and owner authorization are still required
+before external publication.
 The cross-interpreter workflow now persists a schema-versioned JSON result with
 the verified manifest/file hashes, target and loader provenance, ordered stage
 stdout/stderr, and exact exit-or-signal classification under `if: always()`.

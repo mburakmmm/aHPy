@@ -136,6 +136,9 @@ class PortabilitySmokeTest(unittest.TestCase):
         constants.VALUE = 47
         constants.NAME = "sabit"
 
+        keyword_identity = ModuleType("keyword_identity")
+        keyword_identity.identity = lambda value: value
+
         fibonacci = ModuleType("fibonacci")
         fibonacci.fib = lambda n: 0 if n == 0 else 55
 
@@ -176,6 +179,7 @@ class PortabilitySmokeTest(unittest.TestCase):
                 {
                     "ahpy_minimal": minimal,
                     "constants_only": constants,
+                    "keyword_identity": keyword_identity,
                     "fibonacci": fibonacci,
                     "bootstrap_answer": answer,
                     "bootstrap_types": types,

@@ -8,7 +8,7 @@ action reproducible but cannot create its URL.
 | ID | Target | Current evidence | Upstream state | aHPy status |
 | --- | --- | --- | --- | --- |
 | `HPY-PY314-NEW` | `hpyproject/hpy` | Handwritten GC heap type and generated closure both fault in `HPy_New` on CPython 3.14.6 + HPy `b57a33c…`; CPython 3.11 + HPy 0.9 passes normal/Trace/Debug | General Python 3.13/3.14 tracking: [HPy #488](https://github.com/hpyproject/hpy/issues/488); exact crash report prepared, not filed | blocked early warning; not aHPy-generated-code proof |
-| `HPY-PYPY-BRIDGE` | PyPy bundled HPy bridge / generated module boundary | Hosted job `102206601623` passes handwritten positional and named `HPyFunc_KEYWORDS` calls plus generated constant-only oracles and Fibonacci import, then captures 65 native frames after signal 11 in isolated `fibonacci-semantics`; top frame is `pypy_g_HPy_Length` | Guarded report in `audits/prd5-pypy-bridge-upstream-report.md`; smaller generated wrapper/module-exec reduction and filing authorization pending | unsupported early warning |
+| `HPY-PYPY-BRIDGE` | PyPy bundled HPy bridge / generated module boundary | Hosted job `102206601623` passes handwritten positional and named `HPyFunc_KEYWORDS` calls plus generated constant-only oracles and Fibonacci import, then captures 65 native frames after signal 11 in isolated `fibonacci-semantics`; top frame is `pypy_g_HPy_Length` | Guarded report in `audits/prd5-pypy-bridge-upstream-report.md`; one-function generated reducer is locally green, hosted classification and filing authorization pending | unsupported early warning |
 | `HPY-GRAALPY-LOADER` | GraalPy HPy/import integration | GraalPy 25.1.3 exposes neither `hpy.universal` nor a native `.hpy0` suffix; hosted job `101478712970` fails to discover the unchanged handwritten binary | Complete hosted evidence in `audits/prd5-graalpy-loader-upstream-report.md`; owner filing authorization pending | unsupported early warning |
 | `HPY-PY315-BUILD` | HPy 0.9 / CPython 3.15 | HPy build fails under `-Werror` on `_POSIX_C_SOURCE` redefinition before aHPy executes; manual job `88897432348` retains environment evidence | Moving nightly signal; no issue filed | unsupported early warning |
 | `HPY-BUFFER-CONSUMER` | public HPy API | No selected public buffer acquire/release consumer contract for typed memoryviews and bytes-buffer wrappers in HPy 0.9 | API/design gap; no project-specific issue URL | blocked source surface |
@@ -34,8 +34,9 @@ filing guards. Run `34266960354` proved the handwritten no-argument and
 failure to signal 11 while executing the small generated Fibonacci function,
 and retained a bounded 65-frame native trace rooted at PyPy's `HPy_Length`
 implementation. Because both handwritten positional/no-keyword and named-call
-stages pass, reduce the generated wrapper/module-exec boundary further before
-filing so the issue is routed to the correct tracker.
+stages pass, the artifact now places a one-function generated keyword-identity
+reducer before Fibonacci. Retain its hosted classification before filing so
+the issue is routed to the correct tracker.
 Run `34030366000` reconfirmed GraalPy's loader gap with an unchanged handwritten
 binary and complete suffix/loader evidence. Do not publish either report
 without explicit owner authorization.
