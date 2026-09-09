@@ -849,11 +849,11 @@ class QualityGateTest(unittest.TestCase):
             {target["status"] for target in targets.values()},
             {"allowed-failure-early-warning"},
         )
-        self.assertEqual(targets["PyPy"]["evidence_run"], 34266960354)
-        self.assertEqual(targets["PyPy"]["evidence_job"], 102206601623)
+        self.assertEqual(targets["PyPy"]["evidence_run"], 34331675408)
+        self.assertEqual(targets["PyPy"]["evidence_job"], 102401673045)
         self.assertEqual(
             targets["PyPy"]["evidence_head"],
-            "d28565fe2e6bbe3406c99ac7ac0e21d4b45d368e",
+            "50b91bcf8406cd6b57c67288017a217a7ba51fc1",
         )
         self.assertEqual(targets["GraalPy"]["evidence_run"], 34030366000)
         self.assertEqual(targets["GraalPy"]["evidence_job"], 101478712970)
@@ -861,6 +861,10 @@ class QualityGateTest(unittest.TestCase):
             targets["PyPy"]["minimal_hosted_confirmation"], "passed")
         self.assertEqual(
             targets["PyPy"]["keyword_call_hosted_confirmation"], "passed")
+        self.assertEqual(
+            targets["PyPy"]["generated_keyword_identity_hosted_confirmation"],
+            "passed",
+        )
         self.assertEqual(
             targets["GraalPy"]["minimal_hosted_confirmation"],
             "loader-unavailable",
@@ -873,10 +877,18 @@ class QualityGateTest(unittest.TestCase):
             targets["GraalPy"]["minimal_binary_sha256"],
             "fd4be0297fcc40c74941d8db59d443be722b9985b070b6668428dd5376f498b5",
         )
-        self.assertEqual(targets["PyPy"]["build_artifact_id"], 10073132279)
+        self.assertEqual(targets["PyPy"]["build_artifact_id"], 10096025574)
         self.assertEqual(
             targets["PyPy"]["build_archive_sha256"],
-            "d38067dddca7ad2452dc3e39fc8b57c68706ce5d0ee6eb35e0101efc566cf118",
+            "73d5da1b22cf4a2a5c3c5f008d81478c2ea549029b14e290cc31014d18d812a0",
+        )
+        self.assertEqual(
+            targets["PyPy"]["artifact_manifest_sha256"],
+            "ac9478851210d9f51681ad6d8b90e2e218cfe6f7c2553b545700c620e6a5d15c",
+        )
+        self.assertEqual(
+            targets["PyPy"]["keyword_identity_binary_sha256"],
+            "7ff8240627eeaddbf2cf30cef9fecbebab685b6766bab84a15109ea51fca6fd2",
         )
         self.assertEqual(
             targets["PyPy"]["fibonacci_binary_sha256"],
@@ -884,9 +896,9 @@ class QualityGateTest(unittest.TestCase):
         )
         expected_evidence = {
             "PyPy": (
-                10073364591,
-                "e107d1578e8e21456bf2b654d5c34090ec887f7ff54d248749721a67c8265525",
-                "414e69311af6d184140456694f4e5d6484de639d6aea60de6d1bfda16f3d00d5",
+                10096048079,
+                "93b27aac0ec0322167a93a42bca3908fc39415980be0a145708689bc40f4c3a7",
+                "fbf6322f64109316c83f3f65daaf1cbf01651eaeac126779fd74e8f42c27fef1",
             ),
             "GraalPy": (
                 9988411879,
@@ -927,6 +939,10 @@ class QualityGateTest(unittest.TestCase):
                     stages["minimal-keywords-positional"]["status"], "passed")
                 self.assertEqual(
                     stages["minimal-keywords-named"]["status"], "passed")
+                self.assertEqual(
+                    stages["keyword-identity-positional"]["status"], "passed")
+                self.assertEqual(
+                    stages["keyword-identity-named"]["status"], "passed")
                 self.assertEqual(stages["fibonacci-semantics"]["signal"], 11)
         workflow = (ROOT / ".github" / "workflows" /
                     "ahpy-universal.yml").read_text(encoding="utf8")

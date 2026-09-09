@@ -1211,7 +1211,7 @@ until its full existing Cython test subset and new HPy-specific tests pass.
     - [x] Add an explicit, bounded native-backtrace collector that runs only
           after signal termination and cannot suppress the primary JSON report.
     - [x] Retain a hosted PyPy report with a captured native signal and frames;
-          run `34266960354` records `SIGSEGV`, 65 frames, and
+          run `34331675408` records `SIGSEGV`, 65 frames, and
           `pypy_g_HPy_Length` at frame zero.
     - [x] Add positional/no-keyword and named-call `HPyFunc_KEYWORDS` stages to
           a handwritten oracle; both pass CPython 3.11/HPy 0.9 locally.
@@ -1221,8 +1221,12 @@ until its full existing Cython test subset and new HPy-specific tests pass.
     - [x] Add a one-function generated keyword-identity reducer and isolate its
           import, positional-call, and named-call stages; all fifteen artifact
           stages pass CPython 3.11/HPy 0.9 locally.
-    - [ ] Retain the reducer's hosted PyPy classification, then narrow the
-          remaining boundary before publishing to the owner-approved tracker.
+    - [x] Retain the reducer's hosted PyPy classification: run `34331675408`,
+          job `102401673045`, passes import and both call forms before the
+          Fibonacci stage reproduces the native fault.
+    - [ ] Isolate the second Fibonacci `HPy_Length` on the `range` result with
+          a handwritten public-HPy oracle before publishing to the
+          owner-approved tracker.
     - [ ] Record the first green hosted execution on both interpreters and
           remove `continue-on-error` before claiming cross-interpreter support.
 - [x] Add the HPy 0.9 release lane and a full-commit-pinned HPy development

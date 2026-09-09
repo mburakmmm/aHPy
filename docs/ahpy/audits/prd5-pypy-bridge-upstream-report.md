@@ -4,9 +4,10 @@ Status: hosted failure reduced to the generated Fibonacci semantics rung while
 the handwritten no-argument, positional `HPyFunc_KEYWORDS`, named
 `HPyFunc_KEYWORDS`, and constant-only oracles pass. A bounded hosted native
 backtrace reaches PyPy's `pypy_g_HPy_Length`. The generic keyword-call bridge
-boundary is now excluded. A one-function generated reducer passes locally;
-its hosted classification and owner filing authorization remain required
-before choosing the upstream tracker.
+boundary is now excluded, and a one-function generated keyword reducer also
+passes both call forms on hosted PyPy. An isolated public-HPy `range`/`HPy_Length`
+oracle and owner filing authorization remain required before choosing the
+upstream tracker.
 
 Target issue tracker: `https://github.com/pypy/pypy/issues`
 
@@ -20,8 +21,8 @@ Target issue tracker: `https://github.com/pypy/pypy/issues`
 - Target: `pypy3.11-v7.3.23` from `actions/setup-python`.
 - Artifact: unchanged `.hpy0.so` plus HPy's generated `hpy.universal` loader
   stub; no rebuild occurs under PyPy.
-- Current evidence: GitHub Actions run `34266960354`, job `102206601623`,
-  exact source head `d28565fe2e6bbe3406c99ac7ac0e21d4b45d368e`.
+- Current evidence: GitHub Actions run `34331675408`, job `102401673045`,
+  exact source head `50b91bcf8406cd6b57c67288017a217a7ba51fc1`.
 
 ## Minimal source
 
@@ -67,17 +68,18 @@ return `42`, `None`, and `[1, 2]`; `keyword_count(42)` and
 
 ## Current actual result
 
-Run `34266960354`, job `102206601623`, uploaded report artifact
-`10073364591`. Its GitHub archive digest is
-`e107d1578e8e21456bf2b654d5c34090ec887f7ff54d248749721a67c8265525`
+Run `34331675408`, job `102401673045`, uploaded report artifact
+`10096048079`. Its GitHub archive digest is
+`93b27aac0ec0322167a93a42bca3908fc39415980be0a145708689bc40f4c3a7`
 and the retained JSON SHA-256 is
-`414e69311af6d184140456694f4e5d6484de639d6aea60de6d1bfda16f3d00d5`.
+`fbf6322f64109316c83f3f65daaf1cbf01651eaeac126779fd74e8f42c27fef1`.
 The byte-identical JSON is retained at
-[`evidence/portability-34266960354/portability-result-PyPy-7.3.23.json`](evidence/portability-34266960354/portability-result-PyPy-7.3.23.json).
+[`evidence/portability-34331675408/portability-result-PyPy-7.3.23.json`](evidence/portability-34331675408/portability-result-PyPy-7.3.23.json).
 The artifact's handwritten `ahpy_minimal.hpy0.so` has SHA-256
 `50f645206e8e728b99a022e195154018b9fd3537075d7a99598e68033ace1bdc`.
 PyPy passed handwritten import/semantics, both handwritten keyword-call stages,
-generated constant-only import/semantics, and generated Fibonacci import. The isolated
+generated constant-only import/semantics, the generated keyword-identity import
+and both call forms, and generated Fibonacci import. The isolated
 `fibonacci-semantics` stage then terminated with signal 11 through the
 `python-stub` HPy loader. This excludes module discovery, generic handwritten
 `HPyFunc_KEYWORDS` dispatch for positional and named calls, `HPy_Length` on a
@@ -88,10 +90,12 @@ The schema-v2 report then reran that exact stage under GDB 15.1 and captured
 `SIGSEGV` with 65 frames. Its first four native frames are
 `pypy_g_HPy_Length`, `pypy_g_ctx_HPy_Length__star_2`, the artifact's
 `HPy_Length`, and `__pyx_hpy_def_0_fib_impl`. The same-run build artifact
-`10073132279` (archive digest
-`d38067dddca7ad2452dc3e39fc8b57c68706ce5d0ee6eb35e0101efc566cf118`)
+`10096025574` (archive digest
+`73d5da1b22cf4a2a5c3c5f008d81478c2ea549029b14e290cc31014d18d812a0`)
 retains the unchanged Fibonacci binary
 `575cd832c38e6edd495f66ea69231a1f95b36f19d053b823fb47bad34c6656f8`.
+The minimal generated keyword binary is
+`7ff8240627eeaddbf2cf30cef9fecbebab685b6766bab84a15109ea51fca6fd2`.
 
 ## Filing guard
 
@@ -100,14 +104,15 @@ empty stderr, and signal classification. The PyPy workflow now provisions
 `gdb` conditionally and asks the smoke driver to rerun only a signal-failing
 stage under a 120-second, non-interactive debugger bound. The schema-v2 report
 retains the debugger version, detected signal, frame count, bounded output and
-failure status without replacing the primary stage failure. Run `34266960354`
+failure status without replacing the primary stage failure. Run `34331675408`
 now retains a hosted `native_backtrace.status == "captured"` result for the
 small `fibonacci-semantics` crash, and its preceding positional and named
 handwritten `HPyFunc_KEYWORDS` stages both pass. This proves that the generic
 keyword signature and a valid `kwnames`/`HPy_Length` path are not sufficient to
-reproduce the fault. The artifact now adds `keyword_identity.pyx`, whose only
-function returns its single argument, and runs import, positional-call, and
-named-call stages before Fibonacci. All three new stages pass locally on
-CPython 3.11/HPy 0.9. Before filing, retain their hosted PyPy result so the
-report is routed to the correct aHPy, HPy, or PyPy tracker. Do not describe the passing handwritten
+reproduce the fault. The artifact's `keyword_identity.pyx` only returns its
+single argument; its import, positional-call, and named-call stages all pass on
+hosted PyPy. Generated Fibonacci contains another `HPy_Length` for the object
+returned by `range(n)`, so the next frontend-independent oracle must call
+`range` and measure that result before the report is routed to the correct
+aHPy, HPy, or PyPy tracker. Do not describe the passing handwritten
 methods or the passing Fibonacci import as the reproducer.

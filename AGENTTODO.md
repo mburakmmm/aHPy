@@ -215,10 +215,11 @@ Last verified local gates:
   signal 11 at `fibonacci-semantics`; GraalPy again failed native discovery at
   `import-minimal`. The PyPy lane now conditionally provisions `gdb` and the
   schema-v2 smoke report captures a bounded native backtrace only after signal
-  termination. Run `34266960354`, job `102206601623`, retained `SIGSEGV` with
+  termination. Run `34331675408`, job `102401673045`, retained `SIGSEGV` with
   65 frames and `pypy_g_HPy_Length` at frame zero after both handwritten
   positional/no-keyword and named `HPyFunc_KEYWORDS` stages passed. Reduce the
-  remaining generated wrapper/module-exec boundary before filing. The smoke
+  generated keyword-identity calls also pass; isolate `HPy_Length` on the
+  Fibonacci `range` result in handwritten public HPy before filing. The smoke
   writes verified hashes, provenance, ordered stdout/stderr and exit/signal
   classification to JSON even on failure; CI uploads it with `if: always()`.
 - Clean release artifact: the warning-free, self-contained
@@ -399,10 +400,10 @@ Current item: **PRD-9 upstream, security, and sustainable maintenance**. PRD-7
 is closed by calibration run `34029830808` and candidate run `34030366000`;
 the exact artifact hashes are retained in the M9 hosted audit. Security run
 `34030365881` passed Dependency Review and Python/C++ CodeQL. Hosted run
-`34266960354` now proves both handwritten keyword-call forms pass before the
-generated Fibonacci wrapper reproduces the native fault. A one-function
-generated keyword-identity reducer is locally green in positional and named
-forms. Continue by retaining its hosted PyPy classification, reconciling Dependabot's stale
+`34331675408` now proves both handwritten and one-function generated keyword
+call forms pass before the generated Fibonacci path reproduces the native
+fault. Continue by isolating `HPy_Length` on its `range` result with handwritten
+public HPy, reconciling Dependabot's stale
 alerts only with explicit authorization, and preparing independently
 reviewable upstream reports; do not publish an
 external issue or PR without owner authorization. PRD-5 remains externally open only for
@@ -944,7 +945,7 @@ implementation.
    native/import/runtime/ownership boundary, and `upstream-dependencies.md`
    distinguishes hosted evidence, handwritten reproductions, prepared reports,
    filed links, and unsupported/blocked status. The PyPy signal path now has a
-   bounded schema-v2 native-backtrace collector; hosted run `34266960354`
+   bounded schema-v2 native-backtrace collector; hosted run `34331675408`
    captured `SIGSEGV` with 65 frames rooted at `pypy_g_HPy_Length` after both
    handwritten keyword-call stages passed.
    Do not publish the prepared HPy crash report or new PyPy/GraalPy reports

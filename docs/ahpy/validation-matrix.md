@@ -230,10 +230,11 @@ Interpreters exposing `hpy.universal` use the unchanged Python stubs; native
 HPy interpreters receive a temporary directory containing only byte-identical
 `.hpy0` binaries so a CPython loader stub cannot shadow their native importer.
 Their exact setup identifiers and evidence job IDs live in
-`tests/ahpy/interpreters.toml`. Run `34266960354` supplies the current
-handwritten-first hosted PyPy classification: job `102206601623` passes
+`tests/ahpy/interpreters.toml`. Run `34331675408` supplies the current
+handwritten-first hosted PyPy classification: job `102401673045` passes
 handwritten import/semantics, handwritten positional and named
-`HPyFunc_KEYWORDS` calls, constant-only import/semantics, and Fibonacci import
+`HPyFunc_KEYWORDS` calls, constant-only import/semantics, generated
+keyword-identity positional and named calls, and Fibonacci import
 before signal 11 at `fibonacci-semantics`; run `34030366000` GraalPy job `101478712970`
 exposes neither `hpy.universal` nor a native `.hpy0` import suffix and fails
 with `ModuleNotFoundError` at `import-minimal`. Both remain allowed-failure
@@ -245,9 +246,10 @@ bounded output in schema-v2 JSON. The retained PyPy report records
 `native_backtrace.status = captured`, `SIGSEGV`, 65 frames, and
 `pypy_g_HPy_Length` at frame zero. Because positional and named calls through
 the preceding handwritten `HPyFunc_KEYWORDS` method both pass, the remaining
-fault is generated-module-specific; a smaller generated wrapper/module-exec
-reproducer now passes locally in positional and named forms and requires a
-hosted PyPy result before selecting an upstream tracker.
+fault is specific to the larger Fibonacci execution path rather than generic
+generated keyword dispatch. The next isolated oracle must distinguish its
+second `HPy_Length` call on a `range` object from aHPy lifetime/caching code
+before selecting an upstream tracker.
 The smoke driver writes `portability-result-<target>.json` even when manifest
 verification, a normal exit, or a signal terminates the gate. Each report
 contains the complete verified file list, manifest SHA-256, loader/provenance,
