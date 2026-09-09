@@ -208,7 +208,7 @@ Last verified local gates:
 - The build-once portability artifact now contains the frontend-independent
   handwritten `ahpy_minimal` no-argument and keyword-signature oracles,
   followed by constant-only, minimal generated keyword-identity,
-  single-function, heap-type and large function-corpus rungs. All fifteen
+  single-function, heap-type and large function-corpus rungs. All sixteen
   isolated stages
   pass locally on CPython 3.11/HPy 0.9. Hosted run `34030366000` proved the
   handwritten and constant-only oracles plus Fibonacci import on PyPy before
@@ -218,8 +218,9 @@ Last verified local gates:
   termination. Run `34331675408`, job `102401673045`, retained `SIGSEGV` with
   65 frames and `pypy_g_HPy_Length` at frame zero after both handwritten
   positional/no-keyword and named `HPyFunc_KEYWORDS` stages passed. Reduce the
-  generated keyword-identity calls also pass; isolate `HPy_Length` on the
-  Fibonacci `range` result in handwritten public HPy before filing. The smoke
+  generated keyword-identity calls also pass. A handwritten `range_length`
+  oracle now isolates the Fibonacci import/call/`HPy_Length` chain locally;
+  retain its hosted PyPy classification before filing. The smoke
   writes verified hashes, provenance, ordered stdout/stderr and exit/signal
   classification to JSON even on failure; CI uploads it with `if: always()`.
 - Clean release artifact: the warning-free, self-contained
@@ -402,8 +403,9 @@ the exact artifact hashes are retained in the M9 hosted audit. Security run
 `34030365881` passed Dependency Review and Python/C++ CodeQL. Hosted run
 `34331675408` now proves both handwritten and one-function generated keyword
 call forms pass before the generated Fibonacci path reproduces the native
-fault. Continue by isolating `HPy_Length` on its `range` result with handwritten
-public HPy, reconciling Dependabot's stale
+fault. A handwritten `range_length` oracle passes locally in normal and Debug
+modes. Continue by retaining its hosted PyPy classification, reconciling
+Dependabot's stale
 alerts only with explicit authorization, and preparing independently
 reviewable upstream reports; do not publish an
 external issue or PR without owner authorization. PRD-5 remains externally open only for

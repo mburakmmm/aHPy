@@ -612,9 +612,11 @@ gizleyemez.
   - [x] Reducer'ın hosted PyPy sınıflandırmasını byte-identical sakla; run
         `34331675408`, generated identity positional/named çağrılarını geçirip
         yalnız Fibonacci yürütmesinde aynı 65-frame `SIGSEGV` izini üretir.
-  - [ ] Handwritten public-HPy oracle ile `range` sonucu üzerindeki ikinci
-        `HPy_Length` çağrısını ayır; sonuca göre açık owner onayıyla doğru
-        upstream tracker'a taşı.
+  - [x] Handwritten public-HPy `range_length` oracle'ı ile builtin `range`
+        import/call ve sonuç üzerindeki `HPy_Length` zincirini ayır; normal,
+        Debug ve altı binary/16 aşamalı yerel artifact'i tamamen geçir.
+  - [ ] `minimal-range-length` hosted PyPy sınıflandırmasını byte-identical
+        sakla; sonuca göre açık owner onayıyla doğru upstream tracker'a taşı.
 - [x] Cython upstream rebase log'unu ve conflict kararlarını güncel tut.
   - [x] Kabul edilen `86b94cef` tabanındaki astral-Unicode ve C++ template
         function-to-pointer decay regresyonlarını bağımsız testlerle onar;
@@ -694,8 +696,9 @@ saklamıştır; frame zero `pypy_g_HPy_Length`'dir. Handwritten keyword-signatur
 oracle'ı hosted PyPy üzerinde positional ve named çağrıları geçirirken yalnız
 generated Fibonacci çağrısı çöker. Tek fonksiyonlu generated keyword-identity
 reducer'ı hosted positional/named çağrıları da geçer; bir sonraki kapı
-Fibonacci'deki `range` sonucu/ikinci `HPy_Length` sınırını handwritten oracle
-ile ayırmak ve ancak owner onayıyla doğru tracker'a taşımaktır.
+Fibonacci'deki `range` sonucu/ikinci `HPy_Length` sınırını ayıran handwritten
+oracle normal ve Debug modlarında yerelde geçer; bir sonraki kapı hosted
+sonucu saklamak ve ancak owner onayıyla doğru tracker'a taşımaktır.
 `release_contract.py` machine-readable preview sözleşmesinin exact şemasını;
 dağıtım/Cython/HPy/Python pinlerini; altı platform, yedi frontend ve hosted run
 kimliklerini; workflow ile kullanıcı belgesindeki karşılıklarını fail-closed

@@ -222,8 +222,8 @@ file and Python loader unchanged, and records SHA-256 plus size metadata. PyPy
 7.3.23 (Python 3.11.15 compatible) and GraalPy
 25.1.3 (Python 3.12 compatible) download that one artifact rather than
 rebuilding it. The smoke driver verifies every manifest digest before running
-fifteen isolated stages ordered from handwritten no-argument and
-keyword-signature oracles through progressively
+sixteen isolated stages ordered from handwritten no-argument, keyword-signature,
+and `range`/`HPy_Length` oracles through progressively
 larger generated surfaces. A signal or nonzero exit therefore identifies the
 exact failing stage and whether the fault exists without generated aHPy code.
 Interpreters exposing `hpy.universal` use the unchanged Python stubs; native
@@ -248,8 +248,9 @@ bounded output in schema-v2 JSON. The retained PyPy report records
 the preceding handwritten `HPyFunc_KEYWORDS` method both pass, the remaining
 fault is specific to the larger Fibonacci execution path rather than generic
 generated keyword dispatch. The next isolated oracle must distinguish its
-second `HPy_Length` call on a `range` object from aHPy lifetime/caching code
-before selecting an upstream tracker.
+second `HPy_Length` call on a `range` object from aHPy lifetime/caching code.
+That handwritten oracle is locally green and awaits hosted PyPy classification
+before an upstream tracker is selected.
 The smoke driver writes `portability-result-<target>.json` even when manifest
 verification, a normal exit, or a signal terminates the gate. Each report
 contains the complete verified file list, manifest SHA-256, loader/provenance,

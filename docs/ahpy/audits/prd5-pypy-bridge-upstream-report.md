@@ -5,9 +5,9 @@ the handwritten no-argument, positional `HPyFunc_KEYWORDS`, named
 `HPyFunc_KEYWORDS`, and constant-only oracles pass. A bounded hosted native
 backtrace reaches PyPy's `pypy_g_HPy_Length`. The generic keyword-call bridge
 boundary is now excluded, and a one-function generated keyword reducer also
-passes both call forms on hosted PyPy. An isolated public-HPy `range`/`HPy_Length`
-oracle and owner filing authorization remain required before choosing the
-upstream tracker.
+passes both call forms on hosted PyPy. An isolated public-HPy
+`range`/`HPy_Length` oracle passes locally; its hosted result and owner filing
+authorization remain required before choosing the upstream tracker.
 
 Target issue tracker: `https://github.com/pypy/pypy/issues`
 
@@ -27,14 +27,14 @@ Target issue tracker: `https://github.com/pypy/pypy/issues`
 ## Minimal source
 
 `tests/ahpy/minimal_universal.c` is handwritten public HPy and has no Cython or
-aHPy-generated code. It defines four small methods using `HPyLong_FromLong`,
+aHPy-generated code. It defines five small methods using `HPyLong_FromLong`,
 `HPy_Dup`, `HPyListBuilder`, and an `HPyFunc_KEYWORDS` method that calls
 `HPy_Length` only for non-null keyword names. `Tools/ahpy/build_portability_artifact.py`
 builds it together with the larger diagnostic corpus and records every file's
 size and SHA-256. `Tools/ahpy/portability_smoke.py` rehashes the downloaded
 artifact and runs the handwritten module first, in isolated `import-minimal`,
 `minimal-semantics`, `minimal-keywords-positional`, and
-`minimal-keywords-named` subprocesses.
+`minimal-keywords-named`, and `minimal-range-length` subprocesses.
 
 ## Reproduction
 
@@ -64,7 +64,8 @@ signal, so a bridge crash cannot be confused with an assertion failure.
 The Universal module imports; `answer()`, `return_none()`, and `make_pair()`
 return `42`, `None`, and `[1, 2]`; `keyword_count(42)` and
 `keyword_count(value=42)` return `0` and `1`; and `fibonacci.fib(10)` returns
-`55`.
+`55`. The new `range_length(0)` and `range_length(3)` oracle calls return `0`
+and `3`.
 
 ## Current actual result
 
@@ -112,7 +113,8 @@ keyword signature and a valid `kwnames`/`HPy_Length` path are not sufficient to
 reproduce the fault. The artifact's `keyword_identity.pyx` only returns its
 single argument; its import, positional-call, and named-call stages all pass on
 hosted PyPy. Generated Fibonacci contains another `HPy_Length` for the object
-returned by `range(n)`, so the next frontend-independent oracle must call
-`range` and measure that result before the report is routed to the correct
-aHPy, HPy, or PyPy tracker. Do not describe the passing handwritten
+returned by `range(n)`. The new frontend-independent `range_length` method
+performs that exact import/call/length chain and passes locally in normal and
+Debug modes. Retain its hosted PyPy result before routing the report to the
+correct aHPy, HPy, or PyPy tracker. Do not describe the passing handwritten
 methods or the passing Fibonacci import as the reproducer.

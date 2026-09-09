@@ -62,7 +62,7 @@ required CPython support claim.
 
 The diagnostic revision keeps that handwritten oracle first, then adds
 generated constant-only, minimal keyword-identity, and single-function modules
-before the heap-type and large function corpora. All fifteen stages pass
+before the heap-type and large function corpora. All sixteen stages pass
 locally on CPython 3.11.15/HPy
 0.9.0. The hosted result now narrows PyPy to execution of the generated
 Fibonacci function after its import succeeds. Prepared PyPy and GraalPy report
@@ -73,7 +73,8 @@ handwritten `HPyFunc_KEYWORDS` method both pass, separating the generic bridge
 signature from the remaining generated-only failure. A smaller generated
 one-function generated keyword-identity reducer also passes on hosted PyPy in
 positional and named forms. This excludes generic generated keyword dispatch;
-an isolated handwritten `range`/`HPy_Length` oracle and owner authorization are
+an isolated handwritten `range`/`HPy_Length` oracle is now locally green in
+normal and Debug modes. Its hosted classification and owner authorization are
 still required before external publication.
 The cross-interpreter workflow now persists a schema-versioned JSON result with
 the verified manifest/file hashes, target and loader provenance, ordered stage

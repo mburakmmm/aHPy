@@ -1224,9 +1224,11 @@ until its full existing Cython test subset and new HPy-specific tests pass.
     - [x] Retain the reducer's hosted PyPy classification: run `34331675408`,
           job `102401673045`, passes import and both call forms before the
           Fibonacci stage reproduces the native fault.
-    - [ ] Isolate the second Fibonacci `HPy_Length` on the `range` result with
-          a handwritten public-HPy oracle before publishing to the
-          owner-approved tracker.
+    - [x] Isolate the second Fibonacci `HPy_Length` with a handwritten
+          public-HPy `range_length` oracle; normal, Debug, and all sixteen local
+          portability stages pass on CPython 3.11/HPy 0.9.
+    - [ ] Retain the `minimal-range-length` hosted PyPy classification before
+          publishing to the owner-approved tracker.
     - [ ] Record the first green hosted execution on both interpreters and
           remove `continue-on-error` before claiming cross-interpreter support.
 - [x] Add the HPy 0.9 release lane and a full-commit-pinned HPy development

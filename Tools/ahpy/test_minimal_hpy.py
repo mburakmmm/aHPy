@@ -36,6 +36,8 @@ def verify_source_boundary():
         "HPyDef_METH",
         "HPyFunc_KEYWORDS",
         "HPy_Length",
+        "HPyImport_ImportModule",
+        "HPy_Call",
     )
     missing = [name for name in required if name not in source]
     if missing:
@@ -66,7 +68,9 @@ def build_and_run(python):
             "assert ahpy_minimal.return_none() is None; "
             "assert ahpy_minimal.make_pair() == [1, 2]; "
             "assert ahpy_minimal.keyword_count(42) == 0; "
-            "assert ahpy_minimal.keyword_count(value=42) == 1"
+            "assert ahpy_minimal.keyword_count(value=42) == 1; "
+            "assert ahpy_minimal.range_length(0) == 0; "
+            "assert ahpy_minimal.range_length(3) == 3"
         )
         env = os.environ.copy()
         env["PYTHONPATH"] = str(build_lib)
@@ -81,6 +85,8 @@ def build_and_run(python):
             "assert ahpy_minimal.make_pair() == [1, 2]; "
             "assert ahpy_minimal.keyword_count(42) == 0; "
             "assert ahpy_minimal.keyword_count(value=42) == 1; "
+            "assert ahpy_minimal.range_length(0) == 0; "
+            "assert ahpy_minimal.range_length(3) == 3; "
             "detector.stop()"
         )
         run([python, "-c", debug_check], cwd=temp, env=env)

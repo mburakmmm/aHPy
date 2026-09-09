@@ -31,7 +31,7 @@ The repairs keep the test strength:
 3. macOS forces one native architecture and uses a temporary
    ASan-linked `Py_BytesMain` launcher. A preload probe rejects the lane unless
    the compiler-selected runtime is already loaded before extension import;
-4. portability smoke revalidates the manifest and now runs fifteen isolated stages,
+4. portability smoke revalidates the manifest and now runs sixteen isolated stages,
    beginning with a handwritten public-HPy import and semantic oracle, then
    constant-only, minimal generated keyword-identity, single-function,
    heap-type, and large function corpora.
