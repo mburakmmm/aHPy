@@ -40,3 +40,20 @@ byte-check it from the repository root with:
 This intermediate descriptor is not a complete NOX package manifest: package
 identity, producer/source/options provenance, target artifacts, and hashes are
 bound by the later package-composition stage.
+
+The current v1 composer can reproduce the full retained manifest after export
+analysis and artifact integrity checks:
+
+```console
+.venv-hpy09/bin/python Tools/ahpy/nox_package_manifest.py \
+    tests/ahpy/nox_export_source.pyx \
+    --module-name example.exports \
+    --package-name example_exports --package-version 0.1.0 \
+    --source-root . \
+    --artifact macos-aarch64 artifacts/macos-aarch64/exports.hpy0 \
+      tests/ahpy/nox-artifact-fixture.hpy0 \
+    --output tests/ahpy/nox-hpy-manifest-v1.json --check
+```
+
+`nox-artifact-fixture.hpy0` is deterministic integrity-test data, not a
+loadable extension and not consumer conformance evidence.

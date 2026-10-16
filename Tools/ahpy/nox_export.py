@@ -15,6 +15,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from Cython.Compiler import Main, Options  # noqa: E402
+from Cython.Compiler.NoxExport import PROTOCOL as NOX_EXPORT_PROTOCOL  # noqa: E402
 from Cython.Compiler.RuntimeAPI import HPY_UNIVERSAL_BACKEND  # noqa: E402
 
 

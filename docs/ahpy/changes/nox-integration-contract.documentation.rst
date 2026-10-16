@@ -12,3 +12,7 @@ the initial callable/type/ownership/capability surface from analysed Cython AST
 and symbol data, reproduce a retained fixture byte-for-byte, and fail closed
 with source-positioned ``AHPY_NOX00x`` diagnostics instead of scraping C or
 silently dropping unsupported public members.
+Compose the compiler descriptor into canonical manifest v1 with deterministic
+source and compiler-option digests, exact aHPy/Cython/host identity, safe target
+paths, artifact sizes, and SHA-256 integrity; CI now regenerates the retained
+fixture while continuing to label its payload as non-loadable contract data.

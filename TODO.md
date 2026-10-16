@@ -1517,7 +1517,7 @@ close a checkbox in that file.
       HPy init symbol, functions, methods, constructors, properties, argument
       kinds, result kinds, ownership, required host capabilities, and declared
       platform artifacts.
-- [ ] Bind the manifest to the exact aHPy version, Cython base, source inputs,
+- [x] Bind the manifest to the exact aHPy version, Cython base, source inputs,
       compiler options, HPy ABI/profile, target triple, and artifact hashes.
 - [x] Define deterministic ordering, UTF-8 normalization, duplicate-name
       handling, numeric bounds, and canonical serialization.

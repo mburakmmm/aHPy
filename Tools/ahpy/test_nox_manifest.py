@@ -30,7 +30,7 @@ class NoxManifestTest(unittest.TestCase):
         self.assertEqual(
             rendered, nox_manifest.DEFAULT_MANIFEST.read_bytes())
         self.assertTrue(rendered.endswith(b"\n"))
-        self.assertIn("example.demo", rendered.decode("utf8"))
+        self.assertIn("example.exports", rendered.decode("utf8"))
         self.assertEqual(
             nox_manifest.validate_manifest(
                 copy.deepcopy(self.manifest), policy=self.policy),

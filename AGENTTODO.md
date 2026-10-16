@@ -1005,10 +1005,23 @@ types, never generated C; it emits a canonical intermediate descriptor through
 filters explicitly private names, and rejects unsupported types, defaults,
 variadics, duplicate/non-ASCII identities, ambiguous constructors, properties,
 and public fields with source-positioned `AHPY_NOX00x` diagnostics. Universal
-CI reproduces its fixture byte-for-byte. The next open item is composing that
-descriptor with package identity, producer/source/options provenance, exact
-targets, and built artifact hashes into the validated full manifest; do not
-mistake the intermediate descriptor or contract fixture for consumer support.
+CI reproduces its fixture byte-for-byte. It feeds the composer described below;
+do not mistake the intermediate descriptor or contract fixture for consumer
+support.
+
+That v1 composition slice is now implemented by
+`Tools/ahpy/nox_package_manifest.py`: it runs compiler analysis, hashes sorted
+root-relative source bytes and the exact fixed compiler-option contract, binds
+the aHPy version/Cython base and host profile, hashes non-empty target artifacts,
+validates the assembled object with `nox_manifest.py`, and emits/checks canonical
+JSON only after every input passes. The repository fixture is now generated
+from the compiler source and a clearly labelled non-loadable contract artifact,
+and CI retains both intermediate and full-manifest evidence. The remaining
+manifest-surface item is property representation: schema v1 has no property
+kind, so the analyser currently rejects properties/public fields rather than
+silently dropping them. Resolve that versioned schema decision before facade
+generation claims property support; the fixture remains contract evidence, not
+consumer execution evidence.
 
 Work in this dependency order:
 

@@ -888,8 +888,10 @@ host mismatch, invalid package/module/init identity, missing/unknown
 capabilities, blocked or capability-gated types/calls, duplicate parameters or
 exports, ownership violations, unsafe paths, duplicate/wrong targets, invalid
 sizes, and malformed digests. The checked-in canonical fixture is reproduced
-byte-for-byte and retained by Universal CI. It is contract evidence only; it
-is not yet compiler-generated and does not promote NOX support.
+byte-for-byte and retained by Universal CI. The fixture is now composed from
+compiler-owned export analysis plus deterministic source/options/artifact
+evidence. Its checked-in `.hpy0` payload is explicitly non-loadable contract
+data, so this does not promote NOX support.
 
 `Cython.Compiler.NoxExport` is the compiler-owned front half of that boundary.
 When `nox_export_analysis` is explicitly selected, the Universal backend reads
@@ -904,6 +906,17 @@ diagnostic IDs for defaults, variadics, unsupported native/container types,
 non-ASCII identities, ambiguous constructors, properties, and public fields.
 This descriptor still lacks package/artifact provenance and is therefore not a
 complete `nox-hpy` manifest or consumer-support claim.
+
+`Tools/ahpy/nox_package_manifest.py` supplies the full v1 composition gate. It
+hashes sorted root-relative source paths and bytes with a domain-separated
+SHA-256 stream, hashes the fixed Universal compiler-option JSON, imports the
+exact aHPy version and Cython base commit, and records each target's safe package
+path, positive byte size, and content hash. Missing/out-of-root/duplicate source
+inputs, empty/missing/unsafe artifacts, mismatched compiler descriptors, stale
+canonical output, and any final schema violation fail before publication. CI
+recomposes the repository fixture byte-for-byte and retains the same generated
+manifest. Property metadata remains deliberately fail-closed because contract
+v1 has no property export kind.
 
 ## Maintenance and compatibility contract
 

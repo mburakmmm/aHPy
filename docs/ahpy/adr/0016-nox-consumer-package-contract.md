@@ -86,9 +86,12 @@ change silently.
 Canonical serialization, name normalization, duplicate handling, and the first
 source-positioned compiler-owned export-analysis pass are implemented in M12.
 The pass emits a versioned intermediate descriptor and fails closed where
-manifest v1 cannot preserve source semantics. Full manifest composition,
-artifact/provenance binding, facade generation, and consumer support remain
-implementation work; the schema alone is not a support claim.
+manifest v1 cannot preserve source semantics. The v1 composer binds that
+descriptor to package identity, aHPy/Cython producer identity, deterministic
+source/compiler-option digests, exact target records, artifact sizes, and
+artifact hashes before revalidating canonical output. Property representation,
+facade generation, package assembly, and consumer support remain implementation
+work; a generated contract fixture is not a loadable support claim.
 
 ### Compatibility and change control
 
