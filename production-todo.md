@@ -779,12 +779,12 @@ açık kalır.
 
 ### PRD-11.0 — Kapsamı ve iki depo arasındaki sözleşmeyi dondur
 
-- [ ] Tek yönü `aHPy paketi -> NOX tüketicisi` olarak ADR'de sabitle.
-- [ ] aHPy ve NOX sorumluluklarını, minimum host profilini, HPy ABI'ını ve
+- [x] Tek yönü `aHPy paketi -> NOX tüketicisi` olarak ADR'de sabitle.
+- [x] aHPy ve NOX sorumluluklarını, minimum host profilini, HPy ABI'ını ve
       schema-version müzakeresini makine-okunur politikada tanımla.
-- [ ] Desteklenen tip/signature matrisini ve her reddin diagnostic kimliğini
+- [x] Desteklenen tip/signature matrisini ve her reddin diagnostic kimliğini
       sabitle.
-- [ ] QBE pozitif probunu ve mevcut LLVM type-width arızasını exact-version
+- [x] QBE pozitif probunu ve mevcut LLVM type-width arızasını exact-version
       baseline kanıtı olarak kaydet; destek ilanı yapma.
 
 ### PRD-11.1 — Export metadata ve fail-closed doğrulama

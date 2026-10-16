@@ -1493,20 +1493,20 @@ close a checkbox in that file.
 
 ### Contract and ownership boundary
 
-- [ ] Write an ADR that freezes the one-way direction as
+- [x] Write an ADR that freezes the one-way direction as
       `aHPy Universal HPy package -> NOX consumer` and explicitly excludes
       loading NOX modules from Python.
-- [ ] Define the aHPy/NOX responsibility split: aHPy emits and validates
+- [x] Define the aHPy/NOX responsibility split: aHPy emits and validates
       artifacts, metadata, and facade source; NOX owns package resolution,
       dynamic loading, host ABI, runtime lifetime safety, and native backends.
-- [ ] Define a versioned `nox-hpy` package schema with compatibility and
+- [x] Define a versioned `nox-hpy` package schema with compatibility and
       deprecation rules independent of either repository's release version.
-- [ ] Pin the minimum NOX HPy host profile and HPy Universal ABI expected by
+- [x] Pin the minimum NOX HPy host profile and HPy Universal ABI expected by
       each schema version; never infer compatibility from a filename alone.
-- [ ] Add a machine-readable integration policy containing allowed targets,
+- [x] Add a machine-readable integration policy containing allowed targets,
       artifact kinds, type mappings, required capabilities, and rejection
       reasons.
-- [ ] Record the current QBE success and LLVM width/type failure as baseline
+- [x] Record the current QBE success and LLVM width/type failure as baseline
       evidence without representing either as a released support claim.
 
 ### Deterministic export metadata

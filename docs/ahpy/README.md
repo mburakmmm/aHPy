@@ -75,6 +75,8 @@ Design and implementation references:
 - [M9 ABI performance baseline](audits/m9-abi-performance-baseline.md)
 - [Release performance budget calibration](performance-release-gate.md)
 - [Architecture decisions](adr/)
+- [One-way NOX consumer package contract](adr/0016-nox-consumer-package-contract.md)
+- [M12 NOX integration baseline](audits/m12-nox-integration-baseline.md)
 - [Audits](audits/)
 
 ## Implemented scope

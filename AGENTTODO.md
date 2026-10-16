@@ -7,6 +7,13 @@ agent must keep all three synchronized when implementation status changes.
 
 ## 1. Snapshot and source of truth
 
+- M12.0 contract slice (2026-10-16): ADR 0016, the strict schema-1
+  `nox-integration-policy.toml`, closed `nox-hpy-package.schema.json`, baseline
+  audit, support/validation wording, rejection IDs, validator, unit tests, and
+  Universal CI artifact wiring freeze the one-way aHPy-to-NOX boundary. The
+  policy keeps every target planned, minimum NOX release `unreleased`, and
+  support blocked. Continue with deterministic compiler-owned export analysis;
+  do not implement the NOX-owner queue or treat the local QBE probe as support.
 - PRD-8 evidence reconciliation (2026-09-05): hosted run `31794650087`,
   artifact `9216896185`, and all four pilot JSON reports were revalidated.
   `docs/ahpy/compatibility-dashboard.md` reproduces the hosted artifact byte
@@ -979,6 +986,12 @@ Universal HPy package that NOX may consume. NOX-to-Python is out of scope. The
 separate `NOX-INTEGRATION-TODO.md` is not an authorization to edit the NOX
 repository.
 
+M12.0 is complete: the accepted ADR, versioned closed manifest schema,
+machine-readable policy, stable rejection identifiers, baseline audit,
+fail-closed validator/tests, and CI evidence output are synchronized. Start at
+step 2; reopening step 1 requires a contract-version decision and matching
+schema, policy, documentation, and migration updates.
+
 Work in this dependency order:
 
 1. Freeze the contract before writing a generator.
@@ -1034,6 +1047,7 @@ set before marking a task complete. Use the exact selected interpreter path.
 ```console
 python3 Tools/ahpy/build_diagnostic_catalog.py --check \
     docs/ahpy/audits/diagnostics-catalog.json
+python3 Tools/ahpy/nox_integration_policy.py --json
 python3 -m compileall -q Cython Tools/ahpy
 python3 -c 'import pathlib,yaml; yaml.safe_load(pathlib.Path(".github/workflows/ahpy-universal.yml").read_text())'
 git diff --check

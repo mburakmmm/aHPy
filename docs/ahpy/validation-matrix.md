@@ -860,6 +860,27 @@ immutable sdist and wheel before starting the second build. This preserves the
 byte-for-byte comparison contract while preventing two complete copied
 source/build trees from becoming the gate's peak disk requirement.
 
+## NOX consumer integration contract
+
+`Tools/ahpy/nox_integration_policy.py` validates the planning-only schema-1
+contract for the one-way aHPy Universal HPy package to NOX consumer path. It
+pins `nox-hpy-host-v1`, HPy 0.9 Universal, initial value/call classifications,
+eight stable rejection IDs, exact-target `.hpy0` records, package-relative
+paths, SHA-256 integrity, canonical JSON, provenance, and the repository
+ownership split. It also validates the closed JSON Schema and rejects reverse
+direction, fallback, partial output, NOX source mutation, a released support
+claim, or target/schema drift. Universal CI retains its JSON result with the
+packaging evidence.
+
+The 2026-10-16 baseline is intentionally insufficient for support: a local
+installed NOX v2.0.9 QBE probe executed the narrow function/external-C/type
+surface, while LLVM failed on the recorded `i64`/`i32` HPy error-width
+mismatch; the analyzed repository was v2.0.16 at commit
+`6a33eaa50bf5ce29505dc1e75695fd27ec9505e4`, and no complete artifact hash
+bundle was retained. The policy therefore keeps every target planned, the
+minimum NOX release `unreleased`, consumer support blocked, and hosted evidence
+false. ADR 0016 and `audits/m12-nox-integration-baseline.md` are authoritative.
+
 ## Maintenance and compatibility contract
 
 `Tools/ahpy/maintenance_policy.py` validates the exact supported-line and EOL
