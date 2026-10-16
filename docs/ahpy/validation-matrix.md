@@ -860,6 +860,78 @@ immutable sdist and wheel before starting the second build. This preserves the
 byte-for-byte comparison contract while preventing two complete copied
 source/build trees from becoming the gate's peak disk requirement.
 
+## NOX consumer integration contract
+
+`Tools/ahpy/nox_integration_policy.py` validates the planning-only schema-1
+contract for the one-way aHPy Universal HPy package to NOX consumer path. It
+pins `nox-hpy-host-v1`, HPy 0.9 Universal, initial value/call classifications,
+eight stable rejection IDs, exact-target `.hpy0` records, package-relative
+paths, SHA-256 integrity, canonical JSON, provenance, and the repository
+ownership split. It also validates the closed JSON Schema and rejects reverse
+direction, fallback, partial output, NOX source mutation, a released support
+claim, or target/schema drift. Universal CI retains its JSON result with the
+packaging evidence.
+
+The 2026-10-16 baseline is intentionally insufficient for support: a local
+installed NOX v2.0.9 QBE probe executed the narrow function/external-C/type
+surface, while LLVM failed on the recorded `i64`/`i32` HPy error-width
+mismatch; the analyzed repository was v2.0.16 at commit
+`6a33eaa50bf5ce29505dc1e75695fd27ec9505e4`, and no complete artifact hash
+bundle was retained. The policy therefore keeps every target planned, the
+minimum NOX release `unreleased`, consumer support blocked, and hosted evidence
+false. ADR 0016 and `audits/m12-nox-integration-baseline.md` are authoritative.
+
+`Tools/ahpy/nox_manifest.py` separately validates concrete v1 manifest
+instances and canonicalizes them as sorted-key, compact UTF-8 JSON with one
+terminal newline. The negative corpus covers unknown/missing fields, schema and
+host mismatch, invalid package/module/init identity, missing/unknown
+capabilities, blocked or capability-gated types/calls, duplicate parameters or
+exports, ownership violations, unsafe paths, duplicate/wrong targets, invalid
+sizes, and malformed digests. The checked-in canonical fixture is reproduced
+byte-for-byte and retained by Universal CI. The fixture is now composed from
+compiler-owned export analysis plus deterministic source/options/artifact
+evidence. Its checked-in `.hpy0` payload is explicitly non-loadable contract
+data, so this does not promote NOX support.
+
+`Cython.Compiler.NoxExport` is the compiler-owned front half of that boundary.
+When `nox_export_analysis` is explicitly selected, the Universal backend reads
+analysed function, argument, extension-type, and call-kind data and returns an
+`ahpy-nox-export-analysis-v1` descriptor; it never parses generated C. The
+`Tools/ahpy/nox_export.py` CLI compiles in an isolated temporary directory and
+atomically emits or byte-checks canonical JSON only after a successful pass.
+The retained fixture covers module functions, an extension constructor and
+method, positional-only calls, Unicode and opaque-object mappings, ownership,
+and capability derivation. Negative tests retain source positions and stable
+diagnostic IDs for defaults, variadics, unsupported native/container types,
+non-ASCII identities, ambiguous constructors, properties, and public fields.
+This descriptor still lacks package/artifact provenance and is therefore not a
+complete `nox-hpy` manifest or consumer-support claim.
+
+`Tools/ahpy/nox_package_manifest.py` supplies the full v1 composition gate. It
+hashes sorted root-relative source paths and bytes with a domain-separated
+SHA-256 stream, hashes the fixed Universal compiler-option JSON, imports the
+exact aHPy version and Cython base commit, and records each target's safe package
+path, positive byte size, and content hash. Missing/out-of-root/duplicate source
+inputs, empty/missing/unsafe artifacts, mismatched compiler descriptors, stale
+canonical output, and any final schema violation fail before publication. CI
+recomposes the repository fixture byte-for-byte and retains the same generated
+manifest. Property metadata remains deliberately fail-closed because contract
+v1 has no property export kind.
+
+`Tools/ahpy/nox_facade.py` validates the complete manifest again before
+generating deterministic UTF-8 `.nox` source. Its golden fixture covers module
+functions, an extension constructor and methods, `bool`/`int`/`float`/`str`/
+bytes named types, all host-v1 facade primitives currently exposed by
+`nox.hpy`, positional-only/positional-or-keyword/keyword-only dispatch
+metadata, explicit module/object context-manager cleanup, profile/ABI checks,
+and export-identified `HPyError` translation. The negative suite rejects NOX
+keywords, runtime/package/helper collisions, orphan methods, non-nominal
+opaque results, unsupported constructor/call shapes, invalid manifests, stale
+output, and every tested partial-output path. The golden source also passes a
+read-only `noxc check` against the locally analyzed NOX tree; because that tree
+is not a pinned released consumer artifact, this is syntax evidence only and
+does not change the blocked support state.
+
 ## Maintenance and compatibility contract
 
 `Tools/ahpy/maintenance_policy.py` validates the exact supported-line and EOL

@@ -7,6 +7,13 @@ agent must keep all three synchronized when implementation status changes.
 
 ## 1. Snapshot and source of truth
 
+- M12.0 contract slice (2026-10-16): ADR 0016, the strict schema-1
+  `nox-integration-policy.toml`, closed `nox-hpy-package.schema.json`, baseline
+  audit, support/validation wording, rejection IDs, validator, unit tests, and
+  Universal CI artifact wiring freeze the one-way aHPy-to-NOX boundary. The
+  policy keeps every target planned, minimum NOX release `unreleased`, and
+  support blocked. Continue with deterministic compiler-owned export analysis;
+  do not implement the NOX-owner queue or treat the local QBE probe as support.
 - PRD-8 evidence reconciliation (2026-09-05): hosted run `31794650087`,
   artifact `9216896185`, and all four pilot JSON reports were revalidated.
   `docs/ahpy/compatibility-dashboard.md` reproduces the hosted artifact byte
@@ -116,6 +123,11 @@ agent must keep all three synchronized when implementation status changes.
   **full M2–M11 roadmap** (options 1+3). Work the ordered queues below; never
   mark a HPy-0.9 API gap as supported; never claim hosted lanes without green
   hosted evidence.
+- User mandate (2026-10-16): add a one-way **aHPy package -> NOX consumer**
+  ecosystem lane. Implement only aHPy-owned schema, metadata, facade, package,
+  validation, and documentation work in this repository. Do not implement or
+  commit NOX source changes. Do not include NOX-to-Python interoperability.
+  NOX-owned work is planning-only in `NOX-INTEGRATION-TODO.md`.
 
 Read these before changing code:
 
@@ -129,6 +141,8 @@ Read these before changing code:
 8. `docs/ahpy/adr/` — architecture and release decisions.
 9. The milestone audit matching the code being changed in
    `docs/ahpy/audits/`.
+10. `NOX-INTEGRATION-TODO.md` — NOX-owner queue; read for dependency
+    boundaries, but never close or implement its items from an aHPy task.
 
 ## 2. Non-negotiable implementation rules
 
@@ -965,6 +979,113 @@ implementation.
    synchronized with that machine contract.
 9. Tag no stable release until every declared support-tier gate is green.
 
+## 8A. aHPy -> NOX package ecosystem queue
+
+This queue operationalizes M12/PRD-11. The direction is one-way: aHPy emits a
+Universal HPy package that NOX may consume. NOX-to-Python is out of scope. The
+separate `NOX-INTEGRATION-TODO.md` is not an authorization to edit the NOX
+repository.
+
+M12.0 is complete: the accepted ADR, versioned closed manifest schema,
+machine-readable policy, stable rejection identifiers, baseline audit,
+fail-closed validator/tests, and CI evidence output are synchronized. Start at
+step 2; reopening step 1 requires a contract-version decision and matching
+schema, policy, documentation, and migration updates.
+
+The first M12.1 foundation is also complete: `nox_manifest.py` validates the
+closed v1 instance shape and canonical UTF-8 JSON, exact host/module identity,
+sorted unique exports/artifacts/capabilities, call/type/ownership rules,
+package-relative `.hpy0` paths, sizes, SHA-256 digests, duplicate names and
+targets, optional capability gates, and schema drift. Its canonical fixture,
+negative corpus, CLI, CI artifact, and quality-tool line coverage are green.
+The compiler-owned export-analysis slice is now complete as well.
+`Cython.Compiler.NoxExport` consumes the analysed Universal-HPy AST and symbol
+types, never generated C; it emits a canonical intermediate descriptor through
+`nox_export.py`, preserves call kinds and ownership, derives capabilities,
+filters explicitly private names, and rejects unsupported types, defaults,
+variadics, duplicate/non-ASCII identities, ambiguous constructors, properties,
+and public fields with source-positioned `AHPY_NOX00x` diagnostics. Universal
+CI reproduces its fixture byte-for-byte. It feeds the composer described below;
+do not mistake the intermediate descriptor or contract fixture for consumer
+support.
+
+That v1 composition slice is now implemented by
+`Tools/ahpy/nox_package_manifest.py`: it runs compiler analysis, hashes sorted
+root-relative source bytes and the exact fixed compiler-option contract, binds
+the aHPy version/Cython base and host profile, hashes non-empty target artifacts,
+validates the assembled object with `nox_manifest.py`, and emits/checks canonical
+JSON only after every input passes. The repository fixture is now generated
+from the compiler source and a clearly labelled non-loadable contract artifact,
+and CI retains both intermediate and full-manifest evidence. The remaining
+manifest-surface item is property representation: schema v1 has no property
+kind, so the analyser currently rejects properties/public fields rather than
+silently dropping them. Resolve that versioned schema decision before facade
+generation claims property support; the fixture remains contract evidence, not
+consumer execution evidence.
+
+The first M12.2 facade slice is implemented by `Tools/ahpy/nox_facade.py`.
+It revalidates the closed manifest, maps only the concrete
+`nox-hpy-host-v1` primitives exposed through `nox.hpy`, emits named public NOX
+types with explicit module/object close and context-manager paths, records call
+kinds in deterministic source, and retains export identity while rethrowing
+`HPyError`. Keywords, generated helpers, package-name collisions, orphan
+methods, non-nominal opaque values, and unsupported call shapes fail before an
+output file is replaced. The golden manifest/source, negative corpus, CLI
+write/check paths, Universal CI artifact, and a read-only local `noxc check` are
+green. The focused gate now reports 570 quality-tool tests with backend
+9776/9776, frontend seam 18410/34802 (52.90%), and quality tools 10518/10518.
+Do not infer released consumer support from that syntax check. The next
+facade work is the still-open full scalar/object/call-kind rejection matrix and
+the schema-version decision for properties; package assembly follows it.
+
+Work in this dependency order:
+
+1. Freeze the contract before writing a generator.
+   - Add the direction/ownership ADR and machine-readable integration policy.
+   - Version the `nox-hpy` schema independently from repository releases.
+   - Freeze supported type/call mappings, host capabilities, platform triples,
+     ownership rules, and diagnostic identifiers.
+   - Preserve the current QBE success and LLVM type-width failure as baseline
+     evidence only; do not advertise consumer support.
+2. Implement deterministic export analysis and manifest validation.
+   - Read compiler-owned symbol/type data; never scrape generated C.
+   - Emit module/init identity, signatures, extension types, ownership,
+     capabilities, provenance, targets, and hashes in canonical order.
+   - Add source-position rejection for ambiguous or unsupported exports and a
+     negative schema/tamper corpus.
+3. Complete the typed `.nox` facade matrix.
+   - Keep raw pointers and bridge intrinsics private.
+   - Preserve call-kind, scalar/object mapping, error, and lifetime semantics.
+   - Fail generation when the selected NOX host profile cannot uphold the
+     required lifetime or conversion contract.
+   - Extend the green golden source and rejection fixtures to every declared
+     type/call shape; do not weaken current fail-closed behavior.
+4. Build the deterministic package assembler and public workflow.
+   - Assemble `nox.json`, the versioned manifest, facade, target `.hpy0`
+     artifacts, hashes, notices, provenance, and SBOM/attestation references.
+   - Provide analyze/build/assemble and mutation-free `--check` modes.
+   - Prove path, timestamp, locale, credential, and host-state independence.
+5. Add frontend-neutral consumer conformance evidence.
+   - Cover module/external-C functions, extension type construction, methods,
+     properties, identity, errors, module state, and cleanup.
+   - Pin exact NOX consumers and record backend/target/version/artifact hashes.
+   - Keep QBE and LLVM results separate; a red backend stays blocked.
+   - Add normal/Trace/Debug, relocation, read-only/offline, path-edge, repeated
+     load/unload, incompatible-schema, wrong-platform, missing, and tamper cases.
+6. Publish only what retained evidence proves.
+   - Add the package-author guide, clean example, troubleshooting, issue
+     template, support/validation matrix entries, audit, and changelog.
+   - Keep the profile planned/experimental until every declared consumer gate
+     is green from immutable artifacts.
+   - Never vendor a NOX runtime implementation or emulate a missing NOX
+     capability inside aHPy to close the milestone.
+
+An independently useful M12 slice must update `TODO.md`,
+`production-todo.md`, this handoff, the applicable ADR/policy/schema, tests,
+support/validation claims, audit evidence, and changelog together. It must not
+change `NOX-INTEGRATION-TODO.md` checkboxes unless the user is merely revising
+the NOX plan; NOX implementation evidence belongs to the NOX repository.
+
 ## 9. Validation commands
 
 Run the smallest relevant gate while iterating, then the complete applicable
@@ -973,6 +1094,7 @@ set before marking a task complete. Use the exact selected interpreter path.
 ```console
 python3 Tools/ahpy/build_diagnostic_catalog.py --check \
     docs/ahpy/audits/diagnostics-catalog.json
+python3 Tools/ahpy/nox_integration_policy.py --json
 python3 -m compileall -q Cython Tools/ahpy
 python3 -c 'import pathlib,yaml; yaml.safe_load(pathlib.Path(".github/workflows/ahpy-universal.yml").read_text())'
 git diff --check

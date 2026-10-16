@@ -809,6 +809,7 @@ default_options = dict(
     errors_to_stderr=1,
     cplus=0,
     runtime_backend="cpython",
+    nox_export_analysis=False,
     output_file=None,
     depfile=None,
     annotate=None,

@@ -434,3 +434,14 @@ including all five `.hpy0` binaries and their SHA-256 manifest. This is the
 Universal portability-artifact gate; future sdist/wheel archive reproducibility
 was split into the now-green frontend archive gate and the still-open future
 standardized Universal extension-wheel gate.
+
+`nox_export.py`, `nox_package_manifest.py`, and `nox_facade.py` form the
+aHPy-owned front of the one-way NOX package lane. They derive exports from
+compiler-owned type data, bind canonical schema-1 metadata to exact source,
+compiler, target, and artifact evidence, then generate a deterministic typed
+`.nox` facade over `nox.hpy`. The facade generator exposes no raw pointer or
+bridge intrinsic, supplies explicit module/object cleanup and export-identified
+error translation, and rejects unsupported host-v1 call shapes or naming
+collisions before replacing output. Its checked-in fixture is syntax/contract
+evidence only; it does not declare a compatible NOX release or implement any
+NOX repository task.

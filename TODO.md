@@ -1482,6 +1482,150 @@ these checkboxes do not claim complete upstream-library API support.
 - [ ] Define ongoing Cython, HPy, interpreter, compiler, and platform update
       cadence.
 
+## M12 - aHPy packages consumable by NOX
+
+Scope: produce versioned package metadata, typed NOX facade source, and
+verified Universal HPy artifacts from aHPy. This milestone does **not** include
+NOX-to-Python interoperability or any implementation change in the NOX
+repository. NOX-owned prerequisites and follow-up work are tracked separately
+in [`NOX-INTEGRATION-TODO.md`](NOX-INTEGRATION-TODO.md); an aHPy change must not
+close a checkbox in that file.
+
+### Contract and ownership boundary
+
+- [x] Write an ADR that freezes the one-way direction as
+      `aHPy Universal HPy package -> NOX consumer` and explicitly excludes
+      loading NOX modules from Python.
+- [x] Define the aHPy/NOX responsibility split: aHPy emits and validates
+      artifacts, metadata, and facade source; NOX owns package resolution,
+      dynamic loading, host ABI, runtime lifetime safety, and native backends.
+- [x] Define a versioned `nox-hpy` package schema with compatibility and
+      deprecation rules independent of either repository's release version.
+- [x] Pin the minimum NOX HPy host profile and HPy Universal ABI expected by
+      each schema version; never infer compatibility from a filename alone.
+- [x] Add a machine-readable integration policy containing allowed targets,
+      artifact kinds, type mappings, required capabilities, and rejection
+      reasons.
+- [x] Record the current QBE success and LLVM width/type failure as baseline
+      evidence without representing either as a released support claim.
+
+### Deterministic export metadata
+
+- [x] Add an aHPy export-analysis pass that derives the public package surface
+      from compiler-owned type/signature data rather than parsing generated C.
+- [ ] Emit a canonical manifest containing schema version, module identity,
+      HPy init symbol, functions, methods, constructors, properties, argument
+      kinds, result kinds, ownership, required host capabilities, and declared
+      platform artifacts.
+- [x] Bind the manifest to the exact aHPy version, Cython base, source inputs,
+      compiler options, HPy ABI/profile, target triple, and artifact hashes.
+- [x] Define deterministic ordering, UTF-8 normalization, duplicate-name
+      handling, numeric bounds, and canonical serialization.
+- [x] Reject overloads, callbacks, pointer types, unsupported containers,
+      ambiguous ownership, keyword layouts, and extension-type features that
+      the selected NOX host profile cannot express.
+- [x] Produce actionable source-position diagnostics for every unsupported or
+      ambiguous export; never emit a partial facade silently.
+- [x] Add a schema validator and negative corpus for unknown required fields,
+      incompatible versions, malformed symbols, duplicate exports, tampered
+      hashes, and unsupported signatures.
+
+### Typed NOX facade generation
+
+- [x] Generate deterministic `.nox` facade source from the validated manifest,
+      never from ad-hoc text templates over C declarations.
+- [ ] Map the initial supported profile explicitly: `None`/void, `bool`,
+      bounded signed integers, finite floats, Unicode strings, bytes if the NOX
+      host declares them, and opaque extension objects.
+- [ ] Preserve positional-only, positional-or-keyword, keyword-only, default,
+      and rejected-call distinctions instead of flattening call signatures.
+- [x] Keep raw pointers and low-level bridge calls inside a generated private
+      implementation boundary; exported facade APIs must use named NOX types.
+- [x] Encode module/object ownership and close requirements in the generated
+      facade contract without pretending a missing NOX lifetime primitive is
+      safe; fail generation when the selected host profile cannot uphold it.
+- [x] Generate stable error translation hooks that retain native error type,
+      message, and failing export identity.
+- [x] Reject name collisions with NOX keywords, runtime helpers, package names,
+      and platform-reserved paths using deterministic escaping or diagnostics.
+- [ ] Add golden tests for facade output and compile-time rejection tests for
+      every unsupported mapping.
+
+### Package assembly and command-line workflow
+
+- [ ] Define one public aHPy command/API that analyzes exports, builds selected
+      Universal artifacts, emits the manifest and facade, and validates the
+      complete package without handwritten file copying.
+- [ ] Assemble a deterministic package layout containing `nox.json`, the
+      versioned `nox-hpy` manifest, generated facade source, `.hpy0` artifacts,
+      checksums, licenses/notices, source provenance, and optional SBOM/
+      attestation references.
+- [ ] Support an explicit platform matrix and fail when a requested target has
+      no artifact; never select a host artifact by extension alone.
+- [ ] Define separate source-package and prebuilt-package modes, including what
+      may execute during a build and which toolchain identities enter the lock.
+- [ ] Make archive and directory output byte-reproducible under fixed inputs,
+      timestamps, locale, and path roots.
+- [ ] Prevent absolute build paths, credentials, temporary directories, and
+      untracked host state from entering output metadata.
+- [ ] Add `--check`/validation mode that performs no publish, install, or NOX
+      repository mutation.
+- [ ] Specify signing, checksum, provenance, and SBOM handoff without placing
+      publishing credentials in compiler or build hooks.
+
+### Cross-repository conformance and release evidence
+
+- [ ] Create an aHPy-owned, frontend-neutral conformance package that covers a
+      module function, external-C-backed function, extension type, constructor,
+      method, property/attribute access, identity, exception, module state, and
+      deterministic cleanup.
+- [ ] Keep the fixture free of NOX compiler internals; expose only manifest,
+      package bytes, expected values/errors, and a versioned result schema.
+- [ ] Pin exact released or immutable NOX binaries for consumer testing and
+      record NOX version, backend, target, aHPy commit, HPy profile, and every
+      artifact hash.
+- [ ] Exercise QBE and LLVM separately; keep the lane red/blocked when either
+      selected backend cannot satisfy the declared host profile.
+- [ ] Test normal, HPy Trace, and HPy Debug execution where the NOX host exposes
+      those modes, plus relocation, read-only install, paths with spaces/
+      Unicode, repeated load/unload, and offline package verification.
+- [ ] Add tamper, wrong-platform, missing-artifact, incompatible-schema,
+      unsupported-signature, and loader-error negative cases.
+- [ ] Retain cross-repository reports as immutable CI artifacts and prohibit
+      support claims based only on a developer-machine probe.
+- [ ] Keep consumer failures classified as aHPy defect, NOX defect, HPy gap,
+      packaging-contract defect, or unavailable evidence; never mask them with
+      fallback.
+
+### Documentation and adoption
+
+- [ ] Publish a package-author guide with supported mappings, rejected forms,
+      ownership rules, reproducible build steps, and troubleshooting boundaries.
+- [ ] Add a complete example package and verify it from a clean checkout using
+      only documented commands.
+- [ ] Add the NOX package profile to the aHPy support and validation matrices as
+      planned/experimental/supported according to retained evidence.
+- [ ] Document version negotiation, schema migration, artifact verification,
+      security reporting, and the exact boundary between the two repositories.
+- [ ] Add issue templates that request both repository commits, host profile,
+      backend, target, manifest, hashes, and a minimal reproducer.
+- [ ] Keep all user-facing text explicit that NOX-to-Python is out of scope.
+
+### M12 exit gate
+
+- [ ] aHPy can create a deterministic, self-describing NOX-consumable package
+      from a supported input through one documented command/API.
+- [ ] Unsupported exports fail at source positions before a partial package is
+      produced.
+- [ ] Package bytes, manifest, facade, provenance, and declared target artifacts
+      validate from a clean environment and reproduce under fixed inputs.
+- [ ] The pinned conformance package passes every backend/platform that aHPy
+      declares supported and retains normal/Trace/Debug ownership evidence.
+- [ ] NOX-side missing capabilities remain explicit external blockers and no
+      NOX repository code is implemented or vendored to close this milestone.
+- [ ] The support matrix, validation matrix, package-author guide, changelog,
+      `production-todo.md`, and `AGENTTODO.md` match the retained evidence.
+
 ## Universal ABI coverage completion track
 
 Authorized scope: maximize correct HPy 0.9 Universal coverage and complete the

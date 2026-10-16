@@ -62,6 +62,7 @@ Design and implementation references:
 - [Third-party compatibility dashboard](compatibility-dashboard.md)
 - [Library-author porting guide](porting-guide.md)
 - [Frontend-neutral HPy conformance corpus](conformance-corpus.md)
+- [NOX consumer integration roadmap](../../NOX-INTEGRATION-TODO.md)
 - [Universal diagnostics catalog](diagnostics.md)
 - [Setuptools/cythonize example](../../examples/ahpy_setuptools/README.md)
 - [Direct non-setuptools build contract](direct-build.md)
@@ -74,6 +75,8 @@ Design and implementation references:
 - [M9 ABI performance baseline](audits/m9-abi-performance-baseline.md)
 - [Release performance budget calibration](performance-release-gate.md)
 - [Architecture decisions](adr/)
+- [One-way NOX consumer package contract](adr/0016-nox-consumer-package-contract.md)
+- [M12 NOX integration baseline](audits/m12-nox-integration-baseline.md)
 - [Audits](audits/)
 
 ## Implemented scope
@@ -93,6 +96,15 @@ The project does not claim that arbitrary Cython code is automatically
 Universal-compatible. In particular, source code or dependencies that expose
 `PyObject *`, include `Python.h`, cimport `cpython.*`, or depend on a CPython-only
 third-party C API require a separate port or produce a compiler diagnostic.
+
+M12 now contains compiler-owned NOX export analysis, canonical package-manifest
+composition, and deterministic typed `.nox` facade generation. The facade uses
+only the versioned `nox.hpy` boundary, explicit close/context paths, and stable
+fail-closed diagnostics; unsupported host-v1 signatures produce no partial
+output. Property metadata, package assembly, and retained consumer execution
+evidence remain planned and none of this is a current support claim. The
+direction is aHPy Universal HPy package to NOX consumer only; NOX-to-Python and
+NOX repository implementation work are outside this project scope.
 
 ## Current generated-code tier
 

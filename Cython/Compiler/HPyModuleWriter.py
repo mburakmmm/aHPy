@@ -8289,8 +8289,17 @@ def emit_hpy_universal_module(module_node, options, result):
             "use a separately selected CPython backend",
         )
     module_node.assure_safe_target(result.c_file, allow_failed=True)
-    output = UniversalHPyModuleWriter(
-        module_node, module_node.scope.context.runtime_api).render()
+    module_writer = UniversalHPyModuleWriter(
+        module_node, module_node.scope.context.runtime_api)
+    nox_export_analysis = None
+    if options.nox_export_analysis:
+        from .NoxExport import analyze_hpy_exports
+        methods, _, extension_types, _ = module_node.hpy_bootstrap_contents(
+            module_writer)
+        nox_export_analysis = analyze_hpy_exports(
+            module_node, methods, extension_types)
+    output = module_writer.render()
+    result.nox_export_analysis = nox_export_analysis
     with open_new_file(result.c_file) as output_file:
         output_file.write(output)
     result.c_file_generated = 1

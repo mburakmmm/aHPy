@@ -25,6 +25,7 @@ if str(ROOT) not in sys.path:
 BACKEND_FILES = (
     "Cython/Compiler/HPyModuleWriter.py",
     "Cython/Compiler/HandleModel.py",
+    "Cython/Compiler/NoxExport.py",
     "Cython/Compiler/RuntimeAPI.py",
 )
 FRONTEND_FILES = (
