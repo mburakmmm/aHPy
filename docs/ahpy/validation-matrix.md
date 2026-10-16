@@ -891,6 +891,20 @@ sizes, and malformed digests. The checked-in canonical fixture is reproduced
 byte-for-byte and retained by Universal CI. It is contract evidence only; it
 is not yet compiler-generated and does not promote NOX support.
 
+`Cython.Compiler.NoxExport` is the compiler-owned front half of that boundary.
+When `nox_export_analysis` is explicitly selected, the Universal backend reads
+analysed function, argument, extension-type, and call-kind data and returns an
+`ahpy-nox-export-analysis-v1` descriptor; it never parses generated C. The
+`Tools/ahpy/nox_export.py` CLI compiles in an isolated temporary directory and
+atomically emits or byte-checks canonical JSON only after a successful pass.
+The retained fixture covers module functions, an extension constructor and
+method, positional-only calls, Unicode and opaque-object mappings, ownership,
+and capability derivation. Negative tests retain source positions and stable
+diagnostic IDs for defaults, variadics, unsupported native/container types,
+non-ASCII identities, ambiguous constructors, properties, and public fields.
+This descriptor still lacks package/artifact provenance and is therefore not a
+complete `nox-hpy` manifest or consumer-support claim.
+
 ## Maintenance and compatibility contract
 
 `Tools/ahpy/maintenance_policy.py` validates the exact supported-line and EOL

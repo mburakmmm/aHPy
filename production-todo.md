@@ -790,9 +790,9 @@ açık kalır.
 ### PRD-11.1 — Export metadata ve fail-closed doğrulama
 
 - [ ] Compiler type bilgisinden canonical `nox-hpy` manifest üret.
-- [ ] Modül/init sembolü, callable/type yüzeyi, ownership, capability, target,
+- [x] Modül/init sembolü, callable/type yüzeyi, ownership, capability, target,
       provenance ve artifact hash alanlarını zorunlu olarak doğrula.
-- [ ] Unsupported/ambiguous export, schema uyumsuzluğu, duplicate ve tamper
+- [x] Unsupported/ambiguous export, schema uyumsuzluğu, duplicate ve tamper
       vakalarını kaynak-konumlu veya paket-konumlu diagnostic ile reddet.
 - [x] Canonical serialization ve fixture'ları iki ardışık temiz üretimde byte
       eşitliğiyle doğrula.

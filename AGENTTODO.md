@@ -998,8 +998,17 @@ sorted unique exports/artifacts/capabilities, call/type/ownership rules,
 package-relative `.hpy0` paths, sizes, SHA-256 digests, duplicate names and
 targets, optional capability gates, and schema drift. Its canonical fixture,
 negative corpus, CLI, CI artifact, and quality-tool line coverage are green.
-The next open item remains compiler-owned export analysis; do not mistake the
-handwritten contract fixture for generated metadata.
+The compiler-owned export-analysis slice is now complete as well.
+`Cython.Compiler.NoxExport` consumes the analysed Universal-HPy AST and symbol
+types, never generated C; it emits a canonical intermediate descriptor through
+`nox_export.py`, preserves call kinds and ownership, derives capabilities,
+filters explicitly private names, and rejects unsupported types, defaults,
+variadics, duplicate/non-ASCII identities, ambiguous constructors, properties,
+and public fields with source-positioned `AHPY_NOX00x` diagnostics. Universal
+CI reproduces its fixture byte-for-byte. The next open item is composing that
+descriptor with package identity, producer/source/options provenance, exact
+targets, and built artifact hashes into the validated full manifest; do not
+mistake the intermediate descriptor or contract fixture for consumer support.
 
 Work in this dependency order:
 

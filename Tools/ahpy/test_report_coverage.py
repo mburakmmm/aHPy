@@ -189,7 +189,10 @@ class CoverageReportTest(unittest.TestCase):
             report = report_coverage.build_report(counts, [], root)
         areas = {area["name"]: area for area in report["areas"]}
         self.assertEqual(areas["backend"]["covered_lines"], 1)
-        self.assertEqual(areas["backend"]["executable_lines"], 3)
+        self.assertEqual(
+            areas["backend"]["executable_lines"],
+            len(report_coverage.BACKEND_FILES),
+        )
         self.assertEqual(
             areas["backend"]["files"][0]["missing_lines"], [])
         self.assertEqual(

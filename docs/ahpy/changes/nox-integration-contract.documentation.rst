@@ -7,3 +7,8 @@ Add a canonical manifest validator and negative corpus that fail closed on
 schema/host/signature/ownership drift, unsafe or duplicate target artifacts,
 and malformed integrity metadata; the checked-in fixture remains contract
 evidence rather than generated consumer support.
+Add an opt-in compiler-owned export-analysis pass and canonical CLI that derive
+the initial callable/type/ownership/capability surface from analysed Cython AST
+and symbol data, reproduce a retained fixture byte-for-byte, and fail closed
+with source-positioned ``AHPY_NOX00x`` diagnostics instead of scraping C or
+silently dropping unsupported public members.

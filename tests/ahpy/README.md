@@ -26,3 +26,17 @@ descriptor is `tests/ahpy-conformance.toml`, and
 against explicit import-name mappings from any language frontend. See
 `docs/ahpy/conformance-corpus.md`; no Cython source path is part of that
 protocol.
+
+The opt-in NOX export-analysis fixture proves that metadata comes from the
+analysed Cython tree and symbol types rather than generated C. Reproduce and
+byte-check it from the repository root with:
+
+```console
+.venv-hpy09/bin/python Tools/ahpy/nox_export.py \
+    tests/ahpy/nox_export_source.pyx --module-name example.exports \
+    --output tests/ahpy/nox-export-analysis-v1.json --check
+```
+
+This intermediate descriptor is not a complete NOX package manifest: package
+identity, producer/source/options provenance, target artifacts, and hashes are
+bound by the later package-composition stage.

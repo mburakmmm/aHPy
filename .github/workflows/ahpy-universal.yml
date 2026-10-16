@@ -60,6 +60,14 @@ jobs:
         run: >-
           python Tools/ahpy/nox_manifest.py --check-canonical
           --output packaging-results/nox-hpy-manifest-v1.json
+      - name: Validate compiler-owned NOX export analysis
+        run: |
+          python Tools/ahpy/nox_export.py tests/ahpy/nox_export_source.pyx \
+            --module-name example.exports \
+            --output tests/ahpy/nox-export-analysis-v1.json --check
+          python Tools/ahpy/nox_export.py tests/ahpy/nox_export_source.pyx \
+            --module-name example.exports \
+            --output packaging-results/nox-export-analysis-v1.json
       - name: Exercise release recovery and backport policy
         run: >-
           python Tools/ahpy/release_recovery_drill.py
@@ -151,6 +159,7 @@ jobs:
             packaging-results/documentation-contract.json
             packaging-results/maintenance-policy.json
             packaging-results/nox-hpy-manifest-v1.json
+            packaging-results/nox-export-analysis-v1.json
             packaging-results/nox-integration-policy.json
             packaging-results/release-recovery-drill.json
           if-no-files-found: error

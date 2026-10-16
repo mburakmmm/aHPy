@@ -617,6 +617,7 @@ class CompilationResult:
     extension_file = None
     main_source_file = None
     num_errors = 0
+    nox_export_analysis = None
 
     def get_generated_source_files(self):
         return [

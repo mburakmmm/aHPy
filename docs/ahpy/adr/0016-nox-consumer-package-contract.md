@@ -83,10 +83,12 @@ records use repository/package-relative `.hpy0` paths, a positive byte size,
 and a lowercase SHA-256 digest. Unknown fields are rejected so semantics cannot
 change silently.
 
-Canonical serialization, name normalization, duplicate handling, source
-positions, and the complete export-analysis algorithm remain implementation
-work in M12. The schema establishes their output boundary; it does not claim
-that a generator exists.
+Canonical serialization, name normalization, duplicate handling, and the first
+source-positioned compiler-owned export-analysis pass are implemented in M12.
+The pass emits a versioned intermediate descriptor and fails closed where
+manifest v1 cannot preserve source semantics. Full manifest composition,
+artifact/provenance binding, facade generation, and consumer support remain
+implementation work; the schema alone is not a support claim.
 
 ### Compatibility and change control
 

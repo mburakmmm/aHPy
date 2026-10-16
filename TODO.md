@@ -1511,7 +1511,7 @@ close a checkbox in that file.
 
 ### Deterministic export metadata
 
-- [ ] Add an aHPy export-analysis pass that derives the public package surface
+- [x] Add an aHPy export-analysis pass that derives the public package surface
       from compiler-owned type/signature data rather than parsing generated C.
 - [ ] Emit a canonical manifest containing schema version, module identity,
       HPy init symbol, functions, methods, constructors, properties, argument
@@ -1521,10 +1521,10 @@ close a checkbox in that file.
       compiler options, HPy ABI/profile, target triple, and artifact hashes.
 - [x] Define deterministic ordering, UTF-8 normalization, duplicate-name
       handling, numeric bounds, and canonical serialization.
-- [ ] Reject overloads, callbacks, pointer types, unsupported containers,
+- [x] Reject overloads, callbacks, pointer types, unsupported containers,
       ambiguous ownership, keyword layouts, and extension-type features that
       the selected NOX host profile cannot express.
-- [ ] Produce actionable source-position diagnostics for every unsupported or
+- [x] Produce actionable source-position diagnostics for every unsupported or
       ambiguous export; never emit a partial facade silently.
 - [x] Add a schema validator and negative corpus for unknown required fields,
       incompatible versions, malformed symbols, duplicate exports, tampered

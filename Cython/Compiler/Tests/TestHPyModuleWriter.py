@@ -23,6 +23,13 @@ from ..HPyModuleWriter import (
     _resolve_extension_field_storage_type,
     _supports_extension_field_storage,
 )
+from ..NoxExport import (
+    PROTOCOL as NOX_EXPORT_PROTOCOL,
+    _callable_export as nox_callable_export,
+    _parameter as nox_parameter,
+    _value_kind as nox_value_kind,
+    analyze_hpy_exports,
+)
 from ..RuntimeAPI import (
     HPY_UNIVERSAL_BACKEND,
     RuntimeContextConstant,
@@ -2943,6 +2950,201 @@ class UniversalHPyModuleWriterTest(TestCase):
                 self.assertEqual(result.num_errors, 1, diagnostics)
                 self.assertFalse(generated)
                 self.assertIn(expected, diagnostics)
+
+    def test_nox_export_analysis_uses_analysed_compiler_types(self):
+        result, generated, diagnostics = self.compile_source(
+            "def identity(value, /):\n"
+            "    return value\n\n"
+            "def text(str value, /):\n"
+            "    return value\n\n"
+            "def payload(bytes value, *, option):\n"
+            "    return value\n\n"
+            "def _private(value, /):\n"
+            "    return value\n\n"
+            "cdef class Box:\n"
+            "    cdef object value\n"
+            "    def __cinit__(self, value, /):\n"
+            "        self.value = value\n"
+            "    def identity(self, value, /):\n"
+            "        return value\n"
+            "    def _hidden(self):\n"
+            "        return self\n\n"
+            "cdef class Empty:\n"
+            "    def ping(self):\n"
+            "        return self\n\n"
+            "cdef class _PrivateType:\n"
+            "    def visible(self):\n"
+            "        return self\n",
+            module_name="example.exports",
+            nox_export_analysis=True,
+        )
+        self.assertEqual(result.num_errors, 0, diagnostics)
+        self.assertTrue(generated)
+        analysis = result.nox_export_analysis
+        self.assertEqual(analysis["protocol"], NOX_EXPORT_PROTOCOL)
+        self.assertEqual(analysis["module"], {
+            "name": "example.exports",
+            "init_symbol": "HPyInit_exports",
+        })
+        self.assertEqual(analysis["required_capabilities"], [
+            "bytes", "call-keywords", "call-positional", "error-take",
+            "extension-object", "module-close", "module-open", "object-close",
+        ])
+        self.assertEqual(
+            [(item["kind"], item["name"]) for item in analysis["exports"]],
+            [
+                ("constructor", "Box"),
+                ("constructor", "Empty"),
+                ("method", "Box.identity"),
+                ("method", "Empty.ping"),
+                ("module-function", "identity"),
+                ("module-function", "payload"),
+                ("module-function", "text"),
+            ],
+        )
+        exports = {item["name"]: item for item in analysis["exports"]}
+        self.assertEqual(exports["text"]["parameters"][0]["kind"], "unicode")
+        self.assertEqual(exports["payload"]["parameters"], [
+            {
+                "name": "value", "kind": "bytes",
+                "call_kind": "positional-or-keyword", "ownership": "value",
+            },
+            {
+                "name": "option", "kind": "opaque-object",
+                "call_kind": "keyword-only", "ownership": "borrowed",
+            },
+        ])
+        self.assertEqual(
+            exports["identity"]["result"],
+            {"kind": "opaque-object", "ownership": "owned"},
+        )
+
+    def test_nox_export_analysis_rejects_ambiguous_source_at_position(self):
+        cases = (
+            (
+                "def value(argument=1):\n    return argument\n",
+                "AHPY_NOX007.*default arguments",
+            ),
+            (
+                "def value(*arguments):\n    return arguments\n",
+                "AHPY_NOX007.*variadic exports",
+            ),
+            (
+                "def value(int argument, /):\n    return argument\n",
+                "AHPY_NOX008.*outside nox-hpy-host-v1",
+            ),
+            (
+                "def value(list argument, /):\n    return argument\n",
+                "AHPY_NOX008.*container types",
+            ),
+            (
+                "def değer():\n    return 1\n",
+                "AHPY_NOX005.*ASCII identifiers",
+            ),
+            (
+                "cdef class Box:\n"
+                "    def __cinit__(self):\n        pass\n"
+                "    def __init__(self):\n        pass\n",
+                "AHPY_NOX007.*both __cinit__ and __init__",
+            ),
+            (
+                "cdef class Değer:\n    pass\n",
+                "AHPY_NOX005.*type names",
+            ),
+            (
+                "cdef class Box:\n"
+                "    property value:\n"
+                "        def __get__(self):\n            return 1\n",
+                "AHPY_NOX007.*extension properties",
+            ),
+            (
+                "cdef class Box:\n    cdef public object value\n",
+                "AHPY_NOX007.*public fields",
+            ),
+        )
+        for source, message in cases:
+            with self.subTest(message=message):
+                result, generated, diagnostics = self.compile_source(
+                    source, nox_export_analysis=True)
+                self.assertEqual(result.num_errors, 1, diagnostics)
+                self.assertFalse(generated)
+                self.assertRegex(diagnostics, message)
+                self.assertIn("bootstrap_case.pyx:", diagnostics)
+
+    def test_nox_export_type_and_duplicate_guards_cover_closed_vocabulary(self):
+        node = SimpleNamespace(pos=None)
+        kinds = (
+            (PyrexTypes.c_bint_type, "bool"),
+            (PyrexTypes.c_longlong_type, "int64"),
+            (PyrexTypes.c_double_type, "float64"),
+            (PyrexTypes.c_void_type, "void"),
+            (PyrexTypes.py_object_type, "opaque-object"),
+        )
+        for value_type, expected in kinds:
+            with self.subTest(expected=expected):
+                self.assertEqual(nox_value_kind(value_type, node), expected)
+        rejected = (
+            PyrexTypes.memoryviewslice_type,
+            PyrexTypes.c_void_ptr_type,
+            PyrexTypes.CArrayType(PyrexTypes.c_int_type, 2),
+            PyrexTypes.CFuncType(PyrexTypes.c_void_type, []),
+            PyrexTypes.FusedType([PyrexTypes.c_int_type], name="number"),
+            PyrexTypes.c_int_type,
+        )
+        for value_type in rejected:
+            with self.subTest(value_type=value_type), self.assertRaisesRegex(
+                    CompileError, "AHPY_NOX008"):
+                nox_value_kind(value_type, node)
+
+        memoryview_type = SimpleNamespace(
+            is_memoryviewslice=True, is_buffer=False,
+            resolve=lambda: memoryview_type,
+        )
+        with self.assertRaisesRegex(CompileError, "memoryview/buffer"):
+            nox_value_kind(memoryview_type, node)
+        with self.assertRaisesRegex(CompileError, "parameter names"):
+            nox_parameter(SimpleNamespace(
+                name="değer", default=None, pos=None), set())
+
+        void_result = SimpleNamespace(
+            pos=None, star_arg=None, starstar_arg=None, args=[],
+            return_type=PyrexTypes.c_void_type,
+        )
+        self.assertEqual(
+            nox_callable_export(
+                void_result, "module-function", "discard", set())["result"],
+            {"kind": "void", "ownership": "value"},
+        )
+
+        bytes_result = SimpleNamespace(
+            pos=None, star_arg=None, starstar_arg=None, args=[],
+            return_type=SimpleNamespace(
+                resolve=lambda: SimpleNamespace(
+                    is_memoryviewslice=False, is_buffer=False, is_ptr=False,
+                    is_array=False, is_cfunction=False, is_fused=False,
+                    is_pytuple_type=False, is_pylist_type=False,
+                    is_pydict_type=False, is_pybool_type=False,
+                    is_pyint_type=False, is_pyfloat_type=False,
+                    is_pystr_type=False, is_pybytes_type=True, is_void=False,
+                    is_extension_type=False,
+                )),
+        )
+        capabilities = set()
+        export = nox_callable_export(
+            bytes_result, "module-function", "payload", capabilities)
+        self.assertEqual(export["result"], {"kind": "bytes", "ownership": "value"})
+        self.assertEqual(capabilities, {"bytes"})
+
+        duplicate = SimpleNamespace(
+            pos=None,
+            full_module_name="example",
+        )
+        method = SimpleNamespace(
+            name="same", pos=None, star_arg=None, starstar_arg=None, args=[],
+            return_type=PyrexTypes.py_object_type,
+        )
+        with self.assertRaisesRegex(CompileError, "duplicate export identity"):
+            analyze_hpy_exports(duplicate, [method, method], [])
 
     def test_qualified_module_name_uses_leaf_init_symbol(self):
         result, generated, diagnostics = self.compile_source(
