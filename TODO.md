@@ -1532,21 +1532,21 @@ close a checkbox in that file.
 
 ### Typed NOX facade generation
 
-- [ ] Generate deterministic `.nox` facade source from the validated manifest,
+- [x] Generate deterministic `.nox` facade source from the validated manifest,
       never from ad-hoc text templates over C declarations.
 - [ ] Map the initial supported profile explicitly: `None`/void, `bool`,
       bounded signed integers, finite floats, Unicode strings, bytes if the NOX
       host declares them, and opaque extension objects.
 - [ ] Preserve positional-only, positional-or-keyword, keyword-only, default,
       and rejected-call distinctions instead of flattening call signatures.
-- [ ] Keep raw pointers and low-level bridge calls inside a generated private
+- [x] Keep raw pointers and low-level bridge calls inside a generated private
       implementation boundary; exported facade APIs must use named NOX types.
-- [ ] Encode module/object ownership and close requirements in the generated
+- [x] Encode module/object ownership and close requirements in the generated
       facade contract without pretending a missing NOX lifetime primitive is
       safe; fail generation when the selected host profile cannot uphold it.
-- [ ] Generate stable error translation hooks that retain native error type,
+- [x] Generate stable error translation hooks that retain native error type,
       message, and failing export identity.
-- [ ] Reject name collisions with NOX keywords, runtime helpers, package names,
+- [x] Reject name collisions with NOX keywords, runtime helpers, package names,
       and platform-reserved paths using deterministic escaping or diagnostics.
 - [ ] Add golden tests for facade output and compile-time rejection tests for
       every unsupported mapping.

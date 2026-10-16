@@ -7,6 +7,12 @@ Unreleased
 Bootstrap
 ~~~~~~~~~
 
+* Added deterministic typed NOX facade generation from validated schema-1
+  manifests. Generated source uses only named ``nox.hpy`` types, checks the
+  host profile/ABI, exposes explicit module/object cleanup, retains failing
+  export identity in ``HPyError`` translation, and fails without partial output
+  for unsupported host-v1 call shapes or naming collisions. This remains
+  contract/syntax evidence, not a released NOX consumer support claim.
 * Merged 120 upstream Cython commits through
   ``86b94cef002aa23aea0b390335ea3d9e9b62c19e`` (Cython ``3.3.0b1``), recorded
   all six conflict decisions in the append-only rebase log, adopted upstream's

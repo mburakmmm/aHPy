@@ -918,6 +918,20 @@ recomposes the repository fixture byte-for-byte and retains the same generated
 manifest. Property metadata remains deliberately fail-closed because contract
 v1 has no property export kind.
 
+`Tools/ahpy/nox_facade.py` validates the complete manifest again before
+generating deterministic UTF-8 `.nox` source. Its golden fixture covers module
+functions, an extension constructor and methods, `bool`/`int`/`float`/`str`/
+bytes named types, all host-v1 facade primitives currently exposed by
+`nox.hpy`, positional-only/positional-or-keyword/keyword-only dispatch
+metadata, explicit module/object context-manager cleanup, profile/ABI checks,
+and export-identified `HPyError` translation. The negative suite rejects NOX
+keywords, runtime/package/helper collisions, orphan methods, non-nominal
+opaque results, unsupported constructor/call shapes, invalid manifests, stale
+output, and every tested partial-output path. The golden source also passes a
+read-only `noxc check` against the locally analyzed NOX tree; because that tree
+is not a pinned released consumer artifact, this is syntax evidence only and
+does not change the blocked support state.
+
 ## Maintenance and compatibility contract
 
 `Tools/ahpy/maintenance_policy.py` validates the exact supported-line and EOL

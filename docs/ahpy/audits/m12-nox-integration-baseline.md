@@ -63,9 +63,14 @@ NOX-owner verification and repair queue is intentionally separate in
 
 ## Resulting aHPy boundary
 
-The accepted aHPy contract now fixes one-way direction, repository ownership,
+The accepted aHPy contract fixes one-way direction, repository ownership,
 manifest/schema identity, HPy 0.9 Universal host profile, initial mapping
 vocabulary, exact-target artifact selection, canonical metadata, and
-fail-closed support wording. The next aHPy-owned step is deterministic export
-analysis and manifest validation; executable NOX support remains blocked on
-both that implementation and the independent NOX-owner gates.
+fail-closed support wording. Compiler-owned export analysis, full manifest
+composition, and deterministic typed facade generation are now implemented.
+The facade fixture passed a read-only `noxc check` against the later local NOX
+working tree only as syntax evidence; that dirty, unpinned tree is not retained
+release evidence and no NOX file was changed. Property metadata and the
+deterministic package assembler are the next aHPy-owned work, while executable
+consumer support remains blocked on pinned cross-repository evidence and the
+independent NOX-owner gates.

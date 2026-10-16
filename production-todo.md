@@ -799,7 +799,7 @@ açık kalır.
 
 ### PRD-11.2 — Typed facade ve paket assembler
 
-- [ ] Validated manifestten deterministic `.nox` facade üret; raw pointer ve
+- [x] Validated manifestten deterministic `.nox` facade üret; raw pointer ve
       bridge intrinsics'i public API'den çıkar.
 - [ ] İlk scalar/object profilini, çağrı biçimlerini, error translation ve
       yaşam döngüsü gereksinimlerini açıkça kodla; host güvence veremiyorsa

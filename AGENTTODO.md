@@ -1023,6 +1023,21 @@ silently dropping them. Resolve that versioned schema decision before facade
 generation claims property support; the fixture remains contract evidence, not
 consumer execution evidence.
 
+The first M12.2 facade slice is implemented by `Tools/ahpy/nox_facade.py`.
+It revalidates the closed manifest, maps only the concrete
+`nox-hpy-host-v1` primitives exposed through `nox.hpy`, emits named public NOX
+types with explicit module/object close and context-manager paths, records call
+kinds in deterministic source, and retains export identity while rethrowing
+`HPyError`. Keywords, generated helpers, package-name collisions, orphan
+methods, non-nominal opaque values, and unsupported call shapes fail before an
+output file is replaced. The golden manifest/source, negative corpus, CLI
+write/check paths, Universal CI artifact, and a read-only local `noxc check` are
+green. The focused gate now reports 570 quality-tool tests with backend
+9776/9776, frontend seam 18410/34802 (52.90%), and quality tools 10518/10518.
+Do not infer released consumer support from that syntax check. The next
+facade work is the still-open full scalar/object/call-kind rejection matrix and
+the schema-version decision for properties; package assembly follows it.
+
 Work in this dependency order:
 
 1. Freeze the contract before writing a generator.
@@ -1038,12 +1053,13 @@ Work in this dependency order:
      capabilities, provenance, targets, and hashes in canonical order.
    - Add source-position rejection for ambiguous or unsupported exports and a
      negative schema/tamper corpus.
-3. Generate the typed `.nox` facade.
+3. Complete the typed `.nox` facade matrix.
    - Keep raw pointers and bridge intrinsics private.
    - Preserve call-kind, scalar/object mapping, error, and lifetime semantics.
    - Fail generation when the selected NOX host profile cannot uphold the
      required lifetime or conversion contract.
-   - Maintain golden source and rejection fixtures.
+   - Extend the green golden source and rejection fixtures to every declared
+     type/call shape; do not weaken current fail-closed behavior.
 4. Build the deterministic package assembler and public workflow.
    - Assemble `nox.json`, the versioned manifest, facade, target `.hpy0`
      artifacts, hashes, notices, provenance, and SBOM/attestation references.

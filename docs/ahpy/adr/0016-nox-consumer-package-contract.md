@@ -89,9 +89,13 @@ The pass emits a versioned intermediate descriptor and fails closed where
 manifest v1 cannot preserve source semantics. The v1 composer binds that
 descriptor to package identity, aHPy/Cython producer identity, deterministic
 source/compiler-option digests, exact target records, artifact sizes, and
-artifact hashes before revalidating canonical output. Property representation,
-facade generation, package assembly, and consumer support remain implementation
-work; a generated contract fixture is not a loadable support claim.
+artifact hashes before revalidating canonical output. The schema-1 facade
+generator consumes only that validated manifest and emits named NOX types over
+`nox.hpy`, explicit module/object close paths, and export-identified HPy error
+translation. It rejects unsupported host-v1 call shapes and name collisions
+before writing output. Property representation, package assembly, and consumer
+support remain implementation work; generated contract/source fixtures are not
+loadable support claims.
 
 ### Compatibility and change control
 

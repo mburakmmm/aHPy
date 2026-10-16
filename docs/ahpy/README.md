@@ -97,8 +97,12 @@ Universal-compatible. In particular, source code or dependencies that expose
 `PyObject *`, include `Python.h`, cimport `cpython.*`, or depend on a CPython-only
 third-party C API require a separate port or produce a compiler diagnostic.
 
-NOX-consumable package metadata, typed facade generation, and package assembly
-are planned in M12/PRD-11 and are not part of the current support claim. The
+M12 now contains compiler-owned NOX export analysis, canonical package-manifest
+composition, and deterministic typed `.nox` facade generation. The facade uses
+only the versioned `nox.hpy` boundary, explicit close/context paths, and stable
+fail-closed diagnostics; unsupported host-v1 signatures produce no partial
+output. Property metadata, package assembly, and retained consumer execution
+evidence remain planned and none of this is a current support claim. The
 direction is aHPy Universal HPy package to NOX consumer only; NOX-to-Python and
 NOX repository implementation work are outside this project scope.
 

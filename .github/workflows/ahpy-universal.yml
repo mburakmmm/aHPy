@@ -86,6 +86,14 @@ jobs:
               artifacts/macos-aarch64/exports.hpy0 \
               tests/ahpy/nox-artifact-fixture.hpy0 \
             --output packaging-results/nox-hpy-manifest-v1.json
+      - name: Generate deterministic typed NOX facade
+        run: |
+          python Tools/ahpy/nox_facade.py \
+            --manifest tests/ahpy/nox-facade-manifest-v1.json \
+            --output tests/ahpy/nox-facade-v1.nox --check
+          python Tools/ahpy/nox_facade.py \
+            --manifest tests/ahpy/nox-facade-manifest-v1.json \
+            --output packaging-results/nox-facade-v1.nox
       - name: Exercise release recovery and backport policy
         run: >-
           python Tools/ahpy/release_recovery_drill.py
@@ -178,6 +186,7 @@ jobs:
             packaging-results/maintenance-policy.json
             packaging-results/nox-hpy-manifest-v1.json
             packaging-results/nox-export-analysis-v1.json
+            packaging-results/nox-facade-v1.nox
             packaging-results/nox-integration-policy.json
             packaging-results/release-recovery-drill.json
           if-no-files-found: error
