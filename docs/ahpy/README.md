@@ -62,6 +62,7 @@ Design and implementation references:
 - [Third-party compatibility dashboard](compatibility-dashboard.md)
 - [Library-author porting guide](porting-guide.md)
 - [Frontend-neutral HPy conformance corpus](conformance-corpus.md)
+- [NOX consumer integration roadmap](../../NOX-INTEGRATION-TODO.md)
 - [Universal diagnostics catalog](diagnostics.md)
 - [Setuptools/cythonize example](../../examples/ahpy_setuptools/README.md)
 - [Direct non-setuptools build contract](direct-build.md)
@@ -93,6 +94,11 @@ The project does not claim that arbitrary Cython code is automatically
 Universal-compatible. In particular, source code or dependencies that expose
 `PyObject *`, include `Python.h`, cimport `cpython.*`, or depend on a CPython-only
 third-party C API require a separate port or produce a compiler diagnostic.
+
+NOX-consumable package metadata, typed facade generation, and package assembly
+are planned in M12/PRD-11 and are not part of the current support claim. The
+direction is aHPy Universal HPy package to NOX consumer only; NOX-to-Python and
+NOX repository implementation work are outside this project scope.
 
 ## Current generated-code tier
 

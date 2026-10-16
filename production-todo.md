@@ -45,6 +45,7 @@ performance, documentation, security ve bakım kapılarının tamamı kapanmalı
 | 8 | PRD-8 — Gerçek kütüphane pilotları | **TAMAMLANDI — İLAN EDİLEN ALT KÜMELER** | Dört pilotun saklanan hosted raporu ve dashboard'u |
 | 9 | PRD-9 — Upstream/güvenlik/bakım | **AKTİF** | Upstream raporları ve sürdürülebilir production işletimi |
 | 10 | PRD-10 — RC/stable yayın | **BEKLİYOR** | İmzalı ve kanıtlı production release |
+| 11 | PRD-11 — aHPy -> NOX paket hattı | **PLANLANDI — BEKLİYOR** | Sürümlü manifest, typed facade ve doğrulanmış NOX-tüketici paketi |
 
 ### Şu anki kritik yol
 
@@ -65,6 +66,9 @@ kalibrasyonu run `34029830808` ile tam bu main commit'inde başlatıldı.
 4. Pilot kapsamını yeni kütüphanelerle büyütürken mevcut cypack geçişi,
    murmurhash/frozenlist kısmi desteği ve bezier engelini olduğundan geniş
    göstermeden saklanan kanıtlara bağla.
+5. M12/PRD-11 için önce aHPy'ye ait schema, export metadata ve deterministic
+   package işlerini tamamla; NOX deposuna kod yazma. NOX tarafındaki engeller
+   `NOX-INTEGRATION-TODO.md` içinde ayrı owner kuyruğu olarak kalır.
 
 ## Başlangıç durumu
 
@@ -764,6 +768,80 @@ security fix için disclosure'a kadar private koordinasyon zorunluluğunu
 fail-closed uygular. Bu dry-run gerçek branch, tag, yank veya upload yapmaz;
 Universal CI JSON kaydını packaging artifact grubunda saklayacaktır.
 
+## PRD-11 — aHPy -> NOX tüketici paket hattı
+
+Bu faz M12'nin production uygulama sırasıdır. İlk aHPy stable sürümünün mevcut
+çıkış kapılarını gevşetmez ve NOX-to-Python yönünü kapsamaz. aHPy yalnızca
+Universal HPy artifact'i, sürümlü metadata, typed `.nox` facade kaynağı ve
+doğrulanabilir paket üretir. NOX runtime, backend, loader ve package-manager
+değişiklikleri bu depoda uygulanmaz; onlar `NOX-INTEGRATION-TODO.md` içinde
+açık kalır.
+
+### PRD-11.0 — Kapsamı ve iki depo arasındaki sözleşmeyi dondur
+
+- [ ] Tek yönü `aHPy paketi -> NOX tüketicisi` olarak ADR'de sabitle.
+- [ ] aHPy ve NOX sorumluluklarını, minimum host profilini, HPy ABI'ını ve
+      schema-version müzakeresini makine-okunur politikada tanımla.
+- [ ] Desteklenen tip/signature matrisini ve her reddin diagnostic kimliğini
+      sabitle.
+- [ ] QBE pozitif probunu ve mevcut LLVM type-width arızasını exact-version
+      baseline kanıtı olarak kaydet; destek ilanı yapma.
+
+### PRD-11.1 — Export metadata ve fail-closed doğrulama
+
+- [ ] Compiler type bilgisinden canonical `nox-hpy` manifest üret.
+- [ ] Modül/init sembolü, callable/type yüzeyi, ownership, capability, target,
+      provenance ve artifact hash alanlarını zorunlu olarak doğrula.
+- [ ] Unsupported/ambiguous export, schema uyumsuzluğu, duplicate ve tamper
+      vakalarını kaynak-konumlu veya paket-konumlu diagnostic ile reddet.
+- [ ] Canonical serialization ve fixture'ları iki ardışık temiz üretimde byte
+      eşitliğiyle doğrula.
+
+### PRD-11.2 — Typed facade ve paket assembler
+
+- [ ] Validated manifestten deterministic `.nox` facade üret; raw pointer ve
+      bridge intrinsics'i public API'den çıkar.
+- [ ] İlk scalar/object profilini, çağrı biçimlerini, error translation ve
+      yaşam döngüsü gereksinimlerini açıkça kodla; host güvence veremiyorsa
+      üretimi durdur.
+- [ ] `nox.json`, `nox-hpy` manifest, facade, `.hpy0` target artifact'leri,
+      checksums, notices, provenance ve SBOM/signature referanslarından oluşan
+      deterministic paket düzenini kur.
+- [ ] Tek public komut/API ile analyze, build, assemble ve read-only `--check`
+      akışlarını sun; publish/install ve NOX repo mutation yapma.
+- [ ] Absolute path, credential, timestamp, locale ve geçici-host-state
+      sızıntılarını reproducibility testleriyle engelle.
+
+### PRD-11.3 — Consumer conformance, belge ve destek ilanı
+
+- [ ] Frontend-neutral conformance paketinde module function, external C,
+      extension type, method/property, identity, exception, module state ve
+      cleanup yollarını kapsa.
+- [ ] Exact aHPy/NOX/HPy/backend/target/artifact-hash provenance'ıyla QBE ve
+      LLVM sonuçlarını ayrı kaydet.
+- [ ] Normal/Trace/Debug, relocation, read-only/offline install, Unicode/space
+      paths, repeated load/unload ve negative package vakalarını doğrula.
+- [ ] Package-author guide, örnek paket, troubleshooting, issue template,
+      support matrix, validation matrix ve changelog'u gerçek kanıtla eşleştir.
+- [ ] NOX tarafında eksik olan hiçbir yeteneği aHPy içinde runtime kopyalayarak,
+      vendor ederek veya sessiz fallback ile taklit etme.
+
+### PRD-11 çıkış kapısı
+
+- [ ] Desteklenen bir kaynak tek belgeli komut/API ile deterministic ve
+      self-describing NOX-tüketici paketine dönüşüyor.
+- [ ] Unsupported kaynaklar partial package bırakmadan fail-closed duruyor.
+- [ ] Manifest, facade, artifact, checksum ve provenance clean ortamda
+      doğrulanıyor ve sabit girdilerle yeniden üretilebiliyor.
+- [ ] İlan edilen consumer matrisi pinned binary'lerle yeşil; NOX-owned
+      blocker'lar ayrı ve açık kalıyor.
+- [ ] Bu fazın hiçbir commit'i NOX deposu kaynak kodunu değiştirmiyor.
+
+PRD-11, mevcut PRD-0..10 stable-release kapılarını geçersiz kılmaz. Yerel aHPy
+schema/generator/assembler işleri PRD-9 dış eylemlerini beklemeden ilerleyebilir;
+NOX üzerinde executable destek iddiası ise ilgili NOX-side kapılar tamamlanıp
+saklanan cross-repository kanıt oluşmadan yayımlanamaz.
+
 ## Production definition of done
 
 - [ ] İlan edilen support tier'ların bütün işleri tamamlandı.
@@ -819,7 +897,11 @@ Agent'lar ve geliştiriciler aşağıdaki sırayı korumalıdır:
 8. PRD-8: dört gerçek kütüphane pilotu.
 9. PRD-9: upstream, güvenlik ve bakım.
 10. PRD-10: release candidate ve stable yayın.
+11. PRD-11: aHPy tarafında NOX manifest/facade/paket hattı; NOX-side işler ayrı
+    owner kuyruğunda kalır.
 
 Bir sonraki aktif yerel hedef PRD-9 dependency/security otomasyonu ve upstream
 handoff kanıtlarıdır; PRD-5 upstream raporu ile PRD-6 name/sign/upload adımları
-açık owner yetkisi gerektiren dış eylemler olarak bekler.
+açık owner yetkisi gerektiren dış eylemler olarak bekler. Bu dış eylemleri
+beklerken PRD-11.0 ve PRD-11.1'in aHPy-owned schema/metadata işleri sıradaki
+bağımsız yerel hattır; NOX koduna dokunulmaz.
