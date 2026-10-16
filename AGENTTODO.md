@@ -992,6 +992,15 @@ fail-closed validator/tests, and CI evidence output are synchronized. Start at
 step 2; reopening step 1 requires a contract-version decision and matching
 schema, policy, documentation, and migration updates.
 
+The first M12.1 foundation is also complete: `nox_manifest.py` validates the
+closed v1 instance shape and canonical UTF-8 JSON, exact host/module identity,
+sorted unique exports/artifacts/capabilities, call/type/ownership rules,
+package-relative `.hpy0` paths, sizes, SHA-256 digests, duplicate names and
+targets, optional capability gates, and schema drift. Its canonical fixture,
+negative corpus, CLI, CI artifact, and quality-tool line coverage are green.
+The next open item remains compiler-owned export analysis; do not mistake the
+handwritten contract fixture for generated metadata.
+
 Work in this dependency order:
 
 1. Freeze the contract before writing a generator.

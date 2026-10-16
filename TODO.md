@@ -1519,14 +1519,14 @@ close a checkbox in that file.
       platform artifacts.
 - [ ] Bind the manifest to the exact aHPy version, Cython base, source inputs,
       compiler options, HPy ABI/profile, target triple, and artifact hashes.
-- [ ] Define deterministic ordering, UTF-8 normalization, duplicate-name
+- [x] Define deterministic ordering, UTF-8 normalization, duplicate-name
       handling, numeric bounds, and canonical serialization.
 - [ ] Reject overloads, callbacks, pointer types, unsupported containers,
       ambiguous ownership, keyword layouts, and extension-type features that
       the selected NOX host profile cannot express.
 - [ ] Produce actionable source-position diagnostics for every unsupported or
       ambiguous export; never emit a partial facade silently.
-- [ ] Add a schema validator and negative corpus for unknown required fields,
+- [x] Add a schema validator and negative corpus for unknown required fields,
       incompatible versions, malformed symbols, duplicate exports, tampered
       hashes, and unsupported signatures.
 

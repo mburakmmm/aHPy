@@ -67,7 +67,7 @@
       "additionalProperties": false,
       "required": ["name", "init_symbol"],
       "properties": {
-        "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+        "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$"},
         "init_symbol": {"type": "string", "pattern": "^HPyInit_[A-Za-z_][A-Za-z0-9_]*$"}
       }
     },

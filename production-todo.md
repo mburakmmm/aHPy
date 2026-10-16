@@ -794,7 +794,7 @@ açık kalır.
       provenance ve artifact hash alanlarını zorunlu olarak doğrula.
 - [ ] Unsupported/ambiguous export, schema uyumsuzluğu, duplicate ve tamper
       vakalarını kaynak-konumlu veya paket-konumlu diagnostic ile reddet.
-- [ ] Canonical serialization ve fixture'ları iki ardışık temiz üretimde byte
+- [x] Canonical serialization ve fixture'ları iki ardışık temiz üretimde byte
       eşitliğiyle doğrula.
 
 ### PRD-11.2 — Typed facade ve paket assembler

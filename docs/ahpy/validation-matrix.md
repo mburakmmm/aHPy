@@ -881,6 +881,16 @@ bundle was retained. The policy therefore keeps every target planned, the
 minimum NOX release `unreleased`, consumer support blocked, and hosted evidence
 false. ADR 0016 and `audits/m12-nox-integration-baseline.md` are authoritative.
 
+`Tools/ahpy/nox_manifest.py` separately validates concrete v1 manifest
+instances and canonicalizes them as sorted-key, compact UTF-8 JSON with one
+terminal newline. The negative corpus covers unknown/missing fields, schema and
+host mismatch, invalid package/module/init identity, missing/unknown
+capabilities, blocked or capability-gated types/calls, duplicate parameters or
+exports, ownership violations, unsafe paths, duplicate/wrong targets, invalid
+sizes, and malformed digests. The checked-in canonical fixture is reproduced
+byte-for-byte and retained by Universal CI. It is contract evidence only; it
+is not yet compiler-generated and does not promote NOX support.
+
 ## Maintenance and compatibility contract
 
 `Tools/ahpy/maintenance_policy.py` validates the exact supported-line and EOL
